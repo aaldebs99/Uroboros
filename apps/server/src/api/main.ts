@@ -23,7 +23,7 @@ function readVersion(): string {
 
 /** Wires deps and starts listening. Installs no process handlers; the caller owns shutdown. */
 export async function startApi(config: Config, logger: Logger): Promise<RunningApi> {
-  const db = createDb(config.databaseUrl);
+  const db = createDb(config.databaseUrl, logger);
   const valkey = createValkey(config.valkeyUrl, "api", logger);
   // Not fatal if Valkey is down at boot: health reports it as degraded.
   await waitReady(valkey, 2000);

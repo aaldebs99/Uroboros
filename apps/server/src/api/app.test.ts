@@ -1,3 +1,5 @@
+import { createServer } from "node:net";
+import type { AddressInfo, Socket } from "node:net";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -5,9 +7,10 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import { ApiErrorBody } from "@uroboros/contract";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { TestDb } from "../../test/testDb.ts";
 import { TestValkey } from "../../test/testValkey.ts";
+import { withAdmin } from "../../test/pgAdmin.ts";
 import { createDb } from "../db/kysely.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createApp } from "./app.ts";
@@ -50,7 +53,7 @@ describe("health", () => {
   });
 
   it("is degraded with database failing when postgres is unreachable", async () => {
-    const db = createDb(`postgres://u:p@${CLOSED}/x`);
+    const db = createDb(`postgres://u:p@${CLOSED}/x`, logger);
     extra.push({ close: () => db.destroy() });
     const res = await app({ db }).request("/api/health");
     expect(res.status).toBe(200);
@@ -69,6 +72,72 @@ describe("health", () => {
     expect(Date.now() - start).toBeLessThan(3000);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "degraded", failing: ["valkey"] });
+  });
+});
+
+describe("health timeout", () => {
+  it("reports a hanging valkey as failing within 3s", async () => {
+    const hung = { ping: () => new Promise<never>(() => undefined) } as unknown as Redis;
+    const start = Date.now();
+    const res = await app({ valkey: hung }).request("/api/health");
+    expect(Date.now() - start).toBeLessThan(3000);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "degraded", failing: ["valkey"] });
+  });
+
+  it("reports a hanging database as failing within 3s", async () => {
+    // A pool whose connect never completes: the TCP listener accepts but never speaks.
+    const sockets: Socket[] = [];
+    const server = createServer((s) => sockets.push(s));
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const { port } = server.address() as AddressInfo;
+    const db = createDb(`postgres://u:p@127.0.0.1:${String(port)}/x`, logger);
+    extra.push({
+      close: async () => {
+        for (const s of sockets) s.destroy();
+        server.close();
+        await db.destroy();
+      },
+    });
+    const start = Date.now();
+    const res = await app({ db }).request("/api/health");
+    expect(Date.now() - start).toBeLessThan(3000);
+    expect(await res.json()).toEqual({ status: "degraded", failing: ["database"] });
+  });
+});
+
+describe("pool resilience", () => {
+  it("survives idle backends being killed and recovers", async () => {
+    const uncaught: unknown[] = [];
+    const onUncaught = (e: unknown) => uncaught.push(e);
+    process.on("uncaughtException", onUncaught);
+    try {
+      const own = await TestDb.create();
+      try {
+        const a = app({ db: own.db });
+        expect(await (await a.request("/api/health")).json()).toEqual({
+          status: "ok",
+          failing: [],
+        });
+        const dbName = new URL(own.url).pathname.slice(1);
+        await withAdmin(inject("postgresUrl"), (admin) =>
+          admin.query(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()",
+            [dbName],
+          ),
+        );
+        await new Promise((r) => setTimeout(r, 300));
+        expect(uncaught).toEqual([]);
+        expect(await (await a.request("/api/health")).json()).toEqual({
+          status: "ok",
+          failing: [],
+        });
+      } finally {
+        await own.close();
+      }
+    } finally {
+      process.off("uncaughtException", onUncaught);
+    }
   });
 });
 
