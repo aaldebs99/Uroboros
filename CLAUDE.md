@@ -158,7 +158,7 @@ version `apps/server/package.json` carries if it has no release yet (the 0.0.0 p
 never released), then asks git-cliff for the next version from the conventional commits since the
 last tag and rebuilds the `release/next` branch with one `chore(release): X.Y.Z` commit. That
 commit stamps the version into both `package.json` files, `api/openapi.json` and the chart's
-`appVersion`, and prepends the CHANGELOG section. Merging the PR cuts the release. The release
+`version` and `appVersion` (kept equal), and prepends the CHANGELOG section. Merging the PR cuts the release. The release
 event triggers `release.yml`, which builds both images, runs `scripts/image/smoke-test.sh`
 against them, and only then pushes `<REGISTRY>/aaldebs99/uroboros:X.Y.Z`, `:X.Y` and `:latest`,
 with the worker under the same tags plus `-worker`. Every push to main also publishes `:main` and

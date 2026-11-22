@@ -122,8 +122,9 @@ bot_identity() {
 #                              sits deeper). Editing the one line keeps the file byte-identical
 #                              to what `mise run gen` writes from the new package version, which
 #                              `check:gen` then verifies on the release PR.
-#   chart/uroboros/Chart.yaml  `appVersion`, the chart's default image tag. It starts as
-#                              0.0.0-dev, so it is matched whatever it holds.
+#   chart/uroboros/Chart.yaml  `version` and `appVersion`, kept equal: the chart's own version
+#                              and its default image tag. Both start as 0.0.0-dev, so each is
+#                              matched whatever it holds.
 # apps/web, packages/contract and tools/ratchet stay 0.0.0: nothing is published from them.
 # CHANGELOG.md is prepended by git-cliff separately.
 stamp_version() {
@@ -134,6 +135,7 @@ stamp_version() {
     sed -i -E "s|^(  \"version\": \")${from_re}(\",?)\$|\1${to}\2|" "$target"
   done
   sed -i -E "s|^(    \"version\": \")${from_re}(\",?)\$|\1${to}\2|" "$OPENAPI_JSON"
+  sed -i -E "s|^version: .*\$|version: ${to}|" "$CHART_YAML"
   sed -i -E "s|^appVersion: .*\$|appVersion: \"${to}\"|" "$CHART_YAML"
 
   # Prove every target moved. A miss here is exactly the failure that shipped broken releases
@@ -144,5 +146,7 @@ stamp_version() {
   [ "$(jq -r '.info.version' "$OPENAPI_JSON")" = "$to" ] || die "${OPENAPI_JSON}: .info.version is not ${to}"
   n=$(grep -c "^appVersion: \"${to//./\\.}\"\$" "$CHART_YAML") || true
   [ "$n" = 1 ] || die "${CHART_YAML}: expected 1 appVersion line for ${to}, found ${n}"
+  n=$(grep -c "^version: ${to//./\\.}\$" "$CHART_YAML") || true
+  [ "$n" = 1 ] || die "${CHART_YAML}: expected 1 version line for ${to}, found ${n}"
   log "stamped ${from} -> ${to} in ${SERVER_PKG}, ${ROOT_PKG}, ${OPENAPI_JSON} and ${CHART_YAML}"
 }

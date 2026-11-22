@@ -3,8 +3,9 @@
 # by External Secrets), never from values.
 
 image:
-  # api image: <repository>:<tag>. The migrate Job reuses it.
-  repository: forgejo.example.com/uroboros/uroboros
+  # api image: <repository>:<tag>. The migrate Job reuses it. The default is where release.yml
+  # pushes (<REGISTRY>/aaldebs99/uroboros, with REGISTRY set to code.example.com).
+  repository: code.example.com/aaldebs99/uroboros
   # Defaults to .Chart.AppVersion.
   tag: ""
   # Optional immutable digest (sha256:...). When set it is appended: <repository>:<tag>@<digest>.

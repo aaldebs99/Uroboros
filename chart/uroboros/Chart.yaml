@@ -2,7 +2,9 @@ apiVersion: v2
 name: uroboros
 description: Uroboros, a self-hosted media downloader. Stateless api replicas, yt-dlp workers and a migrate hook Job.
 type: application
-version: 0.1.0
-# The default image tag. The release workflow stamps this with the release version.
+# The chart is versioned with the app: the release commit (scripts/release/lib.sh) stamps both
+# lines with the release version, so chart X.Y.Z deploys image X.Y.Z.
+version: 0.0.0-dev
+# The default image tag.
 appVersion: "0.0.0-dev"
 kubeVersion: ">=1.31.0-0"
