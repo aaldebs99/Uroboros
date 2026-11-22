@@ -5,7 +5,10 @@
 #             copies, so an edit restarts both replicas. Only those two directories are mounted:
 #             the image's node_modules stay in place. The SPA it serves is the one built into the
 #             image; `mise run dev:ui` (Vite with HMR, proxying /api to :8080) is the UI loop.
-#   migrate   reads ./migrations from the host, so a new file applies on the next `up`.
+#   migrate   the same dev image running src/bin/migrate.ts with tsx, reading ./migrations from the
+#             host, so a new file applies on the next `up`. It has its own `build:` (the same tag as
+#             the api) so it never starts on an image that was not built; COMPOSE_BAKE=false keeps
+#             the two builds sequential and the second a cache hit.
 #   host ports on loopback for Postgres (5432), Valkey (6379) and RustFS (9000, console 9001),
 #             which `mise run dev:deps` uses for an api and worker run on the host.
 #
@@ -26,8 +29,17 @@ services:
       - "127.0.0.1:9001:9001"
 
   migrate:
+    build:
+      target: build
+    image: uroboros:dev
+    working_dir: /src/apps/server
+    command: ["pnpm", "exec", "tsx", "src/bin/migrate.ts"]
+    environment:
+      UROBOROS_MIGRATIONS_DIR: /src/migrations
     volumes:
-      - ./migrations:/app/migrations:ro
+      - ./migrations:/src/migrations:ro
+      - ./apps/server/src:/src/apps/server/src:ro
+      - ./packages/contract/src:/src/packages/contract/src:ro
 
   api:
     build:

@@ -141,7 +141,7 @@ else
     fail "api health did not reach ok"
     docker logs "${API}" 2>&1 | tail -20 || true
 fi
-api_node="$(docker run --rm --entrypoint /usr/local/bin/node "${API_IMAGE}" --version)"
+api_node="$(docker run --rm --entrypoint /usr/local/bin/node "${API_IMAGE}" --version 2>/dev/null || true)"
 if [ "${api_node}" = "v${NODE_VERSION}" ]; then
     pass "api runs node ${api_node}, the Dockerfile's NODE_VERSION"
 else
