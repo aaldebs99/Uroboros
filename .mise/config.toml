@@ -189,6 +189,10 @@ run = "docker compose $COMPOSE_DEV up postgres valkey"
 
 [tasks."docker:up"]
 description = "Run the real artifact: production images, 2 api replicas behind Caddy on http://127.0.0.1:8080, 2 workers, migrate (minutes on a cold cache)"
+# COMPOSE_BAKE=false: compose's bake path builds the images in parallel, and on a
+# containerd-snapshotter host that was observed to trip BuildKit's overlay cache-mount race
+# ("device or resource busy"); the classic sequential builder did not. A retry also works.
+env = { COMPOSE_BAKE = "false" }
 run = "docker compose up --build"
 
 [tasks."docker:up:dev"]

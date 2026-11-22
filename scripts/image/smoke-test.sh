@@ -18,6 +18,9 @@ WORKER_IMAGE="${2:?Usage: smoke-test.sh <api-image> <worker-image>}"
 POSTGRES_IMAGE="postgres:18-alpine"
 VALKEY_IMAGE="valkey/valkey:8-alpine"
 
+# The Node the images must run: the Dockerfile's pin, which `mise run ratchet:pins` ties to mise.
+NODE_VERSION="$(sed -n 's/^ARG NODE_VERSION=//p' "$(dirname "$0")/../../Dockerfile")"
+
 SUFFIX="$$"
 NETWORK="uroboros-smoke-${SUFFIX}"
 PG="uroboros-smoke-pg-${SUFFIX}"
@@ -67,7 +70,7 @@ wait_for() {
 
 # The api image is distroless (no shell, no curl): probe it with its own node, from inside.
 api_fetch() {
-    docker exec "${API}" /nodejs/bin/node -e "
+    docker exec "${API}" /usr/local/bin/node -e "
         fetch('http://127.0.0.1:8080' + process.argv[1]).then(async (r) => {
             process.stdout.write(r.status + ' ' + (r.headers.get('content-type') ?? '') + '\n' + (await r.text()));
         });" "$1"
@@ -82,7 +85,7 @@ openapi_ok() {
 }
 
 deep_link_is_html() {
-    api_fetch /some/deep/link | head -1 | grep -q 'text/html'
+    api_fetch /some/deep/link | sed -n 1p | grep -q 'text/html'
 }
 
 worker_started() {
@@ -96,7 +99,7 @@ worker_logged_version() {
 
 # in_worker <sh -c script>: runs a script in a fresh worker container, prints its first line.
 in_worker() {
-    docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c "$1" 2>/dev/null | head -1
+    docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c "$1" 2>/dev/null | sed -n 1p
 }
 
 echo "Starting throwaway Postgres and Valkey..."
@@ -138,6 +141,12 @@ else
     fail "api health did not reach ok"
     docker logs "${API}" 2>&1 | tail -20 || true
 fi
+api_node="$(docker run --rm --entrypoint /usr/local/bin/node "${API_IMAGE}" --version)"
+if [ "${api_node}" = "v${NODE_VERSION}" ]; then
+    pass "api runs node ${api_node}, the Dockerfile's NODE_VERSION"
+else
+    fail "api runs node ${api_node}, expected v${NODE_VERSION}"
+fi
 check "api serves /api/openapi.json" openapi_ok
 check "api falls back to the SPA's HTML on a deep link" deep_link_is_html
 
@@ -148,13 +157,11 @@ else
     fail "worker user is not 65532:65532"
 fi
 
-# Single quotes on purpose: the variables expand inside the container, not here.
-# shellcheck disable=SC2016
 TESTS=(
-    'test "$(id -u)" = 65532 && echo "uid 65532"'
-    '"$YTDLP_PATH" --version'
-    'ffmpeg -version'
-    'node --version'
+    "test \"\$(id -u)\" = 65532 && echo \"uid 65532\""
+    "\"\$YTDLP_PATH\" --version"
+    "ffmpeg -version"
+    "node --version"
 )
 for cmd in "${TESTS[@]}"; do
     if OUT=$(in_worker "${cmd}") && [ -n "${OUT}" ]; then

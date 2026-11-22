@@ -45,10 +45,10 @@ services:
       retries: 12
 
   # S3-compatible object storage for downloaded media. Docker Hub and Quay no longer carry
-  # MinIO's own images; Chainguard's rolling build is the maintained public one. Root credentials
+  # MinIO's own images; Chainguard's build is the maintained public one, pinned by digest (Renovate bumps it). Root credentials
   # are dev-only. The console is on :9001 in the dev overlay.
   minio:
-    image: cgr.dev/chainguard/minio:latest
+    image: cgr.dev/chainguard/minio:latest@sha256:e9cf6b99c226e9539ed0f14b6f00e37b07da153c7ba1f4f8709c807574b471ec
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
@@ -57,9 +57,9 @@ services:
     volumes:
       - minio-data:/data
 
-  # The api image again, running the migrate entrypoint once. The api and workers wait for it.
+  # The api image again, running the migrate entrypoint once. The api waits for it. Only the api
+  # service builds uroboros:local; this one just uses the image (compose builds before creating).
   migrate:
-    build: *server-build
     image: uroboros:local
     command: ["/app/migrate.mjs"]
     restart: "no"
@@ -81,7 +81,7 @@ services:
       # still HTTP 200, so a stopped Valkey does not take the replicas out.
       test:
         - CMD
-        - /nodejs/bin/node
+        - /usr/local/bin/node
         - -e
         - "fetch('http://127.0.0.1:8080/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
       interval: 5s
