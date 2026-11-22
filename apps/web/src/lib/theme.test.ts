@@ -45,9 +45,14 @@ describe("resolveTheme", () => {
   });
 });
 
-describe("index.html pre-paint script", () => {
+describe("public/theme-init.js, the pre-paint script", () => {
   const html = readFileSync(resolve(import.meta.dirname, "../../index.html"), "utf8");
-  const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? "";
+  const script = readFileSync(resolve(import.meta.dirname, "../../public/theme-init.js"), "utf8");
+
+  it("is loaded by index.html as a blocking script, and index.html has no inline script", () => {
+    expect(html).toMatch(/<script src="\/theme-init\.js"><\/script>/);
+    expect(html).not.toMatch(/<script>/);
+  });
 
   function runInline(stored: string | null, systemDark: boolean): Theme {
     document.documentElement.className = "";

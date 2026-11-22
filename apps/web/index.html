@@ -12,16 +12,8 @@
     <link rel="icon" type="image/svg+xml" href="/uroboros.svg" sizes="any" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <script>
-      // Keep in sync with src/lib/theme.ts (resolveTheme); src/lib/theme.test.ts asserts they agree.
-      try {
-        var t = localStorage.getItem("uroboros-theme");
-        if (t !== "light" && t !== "dark")
-          t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        document.documentElement.classList.toggle("dark", t === "dark");
-        document.documentElement.style.colorScheme = t;
-      } catch (e) {}
-    </script>
+    <!-- Blocking on purpose: sets the theme before the first paint (public/theme-init.js). -->
+    <script src="/theme-init.js"></script>
     <title>Uroboros</title>
   </head>
   <body>

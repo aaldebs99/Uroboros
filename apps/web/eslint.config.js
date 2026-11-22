@@ -37,6 +37,11 @@ export default [
     rules: { "no-restricted-imports": ["error", { patterns: [contractDeepImports] }] },
   },
   {
+    // Plain scripts served as they are (the pre-paint theme script): browser globals.
+    files: ["public/**/*.js"],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ["*.config.{js,ts}", "src/test/**/*.ts"],
     languageOptions: { globals: { ...globals.node } },
   },
