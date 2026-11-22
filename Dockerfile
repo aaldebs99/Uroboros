@@ -58,6 +58,13 @@ COPY packages/contract packages/contract
 COPY apps/server apps/server
 COPY apps/web apps/web
 RUN pnpm -F @uroboros/server build && pnpm -F @uroboros/web build
+# The notices for every npm package the bundles and the SPA carry (fonts included), from the
+# installed tree: src/notices/notices.ts, run on node's type stripping. Both images ship it under
+# /usr/share/licenses/uroboros/ with Uroboros' own licence.
+COPY LICENSE licenses/LICENSE
+RUN pnpm licenses list --json --prod \
+      --filter @uroboros/server --filter @uroboros/web --filter @uroboros/contract > /tmp/licenses.json && \
+    node apps/server/src/bin/notices.ts /tmp/licenses.json licenses/THIRD_PARTY_NOTICES.txt
 COPY migrations migrations
 
 # --- node: the official image, only so the api stage can copy its binary (--from takes no ARG).
@@ -90,6 +97,7 @@ RUN chmod +x /tmp/scripts/*.sh && \
     useradd --uid 65532 --gid uroboros --create-home --home-dir /home/uroboros --shell /usr/sbin/nologin uroboros
 COPY --from=ffmpeg /usr/local/bin/ffmpeg /usr/local/bin/ffprobe /usr/local/bin/
 COPY --from=ffmpeg /usr/share/licenses/ffmpeg/ /usr/share/licenses/ffmpeg/
+COPY --from=build /src/licenses/ /usr/share/licenses/uroboros/
 ARG VERSION
 ARG REVISION
 LABEL org.opencontainers.image.title="uroboros-worker" \
@@ -125,6 +133,7 @@ WORKDIR /app
 COPY --from=build /src/apps/server/dist/ /app/
 COPY --from=build /src/migrations/ /app/migrations/
 COPY --from=build /src/apps/web/dist/ /app/web/
+COPY --from=build /src/licenses/ /usr/share/licenses/uroboros/
 # Listen on all interfaces inside the container (the default is loopback). Migrate reads the
 # SQL files from UROBOROS_MIGRATIONS_DIR; without it, it looks for the repo root.
 ENV NODE_ENV=production \

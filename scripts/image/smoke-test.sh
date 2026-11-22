@@ -3,7 +3,8 @@
 #
 #   api     runs as 65532:65532, migrate applies the migrations and exits 0, the api starts and
 #           reports {"status":"ok","failing":[]} on /api/health, serves its OpenAPI document and
-#           the Swagger UI bundle it ships, and falls back to the SPA's index.html on a deep link.
+#           the Swagger UI bundle it ships, falls back to the SPA's index.html on a deep link, and
+#           carries the npm notices under /usr/share/licenses/uroboros.
 #   worker  runs as uid 65532, `yt-dlp --version` and `ffmpeg -version` answer, no other
 #           downloader is installed, ffmpeg is the pinned yt-dlp build (a GPL build, with its licence
 #           and SOURCE.md under /usr/share/licenses/ffmpeg), and the worker process starts, logs
@@ -165,6 +166,12 @@ fi
 check "api serves /api/openapi.json" openapi_ok
 check "api serves the pinned Swagger UI bundle for /api/docs" docs_bundle_ok
 check "api falls back to the SPA's HTML on a deep link" deep_link_is_html
+check "api carries the npm notices (fonts included) and Uroboros' licence" docker run --rm \
+    --entrypoint /usr/local/bin/node "${API_IMAGE}" -e "
+        const fs = require('node:fs');
+        const n = fs.readFileSync('/usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt', 'utf8');
+        const l = fs.readFileSync('/usr/share/licenses/uroboros/LICENSE', 'utf8');
+        process.exit(n.includes('@fontsource-variable/geist@') && n.includes('swagger-ui-dist@') && l.includes('MIT') ? 0 : 1);"
 
 echo "Smoke testing ${WORKER_IMAGE}..."
 if [ "$(docker image inspect --format '{{.Config.User}}' "${WORKER_IMAGE}")" = "65532:65532" ]; then
@@ -199,6 +206,8 @@ check "ffmpeg licence and SOURCE.md are installed and name the pinned tag" \
     "test -s /usr/share/licenses/ffmpeg/LICENSE.txt && grep -q 'GNU GENERAL PUBLIC LICENSE' /usr/share/licenses/ffmpeg/LICENSE.txt && grep -qF '${FFMPEG_TAG}' /usr/share/licenses/ffmpeg/SOURCE.md"
 check "no apt ffmpeg: the binaries are the ones in /usr/local/bin" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
     "test \"\$(command -v ffmpeg)\" = /usr/local/bin/ffmpeg && test \"\$(command -v ffprobe)\" = /usr/local/bin/ffprobe && ! dpkg -s ffmpeg"
+check "worker carries the npm notices" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
+    "grep -q 'pg@' /usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt && test -s /usr/share/licenses/uroboros/LICENSE"
 # yt-dlp is the only downloader; none of its forks may be on the image.
 check "no youtube-dl or youtube-dlc on PATH" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
     '! command -v youtube-dl && ! command -v youtube-dlc'
