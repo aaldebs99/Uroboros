@@ -1,8 +1,8 @@
-# Local stack, the shape of a deployment: Postgres, Valkey and MinIO, a one-shot migrate, two api
+# Local stack, the shape of a deployment: Postgres, Valkey and RustFS, a one-shot migrate, two api
 # replicas behind Caddy on 127.0.0.1:8080 (UROBOROS_PORT overrides the host port) and two workers.
 # `mise run docker:up` builds the real images and starts it. The proxy is the only port this file
 # publishes. Everything dev-only (hot reload for the api, loopback ports for Postgres, Valkey and
-# MinIO, which `mise run dev:deps` uses for a host-run api and worker) is in compose.dev.yaml.
+# RustFS, which `mise run dev:deps` uses for a host-run api and worker) is in compose.dev.yaml.
 #
 # One project name, so up, down, logs and ps from any directory address the same stack.
 name: uroboros
@@ -44,18 +44,24 @@ services:
       timeout: 5s
       retries: 12
 
-  # S3-compatible object storage for downloaded media. Docker Hub and Quay no longer carry
-  # MinIO's own images; Chainguard's build is the maintained public one, pinned by digest (Renovate bumps it). Root credentials
-  # are dev-only. The console is on :9001 in the dev overlay.
-  minio:
-    image: cgr.dev/chainguard/minio:latest@sha256:e9cf6b99c226e9539ed0f14b6f00e37b07da153c7ba1f4f8709c807574b471ec
+  # S3-compatible object storage for downloaded media: RustFS, S3 API on :9000 and the console on
+  # :9001 (published in the dev overlay). Pinned by version and digest; Renovate bumps both. The
+  # credentials are dev-only. The image runs as uid 10001 and owns /data on a fresh volume.
+  rustfs:
+    image: rustfs/rustfs:1.0.6@sha256:ee717072290bec9b11abfc0365f8310b00df1cd9b3639943edae47bdef05044a
     restart: unless-stopped
-    command: ["server", "/data", "--console-address", ":9001"]
     environment:
-      MINIO_ROOT_USER: uroboros
-      MINIO_ROOT_PASSWORD: uroboros-dev-secret
+      RUSTFS_ACCESS_KEY: uroboros
+      RUSTFS_SECRET_KEY: uroboros-dev-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
     volumes:
-      - minio-data:/data
+      - rustfs-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   # The api image again, running the migrate entrypoint once. The api waits for it. Only the api
   # service builds uroboros:local; this one just uses the image (compose builds before creating).
@@ -144,4 +150,4 @@ configs:
 
 volumes:
   postgres-data:
-  minio-data:
+  rustfs-data:

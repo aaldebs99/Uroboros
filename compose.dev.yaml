@@ -6,7 +6,7 @@
 #             the image's node_modules stay in place. The SPA it serves is the one built into the
 #             image; `mise run dev:ui` (Vite with HMR, proxying /api to :8080) is the UI loop.
 #   migrate   reads ./migrations from the host, so a new file applies on the next `up`.
-#   host ports on loopback for Postgres (5432), Valkey (6379) and MinIO (9000, console 9001),
+#   host ports on loopback for Postgres (5432), Valkey (6379) and RustFS (9000, console 9001),
 #             which `mise run dev:deps` uses for an api and worker run on the host.
 #
 # The worker is the real worker image: it needs yt-dlp and ffmpeg, which only that image has.
@@ -20,7 +20,7 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
 
-  minio:
+  rustfs:
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
