@@ -13,6 +13,8 @@ export interface Config {
   databaseUrl: string;
   valkeyUrl: string;
   webDist: string | null;
+  /** How long a SIGTERM waits for in-flight requests before cutting them. */
+  shutdownGraceMs: number;
   /** Web Push (docs/push.md); on only with an https `publicBaseUrl`. */
   push: PushSettings;
 }
@@ -32,6 +34,7 @@ export interface WorkerConfig {
 const DEFAULT_WORKER_CONCURRENCY = 4;
 
 const DEFAULT_BIND = "127.0.0.1:18081";
+const DEFAULT_SHUTDOWN_GRACE_MS = 20_000;
 
 const bindSchema = z.string().transform((value, ctx) => {
   const idx = value.lastIndexOf(":");
@@ -90,6 +93,9 @@ const configSchema = z
     DATABASE_URL: required("DATABASE_URL"),
     VALKEY_URL: required("VALKEY_URL"),
     UROBOROS_WEB_DIST: z.string().min(1).optional(),
+    UROBOROS_SHUTDOWN_GRACE_MS: unsetIfEmpty(
+      positiveInt("UROBOROS_SHUTDOWN_GRACE_MS").prefault(String(DEFAULT_SHUTDOWN_GRACE_MS)),
+    ),
     UROBOROS_PUBLIC_BASE_URL: unsetIfEmpty(publicBaseUrl),
     UROBOROS_PUSH_SUBJECT: unsetIfEmpty(pushSubject),
     UROBOROS_VAPID_PUBLIC_KEY: unsetIfEmpty(z.string().optional()),
@@ -145,6 +151,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     databaseUrl: e.DATABASE_URL,
     valkeyUrl: e.VALKEY_URL,
     webDist: e.UROBOROS_WEB_DIST ?? null,
+    shutdownGraceMs: e.UROBOROS_SHUTDOWN_GRACE_MS,
     push: {
       publicBaseUrl: e.UROBOROS_PUBLIC_BASE_URL ?? null,
       subject: e.UROBOROS_PUSH_SUBJECT ?? null,

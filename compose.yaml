@@ -25,6 +25,8 @@ x-server-env: &server-env
   UROBOROS_VAPID_PRIVATE_KEY: ${UROBOROS_VAPID_PRIVATE_KEY:-}
   UROBOROS_PUSH_ALLOWED_HOSTS: ${UROBOROS_PUSH_ALLOWED_HOSTS:-}
   UROBOROS_PUSH_MAX_DEVICES: ${UROBOROS_PUSH_MAX_DEVICES:-}
+  # How long a stopping api waits for in-flight requests (default 20000 ms).
+  UROBOROS_SHUTDOWN_GRACE_MS: ${UROBOROS_SHUTDOWN_GRACE_MS:-}
 
 services:
   postgres:
@@ -91,6 +93,8 @@ services:
     deploy:
       replicas: 2
     environment: *server-env
+    # Above the api's 20 s drain, so compose does not SIGKILL it mid-drain (the default is 10 s).
+    stop_grace_period: 25s
     healthcheck:
       # The image is distroless: no shell, no curl. Node's fetch is enough. Degraded health is
       # still HTTP 200, so a stopped Valkey does not take the replicas out.

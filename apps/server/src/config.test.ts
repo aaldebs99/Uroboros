@@ -35,6 +35,22 @@ describe("loadConfig", () => {
   });
 });
 
+describe("loadConfig shutdown grace", () => {
+  it("defaults to 20 s", () => {
+    expect(loadConfig(base).shutdownGraceMs).toBe(20_000);
+  });
+
+  it("reads UROBOROS_SHUTDOWN_GRACE_MS", () => {
+    expect(loadConfig({ ...base, UROBOROS_SHUTDOWN_GRACE_MS: "5000" }).shutdownGraceMs).toBe(5000);
+  });
+
+  it.each(["0", "-1", "1.5", "abc"])("rejects %j", (value) => {
+    expect(() => loadConfig({ ...base, UROBOROS_SHUTDOWN_GRACE_MS: value })).toThrow(
+      /UROBOROS_SHUTDOWN_GRACE_MS/,
+    );
+  });
+});
+
 describe("loadMigrateConfig", () => {
   it("needs only DATABASE_URL", () => {
     expect(loadMigrateConfig({ DATABASE_URL: base.DATABASE_URL })).toEqual({
