@@ -73,6 +73,25 @@ it as a template; each test clones it into its own database, so tests never shar
 `UROBOROS_TEST_DATABASE_URL` and `UROBOROS_TEST_VALKEY_URL` to use servers you provide instead,
 which is what CI does.
 
+## Installable app and push notifications
+
+The UI is an installable web app: a static manifest, icons, and a service worker (vite-plugin-pwa,
+`injectManifest`) that precaches the shell and shows Web Push notifications. Settings,
+Notifications turns them on per browser or phone, sends a test, and turns a device off. Push is on
+only when the api knows its public https address:
+
+| Variable                                                  | Default                                | What it is                                                                                 |
+| --------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `UROBOROS_PUBLIC_BASE_URL`                                | unset (push off)                       | The public origin, e.g. `https://uroboros.example.com`; push is on only when it is https.  |
+| `UROBOROS_PUSH_SUBJECT`                                   | the public URL                         | The VAPID contact, a `mailto:` address or an https URL.                                    |
+| `UROBOROS_VAPID_PUBLIC_KEY`, `UROBOROS_VAPID_PRIVATE_KEY` | generated once, kept in the database   | A fixed VAPID pair; both or neither. Changing it drops every subscription.                 |
+| `UROBOROS_PUSH_ALLOWED_HOSTS`                             | Apple, Google, Mozilla, Microsoft push | Comma-separated hosts a subscription endpoint may be on (or a subdomain of), against SSRF. |
+| `UROBOROS_PUSH_MAX_DEVICES`                               | `10`                                   | Devices with notifications per user.                                                       |
+
+The icons are generated from `assets/logos/uroboros-transparent.svg` by `mise run icons` and
+committed; run it again after changing the logo. [docs/push.md](docs/push.md) has the design: the
+payload, the key bootstrap, the allowlist, the iPhone setup and what comes later.
+
 ## CI and releases
 
 The repository is hosted on Forgejo at https://code.example.com/aaldebs99/Uroboros, and the

@@ -49,6 +49,7 @@ gates need Docker (`test` and `docker:build`) and two need the network (`check:a
 | `docker:build`, `docker:smoke`                                     | both images (`uroboros:local`, `uroboros:local-worker`); build + smoke test |
 | `docker:up`, `docker:up:dev`, `docker:up:dev:build`, `docker:down` | the compose stack on http://127.0.0.1:18080, prod images or hot reload      |
 | `dev:ui:docker`                                                    | Vite :18173 proxying /api to the compose stack's Caddy on :18080            |
+| `icons`                                                            | PWA icons in `apps/web/public` from `assets/logos/uroboros-transparent.svg` |
 | `changelog`                                                        | git-cliff into CHANGELOG.md                                                 |
 
 Every host port has an override: `UROBOROS_PORT` (Caddy, 18080), `UROBOROS_POSTGRES_PORT`
@@ -72,6 +73,26 @@ database calls `TestDb.create()`, which clones the template into a fresh databas
 `UROBOROS_TEST_VALKEY_URL` are set, no containers start and the template is rebuilt on the
 servers they name; CI's `node` job does that with containers it starts itself. Two runs must not
 share one external Postgres at the same time, because each rebuilds the template.
+
+## PWA and push
+
+The UI is an installable PWA with Web Push; `docs/push.md` is the design. The service worker is
+`apps/web/src/sw/sw.ts` (vite-plugin-pwa `injectManifest`, typed by `tsconfig.sw.json` with the
+WebWorker lib), registered in production builds only; dev serves a `/sw.js` that removes itself.
+The manifest is static (`apps/web/public/manifest.webmanifest`). The icons are generated from
+`assets/logos/uroboros-transparent.svg` by `mise run icons` and committed; never edit the PNGs by
+hand. The SPA handler serves everything outside `assets/` with `no-store` and 404s a missing path
+with a file extension.
+
+Sending lives in `apps/server/src/push/` (payload builder, allowlist, sender, `Pusher`), so the
+worker's `notify` queue can reuse it; a feature that notifies enqueues there rather than sending
+from a request. No test may reach a real push service: use `apps/server/test/pushStub.ts`. Devices
+belong to `currentPrincipal(c)` (`apps/server/src/api/principal.ts`), a fixed local principal
+until Users and SSO replace it. The api reads `UROBOROS_PUBLIC_BASE_URL` (push is on only when it is
+https), `UROBOROS_PUSH_SUBJECT`, `UROBOROS_VAPID_PUBLIC_KEY` with `UROBOROS_VAPID_PRIVATE_KEY`
+(both or neither; without them the first replica generates a pair into `vapid_keys`),
+`UROBOROS_PUSH_ALLOWED_HOSTS` and `UROBOROS_PUSH_MAX_DEVICES` (10). A new variable goes into
+`config.ts`, `compose.yaml` and the chart (values, schema, templates) together.
 
 ## Principles
 
