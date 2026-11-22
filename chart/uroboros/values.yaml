@@ -71,6 +71,27 @@ api:
   service:
     type: ClusterIP
     port: 80
+  # A rolling update or a drain removes a pod from the Service while the pod is already stopping;
+  # endpoints and the ingress take a few seconds to notice. The preStop hook holds SIGTERM back
+  # this long so requests stop arriving first. 0 turns the hook off.
+  preStopSleepSeconds: 5
+  # After SIGTERM the api stops accepting connections and waits this long for in-flight requests
+  # before cutting them and exiting 1. Exported as UROBOROS_SHUTDOWN_GRACE_MS.
+  shutdownGraceSeconds: 20
+  # Must exceed preStopSleepSeconds + shutdownGraceSeconds with room to spare (at least 5 s);
+  # rendering fails otherwise.
+  terminationGracePeriodSeconds: 35
+  # A PodDisruptionBudget of minAvailable: 1, rendered only when more than one api pod runs
+  # (replicas, or hpa.min with the HPA on), so a drain never takes every replica at once.
+  pdb:
+    enabled: true
+  # Spread the api pods over nodes (whenUnsatisfiable: ScheduleAnyway, so a one-node cluster still
+  # schedules them).
+  topologySpread:
+    enabled: true
+    topologyKey: kubernetes.io/hostname
+    maxSkew: 1
+    whenUnsatisfiable: ScheduleAnyway
   podAnnotations: {}
   nodeSelector: {}
   tolerations: []

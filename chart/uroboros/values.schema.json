@@ -185,6 +185,48 @@
               "maximum": 65535
             }
           }
+        },
+        "preStopSleepSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "shutdownGraceSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terminationGracePeriodSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pdb": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          }
+        },
+        "topologySpread": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "topologyKey": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxSkew": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "whenUnsatisfiable": {
+              "type": "string",
+              "enum": ["ScheduleAnyway", "DoNotSchedule"]
+            }
+          }
         }
       }
     },

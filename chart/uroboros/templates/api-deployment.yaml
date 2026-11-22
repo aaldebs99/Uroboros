@@ -22,6 +22,11 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
+      {{- $a := .Values.api }}
+      {{- if le (int $a.terminationGracePeriodSeconds) (add $a.preStopSleepSeconds $a.shutdownGraceSeconds 4 | int) }}
+      {{- fail "api.terminationGracePeriodSeconds must exceed api.preStopSleepSeconds + api.shutdownGraceSeconds by at least 5" }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ $a.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "uroboros.serviceAccountName" . }}
       automountServiceAccountToken: false
       {{- with .Values.imagePullSecrets }}
@@ -43,9 +48,19 @@ spec:
             {{- include "uroboros.databaseEnv" . | nindent 12 }}
             {{- include "uroboros.valkeyEnv" . | nindent 12 }}
             {{- include "uroboros.pushEnv" . | trim | nindent 12 }}
+            - name: UROBOROS_SHUTDOWN_GRACE_MS
+              value: {{ mul $a.shutdownGraceSeconds 1000 | quote }}
             {{- with .Values.api.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- if gt (int $a.preStopSleepSeconds) 0 }}
+          # Holds SIGTERM back until endpoints and the ingress have stopped routing here. The
+          # sleep action (Kubernetes >= 1.30, on by default) needs no binary in the distroless image.
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: {{ $a.preStopSleepSeconds }}
+          {{- end }}
           # Liveness is TCP only: /api/health reports dependency state and a database blip must
           # not restart every pod. Readiness uses /api/health, which stays 200 when degraded.
           livenessProbe:
@@ -91,4 +106,17 @@ spec:
       {{- with .Values.api.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $a.topologySpread }}
+      {{- if .enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .maxSkew }}
+          topologyKey: {{ .topologyKey }}
+          whenUnsatisfiable: {{ .whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+              {{- include "uroboros.selectorLabels" (dict "root" $ "component" "api") | nindent 14 }}
+          # Spread each ReplicaSet on its own, so a rolling update does not count the old pods.
+          matchLabelKeys: [pod-template-hash]
+      {{- end }}
       {{- end }}

@@ -146,6 +146,20 @@ if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yam
   exit 1
 fi
 echo "ok: half a VAPID pair is rejected at render time"
+# Negative check: a termination grace period that leaves the api no time to drain must refuse to render.
+if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
+  --set api.terminationGracePeriodSeconds=25 >/dev/null 2>&1; then
+  echo "expected render to fail: api.terminationGracePeriodSeconds <= preStop + shutdown grace + 4" >&2
+  exit 1
+fi
+echo "ok: a termination grace period shorter than the drain is rejected at render time"
+# One api pod gets no PodDisruptionBudget: minAvailable: 1 would block every node drain.
+if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
+  --set api.hpa.enabled=false --set api.replicas=1 | grep -q '^kind: PodDisruptionBudget'; then
+  echo "expected no PodDisruptionBudget for a single api replica" >&2
+  exit 1
+fi
+echo "ok: a single api replica renders no PodDisruptionBudget"
 '''
 
 [tasks."lint:renovate"]
