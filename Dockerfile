@@ -75,7 +75,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     /tmp/scripts/install-ffmpeg.sh "${FFMPEG_TAG}" "${FFMPEG_CHECKSUMS_SHA256}" "${FFMPEG_COMMIT}"
 
-# --- worker: Debian slim Node with python3, yt-dlp's static ffmpeg (from the ffmpeg stage, with
+# --- worker: Debian slim Node with tini as PID 1, python3, yt-dlp's static ffmpeg (from the ffmpeg stage, with
 # its GPL licence and source pointer) and a venv holding the one downloader, yt-dlp, pinned with
 # hashes in scripts/image/requirements.txt (Renovate's pip_requirements manager) and installed
 # with --require-hashes. yt-dlp is the only downloader.
@@ -103,6 +103,9 @@ ENV NODE_ENV=production \
 # Numeric so Kubernetes' runAsNonRoot check can verify it without /etc/passwd.
 USER 65532:65532
 WORKDIR /home/uroboros
+# tini is PID 1: node as PID 1 would neither reap the orphaned children of yt-dlp and ffmpeg nor get
+# the kernel's default SIGTERM handling. tini forwards the signal and exits with node's code.
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "/app/worker.mjs"]
 
 # --- api: distroless cc (glibc, libstdc++, libgcc: what node links against), nonroot, with the

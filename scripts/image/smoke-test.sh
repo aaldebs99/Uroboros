@@ -7,7 +7,8 @@
 #   worker  runs as uid 65532, `yt-dlp --version` and `ffmpeg -version` answer, no other
 #           downloader is installed, ffmpeg is the pinned yt-dlp build (a GPL build, with its licence
 #           and SOURCE.md under /usr/share/licenses/ffmpeg), and the worker process starts, logs
-#           both tool versions and its "worker started" line.
+#           both tool versions and its "worker started" line under tini as PID 1, and exits 0 on
+#           SIGTERM.
 #
 # Usage: smoke-test.sh <api-image> <worker-image>
 set -euo pipefail
@@ -100,6 +101,10 @@ deep_link_is_html() {
 
 worker_started() {
     docker logs "${WORKER}" 2>&1 | grep -qF '"worker started"'
+}
+
+worker_logged_shutdown() {
+    docker logs "${WORKER}" 2>&1 | grep -qF '"shutting down"'
 }
 
 # worker_logged_version <tool>: the worker's startup log has a "tool version" line for the tool.
@@ -209,6 +214,11 @@ fi
 check "worker process runs as uid 65532" test "$(docker exec "${WORKER}" id -u)" = 65532
 check "worker logged the yt-dlp version" worker_logged_version yt-dlp
 check "worker logged the ffmpeg version" worker_logged_version ffmpeg
+check "tini is the worker's PID 1" test "$(docker exec "${WORKER}" cat /proc/1/comm)" = tini
+# docker stop sends SIGTERM; the worker drains (nothing is running) and exits 0 well inside 30 s.
+docker stop -t 30 "${WORKER}" > /dev/null
+check "worker exits 0 on SIGTERM" test "$(docker inspect --format '{{.State.ExitCode}}' "${WORKER}")" = 0
+check "worker logged its shutdown" worker_logged_shutdown
 
 if [ "${FAILED}" -eq 1 ]; then
     echo "some smoke tests failed" >&2
