@@ -182,34 +182,50 @@ export async function main(
     throw err;
   }
   await logToolVersions(logger, { ytdlp: process.env["YTDLP_PATH"] ?? "yt-dlp" });
-  const worker = await startWorker({
-    valkeyUrl,
-    concurrency,
-    logger,
-    ...testOverrides,
-    ...overrides,
-  });
-  return new Promise<number>((resolve) => {
-    let shuttingDown = false;
-    const shutdown = (signal: string) => {
-      if (shuttingDown) return;
-      shuttingDown = true;
-      logger.info({ signal }, "shutting down");
-      worker.close().then(
-        () => {
-          resolve(0);
-        },
-        (err: unknown) => {
-          logger.error({ err }, "shutdown failed");
-          resolve(1);
-        },
-      );
-    };
-    process.once("SIGTERM", () => {
-      shutdown("SIGTERM");
+  // Trapped before the worker starts: BullMQ begins taking jobs inside startWorker, so a SIGTERM
+  // that lands before it returns must still drain them, not kill the process mid-job.
+  const signals = trapShutdownSignals();
+  try {
+    const worker = await startWorker({
+      valkeyUrl,
+      concurrency,
+      logger,
+      ...testOverrides,
+      ...overrides,
     });
-    process.once("SIGINT", () => {
-      shutdown("SIGINT");
-    });
+    const signal = await signals.received;
+    logger.info({ signal }, "shutting down");
+    try {
+      await worker.close();
+      return 0;
+    } catch (err) {
+      logger.error({ err }, "shutdown failed");
+      return 1;
+    }
+  } finally {
+    signals.dispose();
+  }
+}
+
+/** The first SIGTERM or SIGINT, from the moment this is called; `dispose` removes the listeners. */
+function trapShutdownSignals(): { received: Promise<string>; dispose(): void } {
+  let onSignal: (signal: string) => void = () => undefined;
+  const received = new Promise<string>((resolve) => {
+    onSignal = resolve;
   });
+  const onTerm = () => {
+    onSignal("SIGTERM");
+  };
+  const onInt = () => {
+    onSignal("SIGINT");
+  };
+  process.once("SIGTERM", onTerm);
+  process.once("SIGINT", onInt);
+  return {
+    received,
+    dispose() {
+      process.off("SIGTERM", onTerm);
+      process.off("SIGINT", onInt);
+    },
+  };
 }
