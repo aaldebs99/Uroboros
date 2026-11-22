@@ -1,0 +1,158 @@
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { OpenAPIHono } from "@hono/zod-openapi";
+import { ApiErrorBody } from "@uroboros/contract";
+import type { Redis } from "ioredis";
+import { pino } from "pino";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { TestDb } from "../../test/testDb.ts";
+import { TestValkey } from "../../test/testValkey.ts";
+import { createDb } from "../db/kysely.ts";
+import { createValkey, waitReady } from "../shared/valkey.ts";
+import { createApp } from "./app.ts";
+import type { Deps } from "./app.ts";
+
+const logger = pino({ level: "silent" });
+const CLOSED = "127.0.0.1:1";
+
+let testDb: TestDb;
+let valkey: Redis;
+const extra: { close(): unknown }[] = [];
+
+beforeAll(async () => {
+  testDb = await TestDb.create();
+  valkey = createValkey(TestValkey.url(), "api", logger);
+  await waitReady(valkey, 5000);
+});
+
+afterAll(async () => {
+  valkey.disconnect();
+  await testDb.close();
+  for (const e of extra) await e.close();
+});
+
+const deps = (over: Partial<Deps> = {}): Deps => ({
+  db: testDb.db,
+  valkey,
+  version: "1.2.3",
+  logger,
+  ...over,
+});
+const app = (over: Partial<Deps> = {}, webDist: string | null = null): OpenAPIHono =>
+  createApp(deps(over), { webDist });
+
+describe("health", () => {
+  it("is ok when both dependencies answer", async () => {
+    const res = await app().request("/api/health");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "ok", failing: [] });
+  });
+
+  it("is degraded with database failing when postgres is unreachable", async () => {
+    const db = createDb(`postgres://u:p@${CLOSED}/x`);
+    extra.push({ close: () => db.destroy() });
+    const res = await app({ db }).request("/api/health");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "degraded", failing: ["database"] });
+  });
+
+  it("is degraded with valkey failing, quickly, when valkey is unreachable", async () => {
+    const down = createValkey(`redis://${CLOSED}`, "api", logger);
+    extra.push({
+      close: () => {
+        down.disconnect();
+      },
+    });
+    const start = Date.now();
+    const res = await app({ valkey: down }).request("/api/health");
+    expect(Date.now() - start).toBeLessThan(3000);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "degraded", failing: ["valkey"] });
+  });
+});
+
+describe("info", () => {
+  it("returns name and version", async () => {
+    const res = await app().request("/api/info");
+    expect(await res.json()).toEqual({ name: "uroboros", version: "1.2.3" });
+  });
+});
+
+describe("errors", () => {
+  it("renders unknown api paths as a typed 404", async () => {
+    const res = await app().request("/api/nope");
+    expect(res.status).toBe(404);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(ApiErrorBody.parse(await res.json()).code).toBe("not_found");
+  });
+
+  it("hides the message of unexpected errors", async () => {
+    const a = app();
+    a.get("/api/boom", () => {
+      throw new Error("secret");
+    });
+    const res = await a.request("/api/boom");
+    const text = await res.text();
+    expect(res.status).toBe(500);
+    expect(ApiErrorBody.parse(JSON.parse(text)).code).toBe("internal");
+    expect(text).not.toContain("secret");
+  });
+});
+
+describe("openapi", () => {
+  it("documents the shared schemas", async () => {
+    const res = await app().request("/api/openapi.json");
+    const doc = (await res.json()) as { components: { schemas: Record<string, unknown> } };
+    expect(Object.keys(doc.components.schemas)).toEqual(
+      expect.arrayContaining(["Health", "Info", "ApiErrorBody"]),
+    );
+  });
+
+  it("serves swagger ui", async () => {
+    const res = await app().request("/api/docs");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+  });
+});
+
+describe("spa", () => {
+  let dist: string;
+  beforeAll(async () => {
+    dist = await mkdtemp(join(tmpdir(), "uroboros-web-"));
+    await mkdir(join(dist, "assets"));
+    await writeFile(join(dist, "index.html"), "<!doctype html><title>x</title>");
+    await writeFile(join(dist, "assets", "a.js"), "console.log(1)");
+  });
+  afterAll(async () => {
+    await rm(dist, { recursive: true, force: true });
+  });
+
+  it("falls back to index.html for client routes", async () => {
+    const res = await app({}, dist).request("/library/abc");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+  });
+
+  it("serves static assets", async () => {
+    const res = await app({}, dist).request("/assets/a.js");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("javascript");
+    expect(await res.text()).toBe("console.log(1)");
+  });
+
+  it("keeps the json 404 under /api", async () => {
+    const res = await app({}, dist).request("/api/nope");
+    expect(res.status).toBe(404);
+    expect(ApiErrorBody.parse(await res.json()).code).toBe("not_found");
+  });
+
+  it("does not escape the web root", async () => {
+    const res = await app({}, dist).request("/..%2f..%2fetc/passwd");
+    expect(res.headers.get("content-type")).toContain("text/html");
+  });
+
+  it("is not served when webDist is null", async () => {
+    expect((await app().request("/library/abc")).status).toBe(404);
+  });
+});
