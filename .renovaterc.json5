@@ -178,13 +178,24 @@
       automerge: false,
     },
     {
-      // yt-dlp's patched static ffmpeg (Dockerfile FFMPEG_TAG and checksums digest) is NOT bumped:
-      // the versioning would accept daily autobuild tags, which yt-dlp prunes after about two
-      // weeks, breaking the build and the source link. The pin is moving to an ffmpeg image
-      // mirrored from the upstream-builder repo; until then it is bumped by hand.
-      description: "ffmpeg build pin is interim and moving to the upstream-builder mirror",
-      matchDepNames: ["yt-dlp/FFmpeg-Builds"],
-      enabled: false,
+      // The worker's ffmpeg: the mirror image built in the upstream-builder repository from yt-dlp's
+      // static GPL build, the Dockerfile's `FROM <image>:<tag>@<digest> AS ffmpeg` (the dockerfile
+      // manager moves tag and digest together). The registry is private: the lookup logs in with
+      // the hostRule .github/workflows/renovate.yml builds from the environment. Its tags are
+      // `autobuild-YYYY-MM-DD-HH-MM`, which no built-in scheme orders, hence the regex: year as
+      // major, then month, day, hour and minute, compared as numbers (`revision` is the minute).
+      // The mirror's image carries its build time, which the soak reads. Reviewed, like yt-dlp's
+      // pin: `build(image)`, never a `feat!`, as a bundled tool's major is not a breaking change
+      // of Uroboros.
+      description: "The worker's ffmpeg mirror image, reviewed",
+      matchDatasources: ["docker"],
+      matchDepNames: ["code.example.com/aaldebs99/ffmpeg-ytdlp"],
+      versioning: "regex:^autobuild-(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})-(?<build>\\d{2})-(?<revision>\\d{2})$",
+      semanticCommitType: "build",
+      semanticCommitScope: "image",
+      commitMessageTopic: "tool ffmpeg",
+      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}}):",
+      automerge: false,
     },
     {
       // package.json runs two compilers side by side: `@typescript/native` is an alias for
@@ -274,24 +285,6 @@
       ],
       datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}docker{{/if}}",
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
-    },
-    {
-      // The worker's ffmpeg build in the Dockerfile: the release tag plus the sha256 of the
-      // release's checksums.sha256 asset, two consecutive ARGs under one annotation:
-      //   # renovate-digest: datasource=github-release-attachments depName=yt-dlp/FFmpeg-Builds versioning=regex:...
-      //   ARG FFMPEG_TAG=autobuild-2026-10-31-18-18
-      //   ARG FFMPEG_CHECKSUMS_SHA256=<64 hex>
-      // The tag is currentValue and the checksum currentDigest, so a bump rewrites both. The
-      // archives' own hashes are not pinned: install-ffmpeg.sh reads them from the verified
-      // checksums file. The `renovate-digest:` spelling keeps the plain-ARG manager above off it.
-      customType: "regex",
-      description: "yt-dlp FFmpeg-Builds release tag and checksums digest in the Dockerfile",
-      managerFilePatterns: ["/(^|/)Dockerfile$/"],
-      matchStrings: [
-        "#\\s*renovate-digest:\\s*datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\s*\\nARG\\s+\\S+=(?<currentValue>\\S+)\\s*\\nARG\\s+\\S+=(?<currentDigest>[a-f0-9]{64})",
-      ],
-      datasourceTemplate: "{{{datasource}}}",
-      versioningTemplate: "{{{versioning}}}",
     },
     {
       // The pinned validator in the `lint:renovate` task (`pnpm dlx ... --package renovate@X`).

@@ -15,6 +15,14 @@
 # those dependencies are skipped with a "GitHub token is required" warning. Forgejo refuses secret
 # names that start with GITHUB_, hence the prefix.
 #
+# The worker's ffmpeg is an image in this forge's private registry, so Renovate looks its tags up
+# with credentials, as upstream-builder's renovate.yaml does: RENOVATE_DETECT_HOST_RULES_FROM_ENV
+# turns RENOVATE_DOCKER_CODE_example_COM_USERNAME and _PASSWORD into a docker hostRule for
+# code.example.com (the host's dots written as `_`). They are user-scope secrets under aaldebs99
+# (a token with read:package), which every repository that user owns inherits, so this repository
+# needs no secret of its own; the first step refuses to run without them, because an unset secret
+# would otherwise become a rule with an empty password and a 401.
+#
 # A manual run can raise `log_level` to debug, which names the API call behind an abort.
 #
 # The job runs inside Renovate's own image, pinned by digest; Renovate keeps the pin current (the
@@ -57,6 +65,9 @@ jobs:
       RENOVATE_REPOSITORIES: ${{ github.repository }}
       RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
       RENOVATE_GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_GITHUB_COM_TOKEN }}
+      RENOVATE_DETECT_HOST_RULES_FROM_ENV: "true"
+      RENOVATE_DOCKER_CODE_example_COM_USERNAME: ${{ secrets.RENOVATE_DOCKER_CODE_example_COM_USERNAME }}
+      RENOVATE_DOCKER_CODE_example_COM_PASSWORD: ${{ secrets.RENOVATE_DOCKER_CODE_example_COM_PASSWORD }}
       # A scheduled run has no inputs.
       LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
     steps:
@@ -64,6 +75,8 @@ jobs:
         run: |
           set -eu
           : "${RENOVATE_TOKEN:?the RENOVATE_TOKEN repository secret is not set}"
+          : "${RENOVATE_DOCKER_CODE_example_COM_USERNAME:?the RENOVATE_DOCKER_CODE_example_COM_USERNAME secret is not set}"
+          : "${RENOVATE_DOCKER_CODE_example_COM_PASSWORD:?the RENOVATE_DOCKER_CODE_example_COM_PASSWORD secret is not set}"
 
       - name: Run Renovate
         run: renovate

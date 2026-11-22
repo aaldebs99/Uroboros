@@ -19,8 +19,11 @@
 #   node    the TypeScript workspace: lock, audit, licences, codegen drift, eslint, tsc, the
 #           vitest projects (with Postgres and Valkey containers) and the web build
 #   chart   helm lint and kubeconform over the chart
-#   images  docker build of both image targets (api, worker); nothing is pushed. The smoke test
-#           runs on release, in release.yml, before any tag is pushed.
+#   images  docker build of both image targets (api, worker); nothing is pushed. The worker's
+#           ffmpeg comes from a private registry image, so the job logs in first (skipped with a
+#           notice when the secret is unavailable, as on a fork's pull request, where the build
+#           then fails at the pull). The smoke test runs on release, in release.yml, before any
+#           tag is pushed.
 #   ci      one stable name to mark as the required status check in branch protection
 #
 # Runner labels are the Gitea runner's (see .github/actionlint.yaml); `-dind` ones carry a Docker
@@ -151,8 +154,11 @@ jobs:
 
   images:
     name: Images
-    # Docker for the builds. Nothing is pushed and no registry is read; release.yml publishes.
+    # Docker for the builds. Nothing is pushed; the registry is read for the worker's ffmpeg image
+    # (the Dockerfile's ffmpeg stage). release.yml publishes.
     runs-on: big-dind
+    env:
+      REGISTRY: ${{ vars.REGISTRY }}
     timeout-minutes: 120
     steps:
       - name: Checkout
@@ -164,6 +170,27 @@ jobs:
         with:
           version: 2026.9.14
           github_token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+      # The login release.yml uses, read-only here. The login step cannot be a mise task (the
+      # token is a secret of this job, not a gate), which ci:parity allows: it only compares the
+      # `mise run` steps. A pull request from a fork gets no secrets: say so and skip, instead of
+      # failing on an empty password.
+      - name: Check registry credentials
+        id: registry
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          if [ -n "${REGISTRY}" ] && [ -n "${REGISTRY_TOKEN}" ]; then
+            echo "login=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "::notice::REGISTRY or REGISTRY_TOKEN is unavailable (a fork's pull request has no secrets): skipping the registry login. The worker image's ffmpeg is pulled from that private registry, so docker:build will fail at the pull."
+          fi
+      - name: Log in to the registry
+        if: steps.registry.outputs.login == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: aaldebs99
+          password: ${{ secrets.REGISTRY_TOKEN }}
       - run: mise run docker:build
 
   # The single required status check. `if: always()` so it reports (red) even when a dependency
