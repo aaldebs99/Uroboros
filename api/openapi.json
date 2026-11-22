@@ -79,6 +79,120 @@
           "version"
         ],
         "type": "object"
+      },
+      "PushDevice": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "failedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/PushDeviceId"
+          },
+          "label": {
+            "type": "string"
+          },
+          "lastSuccessAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "createdAt",
+          "lastSuccessAt",
+          "failedAt"
+        ],
+        "type": "object"
+      },
+      "PushDeviceId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "PushSubscriptionBody": {
+        "properties": {
+          "auth": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "endpoint": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "p256dh": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint",
+          "p256dh",
+          "auth",
+          "label"
+        ],
+        "type": "object"
+      },
+      "PushTestOutcome": {
+        "enum": [
+          "delivered",
+          "gone",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "PushTestResult": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/PushTestOutcome"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "type": "object"
+      },
+      "PushView": {
+        "properties": {
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/PushDevice"
+            },
+            "type": "array"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "maxDevices": {
+            "exclusiveMinimum": true,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "publicKey": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "publicKey",
+          "devices",
+          "maxDevices"
+        ],
+        "type": "object"
       }
     }
   },
@@ -140,6 +254,245 @@
           }
         },
         "summary": "Service name and version"
+      }
+    },
+    "/api/me/push": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushView"
+                }
+              }
+            },
+            "description": "Push and the caller's devices"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          }
+        },
+        "summary": "Whether this server pushes, its VAPID key, and the caller's devices",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/api/me/push/devices": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushDevice"
+                }
+              }
+            },
+            "description": "The device"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not a subscription on an allowed push service"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Push is off on this server"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The caller has as many devices as allowed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          }
+        },
+        "summary": "Turn notifications on for the browser whose subscription this is",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/api/me/push/devices/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "Device id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PushDeviceId"
+                },
+                {
+                  "description": "Device id"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not a device id"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such device of the caller's"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          }
+        },
+        "summary": "Turn notifications off for one of the caller's devices",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/api/me/push/devices/{id}/test": {
+      "post": {
+        "parameters": [
+          {
+            "description": "Device id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/PushDeviceId"
+                },
+                {
+                  "description": "Device id"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTestResult"
+                }
+              }
+            },
+            "description": "How it went"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not a device id"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such device of the caller's"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Push is off on this server"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          }
+        },
+        "summary": "Send one of the caller's devices a test notification",
+        "tags": [
+          "push"
+        ]
       }
     }
   }

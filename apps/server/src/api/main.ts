@@ -6,6 +6,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { ConfigError, loadConfig } from "../config.ts";
 import type { Config } from "../config.ts";
 import { createDb } from "../db/kysely.ts";
+import { createPushService } from "../push/service.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createApp } from "./app.ts";
 
@@ -20,7 +21,11 @@ export async function startApi(config: Config, logger: Logger): Promise<RunningA
   const valkey = createValkey(config.valkeyUrl, "api", logger);
   // Not fatal if Valkey is down at boot: health reports it as degraded.
   await waitReady(valkey, 2000);
-  const app = createApp({ db, valkey, version: pkg.version, logger }, { webDist: config.webDist });
+  const push = createPushService(config.push, db, logger);
+  const app = createApp(
+    { db, valkey, version: pkg.version, logger, push },
+    { webDist: config.webDist },
+  );
   const server = await new Promise<ServerType>((resolve) => {
     const s = serve(
       { fetch: app.fetch, hostname: config.bind.host, port: config.bind.port },

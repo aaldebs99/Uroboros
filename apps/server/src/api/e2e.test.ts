@@ -16,6 +16,13 @@ beforeAll(async () => {
       databaseUrl: testDb.url,
       valkeyUrl: TestValkey.url(),
       webDist: null,
+      push: {
+        publicBaseUrl: null,
+        subject: null,
+        vapid: null,
+        allowedHosts: [],
+        maxDevices: 10,
+      },
     },
     pino({ level: "silent" }),
   );

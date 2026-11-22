@@ -1,5 +1,7 @@
+import { generateVAPIDKeys } from "web-push";
 import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig, loadMigrateConfig } from "./config.ts";
+import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 
 const base = { DATABASE_URL: "postgres://u:p@h/db", VALKEY_URL: "redis://h:6379" };
 
@@ -43,4 +45,100 @@ describe("loadMigrateConfig", () => {
   it("throws ConfigError without it", () => {
     expect(() => loadMigrateConfig({})).toThrow(/DATABASE_URL/);
   });
+});
+
+describe("loadConfig push", () => {
+  const pair = generateVAPIDKeys();
+
+  it("defaults to push off with the known push services and 10 devices", () => {
+    expect(loadConfig(base).push).toEqual({
+      publicBaseUrl: null,
+      subject: null,
+      vapid: null,
+      allowedHosts: [...DEFAULT_ALLOWED_HOSTS],
+      maxDevices: 10,
+    });
+  });
+
+  it("reads every push variable", () => {
+    const cfg = loadConfig({
+      ...base,
+      UROBOROS_PUBLIC_BASE_URL: "https://uroboros.example/",
+      UROBOROS_PUSH_SUBJECT: "mailto:ops@uroboros.example",
+      UROBOROS_VAPID_PUBLIC_KEY: pair.publicKey,
+      UROBOROS_VAPID_PRIVATE_KEY: pair.privateKey,
+      UROBOROS_PUSH_ALLOWED_HOSTS: " fcm.googleapis.com, Push.Apple.com ",
+      UROBOROS_PUSH_MAX_DEVICES: "3",
+    });
+    expect(cfg.push).toEqual({
+      publicBaseUrl: "https://uroboros.example",
+      subject: "mailto:ops@uroboros.example",
+      vapid: pair,
+      allowedHosts: ["fcm.googleapis.com", "push.apple.com"],
+      maxDevices: 3,
+    });
+  });
+
+  it("keeps an http base URL (push then stays off) but refuses one that is not a URL", () => {
+    expect(
+      loadConfig({ ...base, UROBOROS_PUBLIC_BASE_URL: "http://h:18080" }).push.publicBaseUrl,
+    ).toBe("http://h:18080");
+    expect(() => loadConfig({ ...base, UROBOROS_PUBLIC_BASE_URL: "nope" })).toThrow(
+      /UROBOROS_PUBLIC_BASE_URL/,
+    );
+    expect(() => loadConfig({ ...base, UROBOROS_PUBLIC_BASE_URL: "ftp://h" })).toThrow(
+      /UROBOROS_PUBLIC_BASE_URL/,
+    );
+  });
+
+  it.each(["http://ops.example", "ops@example.com", "mailto:"])("refuses the subject %j", (s) => {
+    expect(() => loadConfig({ ...base, UROBOROS_PUSH_SUBJECT: s })).toThrow(
+      /UROBOROS_PUSH_SUBJECT/,
+    );
+  });
+
+  it("needs both VAPID halves, of one pair", () => {
+    expect(() => loadConfig({ ...base, UROBOROS_VAPID_PRIVATE_KEY: pair.privateKey })).toThrow(
+      /UROBOROS_VAPID_PUBLIC_KEY/,
+    );
+    expect(() => loadConfig({ ...base, UROBOROS_VAPID_PUBLIC_KEY: pair.publicKey })).toThrow(
+      /UROBOROS_VAPID_PRIVATE_KEY/,
+    );
+    expect(() =>
+      loadConfig({
+        ...base,
+        UROBOROS_VAPID_PUBLIC_KEY: generateVAPIDKeys().publicKey,
+        UROBOROS_VAPID_PRIVATE_KEY: pair.privateKey,
+      }),
+    ).toThrow(/not the public half/);
+  });
+
+  it.each(["0", "-1", "x", "1.5"])("refuses UROBOROS_PUSH_MAX_DEVICES=%j", (n) => {
+    expect(() => loadConfig({ ...base, UROBOROS_PUSH_MAX_DEVICES: n })).toThrow(
+      /UROBOROS_PUSH_MAX_DEVICES/,
+    );
+  });
+
+  it("treats an empty push variable as unset, as compose passes one", () => {
+    const empty = Object.fromEntries(
+      [
+        "UROBOROS_PUBLIC_BASE_URL",
+        "UROBOROS_PUSH_SUBJECT",
+        "UROBOROS_VAPID_PUBLIC_KEY",
+        "UROBOROS_VAPID_PRIVATE_KEY",
+        "UROBOROS_PUSH_ALLOWED_HOSTS",
+        "UROBOROS_PUSH_MAX_DEVICES",
+      ].map((name) => [name, ""]),
+    );
+    expect(loadConfig({ ...base, ...empty }).push).toEqual(loadConfig(base).push);
+  });
+
+  it.each([" , ", "fcm.googleapis.com,,x", "a b"])(
+    "refuses UROBOROS_PUSH_ALLOWED_HOSTS=%j",
+    (h) => {
+      expect(() => loadConfig({ ...base, UROBOROS_PUSH_ALLOWED_HOSTS: h })).toThrow(
+        /UROBOROS_PUSH_ALLOWED_HOSTS/,
+      );
+    },
+  );
 });

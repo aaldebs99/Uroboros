@@ -5,9 +5,11 @@ import type { Redis } from "ioredis";
 import { pino } from "pino";
 import type { Logger } from "pino";
 import type { Database } from "../db/schema.ts";
+import { disabledPush, type PushService } from "../push/service.ts";
 import { ApiError, errorHandler, errorResponse } from "./errors.ts";
 import { checkHealth, healthRoute } from "./health.ts";
 import { infoRoute } from "./info.ts";
+import { registerPushRoutes } from "./push.ts";
 import { createSpaHandler } from "./spa.ts";
 
 export interface Deps {
@@ -16,6 +18,8 @@ export interface Deps {
   version: string;
   /** Defaults to a JSON-to-stdout pino logger; tests pass a silent one. */
   logger?: Logger;
+  /** Web Push; defaults to off (what `gen` uses). */
+  push?: PushService;
 }
 
 /** The one OpenAPI document config, shared by the runtime route and `gen`. */
@@ -60,6 +64,7 @@ export function createApp(deps: Deps, opts: { webDist: string | null }): OpenAPI
 
   app.openapi(healthRoute, async (c) => c.json(await checkHealth(deps.db, deps.valkey), 200));
   app.openapi(infoRoute, (c) => c.json({ name: "uroboros" as const, version: deps.version }, 200));
+  registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   app.get("/api/docs", swaggerUI({ url: "/api/openapi.json" }));
 
