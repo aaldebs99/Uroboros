@@ -132,3 +132,44 @@ run = "pnpm dlx --allow-build re2 --package renovate@44.150.1 renovate-config-va
 [tasks.changelog]
 description = "Render CHANGELOG.md from conventional commits (git-cliff, cliff.toml)"
 run = "git-cliff --output CHANGELOG.md"
+
+# ── Ratchets (see docs/ratchets.md) ───────────────────────────────────────────────────────────
+# Each ratchet only tightens: exception lists live in tools/ratchet/frozen.json as frozen
+# numbers, and a number that improved without being lowered ("slack") fails just like a
+# regression. The gates are TypeScript in tools/ratchet, run on node's native type stripping.
+
+[tasks."ratchet:lines"]
+description = "Ratchet: no source file over 1000 lines (CI gate)"
+depends = ["install"]
+run = "pnpm exec ratchet lines"
+
+[tasks."ratchet:complexity"]
+description = "Ratchet: cognitive complexity via sonarjs, fn <= 25, file SUM <= 200 (CI gate)"
+depends = ["install"]
+run = "pnpm exec ratchet complexity"
+
+[tasks."ratchet:suppressions"]
+description = "Ratchet: per-file count of eslint-disable and @ts-* suppressions may only fall (CI gate)"
+depends = ["install"]
+run = "pnpm exec ratchet suppressions"
+
+[tasks."ratchet:pins"]
+description = "Ratchet: node/pnpm pins and the 3-day supply-chain soak agree across files (CI gate)"
+depends = ["install"]
+run = "pnpm exec ratchet pins"
+
+[tasks."ratchet:test"]
+description = "Unit tests for the ratchets themselves (CI gate)"
+depends = ["install"]
+run = "pnpm -F @uroboros/ratchet test"
+
+[tasks.ratchet]
+description = "Run every ratchet"
+depends = ["ratchet:lines", "ratchet:complexity", "ratchet:suppressions", "ratchet:pins"]
+
+# ── The gate list ─────────────────────────────────────────────────────────────────────────────
+
+[tasks."ci:parity"]
+description = "Fail if ci.yml's `mise run` steps and [tasks.ci].depends differ (CI gate)"
+depends = ["install"]
+run = "pnpm exec ratchet ci-parity"

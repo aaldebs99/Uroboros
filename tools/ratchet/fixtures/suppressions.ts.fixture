@@ -1,0 +1,7 @@
+// eslint-disable-next-line no-console
+console.log(1);
+// eslint-disable-next-line no-console
+console.log(2);
+// @ts-expect-error deliberate
+const n: number = "x";
+export { n };

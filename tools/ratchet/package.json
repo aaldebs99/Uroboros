@@ -1,0 +1,24 @@
+{
+  "name": "@uroboros/ratchet",
+  "version": "0.0.0",
+  "private": true,
+  "bin": {
+    "ratchet": "./src/main.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "eslint": "10.12.0",
+    "eslint-plugin-sonarjs": "4.2.1",
+    "json5": "2.2.3",
+    "smol-toml": "1.8.0",
+    "typescript-eslint": "8.71.1",
+    "yaml": "2.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.0",
+    "vitest": "5.0.3"
+  }
+}

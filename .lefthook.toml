@@ -55,3 +55,9 @@ run = "mise x -- actionlint {staged_files}"
 [pre-commit.commands.zizmor]
 glob = ".github/workflows/*.{yml,yaml}"
 run = "mise x -- zizmor --offline {staged_files}"
+
+# Optional but cheap: the ratchets catch a too-long file, a new lint suppression, a too-complex
+# function or a split toolchain pin before it costs a CI round-trip. Skip once with
+# `LEFTHOOK_EXCLUDE=ratchets git push`.
+[pre-push.commands.ratchets]
+run = "mise run ratchet"
