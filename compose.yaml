@@ -32,7 +32,7 @@ x-server-env: &server-env
 
 services:
   postgres:
-    image: postgres:18-alpine
+    image: postgres:18.6-alpine@sha256:9ba53c7d41ea093baf5c1ba635ba5434c4f979880527d49bb7d9237d3193085b
     restart: unless-stopped
     environment:
       POSTGRES_USER: uroboros
@@ -49,7 +49,7 @@ services:
       start_period: 15s
 
   valkey:
-    image: valkey/valkey:8-alpine
+    image: valkey/valkey:8.1.12-alpine@sha256:9971099af41c36e887aabdfe22b80c0fe45df949163dfc9cb434febc57cfc3fc
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
@@ -134,7 +134,7 @@ services:
   # The one entrypoint, round-robin over both api replicas. `dynamic a` re-resolves the `api`
   # service name every two seconds, so replicas that restart or scale are picked up.
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     restart: unless-stopped
     ports:
       - "127.0.0.1:${UROBOROS_PORT:-18080}:8080"

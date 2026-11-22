@@ -132,7 +132,10 @@ that calls an exported `main()` and sets `process.exitCode`; everything else onl
 `engines`, `packageManager` and `devEngines`, the Dockerfile ARGs), and the 3-day supply-chain
 soak is set in both `.renovaterc.json5` and `pnpm-workspace.yaml`. `ratchet:pins` checks they
 agree. Change every copy in one commit, and never lower the soak. Dependencies are pinned
-exactly. After editing `[tools]`, run `mise lock` for every platform.
+exactly. After editing `[tools]`, run `mise lock` for every platform. Container images are
+pinned by exact tag and digest; the third-party ones (Postgres, Valkey, RustFS, Caddy) only in
+`compose.yaml`, which the test setup (`apps/server/test/composeImage.ts`), CI and the smoke test
+read through `scripts/image/compose-image.sh`, so Renovate's one bump moves them all.
 
 **Task bodies are POSIX.** They run under `sh` (dash on Debian runners): no `[[ ]]`, no
 `<(...)`, no `pipefail`. Anything longer belongs in a script under `scripts/`.

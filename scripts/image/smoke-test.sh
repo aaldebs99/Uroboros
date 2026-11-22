@@ -17,9 +17,9 @@ set -euo pipefail
 API_IMAGE="${1:?Usage: smoke-test.sh <api-image> <worker-image>}"
 WORKER_IMAGE="${2:?Usage: smoke-test.sh <api-image> <worker-image>}"
 
-# Version tags are pinned like the compose file's; keep them in step with it.
-POSTGRES_IMAGE="postgres:18-alpine"
-VALKEY_IMAGE="valkey/valkey:8-alpine"
+# The compose file's pins (exact tag and digest), so the smoke test runs what the stack runs.
+POSTGRES_IMAGE="$("$(dirname "$0")/compose-image.sh" postgres)"
+VALKEY_IMAGE="$("$(dirname "$0")/compose-image.sh" valkey)"
 
 # The Node the images must run: the Dockerfile's pin, which `mise run ratchet:pins` ties to mise.
 NODE_VERSION="$(sed -n 's/^ARG NODE_VERSION=//p' "$(dirname "$0")/../../Dockerfile")"

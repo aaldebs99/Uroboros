@@ -4,6 +4,7 @@ import { GenericContainer, Wait } from "testcontainers";
 import type { TestProject } from "vitest/node";
 import { createDb } from "../src/db/kysely.ts";
 import { runMigrations } from "../src/migrate/runner.ts";
+import { composeImage } from "./composeImage.ts";
 import { TEMPLATE_DB, withDatabase } from "./dbUrl.ts";
 import { withAdmin } from "./pgAdmin.ts";
 
@@ -50,14 +51,14 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
   let postgresUrl = process.env["UROBOROS_TEST_DATABASE_URL"];
   if (postgresUrl === undefined || postgresUrl === "") {
-    const pg = await new PostgreSqlContainer("postgres:18-alpine").start();
+    const pg = await new PostgreSqlContainer(composeImage("postgres")).start();
     stops.push(() => pg.stop());
     postgresUrl = pg.getConnectionUri();
   }
 
   let valkeyUrl = process.env["UROBOROS_TEST_VALKEY_URL"];
   if (valkeyUrl === undefined || valkeyUrl === "") {
-    const valkey = await new GenericContainer("valkey/valkey:8-alpine")
+    const valkey = await new GenericContainer(composeImage("valkey"))
       .withExposedPorts(6379)
       .withWaitStrategy(Wait.forLogMessage(/Ready to accept connections/))
       .start();

@@ -98,12 +98,14 @@ jobs:
       # Docker daemon starts empty, and pulls into it are retried here (Djinn saw them fail with
       # containerd ingest-lock errors). The suite's global setup builds its migrated template on
       # this server (UROBOROS_TEST_DATABASE_URL) and every test clones it, and skips starting
-      # containers of its own. The tags must equal the ones in apps/server/test/globalSetup.ts,
-      # which a laptop run starts itself.
+      # containers of its own. The images are compose.yaml's pins (exact tag and digest), which a
+      # laptop run's global setup starts too.
       - name: Start Postgres and Valkey for the tests
         run: |
           set -eu
-          for image in postgres:18-alpine valkey/valkey:8-alpine; do
+          pg_image="$(scripts/image/compose-image.sh postgres)"
+          valkey_image="$(scripts/image/compose-image.sh valkey)"
+          for image in "$pg_image" "$valkey_image"; do
             for attempt in 1 2 3 4 5; do
               docker pull "$image" && break
               sleep $((attempt * 5))
@@ -112,9 +114,9 @@ jobs:
           done
           docker run -d --name uroboros-test-pg -p 127.0.0.1:5432:5432 \
             -e POSTGRES_USER=uroboros -e POSTGRES_PASSWORD=uroboros -e POSTGRES_DB=uroboros_test \
-            postgres:18-alpine postgres -c fsync=off -c synchronous_commit=off \
+            "$pg_image" postgres -c fsync=off -c synchronous_commit=off \
             -c full_page_writes=off -c max_connections=500
-          docker run -d --name uroboros-test-valkey -p 127.0.0.1:6379:6379 valkey/valkey:8-alpine
+          docker run -d --name uroboros-test-valkey -p 127.0.0.1:6379:6379 "$valkey_image"
           for _ in $(seq 1 60); do
             if docker exec uroboros-test-pg pg_isready -U uroboros -d uroboros_test &&
               docker exec uroboros-test-valkey valkey-cli ping; then
