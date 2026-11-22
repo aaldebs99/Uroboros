@@ -11,4 +11,4 @@ function itemFor(to: NavItem["to"]): NavItem {
 export const LibraryPage = () => <ComingSoon item={itemFor("/")} />;
 export const DownloadsPage = () => <ComingSoon item={itemFor("/downloads")} />;
 export const SubscriptionsPage = () => <ComingSoon item={itemFor("/subscriptions")} />;
-export const SettingsPage = () => <ComingSoon item={itemFor("/settings")} />;
+export { SettingsPage } from "./settings";

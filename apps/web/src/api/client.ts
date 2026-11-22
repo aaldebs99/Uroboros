@@ -49,6 +49,42 @@ export class ApiError extends Error {
   }
 }
 
+async function parseBody<S extends z.ZodType>(
+  res: Response,
+  label: string,
+  schema: S,
+): Promise<z.infer<S>> {
+  const text = await res.text();
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new ApiError(res.status, `${label} returned a body that is not JSON`);
+  }
+  const parsed = schema.safeParse(json);
+  if (!parsed.success) {
+    throw new ApiError(res.status, `${label} returned an unexpected body: ${parsed.error.message}`);
+  }
+  return parsed.data;
+}
+
+/** Sends a request to the app's own API and throws an `ApiError` for anything but a 2xx. */
+async function send(method: string, path: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept")) headers.set("Accept", "application/json");
+  const res = await fetch(path, { ...init, method, headers });
+  if (!res.ok) {
+    const body = await readErrorBody(res);
+    const detail = body ? `${body.code}: ${body.message}` : res.statusText;
+    throw new ApiError(
+      res.status,
+      `${method} ${path} failed: ${String(res.status)} ${detail}`.trim(),
+      body,
+    );
+  }
+  return res;
+}
+
 /**
  * Typed GET against the app's own API. The response is validated with the contract schema, so a
  * server and client that drift apart fail loudly here instead of rendering `undefined`.
@@ -58,38 +94,60 @@ export async function getJson<S extends z.ZodType>(
   schema: S,
   init?: RequestInit,
 ): Promise<z.infer<S>> {
+  return parseBody(await send("GET", path, init), `GET ${path}`, schema);
+}
+
+/** Typed POST: `body`, when given, is sent as JSON; the answer is validated like `getJson`'s. */
+export async function postJson<S extends z.ZodType>(
+  path: string,
+  schema: S,
+  body?: unknown,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
   const headers = new Headers(init?.headers);
-  if (!headers.has("Accept")) headers.set("Accept", "application/json");
-  const res = await fetch(path, { ...init, headers });
-  if (!res.ok) {
-    const body = await readErrorBody(res);
-    const detail = body ? `${body.code}: ${body.message}` : res.statusText;
-    throw new ApiError(
-      res.status,
-      `GET ${path} failed: ${String(res.status)} ${detail}`.trim(),
-      body,
-    );
+  if (body !== undefined) headers.set("Content-Type", "application/json");
+  const res = await send("POST", path, {
+    ...init,
+    headers,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  return parseBody(res, `POST ${path}`, schema);
+}
+
+/** DELETE that expects no body back (204). */
+export async function deleteJson(path: string, init?: RequestInit): Promise<void> {
+  const res = await send("DELETE", path, init);
+  await res.body?.cancel();
+}
+
+/**
+ * What to tell a person about a failed call. Exhaustive over `ApiErrorCode`, so a new code fails
+ * `tsc` here until it is decided whether its message is fit to show.
+ */
+const ERROR_TEXT: Record<ApiErrorCode, (message: string) => string> = {
+  bad_request: (message) => message,
+  unauthorized: () => "You are not signed in.",
+  forbidden: () => "You are not allowed to do that.",
+  not_found: (message) => message,
+  conflict: (message) => message,
+  unprocessable: (message) => message,
+  internal: () => "The server failed. Try again later.",
+  unavailable: () => "The server is not ready. Try again in a moment.",
+};
+
+export function errorText(error: unknown): string {
+  if (error instanceof ApiError) {
+    return error.body
+      ? ERROR_TEXT[error.body.code](error.body.message)
+      : "The server answered oddly.";
   }
-  const text = await res.text();
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new ApiError(res.status, `GET ${path} returned a body that is not JSON`);
-  }
-  const parsed = schema.safeParse(json);
-  if (!parsed.success) {
-    throw new ApiError(
-      res.status,
-      `GET ${path} returned an unexpected body: ${parsed.error.message}`,
-    );
-  }
-  return parsed.data;
+  return "Could not reach the server.";
 }
 
 export const queryKeys = {
   info: ["api", "info"] as const,
   health: ["api", "health"] as const,
+  myPush: ["api", "me", "push"] as const,
 };
 
 export function useInfo() {

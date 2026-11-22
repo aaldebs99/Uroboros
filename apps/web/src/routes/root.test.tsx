@@ -22,6 +22,8 @@ beforeEach(() => {
   stubApi({
     "/api/health": () => Response.json({ status: "ok", failing: [] }),
     "/api/info": () => Response.json({ name: "uroboros", version: "0.0.0" }),
+    "/api/me/push": () =>
+      Response.json({ enabled: false, publicKey: null, devices: [], maxDevices: 10 }),
   });
 });
 
@@ -55,6 +57,13 @@ describe("app shell", () => {
     await renderAt("/settings");
 
     expect(await screen.findByText("Healthy")).toBeInTheDocument();
+  });
+
+  it("shows the Notifications section in Settings", async () => {
+    await renderAt("/settings");
+
+    expect(await screen.findByRole("heading", { name: "Notifications" })).toBeInTheDocument();
+    expect(await screen.findByText(/notifications are off on this server/i)).toBeInTheDocument();
   });
 
   it("toggles dark mode and remembers it in localStorage", async () => {

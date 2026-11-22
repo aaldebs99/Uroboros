@@ -1,0 +1,31 @@
+/** Which of the person's devices this browser is, kept in this browser alone. */
+export interface StoredDevice {
+  id: string;
+  endpoint: string;
+}
+
+const KEY = "uroboros.pushDevice";
+
+export function storedDevice(): StoredDevice | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredDevice>;
+    return typeof parsed.id === "string" && typeof parsed.endpoint === "string"
+      ? { id: parsed.id, endpoint: parsed.endpoint }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeDevice(device: StoredDevice | null): void {
+  try {
+    if (device) localStorage.setItem(KEY, JSON.stringify(device));
+    else localStorage.removeItem(KEY);
+  } catch {
+    // Storage refused (a private window): this browser keeps no record of its device, so a launch
+    // mends nothing (`syncAction` is "none" without one); Settings offers to turn notifications
+    // on again, which registers it afresh.
+  }
+}

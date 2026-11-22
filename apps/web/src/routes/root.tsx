@@ -15,10 +15,15 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
+import { usePushSync } from "@/push/usePushSync";
 
-/** The app shell: fixed sidebar from `md` up, a sheet drawer below it, header with health + theme. */
+/**
+ * The app shell: fixed sidebar from `md` up, a sheet drawer below it, header with health + theme.
+ * It also mends this browser's push subscription once per launch (`usePushSync`).
+ */
 export function RootLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  usePushSync();
   return (
     <div className="page-glow min-h-dvh md:pl-64">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-sidebar-border md:block">
