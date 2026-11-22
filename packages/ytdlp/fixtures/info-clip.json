@@ -1,0 +1,42 @@
+{
+  "id": "clip",
+  "title": "clip",
+  "timestamp": 1795389410,
+  "direct": true,
+  "formats": [
+    {
+      "format_id": "mp4",
+      "url": "http://127.0.0.1:18765/clip.mp4",
+      "ext": "mp4",
+      "protocol": "http",
+      "video_ext": "mp4",
+      "audio_ext": "none",
+      "dynamic_range": "SDR",
+      "format": "mp4 - unknown"
+    }
+  ],
+  "subtitles": {},
+  "webpage_url": "http://127.0.0.1:18765/clip.mp4",
+  "webpage_url_basename": "clip.mp4",
+  "webpage_url_domain": "127.0.0.1:18765",
+  "extractor": "generic",
+  "extractor_key": "Generic",
+  "display_id": "clip",
+  "fulltitle": "clip",
+  "upload_date": "20261122",
+  "epoch": 1795389837,
+  "format_id": "mp4",
+  "url": "http://127.0.0.1:18765/clip.mp4",
+  "ext": "mp4",
+  "protocol": "http",
+  "video_ext": "mp4",
+  "audio_ext": "none",
+  "dynamic_range": "SDR",
+  "format": "mp4 - unknown",
+  "_type": "video",
+  "_version": {
+    "version": "2026.08.19",
+    "release_git_head": "594bd50c2c78ac432f81600d309fdc4e0a92d82c",
+    "repository": "yt-dlp/yt-dlp"
+  }
+}

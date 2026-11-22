@@ -1,0 +1,159 @@
+{
+  "id": "UCSMOQeBJ2RAnuFungnQOxLg",
+  "channel": "Blender",
+  "channel_id": "UCSMOQeBJ2RAnuFungnQOxLg",
+  "title": "Blender - Videos",
+  "availability": "public",
+  "channel_follower_count": 1260000,
+  "description": "Official YouTube channel for Blender, the Free and Open Source 3D Creation Suite.\n\nThe Freedom to Create\n",
+  "tags": [
+    "blender",
+    "Blender Foundation",
+    "3d",
+    "free software",
+    "Creative Commons",
+    "tutorials",
+    "blender conference",
+    "sintel",
+    "cosmos laundromat",
+    "caminandes",
+    "tears of steel",
+    "elephants dream",
+    "big buck bunny"
+  ],
+  "thumbnails": [
+    {
+      "url": "https://yt3.googleusercontent.com/6pYvl5Jl7MszRRlhjlRuEfil7B1sgt3u4WbCCl7yHPv1LbsSVAcaoGfs3gyrJUM201DQnzrUOA=w2560-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj",
+      "height": 424,
+      "width": 2560,
+      "preference": -10,
+      "id": "5",
+      "resolution": "2560x424"
+    },
+    {
+      "url": "https://yt3.googleusercontent.com/6pYvl5Jl7MszRRlhjlRuEfil7B1sgt3u4WbCCl7yHPv1LbsSVAcaoGfs3gyrJUM201DQnzrUOA=s0",
+      "id": "banner_uncropped",
+      "preference": -5
+    },
+    {
+      "url": "https://yt3.googleusercontent.com/ytc/AIdro_nqhez5E1j4YzrCvzTAAB6z_KDFFZznqWv0x-vfY2gsXdY=s900-c-k-c0x00ffffff-no-rj",
+      "height": 900,
+      "width": 900,
+      "id": "7",
+      "resolution": "900x900"
+    },
+    {
+      "url": "https://yt3.googleusercontent.com/ytc/AIdro_nqhez5E1j4YzrCvzTAAB6z_KDFFZznqWv0x-vfY2gsXdY=s0",
+      "id": "avatar_uncropped",
+      "preference": 1
+    }
+  ],
+  "uploader_id": "@BlenderOfficial",
+  "uploader_url": "https://www.youtube.com/@BlenderOfficial",
+  "channel_is_verified": true,
+  "modified_date": null,
+  "view_count": null,
+  "playlist_count": null,
+  "uploader": "Blender",
+  "channel_url": "https://www.youtube.com/channel/UCSMOQeBJ2RAnuFungnQOxLg",
+  "_type": "playlist",
+  "entries": [
+    {
+      "title": "What's New in Blender 5.3! Official Overview",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/pvUy69I_Xuk/hq720.jpg",
+          "height": 202,
+          "width": 360
+        },
+        {
+          "url": "https://i.ytimg.com/vi/pvUy69I_Xuk/hq720.jpg",
+          "height": 404,
+          "width": 720
+        }
+      ],
+      "duration": 1681,
+      "view_count": 319000,
+      "timestamp": null,
+      "live_status": null,
+      "availability": null,
+      "channel_url": null,
+      "uploader_url": null,
+      "creators": null,
+      "ie_key": "Youtube",
+      "id": "pvUy69I_Xuk",
+      "_type": "url",
+      "url": "https://www.youtube.com/watch?v=pvUy69I_Xuk"
+    },
+    {
+      "title": "Making of: The Blender Open Movies Exhibition",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/mHrHLqQj7Ts/hq720.jpg",
+          "height": 202,
+          "width": 360
+        },
+        {
+          "url": "https://i.ytimg.com/vi/mHrHLqQj7Ts/hq720.jpg",
+          "height": 404,
+          "width": 720
+        }
+      ],
+      "duration": 280,
+      "view_count": 20000,
+      "timestamp": null,
+      "live_status": null,
+      "availability": null,
+      "channel_url": null,
+      "uploader_url": null,
+      "creators": null,
+      "ie_key": "Youtube",
+      "id": "mHrHLqQj7Ts",
+      "_type": "url",
+      "url": "https://www.youtube.com/watch?v=mHrHLqQj7Ts"
+    },
+    {
+      "title": "Blender Education Community Meeting — BCON26",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/dVrELpmfcEQ/hq720.jpg",
+          "height": 202,
+          "width": 360
+        },
+        {
+          "url": "https://i.ytimg.com/vi/dVrELpmfcEQ/hq720.jpg",
+          "height": 404,
+          "width": 720
+        }
+      ],
+      "duration": 7482,
+      "view_count": 13000,
+      "timestamp": null,
+      "live_status": null,
+      "availability": null,
+      "channel_url": null,
+      "uploader_url": null,
+      "creators": null,
+      "ie_key": "Youtube",
+      "id": "dVrELpmfcEQ",
+      "_type": "url",
+      "url": "https://www.youtube.com/watch?v=dVrELpmfcEQ"
+    }
+  ],
+  "extractor_key": "YoutubeTab",
+  "extractor": "youtube:tab",
+  "webpage_url": "https://www.youtube.com/@BlenderOfficial/videos",
+  "original_url": "https://www.youtube.com/@BlenderOfficial/videos",
+  "webpage_url_basename": "videos",
+  "webpage_url_domain": "youtube.com",
+  "release_year": null,
+  "requested_entries": [1, 2, 3],
+  "epoch": 1795389431,
+  "__files_to_move": {},
+  "_version": {
+    "version": "2026.08.19",
+    "current_git_head": null,
+    "release_git_head": "594bd50c2c78ac432f81600d309fdc4e0a92d82c",
+    "repository": "yt-dlp/yt-dlp"
+  }
+}
