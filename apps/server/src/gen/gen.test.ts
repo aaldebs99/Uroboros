@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { renderOpenApi } from "./main.ts";
 
 interface Doc {
@@ -24,5 +29,48 @@ describe("renderOpenApi", () => {
     const schemas = Object.keys(doc.components?.schemas ?? {});
     expect(schemas.length).toBeGreaterThan(0);
     for (const name of schemas) expect(contract).toContain(name);
+  });
+});
+
+describe("gen --check through the real entrypoint", () => {
+  const bin = fileURLToPath(new URL("../bin/gen.ts", import.meta.url));
+  const serverDir = fileURLToPath(new URL("../..", import.meta.url));
+  let tmp: string;
+  beforeAll(() => {
+    tmp = mkdtempSync(join(tmpdir(), "gen-"));
+  });
+  afterAll(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  function check(file: string) {
+    return spawnSync("pnpm", ["exec", "tsx", bin, "--check", "--file", file], {
+      cwd: serverDir,
+      encoding: "utf8",
+    });
+  }
+
+  it("exits 1 on drift, also via a symlinked path", () => {
+    const real = join(tmp, "openapi.json");
+    writeFileSync(real, renderOpenApi().replace("Uroboros API", "Drifted"));
+    const link = join(tmp, "link");
+    symlinkSync(tmp, link);
+    for (const file of [real, join(link, "openapi.json")]) {
+      const r = check(file);
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain("run `mise run gen`");
+    }
+  });
+
+  it("exits 1 when the file is missing", () => {
+    const r = check(join(tmp, "absent.json"));
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("missing");
+  });
+
+  it("exits 0 when up to date", () => {
+    const ok = join(tmp, "ok.json");
+    writeFileSync(ok, renderOpenApi());
+    expect(check(ok).status).toBe(0);
   });
 });

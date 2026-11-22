@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { createApp, openApiConfig } from "../api/app.ts";
 import { findRepoRoot } from "../shared/repoRoot.ts";
 
@@ -64,30 +63,31 @@ function summarize(expected: string, actual: string): string {
   return "api/openapi.json differs\nrun `mise run gen`";
 }
 
-/** Exit codes: 0 ok, 1 drift or missing file. */
-function main(args: string[]): number {
-  const target = join(findRepoRoot(), "api/openapi.json");
+/** `gen [--check] [--file <path>]`. Exit codes: 0 ok, 1 drift or missing file, 2 bad usage. */
+export function main(argv: string[] = []): Promise<number> {
+  const fileIdx = argv.indexOf("--file");
+  const fileArg = fileIdx === -1 ? undefined : argv[fileIdx + 1];
+  if (fileIdx !== -1 && fileArg === undefined) {
+    console.error("--file needs a path");
+    return Promise.resolve(2);
+  }
+  const target = fileArg ?? join(findRepoRoot(), "api/openapi.json");
   const rendered = renderOpenApi();
-  if (args.includes("--check")) {
+  if (argv.includes("--check")) {
     if (!existsSync(target)) {
       console.error("api/openapi.json is missing\nrun `mise run gen`");
-      return 1;
+      return Promise.resolve(1);
     }
     const current = readFileSync(target, "utf8");
     if (current !== rendered) {
       console.error(summarize(rendered, current));
-      return 1;
+      return Promise.resolve(1);
     }
     console.log("api/openapi.json is up to date");
-    return 0;
+    return Promise.resolve(0);
   }
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, rendered);
   console.log("wrote api/openapi.json");
-  return 0;
-}
-
-const entry = process.argv[1];
-if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
-  process.exit(main(process.argv.slice(2)));
+  return Promise.resolve(0);
 }

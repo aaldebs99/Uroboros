@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
 import { serve } from "@hono/node-server";
 import type { ServerType } from "@hono/node-server";
 import { pino } from "pino";
@@ -57,7 +56,8 @@ export async function startApi(config: Config, logger: Logger): Promise<RunningA
   };
 }
 
-async function main(): Promise<void> {
+/** Runs the API until SIGTERM/SIGINT; resolves with the exit code (0 clean, 1 failed shutdown, 2 config). */
+export async function main(_argv: string[] = []): Promise<number> {
   const logger = pino({ name: "uroboros-api" });
   let config: Config;
   try {
@@ -65,30 +65,29 @@ async function main(): Promise<void> {
   } catch (err) {
     if (err instanceof ConfigError) {
       logger.fatal(err.message);
-      process.exit(2);
+      return 2;
     }
     throw err;
   }
   const api = await startApi(config, logger);
-  const shutdown = (signal: string) => {
-    logger.info({ signal }, "shutting down");
-    api.close().then(
-      () => process.exit(0),
-      (err: unknown) => {
-        logger.error({ err }, "shutdown failed");
-        process.exit(1);
-      },
-    );
-  };
-  process.once("SIGTERM", () => {
-    shutdown("SIGTERM");
+  return new Promise<number>((resolve) => {
+    const shutdown = (signal: string) => {
+      logger.info({ signal }, "shutting down");
+      api.close().then(
+        () => {
+          resolve(0);
+        },
+        (err: unknown) => {
+          logger.error({ err }, "shutdown failed");
+          resolve(1);
+        },
+      );
+    };
+    process.once("SIGTERM", () => {
+      shutdown("SIGTERM");
+    });
+    process.once("SIGINT", () => {
+      shutdown("SIGINT");
+    });
   });
-  process.once("SIGINT", () => {
-    shutdown("SIGINT");
-  });
-}
-
-const entry = process.argv[1];
-if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
-  void main();
 }

@@ -5,7 +5,7 @@ import { defaultMigrationsDir } from "./dir.ts";
 import { MigrationError, runMigrations } from "./runner.ts";
 
 /** Exit codes: 0 ok, 1 migration failure, 2 configuration error. */
-async function main(): Promise<number> {
+export async function main(_argv: string[] = []): Promise<number> {
   try {
     const config = loadMigrateConfig(process.env);
     const dir = resolve(process.env["UROBOROS_MIGRATIONS_DIR"] ?? defaultMigrationsDir());
@@ -31,5 +31,3 @@ async function main(): Promise<number> {
     throw err;
   }
 }
-
-process.exitCode = await main();
