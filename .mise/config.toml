@@ -278,7 +278,9 @@ depends = ["docker:build"]
 run = "scripts/image/smoke-test.sh uroboros:local uroboros:local-worker"
 
 [tasks.migrate]
-description = "Apply pending migrations to $DATABASE_URL"
+description = "Apply pending migrations to $DATABASE_URL (default: the dev:deps Postgres on 127.0.0.1:15432)"
+depends = ["install"]
+env = { DATABASE_URL = "{{ get_env(name='DATABASE_URL', default='postgres://uroboros:uroboros@127.0.0.1:15432/uroboros') }}" }
 run = "pnpm -F @uroboros/server exec tsx src/bin/migrate.ts"
 
 [tasks."dev:api"]
