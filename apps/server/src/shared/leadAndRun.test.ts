@@ -1,3 +1,4 @@
+import { getEventListeners } from "node:events";
 import { pino } from "pino";
 import { describe, expect, it, vi } from "vitest";
 import { type LeaderLock, LeaderGuard, LeaderStatus, leadAndRun } from "./leader.ts";
@@ -198,5 +199,68 @@ describe("leadAndRun", () => {
     shutdown.abort();
     await loop;
     expect(seen).toEqual([true, false]);
+  });
+
+  it("leaves no listener on the shutdown signal behind, however often it retries", async () => {
+    const lock = new FakeLock([]);
+    const shutdown = new AbortController();
+    const loop = leadAndRun({
+      lock,
+      name: "test",
+      work: idleWork().work,
+      shutdown: shutdown.signal,
+      retryMs: 1,
+      status: new LeaderStatus(),
+      logger,
+    });
+    await vi.waitFor(() => {
+      expect(lock.attempts).toBeGreaterThanOrEqual(10);
+    });
+    const early = getEventListeners(shutdown.signal, "abort").length;
+    await vi.waitFor(() => {
+      expect(lock.attempts).toBeGreaterThanOrEqual(300);
+    });
+    expect(getEventListeners(shutdown.signal, "abort").length).toBe(early);
+    expect(early).toBeLessThanOrEqual(2);
+    shutdown.abort();
+    await loop;
+  });
+
+  it("clears the status before giving the lock back", async () => {
+    const status = new LeaderStatus();
+    const leadingAtRelease: boolean[] = [];
+    let finishRelease: () => void = () => undefined;
+    const lock: LeaderLock = {
+      tryAcquire: () =>
+        Promise.resolve(
+          new LeaderGuard(new AbortController().signal, () => {
+            leadingAtRelease.push(status.leading);
+            return new Promise<void>((resolve) => {
+              finishRelease = resolve;
+            });
+          }),
+        ),
+    };
+    const shutdown = new AbortController();
+    const loop = leadAndRun({
+      lock,
+      name: "test",
+      work: idleWork().work,
+      shutdown: shutdown.signal,
+      retryMs: 10,
+      status,
+      logger,
+    });
+    await vi.waitFor(() => {
+      expect(status.leading).toBe(true);
+    });
+    shutdown.abort();
+    await vi.waitFor(() => {
+      expect(leadingAtRelease).toEqual([false]);
+    });
+    // Still releasing (a silent server), yet no longer reported as leader.
+    expect(status.leading).toBe(false);
+    finishRelease();
+    await loop;
   });
 });

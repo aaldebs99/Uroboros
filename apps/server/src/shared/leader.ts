@@ -194,13 +194,17 @@ export interface LeadAndRunOptions {
 /** Tries the lock until it wins or shutdown aborts; a win that lands after shutdown is given back. */
 async function acquire(opts: LeadAndRunOptions): Promise<LeaderGuard | null | "shutdown"> {
   const attempt = opts.lock.tryAcquire();
+  // Removes this attempt's listener from the shutdown signal once the race is decided.
+  const settled = new AbortController();
   const outcome = await Promise.race([
     attempt.then(
       (guard) => ({ guard }),
       (err: unknown) => ({ err }),
     ),
-    aborted(opts.shutdown).then(() => "shutdown" as const),
-  ]);
+    aborted(opts.shutdown, settled.signal).then(() => "shutdown" as const),
+  ]).finally(() => {
+    settled.abort();
+  });
   if (outcome === "shutdown" || opts.shutdown.aborted) {
     void attempt.then(
       (guard) => guard?.release(),
@@ -251,8 +255,9 @@ export async function leadAndRun(opts: LeadAndRunOptions): Promise<void> {
     logger.info({ name }, "leader acquired");
     const outcome = await runWhileLeading(opts, guard);
     const lost = guard.isLost;
-    await guard.release();
+    // Not leading any more, even while the release still waits on a server (up to 4 s).
     status.setLeader(false);
+    await guard.release();
     logger.info({ name, lost }, "leader released");
     if (outcome !== null) {
       logger.error(

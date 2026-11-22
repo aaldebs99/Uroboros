@@ -2,7 +2,9 @@ import { createServer } from "node:net";
 import type { AddressInfo, Socket } from "node:net";
 import { pino } from "pino";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { recordingLogger } from "../../test/apiConfig.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
+import { silentProxy } from "../../test/silentProxy.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { type LeaderGuard, PgLeaderLock } from "./leader.ts";
 import { roleKey } from "./lockKeys.ts";
@@ -87,6 +89,32 @@ describe("PgLeaderLock", () => {
     expect(guard.lost.aborted).toBe(true);
     // Another replica takes over once the holder is gone.
     await win(lock());
+  });
+
+  it("marks the guard lost when its keepalive ping goes unanswered (a silent server)", async () => {
+    const proxy = await silentProxy(testDb.url);
+    try {
+      const recording = recordingLogger();
+      const l = new PgLeaderLock(proxy.url, KEY, { logger: recording.logger, keepaliveMs: 200 });
+      const guard = await win(l);
+      proxy.silence();
+      const start = Date.now();
+      await vi.waitFor(
+        () => {
+          expect(guard.isLost).toBe(true);
+        },
+        { timeout: 2000, interval: 20 },
+      );
+      // One tick to send the ping, one more for it to time out.
+      expect(Date.now() - start).toBeLessThan(1000);
+      // The ping noticed it, not a socket event: the proxy keeps both sockets open.
+      const reasons = recording.lines
+        .filter((line) => line["msg"] === "leader lock connection failed; leadership lost")
+        .map((line) => (line["err"] as { message?: string } | undefined)?.message);
+      expect(reasons).toEqual(["leader lock ping timed out"]);
+    } finally {
+      await proxy.close();
+    }
   });
 
   it("keeps the role keys separate", async () => {

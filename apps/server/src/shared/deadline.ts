@@ -37,8 +37,12 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<boolean> {
   });
 }
 
-/** Resolves once `signal` aborts (never, if it never does). */
-export function aborted(signal: AbortSignal): Promise<void> {
+/**
+ * Resolves once `signal` aborts (never, if it never does). Its listener stays on `signal` until
+ * then, or until `until` aborts: a caller that races this against other work and may go on
+ * without it passes `until` and aborts it when done, or every call leaves a listener behind.
+ */
+export function aborted(signal: AbortSignal, until?: AbortSignal): Promise<void> {
   if (signal.aborted) return Promise.resolve();
   return new Promise<void>((resolve) => {
     signal.addEventListener(
@@ -46,7 +50,7 @@ export function aborted(signal: AbortSignal): Promise<void> {
       () => {
         resolve();
       },
-      { once: true },
+      { once: true, ...(until === undefined ? {} : { signal: until }) },
     );
   });
 }
