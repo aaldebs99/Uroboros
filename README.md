@@ -23,6 +23,8 @@ A self-hosted web UI, API and download workers for media, replacing ytdl-materia
   image builds, and forward-only [ratchets](docs/ratchets.md).
 - **Automation**: [Renovate](.renovaterc.json5) waits 3 days before adopting any release and
   automerges only on green CI; [git-cliff](cliff.toml) drives the changelog and the release PR.
+- **Licences**: Uroboros is MIT. The images bundle other software, ffmpeg (GPL) among it; see
+  [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Quickstart
 

@@ -1,0 +1,54 @@
+# Third-party software in the images
+
+Uroboros itself is MIT licensed (see [LICENSE](LICENSE)). The container images also carry other
+software under its own licences. This file lists what each image ships; the licence texts are the
+authority. The Dockerfile has the exact pins.
+
+## api image (`uroboros-api`)
+
+Built `FROM gcr.io/distroless/cc-debian13:nonroot`, with the Node binary copied in.
+
+| Component                     | Licence                                                 | Source                                                              |
+| ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------- |
+| Node.js (the `node` binary)   | MIT, with the licences of its bundled dependencies      | The official `node` image, https://github.com/nodejs/node           |
+| distroless base (cc-debian13) | Debian packages, each under its own licence             | https://github.com/GoogleContainerTools/distroless                  |
+| Debian packages in the base   | glibc, libstdc++ and libgcc (LGPL, GPL with exceptions) | Copyright files under `/usr/share/doc/<package>/` in the image      |
+| The server bundle (`/app`)    | MIT (Uroboros), plus the bundled npm dependencies       | Each package's licence, see `pnpm-lock.yaml` for the exact versions |
+
+## worker image (`uroboros-worker`)
+
+Built `FROM node:<version>-trixie-slim` (Debian 13).
+
+| Component                    | Licence                                            | Source                                                                                   |
+| ---------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Node.js                      | MIT, with the licences of its bundled dependencies | The official `node` image, https://github.com/nodejs/node                                |
+| Debian base                  | Debian packages, each under its own licence        | Copyright files under `/usr/share/doc/<package>/`; sources at https://sources.debian.org |
+| Python 3 and its venv module | Python Software Foundation License                 | Debian's `python3` packages                                                              |
+| yt-dlp (`/opt/yt-dlp`)       | Unlicense (public domain)                          | https://github.com/yt-dlp/yt-dlp, pinned in `scripts/image/requirements.txt`             |
+| ffmpeg and ffprobe           | GNU GPL version 3                                  | yt-dlp's FFmpeg build, see below                                                         |
+| The server bundle (`/app`)   | MIT (Uroboros), plus the bundled npm dependencies  | Each package's licence, see `pnpm-lock.yaml`                                             |
+
+yt-dlp is the only downloader the images ship.
+
+### ffmpeg
+
+`/usr/local/bin/ffmpeg` and `/usr/local/bin/ffprobe` are yt-dlp's static, patched GPL build from
+https://github.com/yt-dlp/FFmpeg-Builds, installed unmodified from a release archive whose sha256
+is checked against a pin in the Dockerfile (`FFMPEG_TAG`, `FFMPEG_CHECKSUMS_SHA256`) by
+`scripts/image/install-ffmpeg.sh`. It statically links the libraries its configuration lists; run
+`ffmpeg -version` in the image to see the configuration.
+
+The worker image contains, under `/usr/share/licenses/ffmpeg/`:
+
+- `LICENSE.txt`: the licence text shipped in the build archive (GNU GPL version 3).
+- `SOURCE.md`: the release URL and tag, the archive names and checksums, and links to the build
+  scripts and patches at that tag and to the FFmpeg source commit.
+
+The tag in the Dockerfile is the version shipped. The corresponding source is the build scripts at
+that tag in the FFmpeg-Builds repository, which fetch FFmpeg and each linked library at a pinned
+version.
+
+### Future: transcode workers
+
+Transcode workers, when they exist, will use jellyfin-ffmpeg (https://github.com/jellyfin/jellyfin-ffmpeg,
+GPL) instead of this build. This file will list it when that image does.

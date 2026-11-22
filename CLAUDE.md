@@ -26,7 +26,7 @@ gates need Docker (`test` and `docker:build`) and two need the network (`check:a
 | `chart/uroboros`      | The Helm chart: api Deployment, worker Deployment, migrate hook Job, worker egress NetworkPolicy. `ci/*-values.yaml` are the renders `lint:chart` validates.                    |
 | `compose.yaml`        | The production-shaped local stack: Postgres, Valkey, RustFS, migrate, two api replicas behind Caddy, two workers.                                                               |
 | `compose.dev.yaml`    | The dev overlay: the api from source with `tsx watch`, and loopback ports for Postgres, Valkey and RustFS.                                                                      |
-| `Dockerfile`          | One build stage, two runtime targets: `api` (distroless, the default) and `worker` (Debian slim with ffmpeg and the pinned yt-dlp).                                             |
+| `Dockerfile`          | One build stage, two runtime targets: `api` (distroless, the default) and `worker` (Debian slim with yt-dlp's static ffmpeg and the pinned yt-dlp).                             |
 | `scripts/image`       | The worker image's install scripts, yt-dlp's hashed `requirements.txt`, and `smoke-test.sh`, which proves both images work.                                                     |
 | `scripts/release`     | `propose.sh`, `publish.sh` and their `lib.sh`: the release PR and the release cut that `.github/workflows/release-pr.yml` runs.                                                 |
 | `.github/workflows`   | `ci.yml` (the gates), `pr-title.yml`, `release-pr.yml`, `release.yml` (images) and `renovate.yml`.                                                                              |
@@ -132,7 +132,11 @@ change is always a new file.
 **yt-dlp is the only downloader.** Never youtube-dl, youtube-dlc or another fork, and no
 downloader setting or fallback. The api never spawns yt-dlp or ffmpeg; only workers do. The
 worker image pins yt-dlp with hashes in `scripts/image/requirements.txt`, and the smoke test
-fails if any other downloader is on the image.
+fails if any other downloader is on the image. The worker's ffmpeg is yt-dlp's GPL build from
+`yt-dlp/FFmpeg-Builds`, pinned by release tag and checksums digest (`FFMPEG_TAG`,
+`FFMPEG_CHECKSUMS_SHA256` in the Dockerfile, installed by `scripts/image/install-ffmpeg.sh`).
+It ships with its licence and a `SOURCE.md` under `/usr/share/licenses/ffmpeg/`; `THIRD_PARTY.md`
+lists what each image carries. Do not swap the build without updating both.
 
 **RustFS is the S3 server** for local stacks and tests, never MinIO.
 
