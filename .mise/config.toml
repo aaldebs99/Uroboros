@@ -188,3 +188,8 @@ run = "pnpm -F @uroboros/server exec tsx src/migrate/main.ts"
 description = "Run the API with reload against the dev:deps containers"
 env = { DATABASE_URL = "{{ get_env(name='DATABASE_URL', default='postgres://uroboros:uroboros@127.0.0.1:5432/uroboros') }}", VALKEY_URL = "{{ get_env(name='VALKEY_URL', default='redis://127.0.0.1:6379') }}" }
 run = "pnpm -F @uroboros/server exec tsx watch src/api/main.ts"
+
+[tasks."migration:new"]
+description = "Create an empty migrations/<UTC now>_<name>.sql (usage: mise run migration:new <snake_case_name>)"
+usage = 'arg "<name>" help="snake_case, starts with a letter, at least 3 characters"'
+run = 'pnpm -F @uroboros/server exec tsx src/migrate/new.ts "${usage_name}"'

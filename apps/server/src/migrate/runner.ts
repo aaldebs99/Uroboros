@@ -3,13 +3,9 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type Kysely, sql } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { MigrationError, parseMigrationName } from "./name.ts";
 
-/** An applied file was edited, or a pending file failed. The message names the file. */
-export class MigrationError extends Error {
-  override readonly name = "MigrationError";
-}
-
-const NAME_PATTERN = /^\d{14}_[a-z0-9_]+\.sql$/;
+export { MigrationError };
 
 interface MigrationFile {
   name: string;
@@ -19,12 +15,16 @@ interface MigrationFile {
 
 async function readMigrations(dir: string): Promise<MigrationFile[]> {
   const names = (await readdir(dir)).filter((n) => n.endsWith(".sql")).sort();
-  // Forward-only: a misnamed file could sort and apply out of order, so reject before applying.
-  const bad = names.find((n) => !NAME_PATTERN.test(n));
-  if (bad !== undefined) {
-    throw new MigrationError(
-      `migration ${bad} is misnamed: expected <YYYYMMDDHHMMSS>_<name>.sql (lowercase, digits, underscores)`,
-    );
+  // Forward-only: a misnamed file could apply out of order, so reject before applying anything.
+  const stamps = new Map<string, string>();
+  for (const n of names) {
+    const { timestamp } = parseMigrationName(n);
+    const key = timestamp.toISOString();
+    const other = stamps.get(key);
+    if (other !== undefined) {
+      throw new MigrationError(`migrations ${other} and ${n} share the same timestamp`);
+    }
+    stamps.set(key, n);
   }
   return Promise.all(
     names.map(async (name) => {

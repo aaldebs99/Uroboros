@@ -10,8 +10,8 @@ import { createEmptyDatabase } from "../../test/testDb.ts";
 const fixture = (name: string): string =>
   fileURLToPath(new URL(`../../test/fixtures/${name}`, import.meta.url));
 
-const A = "20260101000000_a.sql";
-const B = "20260101000001_b.sql";
+const A = "20261121143000_create_widgets.sql";
+const B = "20261121143512_add_widget_color.sql";
 
 describe("runMigrations", () => {
   let url: string;
@@ -73,6 +73,15 @@ describe("runMigrations", () => {
       t: string | null;
     }>`SELECT to_regclass('schema_migrations')::text AS t`.execute(db);
     expect(t.rows[0]?.t).toBeNull();
+  });
+
+  it("rejects two files sharing a timestamp, naming both", async () => {
+    const err = await runMigrations(connect(), fixture("migrations-dup-timestamp")).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(MigrationError);
+    expect((err as MigrationError).message).toContain("20261121143000_create_widgets.sql");
+    expect((err as MigrationError).message).toContain("20261121143000_add_widget_color.sql");
   });
 
   it("rejects an edited, already-applied file naming it", async () => {
