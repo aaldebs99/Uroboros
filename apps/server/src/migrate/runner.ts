@@ -9,6 +9,8 @@ export class MigrationError extends Error {
   override readonly name = "MigrationError";
 }
 
+const NAME_PATTERN = /^\d{14}_[a-z0-9_]+\.sql$/;
+
 interface MigrationFile {
   name: string;
   sql: string;
@@ -17,6 +19,13 @@ interface MigrationFile {
 
 async function readMigrations(dir: string): Promise<MigrationFile[]> {
   const names = (await readdir(dir)).filter((n) => n.endsWith(".sql")).sort();
+  // Forward-only: a misnamed file could sort and apply out of order, so reject before applying.
+  const bad = names.find((n) => !NAME_PATTERN.test(n));
+  if (bad !== undefined) {
+    throw new MigrationError(
+      `migration ${bad} is misnamed: expected <YYYYMMDDHHMMSS>_<name>.sql (lowercase, digits, underscores)`,
+    );
+  }
   return Promise.all(
     names.map(async (name) => {
       const text = await readFile(join(dir, name), "utf8");

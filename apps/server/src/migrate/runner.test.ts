@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { type Kysely, sql } from "kysely";
-import { afterEach, beforeEach, describe, expect, inject, it } from "vitest";
+import pg from "pg";
+import { afterEach, beforeEach, describe, expect, inject, it, vi } from "vitest";
 import { createDb } from "../db/kysely.ts";
 import type { Database } from "../db/schema.ts";
 import { MigrationError, runMigrations } from "./runner.ts";
@@ -39,12 +40,39 @@ describe("runMigrations", () => {
   });
 
   it("applies exactly once under concurrent runners on separate pools", async () => {
-    const results = await Promise.all([
-      runMigrations(connect(), fixture("migrations-ok")),
-      runMigrations(connect(), fixture("migrations-ok")),
-    ]);
-    const counts = results.map((r) => r.applied.length).sort();
-    expect(counts).toEqual([0, 2]);
+    // Hold the lock from a third session so both runners are provably queued behind it.
+    const holder = new pg.Client({ connectionString: url });
+    await holder.connect();
+    try {
+      await holder.query("SELECT pg_advisory_lock(hashtext('uroboros_migrate'))");
+      const runs = [
+        runMigrations(connect(), fixture("migrations-ok")),
+        runMigrations(connect(), fixture("migrations-ok")),
+      ];
+      await vi.waitFor(async () => {
+        const r = await holder.query<{ n: string }>(`
+          SELECT count(*)::text AS n FROM pg_locks
+          WHERE locktype = 'advisory' AND NOT granted
+            AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`);
+        expect(r.rows[0]?.n).toBe("2");
+      });
+      await holder.query("SELECT pg_advisory_unlock(hashtext('uroboros_migrate'))");
+      const results = await Promise.all(runs);
+      expect(results.map((r) => r.applied.length).sort()).toEqual([0, 2]);
+    } finally {
+      await holder.end();
+    }
+  });
+
+  it("rejects misnamed files naming them, before applying anything", async () => {
+    const db = connect();
+    const err = await runMigrations(db, fixture("migrations-bad-name")).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(MigrationError);
+    expect((err as MigrationError).message).toContain("notes.sql");
+    const t = await sql<{
+      t: string | null;
+    }>`SELECT to_regclass('schema_migrations')::text AS t`.execute(db);
+    expect(t.rows[0]?.t).toBeNull();
   });
 
   it("rejects an edited, already-applied file naming it", async () => {
