@@ -7,6 +7,7 @@ export const ApiErrorCode = z
     "forbidden",
     "not_found",
     "conflict",
+    "unprocessable",
     "internal",
     "unavailable",
   ])
@@ -18,12 +19,13 @@ export const ApiErrorBody = z
   .openapi("ApiErrorBody");
 export type ApiErrorBody = z.infer<typeof ApiErrorBody>;
 
-export const apiErrorStatus: Record<ApiErrorCode, 400 | 401 | 403 | 404 | 409 | 500 | 503> = {
+export const apiErrorStatus: Record<ApiErrorCode, 400 | 401 | 403 | 404 | 409 | 422 | 500 | 503> = {
   bad_request: 400,
   unauthorized: 401,
   forbidden: 403,
   not_found: 404,
   conflict: 409,
+  unprocessable: 422,
   internal: 500,
   unavailable: 503,
 };
