@@ -33,6 +33,11 @@ git-cliff = "2.14.2"
 helm = "4.3.2"
 "aqua:yannh/kubeconform" = "0.8.0"
 
+[env]
+# The hot-reload overlay (compose.dev.yaml) on top of the base stack (compose.yaml, project
+# `uroboros`).
+COMPOSE_DEV = "-f compose.yaml -f compose.dev.yaml"
+
 [settings]
 # Maintain .mise/mise.lock: the exact resolved version, download URL and checksum per platform,
 # so every machine and every CI runner installs byte-identical toolchains. Load-bearing — CI's
@@ -177,8 +182,48 @@ run = "pnpm exec ratchet ci-parity"
 # ── Local development ─────────────────────────────────────────────────────────────────────────
 
 [tasks."dev:deps"]
-description = "Start local Postgres and Valkey (dev/compose.yaml)"
-run = "docker compose -f dev/compose.yaml up postgres valkey"
+description = "Start local Postgres and Valkey on 127.0.0.1 (compose.yaml + compose.dev.yaml), for a host-run api, worker and ui"
+run = "docker compose $COMPOSE_DEV up postgres valkey"
+
+# ── Containers (not CI gates) ─────────────────────────────────────────────────────────────────
+
+[tasks."docker:up"]
+description = "Run the real artifact: production images, 2 api replicas behind Caddy on http://127.0.0.1:8080, 2 workers, migrate (minutes on a cold cache)"
+run = "docker compose up --build"
+
+[tasks."docker:up:dev"]
+description = "Run the dev stack with hot reload: api from source behind Caddy on :8080, deps on loopback ports (Vite: mise run dev:ui)"
+# COMPOSE_BAKE=false: compose's bake path builds the images in parallel, and on a
+# containerd-snapshotter host that was observed to trip BuildKit's overlay cache-mount race
+# ("device or resource busy"); the classic sequential builder did not. A retry also works.
+env = { COMPOSE_BAKE = "false" }
+# Nothing in compose.dev.yaml mounts a node_modules directory, so there is nothing to pre-create.
+run = "docker compose $COMPOSE_DEV up"
+
+[tasks."docker:up:dev:build"]
+description = "Same as docker:up:dev, rebuilding the dev images first (after a Dockerfile edit)"
+# `docker compose up` reuses an existing image and only builds when none is present, so a
+# Dockerfile change is invisible to a down/up cycle without --build.
+env = { COMPOSE_BAKE = "false" }
+run = "docker compose $COMPOSE_DEV up --build"
+
+[tasks."docker:down"]
+description = "Stop every compose service, dev or prod (add -v by hand to reclaim the data volumes)"
+run = "docker compose $COMPOSE_DEV down"
+
+[tasks."docker:build"]
+description = "Build both images without compose: uroboros:local (api and migrate) and uroboros:local-worker"
+# uroboros:local is the compose image name, so a later `docker compose up` without --build reuses it.
+run = '''
+set -eu
+docker build --build-arg VERSION=0.0.0-local --build-arg REVISION="$(git rev-parse --short HEAD)" --target api -t uroboros:local .
+docker build --build-arg VERSION=0.0.0-local --build-arg REVISION="$(git rev-parse --short HEAD)" --target worker -t uroboros:local-worker .
+'''
+
+[tasks."docker:smoke"]
+description = "Build both images and smoke-test them (scripts/image/smoke-test.sh)"
+depends = ["docker:build"]
+run = "scripts/image/smoke-test.sh uroboros:local uroboros:local-worker"
 
 [tasks.migrate]
 description = "Apply pending migrations to $DATABASE_URL"
@@ -214,6 +259,11 @@ run = "pnpm -F @uroboros/server exec tsx src/bin/gen.ts --check"
 [tasks."dev:ui"]
 description = "Run the web UI with HMR; /api is proxied to $UROBOROS_API_URL (default http://127.0.0.1:8080)"
 run = "pnpm -F @uroboros/web dev"
+
+[tasks."build:server"]
+description = "Bundle the server with tsdown into apps/server/dist/{api,worker,migrate,gen}.mjs"
+depends = ["install"]
+run = "pnpm -F @uroboros/server build"
 
 [tasks."build:ui"]
 description = "Type-check and build the web UI into apps/web/dist"

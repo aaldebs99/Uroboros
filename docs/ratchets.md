@@ -120,9 +120,8 @@ same pin, parsed with real parsers (TOML, JSON, JSON5, YAML), not regexes over t
   `pnpm-workspace.yaml` `minimumReleaseAge` (`4320` minutes). If the two disagree, Renovate opens
   PRs that pnpm then refuses to install.
 
-While no `Dockerfile` exists, the Dockerfile checks are skipped and the gate prints a note saying
-so. Once a Dockerfile exists it is mandatory: a missing `ARG NODE_VERSION` or `ARG PNPM_VERSION` is
-a layout error.
+The `Dockerfile` is mandatory: a missing file (a symlink to one counts), or a missing
+`ARG NODE_VERSION` or `ARG PNPM_VERSION`, is a layout error (exit 2).
 
 **Updating:** change every copy in one commit. Renovate groups each tool's pins into a single PR
 ("node", "pnpm") for this reason. If a pin turns up in a new file, add it to

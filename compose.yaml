@@ -1,0 +1,147 @@
+# Local stack, the shape of a deployment: Postgres, Valkey and MinIO, a one-shot migrate, two api
+# replicas behind Caddy on 127.0.0.1:8080 (UROBOROS_PORT overrides the host port) and two workers.
+# `mise run docker:up` builds the real images and starts it. The proxy is the only port this file
+# publishes. Everything dev-only (hot reload for the api, loopback ports for Postgres, Valkey and
+# MinIO, which `mise run dev:deps` uses for a host-run api and worker) is in compose.dev.yaml.
+#
+# One project name, so up, down, logs and ps from any directory address the same stack.
+name: uroboros
+
+x-server-build: &server-build
+  context: .
+  target: api
+  args:
+    VERSION: 0.0.0-compose
+
+x-server-env: &server-env
+  DATABASE_URL: postgres://uroboros:uroboros@postgres:5432/uroboros
+  VALKEY_URL: redis://valkey:6379
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: uroboros
+      POSTGRES_PASSWORD: uroboros
+      POSTGRES_DB: uroboros
+    volumes:
+      # PG18 moved PGDATA under /var/lib/postgresql/<major>/docker; mount the parent.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uroboros -d uroboros"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # S3-compatible object storage for downloaded media. Docker Hub and Quay no longer carry
+  # MinIO's own images; Chainguard's rolling build is the maintained public one. Root credentials
+  # are dev-only. The console is on :9001 in the dev overlay.
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: uroboros
+      MINIO_ROOT_PASSWORD: uroboros-dev-secret
+    volumes:
+      - minio-data:/data
+
+  # The api image again, running the migrate entrypoint once. The api and workers wait for it.
+  migrate:
+    build: *server-build
+    image: uroboros:local
+    command: ["/app/migrate.mjs"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://uroboros:uroboros@postgres:5432/uroboros
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: *server-build
+    image: uroboros:local
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+    environment: *server-env
+    healthcheck:
+      # The image is distroless: no shell, no curl. Node's fetch is enough. Degraded health is
+      # still HTTP 200, so a stopped Valkey does not take the replicas out.
+      test:
+        - CMD
+        - /nodejs/bin/node
+        - -e
+        - "fetch('http://127.0.0.1:8080/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      target: worker
+      args:
+        VERSION: 0.0.0-compose
+    image: uroboros:local-worker
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+    environment:
+      VALKEY_URL: redis://valkey:6379
+    depends_on:
+      valkey:
+        condition: service_healthy
+
+  # The one entrypoint, round-robin over both api replicas. `dynamic a` re-resolves the `api`
+  # service name every two seconds, so replicas that restart or scale are picked up.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${UROBOROS_PORT:-8080}:8080"
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    depends_on:
+      api:
+        condition: service_healthy
+
+configs:
+  caddyfile:
+    content: |
+      {
+        admin off
+        auto_https off
+      }
+      :8080 {
+        reverse_proxy {
+          dynamic a {
+            name api
+            port 8080
+            refresh 2s
+          }
+          lb_policy round_robin
+        }
+      }
+
+volumes:
+  postgres-data:
+  minio-data:

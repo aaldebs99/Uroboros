@@ -1,0 +1,11 @@
+# What pip installs into the worker image's venv (install-pip-packages.sh), each pin with the
+# hashes of its release files: pip runs with --require-hashes, so a file that differs from these,
+# or an unpinned dependency, fails the build. Hashes come from PyPI's release metadata
+# (https://pypi.org/pypi/yt-dlp/<version>/json, `digests.sha256` of the wheel and the sdist).
+# Renovate's pip_requirements manager bumps a pin and rewrites its hashes (hashin); the 3-day
+# soak (`minimumReleaseAge` in .renovaterc.json5) applies, so the pin is a stable release at
+# least three days old. yt-dlp has no required dependencies. It is the only downloader: never
+# add youtube-dl, youtube-dlc or another fork here.
+yt-dlp==2026.10.26 \
+    --hash=sha256:a05c5b5d8562f7e8a62f5334348b406af4930d56d3a65f8021d14af0e22339ae \
+    --hash=sha256:abe5c6b94c3b2f0560500add1c42e0a97641752743a5b65588ac2007a6e23eb6

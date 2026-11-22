@@ -1,3 +1,5 @@
+import { symlinkSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { LayoutError } from "./repo.ts";
@@ -97,10 +99,20 @@ describe("pins", () => {
     expect(failure({ renovateAge: "soon" })).toContain('"soon"');
   });
 
-  it("skips the Dockerfile checks with a note when the Dockerfile is absent", () => {
-    const report = runPins(tempRepo(files({ dockerfile: false })));
-    expect(isOk(report)).toBe(true);
-    expect(renderOk(report)).toMatch(/note: .*Dockerfile.*skipped/);
+  it("raises a layout error (exit 2) when the Dockerfile is absent", () => {
+    expect(() => runPins(tempRepo(files({ dockerfile: false })))).toThrow(LayoutError);
+    expect(() => runPins(tempRepo(files({ dockerfile: false })))).toThrow(/Dockerfile/);
+  });
+
+  it("reads a Dockerfile that is a symlink", () => {
+    const f = files({ dockerNode: "24.20.0" });
+    const real = f["Dockerfile"] ?? "";
+    delete f["Dockerfile"];
+    const repo = tempRepo({ ...f, "build/Dockerfile.real": real });
+    symlinkSync("build/Dockerfile.real", join(repo.root, "Dockerfile"));
+    const report = runPins(repo);
+    expect(isOk(report)).toBe(false);
+    expect(renderFailure(report)).toContain("Dockerfile ARG NODE_VERSION = 24.20.0");
   });
 
   it("still fails a Dockerfile with no ARG NODE_VERSION once the file exists", () => {

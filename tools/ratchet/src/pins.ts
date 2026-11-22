@@ -13,8 +13,8 @@
  * - soak: every `minimumReleaseAge` in `.renovaterc.json5` = `pnpm-workspace.yaml`
  *   `minimumReleaseAge` (minutes), so both bots wait the same time before adopting a release.
  *
- * The Dockerfile checks are skipped, with a note, while no Dockerfile exists. Once it exists, a
- * missing `ARG` is a layout error. A missing file or key elsewhere is also a layout error (exit 2).
+ * The Dockerfile is mandatory: a missing Dockerfile, or one without the `ARG`s, is a layout error,
+ * like a missing file or key anywhere else (exit 2).
  */
 import {
   DOCKERFILE,
@@ -49,8 +49,7 @@ export type Pins = {
   devEngines: DevEngine;
   renovateAges: string[];
   pnpmMinAge: string;
-  /** `undefined` while the Dockerfile does not exist yet. */
-  docker?: DockerPins;
+  docker: DockerPins;
 };
 
 type Entry = [place: string, value: string];
@@ -72,7 +71,7 @@ function located(place: string, values: string[]): Entry[] {
 
 function nodeSection(pins: Pins): Section {
   const entries: Entry[] = [[`${MISE} [tools].node`, pins.miseNode]];
-  entries.push(...located(`${DOCKERFILE} ARG NODE_VERSION`, pins.docker?.node ?? []));
+  entries.push(...located(`${DOCKERFILE} ARG NODE_VERSION`, pins.docker.node));
   return agreement(
     "node pin(s) disagree",
     entries,
@@ -112,7 +111,7 @@ function pnpmSection(pins: Pins): Section {
     [`${PACKAGE_JSON} packageManager`, fromPackage],
     [`${PACKAGE_JSON} devEngines.packageManager`, fromDevEngines],
   ];
-  entries.push(...located(`${DOCKERFILE} ARG PNPM_VERSION`, pins.docker?.pnpm ?? []));
+  entries.push(...located(`${DOCKERFILE} ARG PNPM_VERSION`, pins.docker.pnpm));
   return agreement(
     "pnpm pin(s) disagree",
     entries,
@@ -165,9 +164,6 @@ export function evaluatePins(pins: Pins): Report {
     "ratchet pins",
     `node ${pins.miseNode}, pnpm ${pins.misePnpm}, soak ${pins.pnpmMinAge} agree everywhere`,
   );
-  if (!pins.docker) {
-    report.notes.push(`${DOCKERFILE} not present yet; ${DOCKERFILE} pin checks skipped`);
-  }
   for (const part of [
     nodeSection(pins),
     enginesSection(pins),
@@ -187,9 +183,9 @@ function nonEmpty(values: string[], what: string): string[] {
   return values;
 }
 
-function collectDocker(repo: Repo): DockerPins | undefined {
+function collectDocker(repo: Repo): DockerPins {
   if (!exists(repo.root, DOCKERFILE)) {
-    return undefined;
+    throw new LayoutError(`\`${DOCKERFILE}\` not found (expected at ${repo.root}/${DOCKERFILE})`);
   }
   const text = read(repo.root, DOCKERFILE);
   return {
@@ -201,7 +197,7 @@ function collectDocker(repo: Repo): DockerPins | undefined {
 function collectPins(repo: Repo): Pins {
   const mise = read(repo.root, MISE);
   const pkg = parsePackageJson(read(repo.root, PACKAGE_JSON));
-  const pins: Pins = {
+  return {
     miseNode: miseTool(mise, ["node"]),
     misePnpm: miseTool(mise, ["pnpm", "npm:pnpm", "aqua:pnpm/pnpm"]),
     enginesNode: pkg.enginesNode,
@@ -209,9 +205,8 @@ function collectPins(repo: Repo): Pins {
     devEngines: pkg.devEngines,
     renovateAges: renovateAges(read(repo.root, RENOVATE)),
     pnpmMinAge: pnpmMinimumReleaseAge(read(repo.root, PNPM_WORKSPACE)),
+    docker: collectDocker(repo),
   };
-  const docker = collectDocker(repo);
-  return docker ? { ...pins, docker } : pins;
 }
 
 export function runPins(repo: Repo): Report {

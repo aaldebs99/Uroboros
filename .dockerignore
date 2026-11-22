@@ -1,8 +1,14 @@
-# Keep the build context small and deterministic: only sources and lockfiles.
+# Keep the build context small and free of secrets: dependency trees, build output, agent
+# workspaces and local config stay out. Everything else in the repository is sent; the
+# Dockerfile's COPY lines pick what each stage uses.
 .git
 **/node_modules
 **/dist
 **/coverage
+**/*.tsbuildinfo
+.superpowers
+docs/superpowers
+.playwright-mcp
 junit.xml
 *.log
 .env

@@ -6,6 +6,7 @@ import { ConfigError, loadWorkerConfig } from "../config.ts";
 import { createValkey } from "../shared/valkey.ts";
 import { DEFAULT_PREFIX } from "./queues.ts";
 import { createSystemWorker } from "./system.ts";
+import { logToolVersions } from "./versions.ts";
 
 const HEARTBEAT_EVERY_MS = 10_000;
 const HEARTBEAT_TTL_S = 30;
@@ -180,6 +181,7 @@ export async function main(
     }
     throw err;
   }
+  await logToolVersions(logger, { ytdlp: process.env["YTDLP_PATH"] ?? "yt-dlp" });
   const worker = await startWorker({
     valkeyUrl,
     concurrency: DEFAULT_CONCURRENCY,

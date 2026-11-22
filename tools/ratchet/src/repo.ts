@@ -7,7 +7,7 @@
  * uses, with no hand-maintained skip list to drift.
  */
 import { execFileSync } from "node:child_process";
-import { lstatSync, readFileSync } from "node:fs";
+import { lstatSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /** What a gate needs to know about the repository. */
@@ -82,9 +82,16 @@ export function read(root: string, rel: string): string {
   }
 }
 
-/** Whether a repo-relative file exists as a regular file. */
+/**
+ * Whether a repo-relative path resolves to a regular file. Follows symlinks, unlike the file
+ * listing: a symlinked Dockerfile exists, and `read` would read it.
+ */
 export function exists(root: string, rel: string): boolean {
-  return isRegularFile(join(root, rel));
+  try {
+    return statSync(join(root, rel)).isFile();
+  } catch {
+    return false;
+  }
 }
 
 /**

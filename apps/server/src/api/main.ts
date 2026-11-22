@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import type { ServerType } from "@hono/node-server";
 import { pino } from "pino";
 import type { Logger } from "pino";
+import pkg from "../../package.json" with { type: "json" };
 import { ConfigError, loadConfig } from "../config.ts";
 import type { Config } from "../config.ts";
 import { createDb } from "../db/kysely.ts";
@@ -14,22 +14,13 @@ export interface RunningApi {
   close(): Promise<void>;
 }
 
-function readVersion(): string {
-  const url = new URL("../../package.json", import.meta.url);
-  const pkg = JSON.parse(readFileSync(url, "utf8")) as { version: string };
-  return pkg.version;
-}
-
 /** Wires deps and starts listening. Installs no process handlers; the caller owns shutdown. */
 export async function startApi(config: Config, logger: Logger): Promise<RunningApi> {
   const db = createDb(config.databaseUrl, logger);
   const valkey = createValkey(config.valkeyUrl, "api", logger);
   // Not fatal if Valkey is down at boot: health reports it as degraded.
   await waitReady(valkey, 2000);
-  const app = createApp(
-    { db, valkey, version: readVersion(), logger },
-    { webDist: config.webDist },
-  );
+  const app = createApp({ db, valkey, version: pkg.version, logger }, { webDist: config.webDist });
   const server = await new Promise<ServerType>((resolve) => {
     const s = serve(
       { fetch: app.fetch, hostname: config.bind.host, port: config.bind.port },

@@ -144,7 +144,7 @@
     // consistent. A groupName that matches nothing fails silently: re-check the depNames below if
     // a toolchain bump ever arrives as several PRs.
     {
-      // .mise/config.toml `node` (mise), the Dockerfile's `ARG NODE_VERSION` (customManager, once a Dockerfile exists) and
+      // .mise/config.toml `node` (mise), the Dockerfile's `ARG NODE_VERSION` (customManager) and
       // package.json `engines.node` (npm manager).
       description: "node: mise pin, Dockerfile ARG and engines.node together",
       matchDepNames: ["node"],
@@ -158,6 +158,22 @@
       description: "pnpm: mise pin, packageManager, devEngines and Dockerfile ARG together",
       matchDepNames: ["pnpm"],
       groupName: "pnpm",
+      automerge: false,
+    },
+    {
+      // The worker image's pinned tools: yt-dlp with its hashes in scripts/image/requirements.txt
+      // (the pip_requirements manager below, which rewrites the hashes with the pin). A human
+      // looks first: `mise run ci` never builds the image, so a bad pin would only show on the
+      // release build after merge. `build(image)`, never a `feat!`: a bundled tool's major is not
+      // a breaking change of Uroboros. yt-dlp is the only downloader; no other is tracked.
+      description: "Image tools: the worker's pinned yt-dlp, reviewed",
+      matchManagers: ["pip_requirements"],
+      matchDepNames: ["yt-dlp"],
+      groupName: "image tools",
+      semanticCommitType: "build",
+      semanticCommitScope: "image",
+      commitMessageTopic: "tool {{depName}}",
+      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}}):",
       automerge: false,
     },
     {
@@ -184,6 +200,12 @@
       enabled: false,
     },
   ],
+
+  // yt-dlp's pin and sha256 hashes for the worker image. Named explicitly (the default pattern
+  // would match too) so the file this manager owns is stated where the policy is.
+  pip_requirements: {
+    managerFilePatterns: ["/^scripts/image/requirements\\.txt$/"],
+  },
 
   customManagers: [
     {
