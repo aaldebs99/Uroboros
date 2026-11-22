@@ -38,6 +38,21 @@ export interface RunningWorker {
   close(): Promise<void>;
 }
 
+/** Awaits `p` for at most `ms`, swallowing its failure and its timeout. */
+async function bestEffort(p: Promise<unknown>, ms: number): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      p.catch(() => undefined),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Starts the worker and its heartbeat. Installs no process handlers; the caller owns shutdown. */
 export async function startWorker(opts: StartWorkerOptions): Promise<RunningWorker> {
   const log = opts.logger ?? pino({ name: "uroboros-worker" });
@@ -84,14 +99,21 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
       }, graceMs);
     });
     try {
-      const outcome = await Promise.race([worker.close().then(() => "closed" as const), expired]);
+      // The whole sequence, not just worker.close(), is bounded by the deadline: with Valkey
+      // unreachable, every awaited call here can hang.
+      const drain = (async () => {
+        await worker.close();
+        await bestEffort(valkey.del(heartbeatKey), 1000);
+      })();
+      drain.catch(() => undefined); // may settle after the deadline; the race reports the outcome
+      const outcome = await Promise.race([drain.then(() => "closed" as const), expired]);
       if (outcome === "timeout") {
-        // A graceful close() is already pending, so close(true) would just return it; cut both
-        // connections (including the blocking one, which would otherwise keep the process alive).
-        await worker.disconnect();
+        // The pending graceful close() cannot be forced, so cut the connections (including the
+        // blocking one) without awaiting. BullMQ's lock renewal timer keeps running after this, so
+        // the process cannot exit by draining; bin/worker.ts calls process.exit.
+        worker.disconnect().catch(() => undefined);
         throw new Error(`worker did not drain within ${String(graceMs)} ms; force closed`);
       }
-      await valkey.del(heartbeatKey);
     } finally {
       clearTimeout(deadline);
       valkey.disconnect();
@@ -107,10 +129,35 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
 }
 
 /**
- * Runs the worker until SIGTERM/SIGINT, then drains. Exit codes: 0 clean, 1 drain failed or hit the
- * deadline, 2 configuration error. Unlike the api it does not rely on the event loop emptying.
+ * Env seam for the spawned-process test, honoured only when UROBOROS_WORKER_TEST_QUEUE is set:
+ * UROBOROS_WORKER_TEST_{QUEUE,PREFIX,GRACE_MS} and UROBOROS_WORKER_TEST_HANG=1 (processor that never
+ * finishes). Never set in production.
  */
-export async function main(_argv: string[] = []): Promise<number> {
+function testOverridesFromEnv(env: NodeJS.ProcessEnv): Partial<StartWorkerOptions> {
+  const queueName = env["UROBOROS_WORKER_TEST_QUEUE"];
+  if (queueName === undefined) return {};
+  const prefix = env["UROBOROS_WORKER_TEST_PREFIX"];
+  const grace = env["UROBOROS_WORKER_TEST_GRACE_MS"];
+  return {
+    queueName,
+    ...(prefix === undefined ? {} : { prefix }),
+    ...(grace === undefined ? {} : { shutdownGraceMs: Number(grace) }),
+    ...(env["UROBOROS_WORKER_TEST_HANG"] === "1"
+      ? { processor: () => new Promise<never>(() => undefined) }
+      : {}),
+  };
+}
+
+/**
+ * Runs the worker until SIGTERM/SIGINT, then drains. Exit codes: 0 clean, 1 drain failed or hit the
+ * deadline, 2 configuration error. After a missed deadline BullMQ's lock renewal timer is still
+ * alive, so the process does not exit by itself; bin/worker.ts calls process.exit with this code.
+ * `overrides` is a test seam (prefix, queue, processor, grace) and wins over the env seam.
+ */
+export async function main(
+  _argv: string[] = [],
+  overrides: Partial<StartWorkerOptions> = {},
+): Promise<number> {
   const logger = pino({ name: "uroboros-worker" });
   let valkeyUrl: string;
   try {
@@ -122,7 +169,13 @@ export async function main(_argv: string[] = []): Promise<number> {
     }
     throw err;
   }
-  const worker = await startWorker({ valkeyUrl, concurrency: DEFAULT_CONCURRENCY, logger });
+  const worker = await startWorker({
+    valkeyUrl,
+    concurrency: DEFAULT_CONCURRENCY,
+    logger,
+    ...testOverridesFromEnv(process.env),
+    ...overrides,
+  });
   return new Promise<number>((resolve) => {
     let shuttingDown = false;
     const shutdown = (signal: string) => {

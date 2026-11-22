@@ -1,5 +1,11 @@
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { createServer, connect } from "node:net";
+import type { Socket } from "node:net";
+import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Queue, QueueEvents } from "bullmq";
 import type { Processor } from "bullmq";
 import { Redis } from "ioredis";
@@ -179,6 +185,7 @@ describe("crash", () => {
 
     const done = await queue.getJob(job.id ?? "");
     expect(runs).toBe(2);
+    expect(done?.attemptsMade).toBe(1);
     expect(done?.attemptsStarted).toBe(2);
     expect(done?.stalledCounter).toBe(1);
   });
@@ -196,8 +203,9 @@ describe("main", () => {
 
   it("runs until SIGTERM, then resolves 0 and removes its heartbeat", async () => {
     vi.stubEnv("VALKEY_URL", TestValkey.url());
-    const running = main();
-    const key = `uroboros:worker:${hostname()}:${String(process.pid)}`;
+    const queueName = `main-${randomUUID()}`;
+    const running = main([], { prefix, queueName });
+    const key = `${prefix}:worker:${hostname()}:${String(process.pid)}`;
     try {
       await vi.waitFor(async () => {
         expect(await redis.exists(key)).toBe(1);
@@ -208,6 +216,74 @@ describe("main", () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+});
+
+describe("process", () => {
+  it("exits 1 within the grace deadline when a job hangs", async () => {
+    const name = `proc-${randomUUID()}`;
+    const { queue } = openQueue(name);
+    const job = await queue.add("stuck", {});
+    const serverDir = fileURLToPath(new URL("../..", import.meta.url));
+    const child = spawn(join(serverDir, "node_modules/.bin/tsx"), ["src/bin/worker.ts"], {
+      cwd: serverDir,
+      stdio: "ignore",
+      env: {
+        ...process.env,
+        VALKEY_URL: TestValkey.url(),
+        UROBOROS_WORKER_TEST_QUEUE: name,
+        UROBOROS_WORKER_TEST_PREFIX: prefix,
+        UROBOROS_WORKER_TEST_GRACE_MS: "500",
+        UROBOROS_WORKER_TEST_HANG: "1",
+      },
+    });
+    track(child, (c) => Promise.resolve(c.kill("SIGKILL")));
+    const exited = new Promise<number | null>((resolve) => {
+      child.once("exit", (code) => {
+        resolve(code);
+      });
+    });
+    await vi.waitFor(async () => {
+      expect(await job.getState()).toBe("active");
+    }, WAIT);
+    const t0 = Date.now();
+    child.kill("SIGTERM");
+    const code = await Promise.race([
+      exited,
+      new Promise<string>((r) =>
+        setTimeout(() => {
+          r("hung");
+        }, 8000),
+      ),
+    ]);
+    expect(code).toBe(1);
+    expect(Date.now() - t0).toBeLessThan(8000);
+  });
+});
+
+describe("unreachable valkey", () => {
+  it("still settles close() within the grace deadline", async () => {
+    const upstream = new URL(TestValkey.url());
+    const sockets = new Set<Socket>();
+    const proxy = createServer((client) => {
+      const up = connect(Number(upstream.port), upstream.hostname);
+      sockets.add(client).add(up);
+      client.pipe(up).pipe(client);
+      client.on("error", () => undefined);
+      up.on("error", () => undefined);
+    });
+    await new Promise<void>((r) => proxy.listen(0, "127.0.0.1", r));
+    const { port } = proxy.address() as AddressInfo;
+    const worker = await start(
+      { valkeyUrl: `redis://127.0.0.1:${String(port)}`, shutdownGraceMs: 1000 },
+      `down-${randomUUID()}`,
+    );
+    // Valkey goes away: stop accepting and cut every live connection.
+    proxy.close();
+    for (const s of sockets) s.destroy();
+    const t0 = Date.now();
+    await Promise.allSettled([worker.close()]);
+    expect(Date.now() - t0).toBeLessThan(2000);
   });
 });
 
