@@ -196,6 +196,23 @@ describe("openapi", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
   });
+
+  it("serves swagger ui from its own origin only, with every asset present", async () => {
+    const a = app();
+    const html = await (await a.request("/api/docs")).text();
+    const refs = [...html.matchAll(/(?:src|href)="([^"]*)"/g)].map((m) => m[1] ?? "");
+    expect(refs.length).toBeGreaterThanOrEqual(3);
+    for (const ref of refs) {
+      expect(ref, ref).toMatch(/^\/(?!\/)/);
+      const asset = await a.request(ref);
+      expect(asset.status, ref).toBe(200);
+      const type = asset.headers.get("content-type") ?? "";
+      expect(type, ref).toMatch(/^(text\/css|text\/javascript)/);
+      if (type.startsWith("text/javascript") && !ref.endsWith("-bundle.js")) {
+        expect(await asset.text(), ref).not.toMatch(/https?:\/\//);
+      }
+    }
+  });
 });
 
 describe("spa", () => {

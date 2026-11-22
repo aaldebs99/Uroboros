@@ -1,11 +1,11 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { swaggerUI } from "@hono/swagger-ui";
 import type { Kysely } from "kysely";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
 import type { Logger } from "pino";
 import type { Database } from "../db/schema.ts";
 import { disabledPush, type PushService } from "../push/service.ts";
+import { registerDocs } from "./docs.ts";
 import { ApiError, errorHandler, errorResponse } from "./errors.ts";
 import { checkHealth, healthRoute } from "./health.ts";
 import { infoRoute } from "./info.ts";
@@ -66,7 +66,7 @@ export function createApp(deps: Deps, opts: { webDist: string | null }): OpenAPI
   app.openapi(infoRoute, (c) => c.json({ name: "uroboros" as const, version: deps.version }, 200));
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
-  app.get("/api/docs", swaggerUI({ url: "/api/openapi.json" }));
+  registerDocs(app);
 
   return app;
 }

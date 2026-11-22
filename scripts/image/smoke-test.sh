@@ -3,7 +3,7 @@
 #
 #   api     runs as 65532:65532, migrate applies the migrations and exits 0, the api starts and
 #           reports {"status":"ok","failing":[]} on /api/health, serves its OpenAPI document and
-#           falls back to the SPA's index.html on a deep link.
+#           the Swagger UI bundle it ships, and falls back to the SPA's index.html on a deep link.
 #   worker  runs as uid 65532, `yt-dlp --version` and `ffmpeg -version` answer, no other
 #           downloader is installed, ffmpeg is the pinned yt-dlp build (a GPL build, with its licence
 #           and SOURCE.md under /usr/share/licenses/ffmpeg), and the worker process starts, logs
@@ -90,6 +90,10 @@ openapi_ok() {
     api_fetch /api/openapi.json | grep -q '"openapi"'
 }
 
+docs_bundle_ok() {
+    api_fetch /api/docs/swagger-ui-bundle.js | sed -n 1p | grep -q '^200 text/javascript'
+}
+
 deep_link_is_html() {
     api_fetch /some/deep/link | sed -n 1p | grep -q 'text/html'
 }
@@ -154,6 +158,7 @@ else
     fail "api runs node ${api_node}, expected v${NODE_VERSION}"
 fi
 check "api serves /api/openapi.json" openapi_ok
+check "api serves the pinned Swagger UI bundle for /api/docs" docs_bundle_ok
 check "api falls back to the SPA's HTML on a deep link" deep_link_is_html
 
 echo "Smoke testing ${WORKER_IMAGE}..."

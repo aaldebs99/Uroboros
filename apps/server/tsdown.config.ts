@@ -19,4 +19,12 @@ export default defineConfig({
   sourcemap: false,
   fixedExtension: true,
   deps: { alwaysBundle: [/.*/], onlyBundle: false },
+  // The pinned Swagger UI that /api/docs serves (src/api/docs.ts), with its licence and notice.
+  copy: [
+    "swagger-ui.css",
+    "swagger-ui-bundle.js",
+    "swagger-ui-bundle.js.LICENSE.txt",
+    "LICENSE",
+    "NOTICE",
+  ].map((file) => ({ from: `node_modules/swagger-ui-dist/${file}`, to: "dist/swagger-ui" })),
 });
