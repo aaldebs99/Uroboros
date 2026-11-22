@@ -17,6 +17,11 @@ export interface MigrateConfig {
   databaseUrl: string;
 }
 
+/** What the worker needs for now: Valkey. It gains `databaseUrl` when job processors need it. */
+export interface WorkerConfig {
+  valkeyUrl: string;
+}
+
 const DEFAULT_BIND = "127.0.0.1:8080";
 
 const bindSchema = z.string().transform((value, ctx) => {
@@ -43,6 +48,8 @@ const configSchema = z.object({
 
 const migrateSchema = z.object({ DATABASE_URL: required("DATABASE_URL") });
 
+const workerSchema = z.object({ VALKEY_URL: required("VALKEY_URL") });
+
 function parse<S extends z.ZodType>(schema: S, env: NodeJS.ProcessEnv): z.output<S> {
   const result = schema.safeParse(env);
   if (!result.success) {
@@ -66,4 +73,9 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
 /** Configuration for the migrate Job, which has no use for Valkey. */
 export function loadMigrateConfig(env: NodeJS.ProcessEnv): MigrateConfig {
   return { databaseUrl: parse(migrateSchema, env).DATABASE_URL };
+}
+
+/** Configuration for the worker process. */
+export function loadWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
+  return { valkeyUrl: parse(workerSchema, env).VALKEY_URL };
 }

@@ -21,3 +21,5 @@ allowBuilds:
   cpu-features: false
   protobufjs: false
   ssh2: false
+  # bullmq's msgpackr only uses msgpackr-extract as an optional native accelerator (pure-JS fallback).
+  msgpackr-extract: false

@@ -11,6 +11,7 @@
     "@hono/swagger-ui": "0.6.2",
     "@hono/zod-openapi": "1.6.3",
     "@uroboros/contract": "workspace:*",
+    "bullmq": "6.7.8",
     "hono": "4.13.19",
     "ioredis": "6.0.0",
     "kysely": "0.29.9",

@@ -194,6 +194,11 @@ description = "Create an empty migrations/<UTC now>_<name>.sql (usage: mise run 
 usage = 'arg "<name>" help="snake_case, starts with a letter, at least 3 characters"'
 run = 'pnpm -F @uroboros/server exec tsx src/migrate/new.ts "${usage_name}"'
 
+[tasks."dev:worker"]
+description = "Run the worker with reload against the dev:deps Valkey"
+env = { VALKEY_URL = "{{ get_env(name='VALKEY_URL', default='redis://127.0.0.1:6379') }}" }
+run = "pnpm -F @uroboros/server exec tsx watch src/bin/worker.ts"
+
 [tasks.gen]
 description = "Regenerate api/openapi.json from the API"
 depends = ["install"]
