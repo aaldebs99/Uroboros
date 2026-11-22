@@ -34,6 +34,27 @@ valkey:
   existingSecret: ""
   existingSecretKey: VALKEY_URL
 
+# The public origin people open Uroboros at, e.g. https://uroboros.example.com. Exported to the
+# api as UROBOROS_PUBLIC_BASE_URL. Web Push is on only when it is https (docs/push.md).
+publicBaseUrl: ""
+
+# Web Push notifications to the installed web app (docs/push.md).
+push:
+  # The VAPID contact (mailto: or https:). Empty: publicBaseUrl.
+  subject: ""
+  vapid:
+    # A fixed VAPID pair: the public key here and the private key from an existing Secret. Set
+    # both or neither. With neither, the first api replica generates a pair and keeps it in the
+    # database, shared by every replica. Changing the pair drops every browser's subscription.
+    publicKey: ""
+    existingSecret: ""
+    existingSecretKey: UROBOROS_VAPID_PRIVATE_KEY
+  # Hosts subscription endpoints may be on (SSRF guard). Empty: Apple's, Google's, Mozilla's and
+  # Microsoft's push services.
+  allowedHosts: []
+  # Devices with notifications per user.
+  maxDevices: 10
+
 api:
   replicas: 2
   resources:

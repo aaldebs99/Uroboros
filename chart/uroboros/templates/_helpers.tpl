@@ -121,3 +121,40 @@ or CIDR is configured. Call with (dict "dest" .Values.networkPolicy.postgres).
 {{- end }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+The api's Web Push environment (docs/push.md). Only what is set is exported; the api's own
+defaults cover the rest. A VAPID public key and its private-key Secret come together or not at all.
+*/}}
+{{- define "uroboros.pushEnv" -}}
+{{- $v := .Values.push.vapid -}}
+{{- if and $v.publicKey (not $v.existingSecret) -}}
+{{- fail "push.vapid.publicKey needs push.vapid.existingSecret (the private key)" -}}
+{{- end -}}
+{{- if and $v.existingSecret (not $v.publicKey) -}}
+{{- fail "push.vapid.existingSecret needs push.vapid.publicKey" -}}
+{{- end -}}
+{{- with .Values.publicBaseUrl }}
+- name: UROBOROS_PUBLIC_BASE_URL
+  value: {{ . | quote }}
+{{- end }}
+{{- with .Values.push.subject }}
+- name: UROBOROS_PUSH_SUBJECT
+  value: {{ . | quote }}
+{{- end }}
+{{- if $v.existingSecret }}
+- name: UROBOROS_VAPID_PUBLIC_KEY
+  value: {{ $v.publicKey | quote }}
+- name: UROBOROS_VAPID_PRIVATE_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ $v.existingSecret }}
+      key: {{ $v.existingSecretKey }}
+{{- end }}
+{{- with .Values.push.allowedHosts }}
+- name: UROBOROS_PUSH_ALLOWED_HOSTS
+  value: {{ join "," . | quote }}
+{{- end }}
+- name: UROBOROS_PUSH_MAX_DEVICES
+  value: {{ .Values.push.maxDevices | quote }}
+{{- end -}}

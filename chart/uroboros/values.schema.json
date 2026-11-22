@@ -81,6 +81,48 @@
         }
       }
     },
+    "publicBaseUrl": {
+      "type": "string",
+      "pattern": "^(https?://[^\\s/]+(/.*)?)?$"
+    },
+    "push": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "type": "string",
+          "pattern": "^((mailto:|https://).+)?$"
+        },
+        "vapid": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "publicKey": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]*$"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "existingSecretKey": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "allowedHosts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9.-]+$"
+          }
+        },
+        "maxDevices": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
     "api": {
       "type": "object",
       "additionalProperties": false,

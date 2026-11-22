@@ -16,6 +16,15 @@ x-server-build: &server-build
 x-server-env: &server-env
   DATABASE_URL: postgres://uroboros:uroboros@postgres:5432/uroboros
   VALKEY_URL: redis://valkey:6379
+  # Web Push (docs/push.md), passed through from the shell; empty means unset. Push stays off
+  # unless UROBOROS_PUBLIC_BASE_URL is https, so the plain-http local stack has it off by default.
+  # Without a configured VAPID pair the first replica generates one and both share it.
+  UROBOROS_PUBLIC_BASE_URL: ${UROBOROS_PUBLIC_BASE_URL:-}
+  UROBOROS_PUSH_SUBJECT: ${UROBOROS_PUSH_SUBJECT:-}
+  UROBOROS_VAPID_PUBLIC_KEY: ${UROBOROS_VAPID_PUBLIC_KEY:-}
+  UROBOROS_VAPID_PRIVATE_KEY: ${UROBOROS_VAPID_PRIVATE_KEY:-}
+  UROBOROS_PUSH_ALLOWED_HOSTS: ${UROBOROS_PUSH_ALLOWED_HOSTS:-}
+  UROBOROS_PUSH_MAX_DEVICES: ${UROBOROS_PUSH_MAX_DEVICES:-}
 
 services:
   postgres:

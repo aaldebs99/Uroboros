@@ -42,6 +42,7 @@ spec:
           env:
             {{- include "uroboros.databaseEnv" . | nindent 12 }}
             {{- include "uroboros.valkeyEnv" . | nindent 12 }}
+            {{- include "uroboros.pushEnv" . | trim | nindent 12 }}
             {{- with .Values.api.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

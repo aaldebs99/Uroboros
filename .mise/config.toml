@@ -139,6 +139,13 @@ if helm template uroboros chart/uroboros \
   exit 1
 fi
 echo "ok: misconfigured networkPolicy is rejected at render time"
+# Negative check: a VAPID private-key Secret without its public key must refuse to render.
+if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
+  --set push.vapid.existingSecret=v >/dev/null 2>&1; then
+  echo "expected render to fail: push.vapid.existingSecret without push.vapid.publicKey" >&2
+  exit 1
+fi
+echo "ok: half a VAPID pair is rejected at render time"
 '''
 
 [tasks."lint:renovate"]
