@@ -121,6 +121,16 @@ fi
 git ls-files -z '*.sh' | xargs -0 shellcheck
 '''
 
+[tasks."lint:chart"]
+description = "helm lint + kubeconform over the chart, rendered with each ci/*-values.yaml (CI gate)"
+run = '''
+set -eu
+for f in chart/uroboros/ci/*-values.yaml; do
+  helm lint chart/uroboros -f "$f"
+  helm template uroboros chart/uroboros -f "$f" | kubeconform -strict -summary -kubernetes-version 1.31.0
+done
+'''
+
 [tasks."lint:renovate"]
 description = "Validate .renovaterc.json5 with Renovate's own validator (CI gate)"
 # `--no-global`: given a filename, the validator otherwise checks it as SELF-HOSTED global config,

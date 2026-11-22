@@ -21,3 +21,6 @@ assets/**
 dist/
 coverage/
 node_modules/
+
+# Helm templates are Go templates, not YAML; oxfmt would mangle them.
+chart/**/templates/

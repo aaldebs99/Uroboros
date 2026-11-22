@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "uroboros.fullname" . }}-worker
+  labels:
+    {{- include "uroboros.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "uroboros.selectorLabels" (dict "root" . "component" "worker") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "uroboros.labels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+      {{- with .Values.worker.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "uroboros.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- include "uroboros.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: worker
+          image: {{ include "uroboros.workerImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # The image CMD is `node /app/worker.mjs`.
+          env:
+            {{- include "uroboros.valkeyEnv" . | nindent 12 }}
+            {{- include "uroboros.databaseEnv" . | nindent 12 }}
+            - name: UROBOROS_WORKER_CONCURRENCY
+              value: {{ .Values.worker.concurrency | quote }}
+            - name: YTDLP_PATH
+              value: /opt/yt-dlp/bin/yt-dlp
+            - name: HOME
+              value: /home/uroboros
+            {{- with .Values.worker.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          securityContext:
+            {{- include "uroboros.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - name: scratch
+              mountPath: /scratch
+            # yt-dlp writes its cache under $HOME/.cache.
+            - name: home
+              mountPath: /home/uroboros
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: {{ .Values.worker.scratchSize | quote }}
+        - name: home
+          emptyDir:
+            sizeLimit: 512Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+      {{- with .Values.worker.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

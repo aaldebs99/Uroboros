@@ -1,0 +1,145 @@
+# Uroboros chart values. Postgres, Valkey and S3-compatible storage are NOT deployed by this
+# chart: point it at existing ones. Credentials come from existing Secrets (for example created
+# by External Secrets), never from values.
+
+image:
+  # api image: <repository>:<tag>. The migrate Job reuses it.
+  repository: forgejo.example.com/uroboros/uroboros
+  # Defaults to .Chart.AppVersion.
+  tag: ""
+  # Optional immutable digest (sha256:...). When set it is appended: <repository>:<tag>@<digest>.
+  digest: ""
+  pullPolicy: IfNotPresent
+  # The worker image is <repository>:<tag><workerSuffix>[@workerDigest].
+  workerSuffix: "-worker"
+  workerDigest: ""
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+database:
+  # Secret holding the Postgres connection string. Required.
+  existingSecret: ""
+  existingSecretKey: DATABASE_URL
+
+valkey:
+  # Secret holding the Valkey connection string. Required.
+  existingSecret: ""
+  existingSecretKey: VALKEY_URL
+
+api:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      memory: 384Mi
+  hpa:
+    enabled: true
+    min: 2
+    max: 6
+    cpu: 70
+  service:
+    type: ClusterIP
+    port: 80
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv: []
+
+worker:
+  replicas: 1
+  # Parallel jobs per worker pod. Exported as UROBOROS_WORKER_CONCURRENCY.
+  concurrency: 4
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 2Gi
+  # Size limit of the emptyDir mounted at /scratch (in-flight downloads and ffmpeg output).
+  scratchSize: 20Gi
+  # Must exceed the worker's 25 s shutdown deadline (it exits 1 if it misses it).
+  terminationGracePeriodSeconds: 30
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraEnv: []
+
+migrate:
+  # Low on purpose: exit 1 (migration error) gets a couple of retries, exit 2 (config error)
+  # fails the Job at once through podFailurePolicy.
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: uroboros.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: uroboros-tls
+  #   hosts: [uroboros.example.com]
+
+# Worker egress policy. The worker runs yt-dlp against user-supplied URLs, so the policy lets it
+# reach the public internet but not private ranges (no SSRF into the cluster or the LAN), plus an
+# explicit allow-list for the services it needs. Requires a CNI that enforces NetworkPolicy.
+networkPolicy:
+  enabled: true
+  dns:
+    namespaceSelector:
+      kubernetes.io/metadata.name: kube-system
+    podSelector:
+      k8s-app: kube-dns
+  # Public internet egress: 0.0.0.0/0 minus these.
+  internetExcept:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 169.254.0.0/16
+    - 100.64.0.0/10
+  # In-cluster or private-range destinations. Each takes namespaceSelector and/or podSelector
+  # (label maps; a podSelector alone matches the release namespace) and/or cidrs. If none are set
+  # the rule is omitted: a Postgres, Valkey or S3 endpoint on a private address is then
+  # unreachable, so set what applies. Ports default per service.
+  postgres:
+    namespaceSelector: {}
+    podSelector: {}
+    cidrs: []
+    ports: [5432]
+  valkey:
+    namespaceSelector: {}
+    podSelector: {}
+    cidrs: []
+    ports: [6379]
+  # S3-compatible storage (RustFS locally; any provider in production). Needed only when it is
+  # in-cluster or on a private address; a public endpoint is covered by the internet rule.
+  s3:
+    namespaceSelector: {}
+    podSelector: {}
+    cidrs: []
+    ports: [9000, 443]
+  # Extra private CIDRs the worker may reach, on the given ports (empty = all ports).
+  allowCidrs: []
+  # - cidr: 192.168.1.10/32
+  #   ports: [9000]

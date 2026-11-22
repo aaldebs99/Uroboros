@@ -1,0 +1,4 @@
+database:
+  existingSecret: uroboros-database
+valkey:
+  existingSecret: uroboros-valkey
