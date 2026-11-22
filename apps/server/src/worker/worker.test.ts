@@ -294,6 +294,33 @@ describe("unreachable valkey", () => {
   });
 });
 
+describe("main before ready", () => {
+  it("returns 1 within the grace period when SIGTERM lands before Valkey answers", async () => {
+    // Nothing listens on port 1, and the worker connection retries forever, so startup never
+    // reaches ready on its own.
+    vi.stubEnv("VALKEY_URL", "redis://127.0.0.1:1");
+    const before = process.listenerCount("SIGTERM");
+    const running = main([], {
+      prefix,
+      queueName: `unready-${randomUUID()}`,
+      shutdownGraceMs: 500,
+    });
+    try {
+      // The trap is installed once main has logged the tool versions; signal only after that.
+      await vi.waitFor(() => {
+        expect(process.listenerCount("SIGTERM")).toBeGreaterThan(before);
+      }, WAIT);
+      const t0 = Date.now();
+      process.emit("SIGTERM");
+      expect(await running).toBe(1);
+      expect(Date.now() - t0).toBeLessThan(1500);
+      expect(process.listenerCount("SIGTERM")).toBe(before);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("test seam validation", () => {
   it("rejects a non-integer grace with exit 2", async () => {
     vi.stubEnv("VALKEY_URL", TestValkey.url());
