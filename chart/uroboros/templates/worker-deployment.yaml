@@ -36,6 +36,8 @@ spec:
           # The image CMD is `node /app/worker.mjs`.
           env:
             {{- include "uroboros.valkeyEnv" . | nindent 12 }}
+            # Not read yet: the worker needs only Valkey today. Passed now for the job processors
+            # that will record downloads, so turning them on needs no chart change.
             {{- include "uroboros.databaseEnv" . | nindent 12 }}
             - name: UROBOROS_WORKER_CONCURRENCY
               value: {{ .Values.worker.concurrency | quote }}
