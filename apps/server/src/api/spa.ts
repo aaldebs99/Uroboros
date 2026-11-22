@@ -15,7 +15,17 @@ const MIME: Record<string, string> = {
   ".woff2": "font/woff2",
   ".txt": "text/plain; charset=utf-8",
   ".map": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json",
 };
+
+/** Vite content-hashes everything under `assets/`, so those never change under one name. */
+const IMMUTABLE = "public, max-age=31536000, immutable";
+/**
+ * Everything else (`index.html`, `sw.js`, `manifest.webmanifest`, the icons) keeps its name across
+ * releases and names the current hashes, so it must never be served from a cache: a stale
+ * `index.html` points at assets that are gone, and a stale `sw.js` pins the old build.
+ */
+const NO_STORE = "no-store";
 
 async function readIfFile(path: string): Promise<Buffer | null> {
   try {
@@ -34,8 +44,19 @@ function respond(body: Buffer, path: string, cache: string): Response {
 }
 
 /**
- * Serves a built SPA: a file under `webDist` if the path names one, otherwise `index.html` so
- * client-side routes work. Returns null only when there is no index.html either.
+ * Whether a path the build lacks is a client-side route, answered with `index.html`. A name with
+ * an extension (`sw.js`, `manifest.webmanifest`, `assets/x.js`) never is: answering those with
+ * HTML turns a stale `index.html` into a script parse error, and a missing service worker into a
+ * registration of the page itself.
+ */
+function isRoute(decoded: string): boolean {
+  const last = decoded.split("/").pop() ?? "";
+  return !decoded.startsWith("/assets/") && !last.includes(".");
+}
+
+/**
+ * Serves a built SPA: a file under `webDist` if the path names one, otherwise `index.html` for a
+ * client route. Returns null (a 404) for a missing file and when there is no index.html either.
  */
 export function createSpaHandler(webDist: string): (urlPath: string) => Promise<Response | null> {
   const root = resolve(webDist);
@@ -50,16 +71,12 @@ export function createSpaHandler(webDist: string): (urlPath: string) => Promise<
     if (candidate.startsWith(root + sep)) {
       const file = await readIfFile(candidate);
       if (file) {
-        const immutable = decoded.startsWith("/assets/");
-        return respond(
-          file,
-          candidate,
-          immutable ? "public, max-age=31536000, immutable" : "no-cache",
-        );
+        return respond(file, candidate, decoded.startsWith("/assets/") ? IMMUTABLE : NO_STORE);
       }
     }
+    if (!isRoute(decoded)) return null;
     const indexPath = join(root, "index.html");
     const index = await readIfFile(indexPath);
-    return index ? respond(index, indexPath, "no-cache") : null;
+    return index ? respond(index, indexPath, NO_STORE) : null;
   };
 }

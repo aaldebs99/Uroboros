@@ -205,6 +205,8 @@ describe("spa", () => {
     await mkdir(join(dist, "assets"));
     await writeFile(join(dist, "index.html"), "<!doctype html><title>x</title>");
     await writeFile(join(dist, "assets", "a.js"), "console.log(1)");
+    await writeFile(join(dist, "sw.js"), "self.x = 1");
+    await writeFile(join(dist, "manifest.webmanifest"), '{"name":"Uroboros"}');
   });
   afterAll(async () => {
     await rm(dist, { recursive: true, force: true });
@@ -221,6 +223,44 @@ describe("spa", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("javascript");
     expect(await res.text()).toBe("console.log(1)");
+  });
+
+  it("never lets index.html, sw.js or the manifest be cached", async () => {
+    for (const path of ["/", "/index.html", "/library/abc", "/sw.js", "/manifest.webmanifest"]) {
+      const res = await app({}, dist).request(path);
+      expect(res.status, path).toBe(200);
+      expect(res.headers.get("cache-control"), path).toBe("no-store");
+    }
+  });
+
+  it("caches hashed assets forever", async () => {
+    const res = await app({}, dist).request("/assets/a.js");
+    expect(res.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
+  });
+
+  it("serves the manifest as a web app manifest", async () => {
+    const res = await app({}, dist).request("/manifest.webmanifest");
+    expect(res.headers.get("content-type")).toBe("application/manifest+json");
+  });
+
+  it.each(["/missing.js", "/assets/gone.js", "/deep/path/icon.png"])(
+    "answers a missing file with an extension (%s) with a 404, not the app",
+    async (path) => {
+      const res = await app({}, dist).request(path);
+      expect(res.status).toBe(404);
+      expect(res.headers.get("content-type")).not.toContain("text/html");
+    },
+  );
+
+  it("answers a missing sw.js with a 404", async () => {
+    const bare = await mkdtemp(join(tmpdir(), "uroboros-web-"));
+    try {
+      await writeFile(join(bare, "index.html"), "<!doctype html><title>x</title>");
+      expect((await app({}, bare).request("/sw.js")).status).toBe(404);
+      expect((await app({}, bare).request("/settings")).status).toBe(200);
+    } finally {
+      await rm(bare, { recursive: true, force: true });
+    }
   });
 
   it("keeps the json 404 under /api", async () => {
