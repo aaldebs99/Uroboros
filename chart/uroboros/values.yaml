@@ -83,9 +83,10 @@ api:
   # After SIGTERM the api stops accepting connections and waits this long for in-flight requests
   # before cutting them and exiting 1. Exported as UROBOROS_SHUTDOWN_GRACE_MS.
   shutdownGraceSeconds: 20
-  # Must exceed preStopSleepSeconds + shutdownGraceSeconds with room to spare (at least 5 s);
-  # rendering fails otherwise. The api bounds its cleanup after the drain at 2 s and exits 1 on its
-  # own 2 s after that, so it is always gone before the kubelet's SIGKILL.
+  # Must exceed preStopSleepSeconds + shutdownGraceSeconds by at least 7 s; rendering fails
+  # otherwise. After the drain the api allows 2 s for the cut connections to close and 2 s for its
+  # cleanup, and exits 1 on its own 2 s after that (grace + 6 s at most), so it is always gone
+  # before the kubelet's SIGKILL.
   terminationGracePeriodSeconds: 35
   # Every api pod applies pending migrations when it starts, before it reports ready (replicas
   # take turns under an advisory lock; the later ones find nothing to do). While it connects and

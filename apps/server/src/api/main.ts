@@ -32,13 +32,17 @@ export interface RunningApi {
   attached: Promise<void>;
   /** Whether this replica holds the general leader lock. */
   leader: LeaderStatus;
-  /** The longest `close()` may take: the drain grace plus the cleanup bound. */
+  /**
+   * The longest `close()` may take: the drain grace, then up to `CLEANUP_MS` for the cut
+   * connections to close, then up to `CLEANUP_MS` for the pool, Valkey and the leader lock.
+   */
   shutdownBudgetMs: number;
   /**
    * Stops accepting connections, gives up leadership, closes idle connections and waits up to
    * `shutdownGraceMs` for in-flight requests. If they outlast it, cuts every connection and
-   * rejects. The database and Valkey are released within `CLEANUP_MS` either way; a cleanup that
-   * overruns it rejects too, so the caller can exit non-zero.
+   * rejects (closing the cut connections is itself bounded by `CLEANUP_MS`). The database, Valkey
+   * and the leader lock are released within `CLEANUP_MS` either way; a cleanup that overruns it
+   * rejects too, so the caller can exit non-zero. All in all within `shutdownBudgetMs`.
    */
   close(): Promise<void>;
 }
@@ -148,7 +152,7 @@ export async function startApi(
     port,
     attached: attaching,
     leader,
-    shutdownBudgetMs: config.shutdownGraceMs + CLEANUP_MS,
+    shutdownBudgetMs: config.shutdownGraceMs + 2 * CLEANUP_MS,
     close() {
       closing ??= closeOnce();
       return closing;

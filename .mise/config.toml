@@ -148,8 +148,8 @@ fi
 echo "ok: half a VAPID pair is rejected at render time"
 # Negative check: a termination grace period that leaves the api no time to drain must refuse to render.
 if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
-  --set api.terminationGracePeriodSeconds=25 >/dev/null 2>&1; then
-  echo "expected render to fail: api.terminationGracePeriodSeconds <= preStop + shutdown grace + 4" >&2
+  --set api.terminationGracePeriodSeconds=31 >/dev/null 2>&1; then
+  echo "expected render to fail: api.terminationGracePeriodSeconds <= preStop + shutdown grace + 6" >&2
   exit 1
 fi
 echo "ok: a termination grace period shorter than the drain is rejected at render time"

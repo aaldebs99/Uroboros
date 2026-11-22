@@ -30,8 +30,9 @@ spec:
       {{- end }}
     spec:
       {{- $a := .Values.api }}
-      {{- if le (int $a.terminationGracePeriodSeconds) (add $a.preStopSleepSeconds $a.shutdownGraceSeconds 4 | int) }}
-      {{- fail "api.terminationGracePeriodSeconds must exceed api.preStopSleepSeconds + api.shutdownGraceSeconds by at least 5" }}
+      {{- /* The api is gone at most 6 s after its grace: 2 s for cut connections, 2 s cleanup, 2 s hard-exit slack. */}}
+      {{- if le (int $a.terminationGracePeriodSeconds) (add $a.preStopSleepSeconds $a.shutdownGraceSeconds 6 | int) }}
+      {{- fail "api.terminationGracePeriodSeconds must exceed api.preStopSleepSeconds + api.shutdownGraceSeconds by at least 7" }}
       {{- end }}
       terminationGracePeriodSeconds: {{ $a.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "uroboros.serviceAccountName" . }}

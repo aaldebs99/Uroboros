@@ -7,6 +7,7 @@ import { silentProxy } from "../../test/silentProxy.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { Config } from "../config.ts";
 import { LeaderStatus } from "../shared/leader.ts";
+import { CLEANUP_MS } from "./drain.ts";
 import { type RunningApi, runUntilSignal, startApi } from "./main.ts";
 
 const logger = pino({ level: "silent" });
@@ -145,6 +146,8 @@ describe("bounded cleanup", () => {
       // The query now waits on a server that will never answer: its pool client stays checked
       // out until the pool's 30 s query timeout.
       proxy.silence();
+      // Grace, then at most 2 s for the cut connections and 2 s for the cleanup.
+      expect(api.shutdownBudgetMs).toBe(300 + 2 * CLEANUP_MS);
       const start = Date.now();
       await expect(api.close()).rejects.toThrow(/did not drain within 300 ms/);
       expect(Date.now() - start).toBeLessThan(api.shutdownBudgetMs + 1000);

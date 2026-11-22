@@ -75,8 +75,8 @@ fails fast. There is no opt-out, and nothing else may run migrations. One replic
 `<app>:leader` connection, pinged every 10 s). The general leader (`URO_LEAD`) has no duties yet;
 put singleton work there, never in a BullMQ scheduler's place (those already run once). Every
 advisory lock key lives in `src/shared/lockKeys.ts`: a role is 8 ASCII bytes, a per-resource lock
-`lockKey(namespace4, resource)`. Shutdown gives up leadership while it drains, bounds cleanup at
-2 s, and exits 1 on its own if it overruns its budget.
+`lockKey(namespace4, resource)`. Shutdown gives up leadership while it drains, bounds the close of
+cut connections and the cleanup at 2 s each, and exits 1 on its own 2 s past that budget.
 Every variable the code reads is in README's Configuration table; process code reads the
 environment only through the loaders in `apps/server/src/config.ts` (the worker's
 `UROBOROS_WORKER_TEST_*` seam and the test setup are the exceptions). Queries go through Kysely. A migration is a new file in
