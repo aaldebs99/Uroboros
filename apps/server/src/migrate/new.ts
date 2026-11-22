@@ -1,5 +1,6 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { loadMigrationsDir } from "../config.ts";
 import { defaultMigrationsDir } from "./dir.ts";
 import { parseMigrationName } from "./name.ts";
 
@@ -17,7 +18,7 @@ function main(name: string | undefined): number {
     console.error(err instanceof Error ? err.message : String(err));
     return 2;
   }
-  const path = join(process.env["UROBOROS_MIGRATIONS_DIR"] ?? defaultMigrationsDir(), file);
+  const path = join(loadMigrationsDir(process.env) ?? defaultMigrationsDir(), file);
   if (existsSync(path)) {
     console.error(`${path} already exists`);
     return 1;

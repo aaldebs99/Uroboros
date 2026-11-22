@@ -339,8 +339,17 @@ describe("loadWorkerConfig", () => {
     expect(loadWorkerConfig({ VALKEY_URL: "redis://x:1" })).toEqual({
       valkeyUrl: "redis://x:1",
       concurrency: 4,
+      ytdlpPath: "yt-dlp",
     });
     expect(() => loadWorkerConfig({})).toThrow(ConfigError);
+  });
+
+  it("reads YTDLP_PATH, treating an empty one as unset", () => {
+    const env = { VALKEY_URL: "redis://x:1", YTDLP_PATH: "/opt/yt-dlp/bin/yt-dlp" };
+    expect(loadWorkerConfig(env).ytdlpPath).toBe("/opt/yt-dlp/bin/yt-dlp");
+    expect(loadWorkerConfig({ VALKEY_URL: "redis://x:1", YTDLP_PATH: "" }).ytdlpPath).toBe(
+      "yt-dlp",
+    );
   });
 
   it("reads UROBOROS_WORKER_CONCURRENCY", () => {

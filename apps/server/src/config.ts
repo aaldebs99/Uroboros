@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { z } from "zod";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 import { vapidPairProblem } from "./push/keys.ts";
@@ -21,9 +22,11 @@ export interface Config {
   push: PushSettings;
 }
 
-/** What the standalone migrate Job needs: the database and nothing else. */
+/** What the standalone migrate Job needs: the database and where the SQL files are. */
 export interface MigrateConfig {
   databaseUrl: string;
+  /** `UROBOROS_MIGRATIONS_DIR`, absolute; null means the repo root's `migrations/`. */
+  migrationsDir: string | null;
 }
 
 /** What the worker needs for now: Valkey. It gains `databaseUrl` when job processors need it. */
@@ -31,6 +34,8 @@ export interface WorkerConfig {
   valkeyUrl: string;
   /** Parallel jobs per worker process. */
   concurrency: number;
+  /** The yt-dlp to run: `YTDLP_PATH` (set in the worker image), else `yt-dlp` on PATH. */
+  ytdlpPath: string;
 }
 
 const DEFAULT_WORKER_CONCURRENCY = 4;
@@ -146,13 +151,21 @@ const configSchema = z
     }
   });
 
-const migrateSchema = z.object({ DATABASE_URL: required("DATABASE_URL") });
+const migrationsDirSchema = z.object({
+  UROBOROS_MIGRATIONS_DIR: unsetIfEmpty(z.string().optional()),
+});
+
+const migrateSchema = z.object({
+  DATABASE_URL: required("DATABASE_URL"),
+  ...migrationsDirSchema.shape,
+});
 
 const workerSchema = z.object({
   VALKEY_URL: required("VALKEY_URL"),
   UROBOROS_WORKER_CONCURRENCY: positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(
     String(DEFAULT_WORKER_CONCURRENCY),
   ),
+  YTDLP_PATH: unsetIfEmpty(z.string().optional()),
 });
 
 function parse<S extends z.ZodType>(schema: S, env: NodeJS.ProcessEnv): z.output<S> {
@@ -187,13 +200,24 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
   };
 }
 
+/** `UROBOROS_MIGRATIONS_DIR`, made absolute; null when unset (the repo root's `migrations/`). */
+export function loadMigrationsDir(env: NodeJS.ProcessEnv): string | null {
+  const dir = parse(migrationsDirSchema, env).UROBOROS_MIGRATIONS_DIR;
+  return dir === undefined ? null : resolve(dir);
+}
+
 /** Configuration for the migrate Job, which has no use for Valkey. */
 export function loadMigrateConfig(env: NodeJS.ProcessEnv): MigrateConfig {
-  return { databaseUrl: parse(migrateSchema, env).DATABASE_URL };
+  const e = parse(migrateSchema, env);
+  return { databaseUrl: e.DATABASE_URL, migrationsDir: loadMigrationsDir(env) };
 }
 
 /** Configuration for the worker process. */
 export function loadWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
   const e = parse(workerSchema, env);
-  return { valkeyUrl: e.VALKEY_URL, concurrency: e.UROBOROS_WORKER_CONCURRENCY };
+  return {
+    valkeyUrl: e.VALKEY_URL,
+    concurrency: e.UROBOROS_WORKER_CONCURRENCY,
+    ytdlpPath: e.YTDLP_PATH ?? "yt-dlp",
+  };
 }

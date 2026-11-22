@@ -1,4 +1,3 @@
-import { resolve } from "node:path";
 import { ConfigError, loadMigrateConfig } from "../config.ts";
 import { createDb } from "../db/kysely.ts";
 import { defaultMigrationsDir } from "./dir.ts";
@@ -8,7 +7,7 @@ import { MigrationError, runMigrations } from "./runner.ts";
 export async function main(_argv: string[] = []): Promise<number> {
   try {
     const config = loadMigrateConfig(process.env);
-    const dir = resolve(process.env["UROBOROS_MIGRATIONS_DIR"] ?? defaultMigrationsDir());
+    const dir = config.migrationsDir ?? defaultMigrationsDir();
     // No query timeout: a migration, or the wait for another runner's lock, may take minutes; the
     // Job's activeDeadlineSeconds bounds it instead.
     const db = createDb(config.databaseUrl, undefined, { queryTimeoutMs: 0 });

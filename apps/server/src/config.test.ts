@@ -1,6 +1,6 @@
 import { generateVAPIDKeys } from "web-push";
 import { describe, expect, it } from "vitest";
-import { ConfigError, loadConfig, loadMigrateConfig } from "./config.ts";
+import { ConfigError, loadConfig, loadMigrateConfig, loadMigrationsDir } from "./config.ts";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 
 const base = { DATABASE_URL: "postgres://u:p@h/db", VALKEY_URL: "redis://h:6379" };
@@ -68,7 +68,17 @@ describe("loadMigrateConfig", () => {
   it("needs only DATABASE_URL", () => {
     expect(loadMigrateConfig({ DATABASE_URL: base.DATABASE_URL })).toEqual({
       databaseUrl: base.DATABASE_URL,
+      migrationsDir: null,
     });
+  });
+
+  it("reads UROBOROS_MIGRATIONS_DIR as an absolute path", () => {
+    const env = { DATABASE_URL: base.DATABASE_URL, UROBOROS_MIGRATIONS_DIR: "/app/migrations" };
+    expect(loadMigrateConfig(env).migrationsDir).toBe("/app/migrations");
+    expect(loadMigrationsDir({ UROBOROS_MIGRATIONS_DIR: "/app/migrations" })).toBe(
+      "/app/migrations",
+    );
+    expect(loadMigrationsDir({})).toBeNull();
   });
 
   it("throws ConfigError without it", () => {

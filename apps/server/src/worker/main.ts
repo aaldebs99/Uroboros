@@ -216,9 +216,10 @@ export async function main(
   const logger = pino({ name: "uroboros-worker" });
   let valkeyUrl: string;
   let concurrency: number;
+  let ytdlpPath: string;
   let testOverrides: Partial<StartWorkerOptions>;
   try {
-    ({ valkeyUrl, concurrency } = loadWorkerConfig(process.env));
+    ({ valkeyUrl, concurrency, ytdlpPath } = loadWorkerConfig(process.env));
     testOverrides = testOverridesFromEnv(process.env);
   } catch (err) {
     if (err instanceof ConfigError) {
@@ -227,7 +228,7 @@ export async function main(
     }
     throw err;
   }
-  await logToolVersions(logger, { ytdlp: process.env["YTDLP_PATH"] ?? "yt-dlp" });
+  await logToolVersions(logger, { ytdlp: ytdlpPath });
   // Trapped before the worker starts: BullMQ begins taking jobs inside startWorker, so a SIGTERM
   // that lands before it returns must still drain them, not kill the process mid-job. A signal
   // before the worker is ready (Valkey unreachable) aborts the startup instead, and main returns 1
