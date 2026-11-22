@@ -8,12 +8,15 @@ authority. The Dockerfile has the exact pins.
 
 Built `FROM gcr.io/distroless/cc-debian13:nonroot`, with the Node binary copied in.
 
-| Component                     | Licence                                                 | Source                                                              |
-| ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------- |
-| Node.js (the `node` binary)   | MIT, with the licences of its bundled dependencies      | The official `node` image, https://github.com/nodejs/node           |
-| distroless base (cc-debian13) | Debian packages, each under its own licence             | https://github.com/GoogleContainerTools/distroless                  |
-| Debian packages in the base   | glibc, libstdc++ and libgcc (LGPL, GPL with exceptions) | Copyright files under `/usr/share/doc/<package>/` in the image      |
-| The server bundle (`/app`)    | MIT (Uroboros), plus the bundled npm dependencies       | Each package's licence, see `pnpm-lock.yaml` for the exact versions |
+| Component                      | Licence                                                 | Source                                                            |
+| ------------------------------ | ------------------------------------------------------- | ----------------------------------------------------------------- |
+| Node.js (the `node` binary)    | MIT, with the licences of its bundled dependencies      | The official `node` image, https://github.com/nodejs/node         |
+| distroless base (cc-debian13)  | Debian packages, each under its own licence             | https://github.com/GoogleContainerTools/distroless                |
+| Debian packages in the base    | glibc, libstdc++ and libgcc (LGPL, GPL with exceptions) | Copyright files under `/usr/share/doc/<package>/` in the image    |
+| The server bundle (`/app`)     | MIT (Uroboros), plus the bundled npm dependencies       | `/usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt`, see below |
+| The web app (`/app/web`)       | MIT (Uroboros), plus React and the other npm packages   | `/usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt`            |
+| Fonts in the web app           | SIL Open Font License 1.1 (Bricolage Grotesque, Geist)  | `@fontsource-variable/*`; OFL text in `THIRD_PARTY_NOTICES.txt`   |
+| Swagger UI (`/app/swagger-ui`) | Apache-2.0, served at `/api/docs`                       | `swagger-ui-dist`; its `LICENSE` and `NOTICE` ship beside it      |
 
 ## worker image (`uroboros-worker`)
 
@@ -26,9 +29,19 @@ Built `FROM node:<version>-trixie-slim` (Debian 13).
 | Python 3 and its venv module | Python Software Foundation License                 | Debian's `python3` packages                                                              |
 | yt-dlp (`/opt/yt-dlp`)       | Unlicense (public domain)                          | https://github.com/yt-dlp/yt-dlp, pinned in `scripts/image/requirements.txt`             |
 | ffmpeg and ffprobe           | GNU GPL version 3                                  | yt-dlp's FFmpeg build, see below                                                         |
-| The server bundle (`/app`)   | MIT (Uroboros), plus the bundled npm dependencies  | Each package's licence, see `pnpm-lock.yaml`                                             |
+| The server bundle (`/app`)   | MIT (Uroboros), plus the bundled npm dependencies  | `/usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt`, see below                        |
+| tini (PID 1)                 | MIT                                                | Debian's `tini` package; copyright under `/usr/share/doc/tini/`                          |
 
 yt-dlp is the only downloader the images ship.
+
+## npm packages in both images
+
+The image build runs `pnpm licenses list --prod` over the server, the web app and the contract,
+and `apps/server/src/notices/notices.ts` turns the result into
+`/usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt`: every production npm package the bundles
+and the web app carry, with its version, licence and the licence and notice files its package
+ships (the fonts' OFL text among them). Uroboros' own licence is beside it as `LICENSE`. Both
+images carry the same file; `check:licenses` keeps every one of those licences on the allowlist.
 
 ### ffmpeg
 

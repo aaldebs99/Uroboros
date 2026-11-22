@@ -34,13 +34,13 @@ stack and the tests.
 ```sh
 mise trust && mise install   # tools, git hooks, workspace dependencies
 mise run dev:deps            # Postgres on 127.0.0.1:15432, Valkey on 127.0.0.1:16379
-mise run migrate             # with DATABASE_URL pointing at it
+mise run migrate             # against the dev:deps database unless DATABASE_URL says otherwise
 mise run dev:api             # API on http://127.0.0.1:18081
 mise run dev:worker          # a worker against the same Valkey
 mise run dev:ui              # Vite on http://127.0.0.1:18173, proxying /api to :18081
 ```
 
-`mise run migrate` reads `DATABASE_URL`; for the `dev:deps` database that is
+`mise run migrate` reads `DATABASE_URL`, which defaults to the `dev:deps` database,
 `postgres://uroboros:uroboros@127.0.0.1:15432/uroboros`.
 
 To run what a deployment runs instead, `mise run docker:up` builds both images and starts
@@ -62,12 +62,19 @@ mise run ci
 
 ## Database and tests
 
-The api and the worker read `DATABASE_URL` and `VALKEY_URL`. The api never migrates; the migrate
+The api reads `DATABASE_URL` and `VALKEY_URL`; the worker reads only `VALKEY_URL` so far (the
+chart passes it `DATABASE_URL` already, for the job processors to come). The api never migrates; the migrate
 entrypoint does, as a one-shot compose service or a Helm hook Job, and every replica can start
 it safely because it takes an advisory lock and applies each file exactly once. Add a migration
 with `mise run migration:new <snake_case_name>`, which writes
 `migrations/<YYYYMMDDHHMMSS>_<name>.sql` with the current UTC time. A migration is never edited
 once shipped: the runner refuses a file whose checksum changed after it was applied.
+
+Kubernetes migrates in a `pre-upgrade` hook while the previous release still serves, so each
+migration must work with the previous release's code: expand, migrate, then contract across
+releases, never renaming or dropping what the running release still reads. Each file runs in one
+transaction, so `CREATE INDEX CONCURRENTLY` and other statements that refuse a transaction are not
+supported yet; use a plain `CREATE INDEX` while the table is small.
 
 `mise run test` needs Docker and no other setup. The server's vitest global setup starts one
 Postgres and one Valkey with testcontainers, migrates a `uroboros_template` database and freezes
@@ -80,19 +87,41 @@ which is what CI does.
 The UI is an installable web app: a static manifest, icons, and a service worker (vite-plugin-pwa,
 `injectManifest`) that precaches the shell and shows Web Push notifications. Settings,
 Notifications turns them on per browser or phone, sends a test, and turns a device off. Push is on
-only when the api knows its public https address:
-
-| Variable                                                  | Default                                | What it is                                                                                 |
-| --------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `UROBOROS_PUBLIC_BASE_URL`                                | unset (push off)                       | The public origin, e.g. `https://uroboros.example.com`; push is on only when it is https.  |
-| `UROBOROS_PUSH_SUBJECT`                                   | the public URL                         | The VAPID contact, a `mailto:` address or an https URL.                                    |
-| `UROBOROS_VAPID_PUBLIC_KEY`, `UROBOROS_VAPID_PRIVATE_KEY` | generated once, kept in the database   | A fixed VAPID pair; both or neither. Changing it drops every subscription.                 |
-| `UROBOROS_PUSH_ALLOWED_HOSTS`                             | Apple, Google, Mozilla, Microsoft push | Comma-separated hosts a subscription endpoint may be on (or a subdomain of), against SSRF. |
-| `UROBOROS_PUSH_MAX_DEVICES`                               | `10`                                   | Devices with notifications per user.                                                       |
+only when the api knows its public https address, `UROBOROS_PUBLIC_BASE_URL`; the push variables
+are in the Configuration table below.
 
 The icons are generated from `assets/logos/uroboros-transparent.svg` by `mise run icons` and
 committed; run it again after changing the logo. [docs/push.md](docs/push.md) has the design: the
 payload, the key bootstrap, the allowlist, the iPhone setup and what comes later.
+
+## Configuration
+
+Every environment variable the code reads. The api, worker and migrate processes read theirs
+through `apps/server/src/config.ts`, which refuses a bad value at startup (exit 2) and treats an
+empty optional one as unset; the test and Vite variables at the bottom are read by the test setup,
+the worker's test seam and `vite.config.ts`. The compose stack and the chart set them for you.
+
+| Variable                                                      | Read by                  | Default                                | What it is                                                                                    |
+| ------------------------------------------------------------- | ------------------------ | -------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                | api, migrate             | required                               | Postgres connection string. The chart also gives it to the worker, which does not use it yet. |
+| `VALKEY_URL`                                                  | api, worker              | required                               | Valkey connection string.                                                                     |
+| `UROBOROS_BIND`                                               | api                      | `127.0.0.1:18081`                      | `host:port` to listen on; the image sets `0.0.0.0:8080`.                                      |
+| `UROBOROS_WEB_DIST`                                           | api                      | unset (no SPA)                         | The built SPA to serve; the image sets `/app/web`.                                            |
+| `UROBOROS_BODY_LIMIT_BYTES`                                   | api                      | `65536`                                | Largest request body on `/api/*`; larger gets 413 `payload_too_large`.                        |
+| `UROBOROS_SHUTDOWN_GRACE_MS`                                  | api                      | `20000`                                | After SIGTERM, how long in-flight requests may run before they are cut and the api exits 1.   |
+| `UROBOROS_PUBLIC_BASE_URL`                                    | api                      | unset (push off)                       | The public origin, e.g. `https://uroboros.example.com`, no path; push is on only when https.  |
+| `UROBOROS_PUSH_SUBJECT`                                       | api                      | the public URL                         | The VAPID contact, a `mailto:` address or an https URL.                                       |
+| `UROBOROS_VAPID_PUBLIC_KEY`, `UROBOROS_VAPID_PRIVATE_KEY`     | api                      | generated once, kept in the database   | A fixed VAPID pair; both or neither. Changing it drops every subscription.                    |
+| `UROBOROS_PUSH_ALLOWED_HOSTS`                                 | api                      | Apple, Google, Mozilla, Microsoft push | Comma-separated hosts a subscription endpoint may be on (or a subdomain of), against SSRF.    |
+| `UROBOROS_PUSH_MAX_DEVICES`                                   | api                      | `10`                                   | Devices with notifications per user.                                                          |
+| `UROBOROS_WORKER_CONCURRENCY`                                 | worker                   | `4`                                    | Parallel jobs per worker process.                                                             |
+| `YTDLP_PATH`                                                  | worker                   | `yt-dlp` on `PATH`                     | The yt-dlp binary; the image sets `/opt/yt-dlp/bin/yt-dlp`.                                   |
+| `UROBOROS_MIGRATIONS_DIR`                                     | migrate, `migration:new` | the repo's `migrations/`               | Where the SQL files are; the image sets `/app/migrations`.                                    |
+| `UROBOROS_TEST_DATABASE_URL`, `UROBOROS_TEST_VALKEY_URL`      | tests                    | unset (testcontainers)                 | Servers for the test run to use instead of starting containers.                               |
+| `UROBOROS_WORKER_TEST_QUEUE`, `_PREFIX`, `_GRACE_MS`, `_HANG` | worker (tests)           | unset                                  | The spawned-worker test's seam; never set in production.                                      |
+| `UROBOROS_API_URL`, `UROBOROS_UI_PORT`                        | Vite (`dev:ui`)          | `http://127.0.0.1:18081`, `18173`      | Where the dev server proxies `/api`, and its own port.                                        |
+
+The compose host ports (`UROBOROS_PORT` and the others) are under Quickstart.
 
 ## CI and releases
 
