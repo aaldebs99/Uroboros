@@ -70,7 +70,7 @@ with `mise run migration:new <snake_case_name>`, which writes
 `migrations/<YYYYMMDDHHMMSS>_<name>.sql` with the current UTC time. A migration is never edited
 once shipped: the runner refuses a file whose checksum changed after it was applied.
 
-Kubernetes migrates in a `pre-upgrade` hook while the previous release still serves, so each
+Migrations are applied while replicas from the previous release are still serving, so each
 migration must work with the previous release's code: expand, migrate, then contract across
 releases, never renaming or dropping what the running release still reads. Each file runs in one
 transaction, so `CREATE INDEX CONCURRENTLY` and other statements that refuse a transaction are not

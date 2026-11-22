@@ -140,9 +140,9 @@ read through `scripts/image/compose-image.sh`, so Renovate's one bump moves them
 **Task bodies are POSIX.** They run under `sh` (dash on Debian runners): no `[[ ]]`, no
 `<(...)`, no `pipefail`. Anything longer belongs in a script under `scripts/`.
 
-**Migrations stay compatible with the previous release.** The chart's `pre-upgrade` hook migrates
-while the old pods still serve, and a rollback runs old code on the new schema, so every migration
-must work with the code of the release before it. Change a schema in steps across releases:
+**Migrations stay compatible with the previous release.** Migrations are applied while replicas
+from the previous release are still serving, and a rollback runs old code on the new schema, so
+every migration must work with the code of the release before it. Change a schema in steps across releases:
 expand (add the nullable column, the new table), migrate (code writes both, backfill), then
 contract (drop the old shape) only once no running release reads it. Never rename or drop in the
 same release that stops using something. Each file runs inside one transaction, so statements
