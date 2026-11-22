@@ -99,7 +99,12 @@ function collectAges(node: unknown, found: string[]): void {
   }
   for (const [key, value] of Object.entries(record)) {
     if (key === "minimumReleaseAge") {
-      found.push(typeof value === "string" ? value : String(value));
+      // An explicit `null` is a rule opting out of the soak (the ffmpeg mirror's, which the
+      // docker datasource cannot time); it is a different statement from a wrong duration.
+      if (value === null) {
+        continue;
+      }
+      found.push(typeof value === "string" ? value : JSON.stringify(value));
     } else {
       collectAges(value, found);
     }

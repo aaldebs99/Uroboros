@@ -95,6 +95,15 @@ describe("pins", () => {
     expect(failure({ pnpmAge: "1440" })).toContain("pnpm-workspace.yaml minimumReleaseAge = 1440");
   });
 
+  it("lets a rule opt out of the soak with an explicit null, but not with a wrong duration", () => {
+    const f = files({});
+    f[".renovaterc.json5"] = (f[".renovaterc.json5"] ?? "").replace(
+      "packageRules: [",
+      "packageRules: [{ matchDepNames: ['mirror'], minimumReleaseAge: null }, ",
+    );
+    expect(isOk(runPins(tempRepo(f)))).toBe(true);
+  });
+
   it("fails an unparseable renovate duration", () => {
     expect(failure({ renovateAge: "soon" })).toContain('"soon"');
   });
