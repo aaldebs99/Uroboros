@@ -179,9 +179,11 @@ done
 # The pinned yt-dlp build of ffmpeg: its date-stamped version, built as a GPL build, with ffprobe
 # from the same release, and the licence notices that go with the binary.
 check "ffmpeg is the pinned build (${FFMPEG_TAG})" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
-    "ffmpeg -version | sed -n 1p | grep -Eq '^ffmpeg version N-[0-9]+-g[0-9a-f]+-${FFMPEG_DATE} ' && \
-     ffmpeg -version | grep -q -- '--enable-gpl' && \
-     ffprobe -version | sed -n 1p | grep -Eq '^ffprobe version N-[0-9]+-g[0-9a-f]+-${FFMPEG_DATE} '"
+    "recorded=\$(sed -n 's/^- Version: //p' /usr/share/licenses/ffmpeg/SOURCE.md) && \
+     echo \"\${recorded}\" | grep -Eq '^N-[0-9]+-g[0-9a-f]+-${FFMPEG_DATE}\$' && \
+     test \"\$(ffmpeg -version | sed -n 1p | cut -d' ' -f3)\" = \"\${recorded}\" && \
+     test \"\$(ffprobe -version | sed -n 1p | cut -d' ' -f3)\" = \"\${recorded}\" && \
+     ffmpeg -version | grep -q -- '--enable-gpl'"
 check "ffmpeg licence and SOURCE.md are installed and name the pinned tag" \
     docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
     "test -s /usr/share/licenses/ffmpeg/LICENSE.txt && grep -q 'GNU GENERAL PUBLIC LICENSE' /usr/share/licenses/ffmpeg/LICENSE.txt && grep -qF '${FFMPEG_TAG}' /usr/share/licenses/ffmpeg/SOURCE.md"

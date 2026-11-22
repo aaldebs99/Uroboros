@@ -41,12 +41,18 @@ is checked against a pin in the Dockerfile (`FFMPEG_TAG`, `FFMPEG_CHECKSUMS_SHA2
 The worker image contains, under `/usr/share/licenses/ffmpeg/`:
 
 - `LICENSE.txt`: the licence text shipped in the build archive (GNU GPL version 3).
-- `SOURCE.md`: the release URL and tag, the archive names and checksums, and links to the build
-  scripts and patches at that tag and to the FFmpeg source commit.
+- `SOURCE.md`: the version, the release URL and tag, the commit of the build scripts the tag points
+  at, the FFmpeg commit, and the archive names and checksums.
 
-The tag in the Dockerfile is the version shipped. The corresponding source is the build scripts at
-that tag in the FFmpeg-Builds repository, which fetch FFmpeg and each linked library at a pinned
-version.
+The archive is checked against a pinned checksums file, which is itself checked against a sha256
+pinned in the Dockerfile. The build scripts and patches in the FFmpeg-Builds repository at that
+commit are the build recipe and source references: they clone FFmpeg's master branch, and only
+the libraries carry a pinned commit. They are not a copy of the source. A durable mirror of the
+full corresponding source is being added, as an ffmpeg image built in a separate repository.
+
+Known gap: only FFmpeg's GPL text is shipped. The static binary also links many libraries under
+other licences (BSD, MIT and others), and their notices are not yet included. The mirror image is
+to cover them.
 
 ### Future: transcode workers
 

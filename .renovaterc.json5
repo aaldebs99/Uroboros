@@ -178,17 +178,13 @@
       automerge: false,
     },
     {
-      // yt-dlp's patched static ffmpeg: the Dockerfile's FFMPEG_TAG and the sha256 of that
-      // release's checksums.sha256 (customManager below) move in one PR. A human looks first
-      // for the same reason as yt-dlp above. `build(image)`, not a `feat`.
-      description: "Image tools: the worker's pinned ffmpeg build, reviewed",
+      // yt-dlp's patched static ffmpeg (Dockerfile FFMPEG_TAG and checksums digest) is NOT bumped:
+      // the versioning would accept daily autobuild tags, which yt-dlp prunes after about two
+      // weeks, breaking the build and the source link. The pin is moving to an ffmpeg image
+      // mirrored from the upstream-builder repo; until then it is bumped by hand.
+      description: "ffmpeg build pin is interim and moving to the upstream-builder mirror",
       matchDepNames: ["yt-dlp/FFmpeg-Builds"],
-      groupName: "image tools",
-      semanticCommitType: "build",
-      semanticCommitScope: "image",
-      commitMessageTopic: "tool ffmpeg",
-      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}}):",
-      automerge: false,
+      enabled: false,
     },
     {
       // package.json runs two compilers side by side: `@typescript/native` is an alias for
