@@ -208,3 +208,32 @@ run = "pnpm -F @uroboros/server exec tsx src/bin/gen.ts"
 description = "Fail if api/openapi.json differs from the code (CI gate)"
 depends = ["install"]
 run = "pnpm -F @uroboros/server exec tsx src/bin/gen.ts --check"
+
+# ── Web ───────────────────────────────────────────────────────────────────────────────────────
+
+[tasks."dev:ui"]
+description = "Run the web UI with HMR; /api is proxied to $UROBOROS_API_URL (default http://127.0.0.1:8080)"
+run = "pnpm -F @uroboros/web dev"
+
+[tasks."build:ui"]
+description = "Type-check and build the web UI into apps/web/dist"
+depends = ["install"]
+run = "pnpm -F @uroboros/web build"
+
+# ── Lint, types, tests ────────────────────────────────────────────────────────────────────────
+
+[tasks.lint]
+description = "ESLint (strictTypeChecked, repo-wide), zero warnings (CI gate)"
+depends = ["install"]
+run = "pnpm exec eslint . --max-warnings 0 --report-unused-disable-directives"
+
+[tasks."check:types"]
+description = "tsc over every workspace package (CI gate)"
+depends = ["install"]
+# `tsc` here is @typescript/native (TypeScript 7); `tsc6` is the 6.x line eslint's parser needs.
+run = "pnpm -r exec tsc -b --noEmit"
+
+[tasks.test]
+description = "Every vitest project (needs Docker for the server's Postgres/Valkey containers)"
+depends = ["install"]
+run = "pnpm vitest run"

@@ -1,0 +1,41 @@
+import { Link } from "@tanstack/react-router";
+
+import { useInfo } from "@/api/client";
+import { Brand } from "@/components/Brand";
+import { NAV_ITEMS } from "@/nav";
+
+type SidebarNavProps = {
+  label: string;
+  /** Called after a link is followed, so the mobile sheet can close itself. */
+  onNavigate?: () => void;
+};
+
+/** Brand, primary navigation and the server version. Navy in both themes, like the logo tile. */
+export function SidebarNav({ label, onNavigate }: SidebarNavProps) {
+  const info = useInfo();
+  return (
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+      <div className="px-5 pt-6 pb-8">
+        <Brand />
+      </div>
+      <nav aria-label={label} className="flex flex-1 flex-col gap-1 px-3">
+        {NAV_ITEMS.map(({ to, label: text, icon: Icon }) => (
+          <Link
+            key={to}
+            to={to}
+            activeOptions={{ exact: true }}
+            onClick={onNavigate}
+            className="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors outline-none hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[status=active]:bg-sidebar-accent data-[status=active]:text-sidebar-accent-foreground"
+          >
+            <span className="absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-full bg-sidebar-primary opacity-0 shadow-[0_0_10px_var(--sidebar-primary)] group-data-[status=active]:opacity-100" />
+            <Icon className="size-[1.15rem] group-data-[status=active]:text-sidebar-primary" />
+            {text}
+          </Link>
+        ))}
+      </nav>
+      <div className="border-t border-sidebar-border px-5 py-4 text-xs text-sidebar-foreground/50">
+        {info.data ? `${info.data.name} v${info.data.version}` : " "}
+      </div>
+    </div>
+  );
+}
