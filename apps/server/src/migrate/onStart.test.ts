@@ -5,7 +5,7 @@ import { forward, freePort, onPort } from "../../test/forwarder.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { createEmptyDatabase } from "../../test/testDb.ts";
 import { MIGRATE_KEY_NAME } from "../shared/lockKeys.ts";
-import { migrateOnStart, startupGraceFromSecs } from "./onStart.ts";
+import { migrateOnStart, retryable, startupGraceFromSecs } from "./onStart.ts";
 
 const logger = pino({ level: "silent" });
 const fixture = (name: string): string =>
@@ -35,6 +35,24 @@ describe("startupGraceFromSecs", () => {
   it("reads 0 as forever and anything else as that many seconds", () => {
     expect(startupGraceFromSecs(0)).toBe("forever");
     expect(startupGraceFromSecs(30)).toEqual({ ms: 30_000 });
+  });
+});
+
+describe("retryable", () => {
+  it("retries socket and DNS errors and a server that is starting, not the rest", () => {
+    for (const code of [
+      "ECONNREFUSED",
+      "ECONNRESET",
+      "ENOTFOUND",
+      "EAI_AGAIN",
+      "ETIMEDOUT",
+      "57P03",
+    ]) {
+      expect(retryable(Object.assign(new Error(code), { code })), code).toBe(true);
+    }
+    for (const code of ["28P01", "3D000", "ERR_INVALID_URL"]) {
+      expect(retryable(Object.assign(new Error(code), { code })), code).toBe(false);
+    }
   });
 });
 

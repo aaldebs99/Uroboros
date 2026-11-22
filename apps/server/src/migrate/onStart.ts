@@ -50,7 +50,8 @@ function allowsRetry(grace: StartupGrace, elapsedMs: number): boolean {
 export function retryable(err: unknown): boolean {
   if (err instanceof DeadlineError) return true;
   const code = (err as { code?: unknown } | null)?.code;
-  if (typeof code === "string") return code === "57P03" || /^E[A-Z]+$/.test(code);
+  // Node's socket and DNS codes (ECONNREFUSED, EAI_AGAIN...); not its ERR_* argument errors.
+  if (typeof code === "string") return code === "57P03" || /^E(?!RR_)[A-Z_]+$/.test(code);
   return err instanceof Error && /^Connection terminated/.test(err.message);
 }
 
