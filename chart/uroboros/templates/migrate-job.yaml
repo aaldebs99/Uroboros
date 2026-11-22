@@ -11,9 +11,14 @@ metadata:
 spec:
   backoffLimit: {{ .Values.migrate.backoffLimit }}
   activeDeadlineSeconds: {{ .Values.migrate.activeDeadlineSeconds }}
-  # Exit 2 is a config error: retrying cannot help, so fail the Job at once.
+  # A pod evicted or preempted (a node drain, say) did not fail on its own: retry it without
+  # spending backoffLimit. Exit 2 is a config error: retrying cannot help, so fail the Job at once.
   podFailurePolicy:
     rules:
+      - action: Ignore
+        onPodConditions:
+          - type: DisruptionTarget
+            status: "True"
       - action: FailJob
         onExitCodes:
           containerName: migrate
