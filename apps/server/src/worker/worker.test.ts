@@ -309,7 +309,20 @@ describe("test seam validation", () => {
 
 describe("loadWorkerConfig", () => {
   it("requires only VALKEY_URL", () => {
-    expect(loadWorkerConfig({ VALKEY_URL: "redis://x:1" })).toEqual({ valkeyUrl: "redis://x:1" });
+    expect(loadWorkerConfig({ VALKEY_URL: "redis://x:1" })).toEqual({
+      valkeyUrl: "redis://x:1",
+      concurrency: 4,
+    });
     expect(() => loadWorkerConfig({})).toThrow(ConfigError);
+  });
+
+  it("reads UROBOROS_WORKER_CONCURRENCY", () => {
+    const env = { VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: "8" };
+    expect(loadWorkerConfig(env).concurrency).toBe(8);
+  });
+
+  it.each(["0", "-1", "2.5", "abc", "", "4 "])("rejects concurrency %j", (bad) => {
+    const env = { VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: bad };
+    expect(() => loadWorkerConfig(env)).toThrow(ConfigError);
   });
 });

@@ -80,7 +80,8 @@ migrate:
   # Low on purpose: exit 1 (migration error) gets a couple of retries, exit 2 (config error)
   # fails the Job at once through podFailurePolicy.
   backoffLimit: 2
-  activeDeadlineSeconds: 600
+  # Under Helm's default 5 minute --timeout, so the hook fails before Helm gives up on it.
+  activeDeadlineSeconds: 270
   resources:
     requests:
       cpu: 50m
@@ -120,8 +121,8 @@ networkPolicy:
     - 100.64.0.0/10
   # In-cluster or private-range destinations. Each takes namespaceSelector and/or podSelector
   # (label maps; a podSelector alone matches the release namespace) and/or cidrs. If none are set
-  # the rule is omitted: a Postgres, Valkey or S3 endpoint on a private address is then
-  # unreachable, so set what applies. Ports default per service.
+  # the rule is omitted. Postgres and Valkey are required: with the policy enabled and neither a
+  # block nor allowCidrs set for them, rendering fails. Set what applies. Ports default per service.
   postgres:
     namespaceSelector: {}
     podSelector: {}

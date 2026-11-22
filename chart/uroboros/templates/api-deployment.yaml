@@ -51,17 +51,22 @@ spec:
             tcpSocket:
               port: http
             periodSeconds: 10
+            timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /api/health
               port: http
             periodSeconds: 5
+            # /api/health bounds each dependency check at 2 s; the 1 s default would time out
+            # during exactly the blip this probe is meant to survive.
+            timeoutSeconds: 3
             failureThreshold: 3
           startupProbe:
             tcpSocket:
               port: http
             periodSeconds: 2
+            timeoutSeconds: 3
             failureThreshold: 30
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}

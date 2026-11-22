@@ -129,6 +129,13 @@ for f in chart/uroboros/ci/*-values.yaml; do
   helm lint chart/uroboros -f "$f"
   helm template uroboros chart/uroboros -f "$f" | kubeconform -strict -summary -kubernetes-version 1.31.0
 done
+# Negative check: the policy enabled with no Postgres or Valkey destination must refuse to render.
+if helm template uroboros chart/uroboros \
+  --set database.existingSecret=d --set valkey.existingSecret=v >/dev/null 2>&1; then
+  echo "expected render to fail: networkPolicy enabled with no postgres/valkey destination" >&2
+  exit 1
+fi
+echo "ok: misconfigured networkPolicy is rejected at render time"
 '''
 
 [tasks."lint:renovate"]

@@ -2,3 +2,11 @@ database:
   existingSecret: uroboros-database
 valkey:
   existingSecret: uroboros-valkey
+# The worker policy needs somewhere to reach Postgres and Valkey; these match in-cluster pods.
+networkPolicy:
+  postgres:
+    podSelector:
+      app.kubernetes.io/name: postgres
+  valkey:
+    podSelector:
+      app.kubernetes.io/name: valkey

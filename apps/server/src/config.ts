@@ -20,7 +20,11 @@ export interface MigrateConfig {
 /** What the worker needs for now: Valkey. It gains `databaseUrl` when job processors need it. */
 export interface WorkerConfig {
   valkeyUrl: string;
+  /** Parallel jobs per worker process. */
+  concurrency: number;
 }
+
+const DEFAULT_WORKER_CONCURRENCY = 4;
 
 const DEFAULT_BIND = "127.0.0.1:8080";
 
@@ -48,7 +52,15 @@ const configSchema = z.object({
 
 const migrateSchema = z.object({ DATABASE_URL: required("DATABASE_URL") });
 
-const workerSchema = z.object({ VALKEY_URL: required("VALKEY_URL") });
+const workerSchema = z.object({
+  VALKEY_URL: required("VALKEY_URL"),
+  UROBOROS_WORKER_CONCURRENCY: z
+    .string()
+    .regex(/^[1-9]\d*$/, "UROBOROS_WORKER_CONCURRENCY must be a positive integer")
+    .transform(Number)
+    .pipe(z.number().int())
+    .prefault(String(DEFAULT_WORKER_CONCURRENCY)),
+});
 
 function parse<S extends z.ZodType>(schema: S, env: NodeJS.ProcessEnv): z.output<S> {
   const result = schema.safeParse(env);
@@ -77,5 +89,6 @@ export function loadMigrateConfig(env: NodeJS.ProcessEnv): MigrateConfig {
 
 /** Configuration for the worker process. */
 export function loadWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
-  return { valkeyUrl: parse(workerSchema, env).VALKEY_URL };
+  const e = parse(workerSchema, env);
+  return { valkeyUrl: e.VALKEY_URL, concurrency: e.UROBOROS_WORKER_CONCURRENCY };
 }

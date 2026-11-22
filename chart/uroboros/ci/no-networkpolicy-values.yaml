@@ -1,0 +1,7 @@
+# The policy off, for clusters whose CNI does not enforce NetworkPolicy.
+database:
+  existingSecret: uroboros-database
+valkey:
+  existingSecret: uroboros-valkey
+networkPolicy:
+  enabled: false

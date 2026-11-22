@@ -11,7 +11,6 @@ import { logToolVersions } from "./versions.ts";
 const HEARTBEAT_EVERY_MS = 10_000;
 const HEARTBEAT_TTL_S = 30;
 const DEFAULT_SHUTDOWN_GRACE_MS = 25_000;
-const DEFAULT_CONCURRENCY = 4;
 
 export interface StartWorkerOptions {
   valkeyUrl: string;
@@ -170,9 +169,10 @@ export async function main(
 ): Promise<number> {
   const logger = pino({ name: "uroboros-worker" });
   let valkeyUrl: string;
+  let concurrency: number;
   let testOverrides: Partial<StartWorkerOptions>;
   try {
-    valkeyUrl = loadWorkerConfig(process.env).valkeyUrl;
+    ({ valkeyUrl, concurrency } = loadWorkerConfig(process.env));
     testOverrides = testOverridesFromEnv(process.env);
   } catch (err) {
     if (err instanceof ConfigError) {
@@ -184,7 +184,7 @@ export async function main(
   await logToolVersions(logger, { ytdlp: process.env["YTDLP_PATH"] ?? "yt-dlp" });
   const worker = await startWorker({
     valkeyUrl,
-    concurrency: DEFAULT_CONCURRENCY,
+    concurrency,
     logger,
     ...testOverrides,
     ...overrides,
