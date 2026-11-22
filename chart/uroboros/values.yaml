@@ -3,7 +3,7 @@
 # by External Secrets), never from values.
 
 image:
-  # api image: <repository>:<tag>. The migrate Job reuses it. The default is where release.yml
+  # api image: <repository>:<tag>. The default is where release.yml
   # pushes (<REGISTRY>/aaldebs99/uroboros, with REGISTRY set to code.example.com).
   repository: code.example.com/aaldebs99/uroboros
   # Defaults to .Chart.AppVersion.
@@ -84,8 +84,20 @@ api:
   # before cutting them and exiting 1. Exported as UROBOROS_SHUTDOWN_GRACE_MS.
   shutdownGraceSeconds: 20
   # Must exceed preStopSleepSeconds + shutdownGraceSeconds with room to spare (at least 5 s);
-  # rendering fails otherwise.
+  # rendering fails otherwise. The api bounds its cleanup after the drain at 2 s and exits 1 on its
+  # own 2 s after that, so it is always gone before the kubelet's SIGKILL.
   terminationGracePeriodSeconds: 35
+  # Every api pod applies pending migrations when it starts, before it reports ready (replicas
+  # take turns under an advisory lock; the later ones find nothing to do). While it connects and
+  # migrates, /api/health (liveness) answers and /api/ready (readiness, startup) says 503.
+  # How long start-up retries an unreachable database, in seconds; 0 retries until it answers (a
+  # wrong password or URL still fails at once). Exported as UROBOROS_DB_STARTUP_GRACE_SECS.
+  dbStartupGraceSeconds: 0
+  # The startupProbe's window: how long a pod may take to connect and migrate before the kubelet
+  # restarts it. It is what bounds a database that never answers (with dbStartupGraceSeconds 0)
+  # and must cover the longest migration a release ships: a restart mid-migration rolls that
+  # migration back and starts it over. Probed every 5 s.
+  startupTimeoutSeconds: 600
   # A PodDisruptionBudget of minAvailable: 1, rendered only when more than one api pod runs
   # (replicas, or hpa.min with the HPA on), so a drain never takes every replica at once.
   pdb:
@@ -122,19 +134,6 @@ worker:
   tolerations: []
   affinity: {}
   extraEnv: []
-
-migrate:
-  # Low on purpose: exit 1 (migration error) gets a couple of retries, exit 2 (config error)
-  # fails the Job at once through podFailurePolicy.
-  backoffLimit: 2
-  # Under Helm's default 5 minute --timeout, so the hook fails before Helm gives up on it.
-  activeDeadlineSeconds: 270
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      memory: 256Mi
 
 ingress:
   enabled: false

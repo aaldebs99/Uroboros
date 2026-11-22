@@ -130,7 +130,7 @@ run = '''
 set -eu
 for f in chart/uroboros/ci/*-values.yaml; do
   helm lint chart/uroboros -f "$f"
-  helm template uroboros chart/uroboros -f "$f" | kubeconform -strict -summary -kubernetes-version 1.31.0
+  helm template uroboros chart/uroboros -f "$f" | kubeconform -strict -summary -kubernetes-version 1.30.0
 done
 # Negative check: the policy enabled with no Postgres or Valkey destination must refuse to render.
 if helm template uroboros chart/uroboros \
@@ -236,7 +236,7 @@ run = "docker compose $COMPOSE_DEV up postgres valkey"
 # ── Containers (not CI gates) ─────────────────────────────────────────────────────────────────
 
 [tasks."docker:up"]
-description = "Run the real artifact: production images, 2 api replicas behind Caddy on http://127.0.0.1:18080, 2 workers, migrate (minutes on a cold cache)"
+description = "Run the real artifact: production images, 2 api replicas (migrating on start) behind Caddy on http://127.0.0.1:18080, 2 workers (minutes on a cold cache)"
 # COMPOSE_BAKE=false: compose's bake path builds the images in parallel, and on a
 # containerd-snapshotter host that was observed to trip BuildKit's overlay cache-mount race
 # ("device or resource busy"); the classic sequential builder did not. A retry also works.
@@ -264,7 +264,7 @@ description = "Stop every compose service, dev or prod (add -v by hand to reclai
 run = "docker compose $COMPOSE_DEV down"
 
 [tasks."docker:build"]
-description = "Build both images without compose: uroboros:local (api and migrate) and uroboros:local-worker"
+description = "Build both images without compose: uroboros:local (the api, with the manual migrate) and uroboros:local-worker"
 # uroboros:local is the compose image name, so a later `docker compose up` without --build reuses it.
 run = '''
 set -eu
@@ -278,7 +278,7 @@ depends = ["docker:build"]
 run = "scripts/image/smoke-test.sh uroboros:local uroboros:local-worker"
 
 [tasks.migrate]
-description = "Apply pending migrations to $DATABASE_URL (default: the dev:deps Postgres on 127.0.0.1:15432)"
+description = "Apply pending migrations to $DATABASE_URL by hand, failing fast (the api also applies them on start; default: the dev:deps Postgres on 127.0.0.1:15432)"
 depends = ["install"]
 env = { DATABASE_URL = "{{ get_env(name='DATABASE_URL', default='postgres://uroboros:uroboros@127.0.0.1:15432/uroboros') }}" }
 run = "pnpm -F @uroboros/server exec tsx src/bin/migrate.ts"

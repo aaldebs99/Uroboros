@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Smoke test for the built images, against throwaway Postgres and Valkey containers:
 #
-#   api     runs as 65532:65532, migrate applies the migrations and exits 0, the api starts and
-#           reports {"status":"ok","failing":[]} on /api/health, serves its OpenAPI document and
-#           the Swagger UI bundle it ships, falls back to the SPA's index.html on a deep link, and
-#           carries the npm notices under /usr/share/licenses/uroboros.
+#   api     runs as 65532:65532, starts on an empty database and applies the migrations itself,
+#           answers {"status":"ok"} on /api/health (liveness) and {"status":"ok","failing":[]} on
+#           /api/ready, takes the leader lock, after which the manual migrate finds nothing to do
+#           and exits 0; it serves its OpenAPI document and the Swagger UI bundle it ships, falls
+#           back to the SPA's index.html on a deep link, and carries the npm notices under
+#           /usr/share/licenses/uroboros.
 #   worker  runs as uid 65532, `yt-dlp --version` and `ffmpeg -version` answer, no other
 #           downloader is installed, ffmpeg is the pinned yt-dlp build (a GPL build, with its licence
 #           and SOURCE.md under /usr/share/licenses/ffmpeg), and the worker process starts, logs
@@ -84,8 +86,16 @@ api_fetch() {
         });" "$1"
 }
 
-health_ok() {
-    api_fetch /api/health | grep -qF '{"status":"ok","failing":[]}'
+ready_ok() {
+    api_fetch /api/ready | grep -qF '{"status":"ok","failing":[]}'
+}
+
+live_ok() {
+    api_fetch /api/health | grep -qF '{"status":"ok"}'
+}
+
+api_logged() {
+    docker logs "${API}" 2>&1 | grep -qF "\"msg\":\"$1\""
 }
 
 openapi_ok() {
@@ -140,22 +150,25 @@ else
     fail "api user is not 65532:65532"
 fi
 
-# The image's CMD is the api; the migrate Job is the same image with another CMD.
-if docker run --rm --network "${NETWORK}" -e DATABASE_URL="${DATABASE_URL}" \
-    "${API_IMAGE}" /app/migrate.mjs > /dev/null; then
-    pass "migrate applied the migrations and exited 0"
-else
-    fail "migrate"
-fi
-
+# The database is empty: the api applies the migrations itself before it reports ready.
 docker run -d --name "${API}" --network "${NETWORK}" \
     -e DATABASE_URL="${DATABASE_URL}" -e VALKEY_URL="${VALKEY_URL}" \
     "${API_IMAGE}" > /dev/null
-if wait_for 60 health_ok; then
-    pass "api health is {\"status\":\"ok\",\"failing\":[]}"
+if wait_for 60 ready_ok; then
+    pass "api readiness is {\"status\":\"ok\",\"failing\":[]}"
 else
-    fail "api health did not reach ok"
+    fail "api readiness did not reach ok"
     docker logs "${API}" 2>&1 | tail -20 || true
+fi
+check "api liveness is {\"status\":\"ok\"}" live_ok
+check "api applied the migrations on start" api_logged "migrations applied"
+check "api took the leader lock" wait_for 20 api_logged "leader acquired"
+# The image's CMD is the api; the manual migrate is the same image with another CMD.
+if [ "$(docker run --rm --network "${NETWORK}" -e DATABASE_URL="${DATABASE_URL}" \
+    "${API_IMAGE}" /app/migrate.mjs 2>/dev/null)" = "no pending migrations" ]; then
+    pass "the manual migrate found nothing pending and exited 0"
+else
+    fail "manual migrate"
 fi
 api_node="$(docker run --rm --entrypoint /usr/local/bin/node "${API_IMAGE}" --version 2>/dev/null || true)"
 if [ "${api_node}" = "v${NODE_VERSION}" ]; then

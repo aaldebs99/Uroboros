@@ -1,6 +1,6 @@
 ---
 # Builds and publishes both container images (the Dockerfile's `api` target, the distroless api
-# that also runs the migrate Job, and `worker`, the Debian slim image with ffmpeg and the pinned
+# that migrates on start, and `worker`, the Debian slim image with ffmpeg and the pinned
 # yt-dlp) to the registry named by the REGISTRY repository variable, under the aaldebs99
 # namespace. A Forgejo user's package namespace takes pushes from that user alone, so the push
 # authenticates as aaldebs99 with the REGISTRY_TOKEN secret (an access token of that account

@@ -202,6 +202,14 @@
           "type": "integer",
           "minimum": 1
         },
+        "dbStartupGraceSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "startupTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 10
+        },
         "pdb": {
           "type": "object",
           "additionalProperties": false,
@@ -271,24 +279,6 @@
         "terminationGracePeriodSeconds": {
           "type": "integer",
           "minimum": 26
-        }
-      }
-    },
-    "migrate": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "backoffLimit": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "activeDeadlineSeconds": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 3600
-        },
-        "resources": {
-          "type": "object"
         }
       }
     },

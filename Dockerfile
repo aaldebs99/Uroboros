@@ -10,7 +10,8 @@
 #   docker build --target api    -t uroboros-api .
 #   docker build --target worker -t uroboros-worker .
 #
-# `api` also runs the migrate Job: the same image with `CMD ["/app/migrate.mjs"]`.
+# The api applies pending migrations itself when it starts. `/app/migrate.mjs` in the same image is
+# the manual tool (`CMD ["/app/migrate.mjs"]`), for applying them by hand.
 
 # Keep these in lockstep with .mise/config.toml (`mise run ratchet:pins`).
 # renovate: datasource=docker depName=node
@@ -120,12 +121,12 @@ CMD ["node", "/app/worker.mjs"]
 # ARG-pinned node binary copied from the official image, so the api runs exactly the Node that
 # `mise run ratchet:pins` enforces. No shell, no package manager. The base is pinned by digest;
 # Renovate's dockerfile manager bumps the tag and digest together.
-# The CMD picks the process: api.mjs here, migrate.mjs for the migrate Job.
+# The CMD picks the process: api.mjs here, migrate.mjs to apply migrations by hand.
 FROM gcr.io/distroless/cc-debian13:nonroot@sha256:cb87acc574abe719b6e5c547384defa2f7b1f24af9605d3f618cf852495d8be2 AS api
 ARG VERSION
 ARG REVISION
 LABEL org.opencontainers.image.title="uroboros-api" \
-      org.opencontainers.image.description="Uroboros API and migrate Job: a self-hosted media downloader" \
+      org.opencontainers.image.description="Uroboros API, which migrates on start: a self-hosted media downloader" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}"
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
@@ -134,8 +135,8 @@ COPY --from=build /src/apps/server/dist/ /app/
 COPY --from=build /src/migrations/ /app/migrations/
 COPY --from=build /src/apps/web/dist/ /app/web/
 COPY --from=build /src/licenses/ /usr/share/licenses/uroboros/
-# Listen on all interfaces inside the container (the default is loopback). Migrate reads the
-# SQL files from UROBOROS_MIGRATIONS_DIR; without it, it looks for the repo root.
+# Listen on all interfaces inside the container (the default is loopback). The api (and the manual
+# migrate) read the SQL files from UROBOROS_MIGRATIONS_DIR; without it, they look for the repo root.
 ENV NODE_ENV=production \
     UROBOROS_WEB_DIST=/app/web \
     UROBOROS_BIND=0.0.0.0:8080 \

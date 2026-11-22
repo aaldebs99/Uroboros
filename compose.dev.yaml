@@ -2,14 +2,12 @@
 #
 #   api       the `build` stage of the Dockerfile (node, pnpm and the installed workspace) running
 #             `tsx watch`, with apps/server/src and packages/contract/src mounted over the image's
-#             copies, so an edit restarts both replicas. Only those two directories are mounted:
+#             copies, so an edit restarts both replicas, and ./migrations. Only those directories are mounted:
 #             the image's node_modules stay in place. The SPA it serves is the one built into the
 #             image; `mise run dev:ui:docker` (Vite with HMR, proxying /api to this stack's Caddy on
 #             :18080) is the UI loop. Plain `dev:ui` proxies to a host-run `dev:api` on :18081.
-#   migrate   the same dev image running src/bin/migrate.ts with tsx, reading ./migrations from the
-#             host, so a new file applies on the next `up`. It has its own `build:` (the same tag as
-#             the api) so it never starts on an image that was not built; COMPOSE_BAKE=false keeps
-#             the two builds sequential and the second a cache hit.
+#             The api applies migrations as it starts, reading ./migrations from the host, so a new
+#             file applies on the next restart (an edit under apps/server/src restarts it).
 #   host ports on loopback for Postgres (15432), Valkey (16379) and RustFS (19000, console
 #             19001), which `mise run dev:deps` uses for an api and worker run on the host. Each
 #             has an env override (UROBOROS_POSTGRES_PORT, UROBOROS_VALKEY_PORT, UROBOROS_S3_PORT,
@@ -31,19 +29,6 @@ services:
       - "127.0.0.1:${UROBOROS_S3_PORT:-19000}:9000"
       - "127.0.0.1:${UROBOROS_S3_CONSOLE_PORT:-19001}:9001"
 
-  migrate:
-    build:
-      target: build
-    image: uroboros:dev
-    working_dir: /src/apps/server
-    command: ["pnpm", "exec", "tsx", "src/bin/migrate.ts"]
-    environment:
-      UROBOROS_MIGRATIONS_DIR: /src/migrations
-    volumes:
-      - ./migrations:/src/migrations:ro
-      - ./apps/server/src:/src/apps/server/src:ro
-      - ./packages/contract/src:/src/packages/contract/src:ro
-
   api:
     build:
       target: build
@@ -53,16 +38,18 @@ services:
     environment:
       UROBOROS_BIND: 0.0.0.0:8080
       UROBOROS_WEB_DIST: /src/apps/web/dist
+      UROBOROS_MIGRATIONS_DIR: /src/migrations
     healthcheck:
       test:
         - CMD
         - node
         - -e
-        - "fetch('http://127.0.0.1:8080/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+        - "fetch('http://127.0.0.1:8080/api/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 20s
     volumes:
+      - ./migrations:/src/migrations:ro
       - ./apps/server/src:/src/apps/server/src:ro
       - ./packages/contract/src:/src/packages/contract/src:ro

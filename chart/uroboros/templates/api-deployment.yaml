@@ -9,6 +9,13 @@ spec:
   {{- if not .Values.api.hpa.enabled }}
   replicas: {{ .Values.api.replicas }}
   {{- end }}
+  # A new pod migrates before it reports ready. Taking no old pod down first means a release whose
+  # migration fails (its pods exit, never ready) stalls the rollout while the old pods keep serving.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       {{- include "uroboros.selectorLabels" (dict "root" . "component" "api") | nindent 6 }}
@@ -52,6 +59,8 @@ spec:
               value: {{ $a.bodyLimitBytes | int | quote }}
             - name: UROBOROS_SHUTDOWN_GRACE_MS
               value: {{ mul $a.shutdownGraceSeconds 1000 | quote }}
+            - name: UROBOROS_DB_STARTUP_GRACE_SECS
+              value: {{ $a.dbStartupGraceSeconds | int | quote }}
             {{- with .Values.api.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -63,29 +72,34 @@ spec:
               sleep:
                 seconds: {{ $a.preStopSleepSeconds }}
           {{- end }}
-          # Liveness is TCP only: /api/health reports dependency state and a database blip must
-          # not restart every pod. Readiness uses /api/health, which stays 200 when degraded.
+          # Liveness is /api/health, which checks no dependency: a database blip must not restart
+          # every pod. It answers from the moment the api listens, migrations or not.
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /api/health
               port: http
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
+          # Readiness is /api/ready: 503 until migrations ran and the database is attached, then
+          # 200 (degraded included, so a dependency blip does not empty the Service).
           readinessProbe:
             httpGet:
-              path: /api/health
+              path: /api/ready
               port: http
             periodSeconds: 5
-            # /api/health bounds each dependency check at 2 s; the 1 s default would time out
+            # /api/ready bounds each dependency check at 2 s; the 1 s default would time out
             # during exactly the blip this probe is meant to survive.
             timeoutSeconds: 3
             failureThreshold: 3
+          # Holds liveness off while the pod connects and migrates; see api.startupTimeoutSeconds.
           startupProbe:
-            tcpSocket:
+            httpGet:
+              path: /api/ready
               port: http
-            periodSeconds: 2
+            periodSeconds: 5
             timeoutSeconds: 3
-            failureThreshold: 30
+            failureThreshold: {{ div (add $a.startupTimeoutSeconds 4) 5 }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           securityContext:

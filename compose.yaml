@@ -1,5 +1,5 @@
-# Local stack, the shape of a deployment: Postgres, Valkey and RustFS, a one-shot migrate, two api
-# replicas behind Caddy on 127.0.0.1:18080 (UROBOROS_PORT overrides the host port) and two workers.
+# Local stack, the shape of a deployment: Postgres, Valkey and RustFS, two api replicas (each
+# applies pending migrations as it starts, one at a time under an advisory lock) behind Caddy on 127.0.0.1:18080 (UROBOROS_PORT overrides the host port) and two workers.
 # `mise run docker:up` builds the real images and starts it. The proxy is the only port this file
 # publishes. Everything dev-only (hot reload for the api, loopback ports for Postgres, Valkey and
 # RustFS, which `mise run dev:deps` uses for a host-run api and worker) is in compose.dev.yaml.
@@ -29,6 +29,9 @@ x-server-env: &server-env
   UROBOROS_BODY_LIMIT_BYTES: ${UROBOROS_BODY_LIMIT_BYTES:-}
   # How long a stopping api waits for in-flight requests (default 20000 ms).
   UROBOROS_SHUTDOWN_GRACE_MS: ${UROBOROS_SHUTDOWN_GRACE_MS:-}
+  # How long a starting api retries an unreachable Postgres, in seconds (default 0: until it
+  # answers). The api waits for Postgres to be healthy anyway, so this only matters on a restart.
+  UROBOROS_DB_STARTUP_GRACE_SECS: ${UROBOROS_DB_STARTUP_GRACE_SECS:-}
 
 services:
   postgres:
@@ -76,18 +79,6 @@ services:
       retries: 12
       start_period: 10s
 
-  # The api image again, running the migrate entrypoint once. The api waits for it. Only the api
-  # service builds uroboros:local; this one just uses the image (compose builds before creating).
-  migrate:
-    image: uroboros:local
-    command: ["/app/migrate.mjs"]
-    restart: "no"
-    environment:
-      DATABASE_URL: postgres://uroboros:uroboros@postgres:5432/uroboros
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   api:
     build: *server-build
     image: uroboros:local
@@ -95,23 +86,25 @@ services:
     deploy:
       replicas: 2
     environment: *server-env
-    # Above the api's 20 s drain, so compose does not SIGKILL it mid-drain (the default is 10 s).
+    # Above the api's 20 s drain plus its 2 s cleanup bound and 2 s hard-exit slack, so compose
+    # does not SIGKILL it mid-drain (the default is 10 s).
     stop_grace_period: 25s
     healthcheck:
-      # The image is distroless: no shell, no curl. Node's fetch is enough. Degraded health is
-      # still HTTP 200, so a stopped Valkey does not take the replicas out.
+      # The image is distroless: no shell, no curl. Node's fetch is enough. /api/ready is 503
+      # until the replica has migrated; degraded is still HTTP 200, so a stopped Valkey does not
+      # take the replicas out.
       test:
         - CMD
         - /usr/local/bin/node
         - -e
-        - "fetch('http://127.0.0.1:8080/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+        - "fetch('http://127.0.0.1:8080/api/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
       interval: 5s
       timeout: 5s
       retries: 12
       start_period: 10s
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       valkey:
         condition: service_healthy
 
