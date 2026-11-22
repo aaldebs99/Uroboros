@@ -113,7 +113,11 @@ describe("runMigrations", () => {
     const db = connect();
     await runMigrations(db, fixture("migrations-ok"));
     const r = await sql<{ n: string }>`
-      SELECT count(*)::text AS n FROM pg_locks WHERE locktype = 'advisory'`.execute(db);
+      SELECT count(*)::text AS n FROM pg_locks
+      WHERE locktype = 'advisory'
+        AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`.execute(
+      db,
+    );
     expect(r.rows[0]?.n).toBe("0");
   });
 });
