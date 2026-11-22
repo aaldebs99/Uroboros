@@ -8,8 +8,8 @@
 #           back to the SPA's index.html on a deep link, and carries the npm notices under
 #           /usr/share/licenses/uroboros.
 #   worker  runs as uid 65532, `yt-dlp --version` and `ffmpeg -version` answer, no other
-#           downloader is installed, ffmpeg is the pinned yt-dlp build (a GPL build, with its licence
-#           and SOURCE.md under /usr/share/licenses/ffmpeg), and the worker process starts, logs
+#           downloader is installed, ffmpeg and ffprobe are the pinned mirror's yt-dlp build (a GPL build, with its
+#           licence, SOURCE.md, notices and library licences under /usr/share/licenses/ffmpeg), and the worker process starts, logs
 #           both tool versions and its "worker started" line under tini as PID 1, and exits 0 on
 #           SIGTERM.
 #
@@ -26,9 +26,11 @@ VALKEY_IMAGE="$("$(dirname "$0")/compose-image.sh" valkey)"
 # The Node the images must run: the Dockerfile's pin, which `mise run ratchet:pins` ties to mise.
 NODE_VERSION="$(sed -n 's/^ARG NODE_VERSION=//p' "$(dirname "$0")/../../Dockerfile")"
 
-# The ffmpeg build the worker must carry: the Dockerfile's release tag (autobuild-YYYY-MM-DD-HH-MM).
-# yt-dlp's builds stamp the date into `ffmpeg -version`: "ffmpeg version N-<count>-g<hash>-YYYYMMDD".
-FFMPEG_TAG="$(sed -n 's/^ARG FFMPEG_TAG=//p' "$(dirname "$0")/../../Dockerfile")"
+# The ffmpeg build the worker must carry: the tag of the mirror image the Dockerfile's ffmpeg stage
+# is FROM (autobuild-YYYY-MM-DD-HH-MM). yt-dlp's builds stamp the date into `ffmpeg -version`:
+# "ffmpeg version N-<count>-g<hash>-YYYYMMDD".
+FFMPEG_TAG="$(sed -n 's/^FROM .*\/ffmpeg-ytdlp:\([^@ ]*\)@sha256:[0-9a-f]* AS ffmpeg$/\1/p' "$(dirname "$0")/../../Dockerfile")"
+test -n "${FFMPEG_TAG}" || { echo "no ffmpeg-ytdlp mirror pin in the Dockerfile" >&2; exit 1; }
 FFMPEG_DATE="$(echo "${FFMPEG_TAG}" | sed -n 's/^autobuild-\([0-9]*\)-\([0-9]*\)-\([0-9]*\)-.*$/\1\2\3/p')"
 
 SUFFIX="$$"
@@ -209,14 +211,16 @@ done
 # The pinned yt-dlp build of ffmpeg: its date-stamped version, built as a GPL build, with ffprobe
 # from the same release, and the licence notices that go with the binary.
 check "ffmpeg is the pinned build (${FFMPEG_TAG})" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
-    "recorded=\$(sed -n 's/^- Version: //p' /usr/share/licenses/ffmpeg/SOURCE.md) && \
+    "recorded=\$(sed -n 's/^- Version reported by \`ffmpeg -version\`: \`\(.*\)\`\$/\1/p' /usr/share/licenses/ffmpeg/SOURCE.md) && \
      echo \"\${recorded}\" | grep -Eq '^N-[0-9]+-g[0-9a-f]+-${FFMPEG_DATE}\$' && \
      test \"\$(ffmpeg -version | sed -n 1p | cut -d' ' -f3)\" = \"\${recorded}\" && \
      test \"\$(ffprobe -version | sed -n 1p | cut -d' ' -f3)\" = \"\${recorded}\" && \
      ffmpeg -version | grep -q -- '--enable-gpl'"
-check "ffmpeg licence and SOURCE.md are installed and name the pinned tag" \
+# The mirror's licence files, its SOURCE.md (naming the pinned tag and where the source is), the
+# notices and the per-library licence texts; not the source itself, which stays in the mirror image.
+check "ffmpeg licence, SOURCE.md, notices and library licences are installed, the source is not" \
     docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
-    "test -s /usr/share/licenses/ffmpeg/LICENSE.txt && grep -q 'GNU GENERAL PUBLIC LICENSE' /usr/share/licenses/ffmpeg/LICENSE.txt && grep -qF '${FFMPEG_TAG}' /usr/share/licenses/ffmpeg/SOURCE.md"
+    "test -s /usr/share/licenses/ffmpeg/LICENSE && grep -q 'GNU GENERAL PUBLIC LICENSE' /usr/share/licenses/ffmpeg/LICENSE && grep -qF '${FFMPEG_TAG}' /usr/share/licenses/ffmpeg/SOURCE.md && grep -q '/usr/src/ffmpeg-ytdlp' /usr/share/licenses/ffmpeg/SOURCE.md && test -s /usr/share/licenses/ffmpeg/NOTICES.md && test -n \"\$(find /usr/share/licenses/ffmpeg/libs -type f)\" && test ! -e /usr/src/ffmpeg-ytdlp"
 check "no apt ffmpeg: the binaries are the ones in /usr/local/bin" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
     "test \"\$(command -v ffmpeg)\" = /usr/local/bin/ffmpeg && test \"\$(command -v ffprobe)\" = /usr/local/bin/ffprobe && ! dpkg -s ffmpeg"
 check "worker carries the npm notices" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \

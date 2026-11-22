@@ -46,26 +46,28 @@ images carry the same file; `check:licenses` keeps every one of those licences o
 ### ffmpeg
 
 `/usr/local/bin/ffmpeg` and `/usr/local/bin/ffprobe` are yt-dlp's static, patched GPL build from
-https://github.com/yt-dlp/FFmpeg-Builds, installed unmodified from a release archive whose sha256
-is checked against a pin in the Dockerfile (`FFMPEG_TAG`, `FFMPEG_CHECKSUMS_SHA256`) by
-`scripts/image/install-ffmpeg.sh`. It statically links the libraries its configuration lists; run
-`ffmpeg -version` in the image to see the configuration.
+https://github.com/yt-dlp/FFmpeg-Builds, copied unmodified from a mirror image published from the
+`apps/ffmpeg-ytdlp` directory of the upstream-builder repository
+(`code.example.com/aaldebs99/ffmpeg-ytdlp`). The Dockerfile pins that image by tag and index
+digest in its `ffmpeg` stage. The build links its libraries statically except the C library and
+libgcc_s, which the worker's Debian base provides; run `ffmpeg -version` in the image to see the
+configuration.
 
-The worker image contains, under `/usr/share/licenses/ffmpeg/`:
+The worker image contains, under `/usr/share/licenses/ffmpeg/`, what the mirror image holds there:
 
-- `LICENSE.txt`: the licence text shipped in the build archive (GNU GPL version 3).
-- `SOURCE.md`: the version, the release URL and tag, the commit of the build scripts the tag points
-  at, the FFmpeg commit, and the archive names and checksums.
+- `LICENSE`: the licence text shipped in the build archive (GNU GPL version 3).
+- `SOURCE.md`: the version, the upstream release, the build scripts commit, the FFmpeg commit, the
+  archive checksums and the runtime requirements.
+- `NOTICES.md`: the linked libraries, their licences and where their texts are.
+- `libs/`: the licence files of those libraries.
 
-The archive is checked against a pinned checksums file, which is itself checked against a sha256
-pinned in the Dockerfile. The build scripts and patches in the FFmpeg-Builds repository at that
-commit are the build recipe and source references: they clone FFmpeg's master branch, and only
-the libraries carry a pinned commit. They are not a copy of the source. A durable mirror of the
-full corresponding source is being added, as an ffmpeg image built in a separate repository.
-
-Known gap: only FFmpeg's GPL text is shipped. The static binary also links many libraries under
-other licences (BSD, MIT and others), and their notices are not yet included. The mirror image is
-to cover them.
+Corresponding source: the complete corresponding source of the binaries is at
+`/usr/src/ffmpeg-ytdlp/` inside the pinned mirror image, which lives in the same private registry
+as the Uroboros images; the worker image does not copy it. That directory holds the FFmpeg source,
+the build scripts, the source each library stage downloads, the build recipe and a manifest of
+checksums. Distributing a Uroboros worker image outside that registry means making that source
+available alongside it on the same terms, for instance by distributing the pinned mirror image
+too. Building the worker image needs a login to the registry (`docker login code.example.com`).
 
 ### Future: transcode workers
 

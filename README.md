@@ -44,6 +44,8 @@ mise run dev:ui              # Vite on http://127.0.0.1:18173, proxying /api to 
 read `DATABASE_URL`, which defaults to the `dev:deps` database,
 `postgres://uroboros:uroboros@127.0.0.1:15432/uroboros`.
 
+The worker image takes its ffmpeg from an image in a private registry, so the `docker:*` tasks
+(`docker:build`, `docker:smoke`, `docker:up`) need `docker login code.example.com` first.
 To run what a deployment runs instead, `mise run docker:up` builds both images and starts
 Postgres, Valkey, RustFS, two api replicas (each migrating as it starts) behind Caddy and two workers on
 http://127.0.0.1:18080. `mise run docker:up:dev` is the same stack with the api reloading from
@@ -162,17 +164,19 @@ Releases come from a PR. On every push to main, `release-pr.yml` proposes the ne
 section prepended. Merging it publishes the release, and `release.yml` then builds both images,
 smoke-tests them, and pushes `<REGISTRY>/aaldebs99/uroboros:X.Y.Z`, `:X.Y` and `:latest` (the
 api) and the same tags with `-worker` appended (the worker). Pushes to main publish `:main` and
-`:main-worker`. `renovate.yml` runs a self-hosted Renovate twice a day.
+`:main-worker`. `renovate.yml` runs a self-hosted Renovate twice a day. It looks up the ffmpeg image's tags in the
+private registry with `RENOVATE_DOCKER_CODE_example_COM_USERNAME` and `_PASSWORD`, user-scope secrets under
+`aaldebs99` (a token with `read:package`) that this repository inherits.
 
 The repository needs these Actions variables and secrets:
 
-| Name                        | Kind     | For                                                                                                      |
-| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `REGISTRY`                  | variable | The registry host the images are pushed to, e.g. `code.example.com`.                                 |
-| `REGISTRY_TOKEN`            | secret   | An access token of the `aaldebs99` account scoped `write:package`.                                       |
-| `RELEASE_PLEASE_TOKEN`      | secret   | The release bot's token, scoped `write:repository`, `write:issue` and `read:user`.                       |
-| `RENOVATE_TOKEN`            | secret   | The Renovate bot's token, scoped `write:repository`, `write:issue`, `read:user` and `read:organization`. |
-| `RENOVATE_GITHUB_COM_TOKEN` | secret   | A github.com token with no scopes, so Renovate can look up GitHub-hosted dependencies.                   |
+| Name                        | Kind     | For                                                                                                                        |
+| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `REGISTRY`                  | variable | The registry host the images are pushed to, e.g. `code.example.com`.                                                   |
+| `REGISTRY_TOKEN`            | secret   | An access token of the `aaldebs99` account scoped `write:package` (`release.yml` pushes, `ci.yml` pulls the ffmpeg image). |
+| `RELEASE_PLEASE_TOKEN`      | secret   | The release bot's token, scoped `write:repository`, `write:issue` and `read:user`.                                         |
+| `RENOVATE_TOKEN`            | secret   | The Renovate bot's token, scoped `write:repository`, `write:issue`, `read:user` and `read:organization`.                   |
+| `RENOVATE_GITHUB_COM_TOKEN` | secret   | A github.com token with no scopes, so Renovate can look up GitHub-hosted dependencies.                                     |
 
 The bots must be ordinary accounts with write access: anything a workflow's own token creates
 fires no workflow events, so a release PR opened with it would show no checks and a release

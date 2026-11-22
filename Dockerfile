@@ -18,18 +18,6 @@
 ARG NODE_VERSION=24.21.0
 # renovate: datasource=npm depName=pnpm
 ARG PNPM_VERSION=12.12.1
-# yt-dlp's patched static ffmpeg build (https://github.com/yt-dlp/FFmpeg-Builds), by release tag
-# and the sha256 of that release's checksums.sha256 asset, which in turn lists the archives'
-# hashes (scripts/image/install-ffmpeg.sh checks both). Renovate bumps the two lines together;
-# its own annotation (`renovate-digest:`, not the plain one above) so the manager that owns
-# single-value ARGs leaves them alone. Renovate is disabled for this pin (.renovaterc.json5):
-# daily autobuild tags are pruned after about two weeks and month-end ones are kept about 23
-# months, and ffmpeg is moving to an image mirrored from the upstream-builder repo. FFMPEG_COMMIT
-# is the commit the tag points at, recorded in SOURCE.md.
-# renovate-digest: datasource=github-release-attachments depName=yt-dlp/FFmpeg-Builds versioning=regex:^autobuild-(?<major>\d+)-(?<minor>\d+)-(?<patch>\d+)-(?<build>\d+)-\d+$
-ARG FFMPEG_TAG=autobuild-2026-10-31-18-18
-ARG FFMPEG_CHECKSUMS_SHA256=b0861bfd4092ff38f4fc12dfb55ee3fef557f00809d342a0ed328db0f351ccf7
-ARG FFMPEG_COMMIT=58084b7cf4984303a34b610ba3ad8f04059d5d89
 # Stamped into the image labels.
 ARG VERSION=0.0.0-dev
 ARG REVISION=unknown
@@ -71,20 +59,17 @@ COPY migrations migrations
 # --- node: the official image, only so the api stage can copy its binary (--from takes no ARG).
 FROM node:${NODE_VERSION}-trixie-slim AS node
 
-# --- ffmpeg: downloads, verifies and unpacks yt-dlp's static ffmpeg and ffprobe, so curl and xz
-# stay out of the worker. Produces /usr/local/bin/{ffmpeg,ffprobe} and /usr/share/licenses/ffmpeg.
-FROM node:${NODE_VERSION}-trixie-slim AS ffmpeg
-ARG FFMPEG_TAG
-ARG FFMPEG_CHECKSUMS_SHA256
-ARG FFMPEG_COMMIT
-COPY scripts/image/install-ffmpeg.sh /tmp/scripts/
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl xz-utils && \
-    rm -rf /var/lib/apt/lists/* && \
-    /tmp/scripts/install-ffmpeg.sh "${FFMPEG_TAG}" "${FFMPEG_CHECKSUMS_SHA256}" "${FFMPEG_COMMIT}"
+# --- ffmpeg: yt-dlp's static GPL ffmpeg and ffprobe, from the mirror image built in the
+# upstream-builder repository (apps/ffmpeg-ytdlp), pinned by tag and index digest. The registry is
+# private: building needs `docker login code.example.com`. The image is FROM scratch and holds
+# /usr/local/bin/{ffmpeg,ffprobe}, their licences and notices under /usr/share/licenses/ffmpeg/
+# and the complete corresponding source in /usr/src/ffmpeg-ytdlp/, which the worker does not copy:
+# it stays in this pinned image (THIRD_PARTY.md). Renovate bumps the tag and digest together
+# (.renovaterc.json5).
+FROM code.example.com/aaldebs99/ffmpeg-ytdlp:autobuild-2026-10-31-18-18@sha256:929ec76e4767e6e925b264743d2640ce3d4e0989a482c8cdebf7bac57ab8e748 AS ffmpeg
 
 # --- worker: Debian slim Node with tini as PID 1, python3, yt-dlp's static ffmpeg (from the ffmpeg stage, with
-# its GPL licence and source pointer) and a venv holding the one downloader, yt-dlp, pinned with
+# its licences and notices; glibc and libgcc_s, the only libraries it needs, come from this base) and a venv holding the one downloader, yt-dlp, pinned with
 # hashes in scripts/image/requirements.txt (Renovate's pip_requirements manager) and installed
 # with --require-hashes. yt-dlp is the only downloader.
 FROM node:${NODE_VERSION}-trixie-slim AS worker

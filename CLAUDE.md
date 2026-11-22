@@ -26,7 +26,7 @@ gates need Docker (`test` and `docker:build`) and two need the network (`check:a
 | `chart/uroboros`      | The Helm chart: api Deployment (which migrates on start), worker Deployment, worker egress NetworkPolicy. `ci/*-values.yaml` are the renders `lint:chart` validates.                                                                        |
 | `compose.yaml`        | The production-shaped local stack: Postgres, Valkey, RustFS, two api replicas behind Caddy, two workers.                                                                                                                                    |
 | `compose.dev.yaml`    | The dev overlay: the api from source with `tsx watch`, and loopback ports for Postgres, Valkey and RustFS.                                                                                                                                  |
-| `Dockerfile`          | One build stage, two runtime targets: `api` (distroless, the default) and `worker` (Debian slim with yt-dlp's static ffmpeg and the pinned yt-dlp).                                                                                         |
+| `Dockerfile`          | One build stage, two runtime targets: `api` (distroless, the default) and `worker` (Debian slim with yt-dlp's static ffmpeg from the mirror image and the pinned yt-dlp).                                                                   |
 | `scripts/image`       | The worker image's install scripts, yt-dlp's hashed `requirements.txt`, and `smoke-test.sh`, which proves both images work.                                                                                                                 |
 | `scripts/release`     | `propose.sh`, `publish.sh` and their `lib.sh`: the release PR and the release cut that `.github/workflows/release-pr.yml` runs.                                                                                                             |
 | `.github/workflows`   | `ci.yml` (the gates), `pr-title.yml`, `release-pr.yml`, `release.yml` (images) and `renovate.yml`.                                                                                                                                          |
@@ -173,11 +173,15 @@ change is always a new file.
 **yt-dlp is the only downloader.** Never youtube-dl, youtube-dlc or another fork, and no
 downloader setting or fallback. The api never spawns yt-dlp or ffmpeg; only workers do. The
 worker image pins yt-dlp with hashes in `scripts/image/requirements.txt`, and the smoke test
-fails if any other downloader is on the image. The worker's ffmpeg is yt-dlp's GPL build from
-`yt-dlp/FFmpeg-Builds`, pinned by release tag and checksums digest (`FFMPEG_TAG`,
-`FFMPEG_CHECKSUMS_SHA256` in the Dockerfile, installed by `scripts/image/install-ffmpeg.sh`).
-It ships with its licence and a `SOURCE.md` under `/usr/share/licenses/ffmpeg/`; `THIRD_PARTY.md`
-lists what each image carries. Do not swap the build without updating both.
+fails if any other downloader is on the image. The worker's ffmpeg is yt-dlp's GPL build, taken
+from the mirror image `code.example.com/aaldebs99/ffmpeg-ytdlp` (built in the upstream-builder
+repo), pinned by tag and index digest in the Dockerfile's `ffmpeg` stage and bumped by Renovate
+(`.renovaterc.json5`, and the registry credentials in `renovate.yml`). The registry is private:
+the `docker:*` tasks need `docker login code.example.com`, and `ci.yml`'s `images` job logs in
+with `REGISTRY_TOKEN`. The worker ships the licences and notices under
+`/usr/share/licenses/ffmpeg/`; the source stays in the mirror (`/usr/src/ffmpeg-ytdlp/`), and
+`THIRD_PARTY.md` says what that means for distributing the images. Do not swap the build without
+updating both.
 
 **RustFS is the S3 server** for local stacks and tests, never MinIO.
 
@@ -205,10 +209,10 @@ with the worker under the same tags plus `-worker`. Every push to main also publ
 cut a release, so tooling changes belong under ci, chore or build. PR titles must be
 conventional commits (`pr-title.yml`), because the squash subject feeds the changelog.
 
-| Name                        | Kind     | Used by          | What it is                                                                                                           |
-| --------------------------- | -------- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `REGISTRY`                  | variable | `release.yml`    | The registry host the images go to, e.g. `code.example.com`.                                                     |
-| `REGISTRY_TOKEN`            | secret   | `release.yml`    | An access token of `aaldebs99` scoped `write:package`; only the namespace owner may push.                            |
-| `RELEASE_PLEASE_TOKEN`      | secret   | `release-pr.yml` | The release bot's token (`write:repository`, `write:issue`, `read:user`), so its PRs and releases trigger workflows. |
-| `RENOVATE_TOKEN`            | secret   | `renovate.yml`   | The Renovate bot's token (`write:repository`, `write:issue`, `read:user`, `read:organization`).                      |
-| `RENOVATE_GITHUB_COM_TOKEN` | secret   | `renovate.yml`   | A github.com token with no scopes, for looking up GitHub-hosted actions and tools.                                   |
+| Name                        | Kind     | Used by                 | What it is                                                                                                                                |
+| --------------------------- | -------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `REGISTRY`                  | variable | `release.yml`           | The registry host the images go to, e.g. `code.example.com`.                                                                          |
+| `REGISTRY_TOKEN`            | secret   | `release.yml`, `ci.yml` | An access token of `aaldebs99` scoped `write:package`; only the namespace owner may push. `ci.yml` reads the ffmpeg mirror image with it. |
+| `RELEASE_PLEASE_TOKEN`      | secret   | `release-pr.yml`        | The release bot's token (`write:repository`, `write:issue`, `read:user`), so its PRs and releases trigger workflows.                      |
+| `RENOVATE_TOKEN`            | secret   | `renovate.yml`          | The Renovate bot's token (`write:repository`, `write:issue`, `read:user`, `read:organization`).                                           |
+| `RENOVATE_GITHUB_COM_TOKEN` | secret   | `renovate.yml`          | A github.com token with no scopes, for looking up GitHub-hosted actions and tools.                                                        |
