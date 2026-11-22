@@ -16,3 +16,8 @@ packages:
 # The esbuild entry stays so a transitive esbuild can never run its install script silently.
 allowBuilds:
   esbuild: false
+  # testcontainers' transitive ssh2 / cpu-features / protobufjs install scripts only build optional
+  # native accelerators (pure-JS fallbacks exist), so they stay denied.
+  cpu-features: false
+  protobufjs: false
+  ssh2: false

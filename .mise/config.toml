@@ -173,3 +173,13 @@ depends = ["ratchet:lines", "ratchet:complexity", "ratchet:suppressions", "ratch
 description = "Fail if ci.yml's `mise run` steps and [tasks.ci].depends differ (CI gate)"
 depends = ["install"]
 run = "pnpm exec ratchet ci-parity"
+
+# ── Local development ─────────────────────────────────────────────────────────────────────────
+
+[tasks."dev:deps"]
+description = "Start local Postgres and Valkey (dev/compose.yaml)"
+run = "docker compose -f dev/compose.yaml up postgres valkey"
+
+[tasks.migrate]
+description = "Apply pending migrations to $DATABASE_URL"
+run = "pnpm -F @uroboros/server exec tsx src/migrate/main.ts"
