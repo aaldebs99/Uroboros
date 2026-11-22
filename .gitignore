@@ -1,3 +1,14 @@
 # Superpowers agent workflow files (specs, plans, SDD workspaces) — local only
 .superpowers/
 docs/superpowers/
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.log
+junit.xml

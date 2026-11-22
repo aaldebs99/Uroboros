@@ -1,0 +1,23 @@
+# Read by oxfmt (`mise run fmt`, `mise run fmt:check`, and the pre-commit hook), in addition to
+# .gitignore — so build output and node_modules need not be repeated here.
+#
+# INVARIANT: the `exclude` list of the oxfmt command in .lefthook.toml MUST mirror this file.
+# Lefthook globs do not read .prettierignore, and handing oxfmt only ignored paths is an error.
+
+# Generated OpenAPI document; a formatter must never touch it.
+api/openapi.json
+
+# git-cliff prepends to this on every release.
+CHANGELOG.md
+
+# Lockfiles: mise and pnpm rewrite these wholesale.
+.mise/mise.lock
+pnpm-lock.yaml
+
+# Binary and brand assets (logos); not ours to reformat.
+assets/**
+
+# Build output (also in .gitignore; repeated so `oxfmt --ignore-path .prettierignore` stays safe).
+dist/
+coverage/
+node_modules/

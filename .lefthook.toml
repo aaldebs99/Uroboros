@@ -1,0 +1,57 @@
+# Git hooks, installed by `mise install` (postinstall hook -> `lefthook install`).
+#
+# Self-contained: no [[remotes]], so a fork works without network access to anyone's shared
+# hook config.
+#
+# Philosophy: pre-commit AUTO-FORMATS the staged files and re-stages what it touched
+# (`stage_fixed`) instead of failing the commit and making you re-run a formatter. CI re-runs the
+# same checks (`mise run fmt:check`, `lint:shell`, `lint:workflows`) as the backstop for commits
+# made without the hooks.
+#
+# Every command goes through `mise x --` so the mise-pinned binaries are used even when the
+# committing shell never ran `mise activate` (GUI git clients, bare login shells).
+
+[pre-commit]
+parallel = true
+skip = ["merge", "rebase"]
+
+# INVARIANT: `exclude` MUST mirror .prettierignore — lefthook globs do not read it, and oxfmt
+# rejects an argv made only of ignored paths.
+[pre-commit.commands.format-oxfmt]
+glob = [
+  "*.ts",
+  "*.tsx",
+  "*.js",
+  "*.jsx",
+  "*.mjs",
+  "*.cjs",
+  "*.css",
+  "*.json",
+  "*.json5",
+  "*.jsonc",
+  "*.md",
+  "*.yaml",
+  "*.yml",
+  "*.toml",
+]
+exclude = ["api/openapi.json", "CHANGELOG.md", ".mise/mise.lock", "pnpm-lock.yaml", "assets/**"]
+run = "mise x -- oxfmt --no-error-on-unmatched-pattern {staged_files}"
+stage_fixed = true
+
+# Keep the committed lockfile in step with [tools] edits. Refreshes the platforms already in
+# .mise/mise.lock (linux + macOS, x64 + arm64).
+[pre-commit.commands.mise-lock]
+glob = ".mise/config.toml"
+run = "mise lock && git add .mise/mise.lock"
+
+[pre-commit.commands.shellcheck]
+glob = "*.sh"
+run = "mise x -- shellcheck {staged_files}"
+
+[pre-commit.commands.actionlint]
+glob = ".github/workflows/*.{yml,yaml}"
+run = "mise x -- actionlint {staged_files}"
+
+[pre-commit.commands.zizmor]
+glob = ".github/workflows/*.{yml,yaml}"
+run = "mise x -- zizmor --offline {staged_files}"

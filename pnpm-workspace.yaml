@@ -1,0 +1,18 @@
+# Supply-chain soak: refuse to resolve any package version published less than
+# 3 days (4320 minutes) ago. This MUST match `minimumReleaseAge: "3 days"` in
+# .renovaterc.json5 — otherwise Renovate opens PRs for versions pnpm refuses to
+# install. Keep the two in sync.
+minimumReleaseAge: 4320
+
+packages:
+  - apps/*
+  - packages/*
+  - tools/*
+
+# pnpm 11+ replaced `onlyBuiltDependencies` with `allowBuilds`, an explicit
+# per-package decision map, and an unapproved install script is now a hard error
+# (ERR_PNPM_IGNORED_BUILDS). Every entry is a deliberate decision: `true` lets
+# that package execute arbitrary code at install time, so justify any flip.
+# The esbuild entry stays so a transitive esbuild can never run its install script silently.
+allowBuilds:
+  esbuild: false

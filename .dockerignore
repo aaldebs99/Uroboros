@@ -1,0 +1,9 @@
+# Keep the build context small and deterministic: only sources and lockfiles.
+.git
+**/node_modules
+**/dist
+**/coverage
+junit.xml
+*.log
+.env
+.env.*

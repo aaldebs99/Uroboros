@@ -1,0 +1,227 @@
+{
+  // Renovate policy for Uroboros. STANDALONE on purpose: no `local>` / `github>` preset
+  // extends beyond Renovate's own built-ins, so a fork works on any forge without access to
+  // anyone else's shared-config repo. Everything a shared preset would carry is vendored below.
+  //
+  // RULE ORDER MATTERS: packageRules are applied top to bottom and a LATER matching rule wins
+  // for every key it sets. The layout is therefore:
+  //   1. labels + semantic-commit wording (cosmetic, set per update type / manager)
+  //   2. automerge policy (broad)
+  //   3. toolchain groups (narrow; they override automerge back to manual)
+  //   4. manager-specific fixes (narrowest)
+  // Put a new broad rule above the groups, or it will silently undo them.
+  //
+  // Validate with `mise run lint:renovate` (a CI gate).
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    // Docker majors are off by default in config:recommended; base images need them.
+    "docker:enableMajor",
+    // `uses: owner/action@<full sha> # vX.Y.Z` — pin by digest, keep the semver comment current.
+    "helpers:pinGitHubActionDigestsToSemver",
+    ":dependencyDashboard",
+  ],
+  dependencyDashboardTitle: "Renovate Dashboard",
+
+  // Renovate merges its own PRs, and only after reading every status check as green.
+  //
+  // automergeType "pr" (not "branch"): CI runs on `pull_request`, so a bare renovate/* branch
+  // never gets checks and a branch automerge would wait forever.
+  //
+  // platformAutomerge false: Renovate defaults it to TRUE, which asks the forge to "merge when
+  // checks succeed" in the same call that opens the PR. Some forges (Forgejo/Gitea) treat a base
+  // branch without a protected-branch rule as "checks passed" without reading a single status
+  // and merge within seconds, CI still pending. With it false, Renovate itself verifies the
+  // statuses on every platform.
+  automergeType: "pr",
+  platformAutomerge: false,
+
+  // Only rebase a Renovate branch when it actually CONFLICTS, not every time main moves.
+  // "behind-base-branch" force-rebases every open branch on each run, restarting CI each time; on
+  // a busy repo a branch is then never simultaneously up to date AND green when Renovate looks,
+  // so automerge never fires. A behind-but-clean branch still merges fine.
+  rebaseWhen: "conflicted",
+
+  // Supply-chain soak: nothing is proposed until it has been public for 3 days, so a compromised
+  // or broken release has time to be yanked first. Top-level, so it covers every manager — mise
+  // tools and CI actions included, both of which run code on every machine.
+  //
+  // pnpm-workspace.yaml sets `minimumReleaseAge: 4320` (minutes) = the same 3 days, and pnpm
+  // refuses to write a lockfile containing anything younger (ERR_PNPM_NO_MATURE_MATCHING_VERSION).
+  // If the two disagree, Renovate opens PRs whose lockfile update fails. Keep this literal in step
+  // with that number: change both together.
+  minimumReleaseAge: "3 days",
+
+  // Refresh transitive deps in pnpm-lock.yaml once a month.
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ["before 4am on the first day of the month"],
+    automerge: true,
+  },
+
+  packageRules: [
+    // ── 1. Labels ──────────────────────────────────────────────────────────────────────────────
+    { matchUpdateTypes: ["major"], labels: ["type/major"] },
+    { matchUpdateTypes: ["minor"], labels: ["type/minor"] },
+    { matchUpdateTypes: ["patch"], labels: ["type/patch"] },
+    { matchUpdateTypes: ["digest"], labels: ["type/digest"] },
+
+    // ── 1. Semantic commits: `<type>(<scope>): update <topic> (v1 → v2)` ────────────────────
+    // Majors are breaking feats (`!`), minors feats, patch/digest fixes. cliff.toml groups the
+    // changelog on exactly these types.
+    {
+      matchUpdateTypes: ["major"],
+      semanticCommitType: "feat",
+      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}})!:",
+      commitMessageExtra: "({{currentVersion}} → {{newVersion}})",
+    },
+    {
+      matchUpdateTypes: ["minor"],
+      semanticCommitType: "feat",
+      commitMessageExtra: "({{currentVersion}} → {{newVersion}})",
+    },
+    {
+      matchUpdateTypes: ["patch"],
+      semanticCommitType: "fix",
+      commitMessageExtra: "({{currentVersion}} → {{newVersion}})",
+    },
+    {
+      matchUpdateTypes: ["digest"],
+      semanticCommitType: "fix",
+      commitMessageExtra: "({{currentDigestShort}} → {{newDigestShort}})",
+    },
+    // Per-manager scopes. Tooling bumps (mise, CI actions) are chore/ci so they never read as
+    // product features or breaking changes; the `!` prefix is dropped for them too.
+    {
+      matchManagers: ["npm"],
+      semanticCommitScope: "npm",
+      commitMessageTopic: "package {{depName}}",
+    },
+    {
+      matchDatasources: ["docker"],
+      semanticCommitScope: "container",
+      commitMessageTopic: "image {{depName}}",
+    },
+    {
+      matchManagers: ["github-actions"],
+      semanticCommitType: "ci",
+      semanticCommitScope: "github-action",
+      commitMessageTopic: "action {{depName}}",
+      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}}):",
+    },
+    {
+      matchManagers: ["mise"],
+      semanticCommitType: "chore",
+      semanticCommitScope: "mise",
+      commitMessageTopic: "tool {{depName}}",
+      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}}):",
+    },
+
+    // ── 2. Automerge (after the soak, and only on green CI) ──────────────────────────────────
+    {
+      description: "Automerge patch + digest updates",
+      matchUpdateTypes: ["patch", "digest"],
+      automerge: true,
+    },
+    {
+      // npm packages are semver-disciplined and every bump is gated by the full CI
+      // build + test + lint matrix, so minors automerge too. Container and tool minors stay manual.
+      description: "Automerge minor npm updates",
+      matchManagers: ["npm"],
+      matchUpdateTypes: ["minor"],
+      automerge: true,
+    },
+    {
+      // "bump", not the default "replace"/"update-lockfile": raise the package.json range with
+      // the lockfile, so the manifest states the version actually tested.
+      description: "Bump manifest ranges, not only the lockfile",
+      matchManagers: ["npm"],
+      rangeStrategy: "bump",
+    },
+
+    // ── 3. Toolchain groups: every pin of one tool moves in ONE PR, reviewed by a human ───────
+    // These pins must agree across files, so an ungrouped PR that bumps one of them could never be
+    // consistent. A groupName that matches nothing fails silently: re-check the depNames below if
+    // a toolchain bump ever arrives as several PRs.
+    {
+      // .mise/config.toml `node` (mise), the Dockerfile's `ARG NODE_VERSION` (customManager, once a Dockerfile exists) and
+      // package.json `engines.node` (npm manager).
+      description: "node: mise pin, Dockerfile ARG and engines.node together",
+      matchDepNames: ["node"],
+      groupName: "node",
+      automerge: false,
+    },
+    {
+      // .mise/config.toml `pnpm` (mise), package.json `packageManager` and
+      // `devEngines.packageManager` (npm), and the Dockerfile `ARG PNPM_VERSION` (regex). pnpm
+      // re-execs the packageManager version, so a split pin means the mise one never actually runs.
+      description: "pnpm: mise pin, packageManager, devEngines and Dockerfile ARG together",
+      matchDepNames: ["pnpm"],
+      groupName: "pnpm",
+      automerge: false,
+    },
+    {
+      // package.json runs two compilers side by side: `@typescript/native` is an alias for
+      // `typescript@7` (the native `tsc` that typecheck/build run), and `typescript` is an alias
+      // for `@typescript/typescript6`, the JS API that typescript-eslint loads (it does not
+      // support TS 7 yet). The aliases resolve by packageName, so each tracks its own line. Group
+      // them with typescript-eslint and keep a human in the loop: once typescript-eslint accepts
+      // TS 7, collapse to a plain `typescript` pin instead of merging another bump.
+      description: "TypeScript compilers (native 7 + TS 6 API alias) and typescript-eslint together",
+      matchManagers: ["npm"],
+      matchPackageNames: ["typescript", "@typescript/typescript6", "typescript-eslint"],
+      groupName: "typescript",
+      automerge: false,
+    },
+
+    // ── 4. Manager-specific fixes ─────────────────────────────────────────────────────────────
+    {
+      // The Dockerfile's `FROM node:${NODE_VERSION}` cannot be
+      // written back through an ARG substitution; the ARG customManager below owns those pins.
+      description: "Dockerfile FROM lines using ARG-substituted node are owned by the ARG manager",
+      matchManagers: ["dockerfile"],
+      matchDepNames: ["node"],
+      enabled: false,
+    },
+  ],
+
+  customManagers: [
+    {
+      // Inline annotations for plain version strings in env/shell/YAML files:
+      //   # renovate: datasource=github-releases depName=foo/bar
+      //   FOO_VERSION=1.2.3        (or `foo_version: "1.2.3"`)
+      // The Dockerfile is deliberately NOT matched here; its own manager below owns its ARGs.
+      customType: "regex",
+      description: "Annotated `# renovate:` dependencies",
+      managerFilePatterns: ["/(^|/)\\.env(\\.[^/]+)?$/", "/\\.sh$/", "/\\.ya?ml$/"],
+      matchStrings: [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n.+(:\\s|=)(&\\S+\\s)?[\"']?(?<currentValue>[^\"'\\s]+)[\"']?",
+      ],
+      datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
+    },
+    {
+      // Annotated ARGs in the Dockerfile:
+      //   # renovate: datasource=docker depName=node
+      //   ARG NODE_VERSION=24.21.0
+      // depName "node" puts NODE_VERSION in the toolchain group above; anything else annotated
+      // the same way is tracked on its own.
+      customType: "regex",
+      description: "Annotated ARG pins in the Dockerfile",
+      managerFilePatterns: ["/(^|/)Dockerfile$/"],
+      matchStrings: [
+        '#\\s*renovate:\\s*datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\s*\\nARG\\s+\\S+="?(?<currentValue>[^"\\s]+)"?',
+      ],
+      datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}docker{{/if}}",
+      versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
+    },
+    {
+      // The pinned validator in the `lint:renovate` task (`pnpm dlx ... --package renovate@X`).
+      customType: "regex",
+      description: "renovate-config-validator version in .mise/config.toml",
+      managerFilePatterns: ["/^\\.mise/config\\.toml$/"],
+      matchStrings: ['pnpm dlx .*--package renovate@(?<currentValue>[0-9][^\\s"]*)'],
+      depNameTemplate: "renovate",
+      datasourceTemplate: "npm",
+    },
+  ],
+}
