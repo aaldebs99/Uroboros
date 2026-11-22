@@ -68,7 +68,15 @@ export function createDb(
   pool.on("error", (err) => {
     log.error({ err }, "idle postgres client error");
   });
-  pool.on("connect", endOnQueryTimeout);
+  pool.on("connect", (client) => {
+    endOnQueryTimeout(client);
+    // The pool listens for errors on idle clients only. A connection that dies under a query
+    // rejects the query and then emits 'error' on a client the pool has handed out; unheard, that
+    // would crash the process. The pool drops the client when it comes back.
+    client.on("error", (err) => {
+      log.warn({ err }, "postgres client error");
+    });
+  });
   const db = new Kysely<Database>({ dialect: new PostgresDialect({ pool }) });
   pools.set(db, pool);
   return db;
