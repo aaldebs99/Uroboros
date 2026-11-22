@@ -4,7 +4,8 @@
 #             `tsx watch`, with apps/server/src and packages/contract/src mounted over the image's
 #             copies, so an edit restarts both replicas. Only those two directories are mounted:
 #             the image's node_modules stay in place. The SPA it serves is the one built into the
-#             image; `mise run dev:ui` (Vite with HMR, proxying /api to :18081) is the UI loop.
+#             image; `mise run dev:ui:docker` (Vite with HMR, proxying /api to this stack's Caddy on
+#             :18080) is the UI loop. Plain `dev:ui` proxies to a host-run `dev:api` on :18081.
 #   migrate   the same dev image running src/bin/migrate.ts with tsx, reading ./migrations from the
 #             host, so a new file applies on the next `up`. It has its own `build:` (the same tag as
 #             the api) so it never starts on an image that was not built; COMPOSE_BAKE=false keeps

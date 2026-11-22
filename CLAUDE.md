@@ -48,6 +48,7 @@ gates need Docker (`test` and `docker:build`) and two need the network (`check:a
 | `build:server`, `build:ui`                                         | tsdown bundles into `apps/server/dist`; the SPA into `apps/web/dist`        |
 | `docker:build`, `docker:smoke`                                     | both images (`uroboros:local`, `uroboros:local-worker`); build + smoke test |
 | `docker:up`, `docker:up:dev`, `docker:up:dev:build`, `docker:down` | the compose stack on http://127.0.0.1:18080, prod images or hot reload      |
+| `dev:ui:docker`                                                    | Vite :18173 proxying /api to the compose stack's Caddy on :18080            |
 | `changelog`                                                        | git-cliff into CHANGELOG.md                                                 |
 
 Every host port has an override: `UROBOROS_PORT` (Caddy, 18080), `UROBOROS_POSTGRES_PORT`

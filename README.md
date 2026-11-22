@@ -44,7 +44,9 @@ mise run dev:ui              # Vite on http://127.0.0.1:18173, proxying /api to 
 To run what a deployment runs instead, `mise run docker:up` builds both images and starts
 Postgres, Valkey, RustFS, the migrate job, two api replicas behind Caddy and two workers on
 http://127.0.0.1:18080. `mise run docker:up:dev` is the same stack with the api reloading from
-source, and `mise run docker:down` stops either. Every host port can be moved with an environment
+source, and `mise run docker:down` stops either. For the UI against either stack, run
+`mise run dev:ui:docker`, which is `dev:ui` with `UROBOROS_API_URL=http://127.0.0.1:18080`
+(plain `dev:ui` proxies to a host-run `dev:api` on :18081). Every host port can be moved with an environment
 variable (`UROBOROS_PORT`, `UROBOROS_POSTGRES_PORT`, `UROBOROS_VALKEY_PORT`, `UROBOROS_S3_PORT`,
 `UROBOROS_S3_CONSOLE_PORT`, `UROBOROS_UI_PORT`, `UROBOROS_BIND`).
 
