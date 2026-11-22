@@ -3,8 +3,15 @@ import { pino } from "pino";
 import type { Logger } from "pino";
 
 /**
- * Builds a Valkey client. The `api` role fails fast (no offline queue, one retry per request) so
- * an outage surfaces as an error instead of a hang; the `worker` role uses `maxRetriesPerRequest:
+ * How long the api waits for any one Valkey reply. Without it, a server that vanishes without
+ * closing the connection leaves every command pending until the OS gives up on the socket.
+ */
+export const API_COMMAND_TIMEOUT_MS = 5000;
+
+/**
+ * Builds a Valkey client. The `api` role fails fast (no offline queue, one retry per request, a
+ * reply within `API_COMMAND_TIMEOUT_MS`) so an outage surfaces as an error instead of a hang; the
+ * `worker` role uses `maxRetriesPerRequest:
  * null`, which BullMQ requires. Both log connection errors instead of raising them as unhandled
  * 'error' events. The caller owns the client and must `quit()` or `disconnect()` it.
  */
@@ -19,6 +26,8 @@ export function createValkey(
           maxRetriesPerRequest: 1,
           enableOfflineQueue: false,
           lazyConnect: false,
+          commandTimeout: API_COMMAND_TIMEOUT_MS,
+          keepAlive: 10_000,
         })
       : new Redis(url, { maxRetriesPerRequest: null });
   client.on("error", (err: Error) => {

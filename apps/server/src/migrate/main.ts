@@ -9,7 +9,9 @@ export async function main(_argv: string[] = []): Promise<number> {
   try {
     const config = loadMigrateConfig(process.env);
     const dir = resolve(process.env["UROBOROS_MIGRATIONS_DIR"] ?? defaultMigrationsDir());
-    const db = createDb(config.databaseUrl);
+    // No query timeout: a migration, or the wait for another runner's lock, may take minutes; the
+    // Job's activeDeadlineSeconds bounds it instead.
+    const db = createDb(config.databaseUrl, undefined, { queryTimeoutMs: 0 });
     try {
       const { applied } = await runMigrations(db, dir);
       console.log(
