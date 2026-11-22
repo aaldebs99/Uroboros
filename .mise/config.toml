@@ -193,3 +193,13 @@ run = "pnpm -F @uroboros/server exec tsx watch src/api/main.ts"
 description = "Create an empty migrations/<UTC now>_<name>.sql (usage: mise run migration:new <snake_case_name>)"
 usage = 'arg "<name>" help="snake_case, starts with a letter, at least 3 characters"'
 run = 'pnpm -F @uroboros/server exec tsx src/migrate/new.ts "${usage_name}"'
+
+[tasks.gen]
+description = "Regenerate api/openapi.json from the API"
+depends = ["install"]
+run = "pnpm -F @uroboros/server exec tsx src/gen/main.ts"
+
+[tasks."check:gen"]
+description = "Fail if api/openapi.json differs from the code (CI gate)"
+depends = ["install"]
+run = "pnpm -F @uroboros/server exec tsx src/gen/main.ts --check"

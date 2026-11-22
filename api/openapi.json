@@ -1,0 +1,145 @@
+{
+  "components": {
+    "parameters": {},
+    "schemas": {
+      "ApiErrorBody": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ApiErrorCode": {
+        "enum": [
+          "bad_request",
+          "unauthorized",
+          "forbidden",
+          "not_found",
+          "conflict",
+          "internal",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "DependencyName": {
+        "enum": [
+          "database",
+          "valkey"
+        ],
+        "type": "string"
+      },
+      "Health": {
+        "properties": {
+          "failing": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyName"
+            },
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus"
+          }
+        },
+        "required": [
+          "status",
+          "failing"
+        ],
+        "type": "object"
+      },
+      "HealthStatus": {
+        "enum": [
+          "ok",
+          "degraded"
+        ],
+        "type": "string"
+      },
+      "Info": {
+        "properties": {
+          "name": {
+            "enum": [
+              "uroboros"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Uroboros API",
+    "version": "0.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Health, possibly degraded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          }
+        },
+        "summary": "Liveness and dependency health"
+      }
+    },
+    "/api/info": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Info"
+                }
+              }
+            },
+            "description": "Service info"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          }
+        },
+        "summary": "Service name and version"
+      }
+    }
+  }
+}

@@ -18,6 +18,14 @@ export interface Deps {
   logger?: Logger;
 }
 
+/** The one OpenAPI document config, shared by the runtime route and `gen`. */
+export function openApiConfig(version: string) {
+  return {
+    openapi: "3.1.0",
+    info: { title: "Uroboros API", version },
+  } as const;
+}
+
 export function createApp(deps: Deps, opts: { webDist: string | null }): OpenAPIHono {
   const logger = deps.logger ?? pino({ name: "uroboros-api" });
   const app = new OpenAPIHono({
@@ -52,10 +60,7 @@ export function createApp(deps: Deps, opts: { webDist: string | null }): OpenAPI
 
   app.openapi(healthRoute, async (c) => c.json(await checkHealth(deps.db, deps.valkey), 200));
   app.openapi(infoRoute, (c) => c.json({ name: "uroboros" as const, version: deps.version }, 200));
-  app.doc("/api/openapi.json", {
-    openapi: "3.1.0",
-    info: { title: "Uroboros API", version: deps.version },
-  });
+  app.doc("/api/openapi.json", openApiConfig(deps.version));
   app.get("/api/docs", swaggerUI({ url: "/api/openapi.json" }));
 
   return app;
