@@ -49,13 +49,17 @@ describe("runMigrations", () => {
         runMigrations(connect(), fixture("migrations-ok")),
         runMigrations(connect(), fixture("migrations-ok")),
       ];
-      await vi.waitFor(async () => {
-        const r = await holder.query<{ n: string }>(`
+      // Two fresh pools connecting and queueing can outlast the 1 s default on a loaded runner.
+      await vi.waitFor(
+        async () => {
+          const r = await holder.query<{ n: string }>(`
           SELECT count(*)::text AS n FROM pg_locks
           WHERE locktype = 'advisory' AND NOT granted
             AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`);
-        expect(r.rows[0]?.n).toBe("2");
-      });
+          expect(r.rows[0]?.n).toBe("2");
+        },
+        { timeout: 10_000 },
+      );
       await holder.query("SELECT pg_advisory_unlock(hashtext('uroboros_migrate'))");
       const results = await Promise.all(runs);
       expect(results.map((r) => r.applied.length).sort()).toEqual([0, 2]);

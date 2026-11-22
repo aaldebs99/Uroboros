@@ -7,7 +7,7 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import { ApiErrorBody } from "@uroboros/contract";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
-import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { TestDb } from "../../test/testDb.ts";
 import { TestValkey } from "../../test/testValkey.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
@@ -113,8 +113,15 @@ describe("pool resilience", () => {
     process.on("uncaughtException", onUncaught);
     try {
       const own = await TestDb.create();
+      // The pool's 'error' listener logs each idle client it discards; waiting for that line is
+      // the signal that the kill has been seen, however slow the runner.
+      const logged: string[] = [];
+      const db = createDb(
+        own.url,
+        pino({ name: "db" }, { write: (line: string) => logged.push(line) }),
+      );
       try {
-        const a = app({ db: own.db });
+        const a = app({ db });
         expect(await (await a.request("/api/health")).json()).toEqual({
           status: "ok",
           failing: [],
@@ -126,13 +133,19 @@ describe("pool resilience", () => {
             [dbName],
           ),
         );
-        await new Promise((r) => setTimeout(r, 300));
+        await vi.waitFor(
+          () => {
+            expect(logged.some((line) => line.includes("idle postgres client error"))).toBe(true);
+          },
+          { timeout: 10_000 },
+        );
         expect(uncaught).toEqual([]);
         expect(await (await a.request("/api/health")).json()).toEqual({
           status: "ok",
           failing: [],
         });
       } finally {
+        await db.destroy();
         await own.close();
       }
     } finally {

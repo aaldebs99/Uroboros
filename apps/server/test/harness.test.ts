@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import { Redis } from "ioredis";
@@ -24,13 +25,19 @@ describe("harness", () => {
     expect(Number(r.rows[0]?.n)).toBeGreaterThanOrEqual(0);
   });
 
-  it("flushes Valkey", async () => {
+  it("clears only the keys under a prefix", async () => {
     const redis = new Redis(TestValkey.url());
+    const mine = `harness-${randomUUID()}`;
+    const other = `harness-${randomUUID()}`;
     try {
-      await redis.set("k", "v");
-      await TestValkey.flush();
-      expect(await redis.get("k")).toBeNull();
+      await redis.set(`${mine}:a`, "v");
+      await redis.set(`${mine}:b`, "v");
+      await redis.set(`${other}:a`, "v");
+      await TestValkey.clear(mine);
+      expect(await redis.exists(`${mine}:a`, `${mine}:b`)).toBe(0);
+      expect(await redis.get(`${other}:a`)).toBe("v");
     } finally {
+      await redis.del(`${other}:a`);
       redis.disconnect();
     }
   });
