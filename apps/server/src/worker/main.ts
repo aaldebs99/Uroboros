@@ -128,6 +128,15 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
   };
 }
 
+function parseGraceMs(text: string): number {
+  if (!/^[1-9]\d*$/.test(text)) {
+    throw new ConfigError(
+      `UROBOROS_WORKER_TEST_GRACE_MS must be a positive integer, got "${text}"`,
+    );
+  }
+  return Number(text);
+}
+
 /**
  * Env seam for the spawned-process test, honoured only when UROBOROS_WORKER_TEST_QUEUE is set:
  * UROBOROS_WORKER_TEST_{QUEUE,PREFIX,GRACE_MS} and UROBOROS_WORKER_TEST_HANG=1 (processor that never
@@ -141,7 +150,7 @@ function testOverridesFromEnv(env: NodeJS.ProcessEnv): Partial<StartWorkerOption
   return {
     queueName,
     ...(prefix === undefined ? {} : { prefix }),
-    ...(grace === undefined ? {} : { shutdownGraceMs: Number(grace) }),
+    ...(grace === undefined ? {} : { shutdownGraceMs: parseGraceMs(grace) }),
     ...(env["UROBOROS_WORKER_TEST_HANG"] === "1"
       ? { processor: () => new Promise<never>(() => undefined) }
       : {}),
@@ -160,8 +169,10 @@ export async function main(
 ): Promise<number> {
   const logger = pino({ name: "uroboros-worker" });
   let valkeyUrl: string;
+  let testOverrides: Partial<StartWorkerOptions>;
   try {
     valkeyUrl = loadWorkerConfig(process.env).valkeyUrl;
+    testOverrides = testOverridesFromEnv(process.env);
   } catch (err) {
     if (err instanceof ConfigError) {
       logger.fatal(err.message);
@@ -173,7 +184,7 @@ export async function main(
     valkeyUrl,
     concurrency: DEFAULT_CONCURRENCY,
     logger,
-    ...testOverridesFromEnv(process.env),
+    ...testOverrides,
     ...overrides,
   });
   return new Promise<number>((resolve) => {

@@ -4,7 +4,6 @@ import { createServer, connect } from "node:net";
 import type { Socket } from "node:net";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Queue, QueueEvents } from "bullmq";
 import type { Processor } from "bullmq";
@@ -225,7 +224,7 @@ describe("process", () => {
     const { queue } = openQueue(name);
     const job = await queue.add("stuck", {});
     const serverDir = fileURLToPath(new URL("../..", import.meta.url));
-    const child = spawn(join(serverDir, "node_modules/.bin/tsx"), ["src/bin/worker.ts"], {
+    const child = spawn(process.execPath, ["--import", "tsx", "src/bin/worker.ts"], {
       cwd: serverDir,
       stdio: "ignore",
       env: {
@@ -272,11 +271,19 @@ describe("unreachable valkey", () => {
       client.on("error", () => undefined);
       up.on("error", () => undefined);
     });
+    track(proxy, (p) => {
+      p.close();
+      for (const sock of sockets) sock.destroy();
+      return Promise.resolve();
+    });
     await new Promise<void>((r) => proxy.listen(0, "127.0.0.1", r));
     const { port } = proxy.address() as AddressInfo;
-    const worker = await start(
-      { valkeyUrl: `redis://127.0.0.1:${String(port)}`, shutdownGraceMs: 1000 },
-      `down-${randomUUID()}`,
+    const worker = track(
+      await start(
+        { valkeyUrl: `redis://127.0.0.1:${String(port)}`, shutdownGraceMs: 1000 },
+        `down-${randomUUID()}`,
+      ),
+      (w) => w.close().catch(() => undefined),
     );
     // Valkey goes away: stop accepting and cut every live connection.
     proxy.close();
@@ -284,6 +291,19 @@ describe("unreachable valkey", () => {
     const t0 = Date.now();
     await Promise.allSettled([worker.close()]);
     expect(Date.now() - t0).toBeLessThan(2000);
+  });
+});
+
+describe("test seam validation", () => {
+  it("rejects a non-integer grace with exit 2", async () => {
+    vi.stubEnv("VALKEY_URL", TestValkey.url());
+    vi.stubEnv("UROBOROS_WORKER_TEST_QUEUE", "x");
+    vi.stubEnv("UROBOROS_WORKER_TEST_GRACE_MS", "abc");
+    try {
+      expect(await main()).toBe(2);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

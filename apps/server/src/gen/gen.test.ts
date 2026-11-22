@@ -44,7 +44,7 @@ describe("gen --check through the real entrypoint", () => {
   });
 
   function check(file: string) {
-    return spawnSync("pnpm", ["exec", "tsx", bin, "--check", "--file", file], {
+    return spawnSync(process.execPath, ["--import", "tsx", bin, "--check", "--file", file], {
       cwd: serverDir,
       encoding: "utf8",
     });
