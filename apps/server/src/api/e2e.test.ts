@@ -16,6 +16,7 @@ beforeAll(async () => {
       databaseUrl: testDb.url,
       valkeyUrl: TestValkey.url(),
       webDist: null,
+      bodyLimitBytes: 65_536,
       shutdownGraceMs: 20_000,
       push: {
         publicBaseUrl: null,

@@ -186,6 +186,10 @@
             }
           }
         },
+        "bodyLimitBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
         "preStopSleepSeconds": {
           "type": "integer",
           "minimum": 0

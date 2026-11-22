@@ -13,6 +13,8 @@ export interface Config {
   databaseUrl: string;
   valkeyUrl: string;
   webDist: string | null;
+  /** The largest request body `/api/*` accepts. */
+  bodyLimitBytes: number;
   /** How long a SIGTERM waits for in-flight requests before cutting them. */
   shutdownGraceMs: number;
   /** Web Push (docs/push.md); on only with an https `publicBaseUrl`. */
@@ -35,6 +37,7 @@ const DEFAULT_WORKER_CONCURRENCY = 4;
 
 const DEFAULT_BIND = "127.0.0.1:18081";
 const DEFAULT_SHUTDOWN_GRACE_MS = 20_000;
+const DEFAULT_BODY_LIMIT_BYTES = 64 * 1024;
 
 const bindSchema = z.string().transform((value, ctx) => {
   const idx = value.lastIndexOf(":");
@@ -93,6 +96,9 @@ const configSchema = z
     DATABASE_URL: required("DATABASE_URL"),
     VALKEY_URL: required("VALKEY_URL"),
     UROBOROS_WEB_DIST: z.string().min(1).optional(),
+    UROBOROS_BODY_LIMIT_BYTES: unsetIfEmpty(
+      positiveInt("UROBOROS_BODY_LIMIT_BYTES").prefault(String(DEFAULT_BODY_LIMIT_BYTES)),
+    ),
     UROBOROS_SHUTDOWN_GRACE_MS: unsetIfEmpty(
       positiveInt("UROBOROS_SHUTDOWN_GRACE_MS").prefault(String(DEFAULT_SHUTDOWN_GRACE_MS)),
     ),
@@ -151,6 +157,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     databaseUrl: e.DATABASE_URL,
     valkeyUrl: e.VALKEY_URL,
     webDist: e.UROBOROS_WEB_DIST ?? null,
+    bodyLimitBytes: e.UROBOROS_BODY_LIMIT_BYTES,
     shutdownGraceMs: e.UROBOROS_SHUTDOWN_GRACE_MS,
     push: {
       publicBaseUrl: e.UROBOROS_PUBLIC_BASE_URL ?? null,

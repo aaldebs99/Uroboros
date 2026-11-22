@@ -71,6 +71,9 @@ api:
   service:
     type: ClusterIP
     port: 80
+  # The largest request body /api/* accepts, in bytes; larger ones get 413. Exported as
+  # UROBOROS_BODY_LIMIT_BYTES.
+  bodyLimitBytes: 65536
   # A rolling update or a drain removes a pod from the Service while the pod is already stopping;
   # endpoints and the ingress take a few seconds to notice. The preStop hook holds SIGTERM back
   # this long so requests stop arriving first. 0 turns the hook off.

@@ -20,12 +20,36 @@ export function errorResponse(c: Context, code: ApiErrorCode, message: string): 
   return c.json(body, apiErrorStatus[code]);
 }
 
-/** Hono `onError`: ApiError verbatim, anything else becomes `internal` with the cause hidden. */
+/** The code and fixed message for an HTTPException's status; its own message is never shown. */
+const HTTP_EXCEPTION: Partial<Record<number, [ApiErrorCode, string]>> = {
+  400: ["bad_request", "bad request"],
+  401: ["unauthorized", "unauthorized"],
+  403: ["forbidden", "forbidden"],
+  404: ["not_found", "not found"],
+  409: ["conflict", "conflict"],
+  413: ["payload_too_large", "request body too large"],
+  422: ["unprocessable", "unprocessable request"],
+  503: ["unavailable", "unavailable"],
+};
+
+/** Any other 4xx is the client's fault but has no code of its own: a plain bad_request. */
+function fromHttpException(status: number): [ApiErrorCode, string] | null {
+  const known = HTTP_EXCEPTION[status];
+  if (known !== undefined) return known;
+  if (status >= 400 && status < 500) return ["bad_request", "bad request"];
+  return null;
+}
+
+/**
+ * Hono `onError`: ApiError verbatim; an HTTPException (Hono's own, e.g. the body limit's 413) as
+ * the code for its status; anything else becomes `internal` with the cause hidden.
+ */
 export function errorHandler(logger: Logger) {
   return (err: Error, c: Context): Response => {
     if (err instanceof ApiError) return errorResponse(c, err.code, err.message);
-    if (err instanceof HTTPException && err.status === 400) {
-      return errorResponse(c, "bad_request", "bad request");
+    if (err instanceof HTTPException) {
+      const mapped = fromHttpException(err.status);
+      if (mapped !== null) return errorResponse(c, ...mapped);
     }
     logger.error({ err, path: c.req.path }, "unhandled error");
     return errorResponse(c, "internal", "internal error");

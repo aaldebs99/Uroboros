@@ -23,6 +23,7 @@ const config = (shutdownGraceMs: number): Config => ({
   databaseUrl: testDb.url,
   valkeyUrl: TestValkey.url(),
   webDist: null,
+  bodyLimitBytes: 65_536,
   shutdownGraceMs,
   push: { publicBaseUrl: null, subject: null, vapid: null, allowedHosts: [], maxDevices: 10 },
 });

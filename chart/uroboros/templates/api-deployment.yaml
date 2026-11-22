@@ -48,6 +48,8 @@ spec:
             {{- include "uroboros.databaseEnv" . | nindent 12 }}
             {{- include "uroboros.valkeyEnv" . | nindent 12 }}
             {{- include "uroboros.pushEnv" . | trim | nindent 12 }}
+            - name: UROBOROS_BODY_LIMIT_BYTES
+              value: {{ $a.bodyLimitBytes | int | quote }}
             - name: UROBOROS_SHUTDOWN_GRACE_MS
               value: {{ mul $a.shutdownGraceSeconds 1000 | quote }}
             {{- with .Values.api.extraEnv }}

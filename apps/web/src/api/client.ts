@@ -130,6 +130,7 @@ const ERROR_TEXT: Record<ApiErrorCode, (message: string) => string> = {
   forbidden: () => "You are not allowed to do that.",
   not_found: (message) => message,
   conflict: (message) => message,
+  payload_too_large: () => "That is more than the server accepts in one request.",
   unprocessable: (message) => message,
   internal: () => "The server failed. Try again later.",
   unavailable: () => "The server is not ready. Try again in a moment.",

@@ -81,7 +81,7 @@ export async function startApi(
   const push = createPushService(config.push, db, logger);
   const app = createApp(
     { db, valkey, version: pkg.version, logger, push },
-    { webDist: config.webDist },
+    { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
   );
   opts.configure?.(app);
   const server = await new Promise<ServerType>((resolve) => {

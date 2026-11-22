@@ -51,6 +51,19 @@ describe("loadConfig shutdown grace", () => {
   });
 });
 
+describe("loadConfig body limit", () => {
+  it("defaults to 64 KiB and reads UROBOROS_BODY_LIMIT_BYTES", () => {
+    expect(loadConfig(base).bodyLimitBytes).toBe(65_536);
+    expect(loadConfig({ ...base, UROBOROS_BODY_LIMIT_BYTES: "1024" }).bodyLimitBytes).toBe(1024);
+  });
+
+  it.each(["0", "64k", "-5"])("rejects %j", (value) => {
+    expect(() => loadConfig({ ...base, UROBOROS_BODY_LIMIT_BYTES: value })).toThrow(
+      /UROBOROS_BODY_LIMIT_BYTES/,
+    );
+  });
+});
+
 describe("loadMigrateConfig", () => {
   it("needs only DATABASE_URL", () => {
     expect(loadMigrateConfig({ DATABASE_URL: base.DATABASE_URL })).toEqual({

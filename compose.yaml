@@ -25,6 +25,8 @@ x-server-env: &server-env
   UROBOROS_VAPID_PRIVATE_KEY: ${UROBOROS_VAPID_PRIVATE_KEY:-}
   UROBOROS_PUSH_ALLOWED_HOSTS: ${UROBOROS_PUSH_ALLOWED_HOSTS:-}
   UROBOROS_PUSH_MAX_DEVICES: ${UROBOROS_PUSH_MAX_DEVICES:-}
+  # The largest request body /api/* accepts (default 65536 bytes).
+  UROBOROS_BODY_LIMIT_BYTES: ${UROBOROS_BODY_LIMIT_BYTES:-}
   # How long a stopping api waits for in-flight requests (default 20000 ms).
   UROBOROS_SHUTDOWN_GRACE_MS: ${UROBOROS_SHUTDOWN_GRACE_MS:-}
 

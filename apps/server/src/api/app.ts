@@ -10,6 +10,7 @@ import { ApiError, errorHandler, errorResponse } from "./errors.ts";
 import { checkHealth, healthRoute } from "./health.ts";
 import { infoRoute } from "./info.ts";
 import { registerPushRoutes } from "./push.ts";
+import { apiBodyLimit, DEFAULT_BODY_LIMIT_BYTES, securityHeaders } from "./security.ts";
 import { createSpaHandler } from "./spa.ts";
 
 export interface Deps {
@@ -30,7 +31,13 @@ export function openApiConfig(version: string) {
   } as const;
 }
 
-export function createApp(deps: Deps, opts: { webDist: string | null }): OpenAPIHono {
+export interface AppOptions {
+  webDist: string | null;
+  /** The largest request body `/api/*` accepts. Default 64 KiB. */
+  bodyLimitBytes?: number;
+}
+
+export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   const logger = deps.logger ?? pino({ name: "uroboros-api" });
   const app = new OpenAPIHono({
     defaultHook: (result) => {
@@ -52,6 +59,9 @@ export function createApp(deps: Deps, opts: { webDist: string | null }): OpenAPI
       "request",
     );
   });
+
+  app.use("*", ...securityHeaders());
+  app.use("/api/*", apiBodyLimit(opts.bodyLimitBytes ?? DEFAULT_BODY_LIMIT_BYTES));
 
   app.onError(errorHandler(logger));
   app.notFound(async (c) => {
