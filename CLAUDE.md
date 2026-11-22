@@ -216,3 +216,5 @@ conventional commits (`pr-title.yml`), because the squash subject feeds the chan
 | `RELEASE_PLEASE_TOKEN`      | secret   | `release-pr.yml`        | The release bot's token (`write:repository`, `write:issue`, `read:user`), so its PRs and releases trigger workflows.                      |
 | `RENOVATE_TOKEN`            | secret   | `renovate.yml`          | The Renovate bot's token (`write:repository`, `write:issue`, `read:user`, `read:organization`).                                           |
 | `RENOVATE_GITHUB_COM_TOKEN` | secret   | `renovate.yml`          | A github.com token with no scopes, for looking up GitHub-hosted actions and tools.                                                        |
+
+Accepted risk: `REGISTRY_TOKEN` can write packages, yet `ci.yml` uses it to pull, so builds of same-repository pull requests, Renovate's branches included, can read a write-capable registry token; a read-only token would remove that risk. Fork PRs get no secrets, so their `images` job always fails at the ffmpeg pull.

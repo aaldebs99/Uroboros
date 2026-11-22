@@ -61,6 +61,8 @@ The worker image contains, under `/usr/share/licenses/ffmpeg/`, what the mirror 
 - `NOTICES.md`: the linked libraries, their licences and where their texts are.
 - `libs/`: the licence files of those libraries.
 
+The worker is therefore linux/amd64 only: the mirror carries yt-dlp's linux64 build and no arm64 one.
+
 Corresponding source: the complete corresponding source of the binaries is at
 `/usr/src/ffmpeg-ytdlp/` inside the pinned mirror image, which lives in the same private registry
 as the Uroboros images; the worker image does not copy it. That directory holds the FFmpeg source,

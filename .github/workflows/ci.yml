@@ -184,6 +184,14 @@ jobs:
           else
             echo "::notice::REGISTRY or REGISTRY_TOKEN is unavailable (a fork's pull request has no secrets): skipping the registry login. The worker image's ffmpeg is pulled from that private registry, so docker:build will fail at the pull."
           fi
+      # big-dind mounts the runner's registry logins read-only at $DOCKER_CONFIG; log in to a
+      # writable config directory instead, as release.yml does.
+      - name: Writable Docker config
+        if: steps.registry.outputs.login == 'true'
+        run: |
+          set -eu
+          mkdir -p "${RUNNER_TEMP}/docker-config"
+          echo "DOCKER_CONFIG=${RUNNER_TEMP}/docker-config" >> "$GITHUB_ENV"
       - name: Log in to the registry
         if: steps.registry.outputs.login == 'true'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

@@ -41,7 +41,8 @@ env:
   # login step's account). Lowercase because OCI repository names must be.
   IMAGE_NAMESPACE: aaldebs99
   IMAGE_NAME: uroboros
-  # Add linux/arm64 once a builder for it exists.
+  # Add linux/arm64 once a builder for it exists. The worker's ffmpeg mirror image is
+  # linux/amd64 only (yt-dlp's linux64 build), so the worker needs an arm64 mirror first.
   PLATFORMS: linux/amd64
 
 jobs:

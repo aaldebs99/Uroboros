@@ -68,10 +68,11 @@ FROM node:${NODE_VERSION}-trixie-slim AS node
 # (.renovaterc.json5).
 FROM code.example.com/aaldebs99/ffmpeg-ytdlp:autobuild-2026-10-31-18-18@sha256:929ec76e4767e6e925b264743d2640ce3d4e0989a482c8cdebf7bac57ab8e748 AS ffmpeg
 
-# --- worker: Debian slim Node with tini as PID 1, python3, yt-dlp's static ffmpeg (from the ffmpeg stage, with
-# its licences and notices; glibc and libgcc_s, the only libraries it needs, come from this base) and a venv holding the one downloader, yt-dlp, pinned with
-# hashes in scripts/image/requirements.txt (Renovate's pip_requirements manager) and installed
-# with --require-hashes. yt-dlp is the only downloader.
+# --- worker: Debian slim Node with tini as PID 1, python3, yt-dlp's static ffmpeg (from the ffmpeg
+# stage, with its licences and notices; glibc and libgcc_s, the only libraries it needs, come from
+# this base) and a venv holding the one downloader, yt-dlp, pinned with hashes in
+# scripts/image/requirements.txt (Renovate's pip_requirements manager) and installed with
+# --require-hashes. yt-dlp is the only downloader.
 FROM node:${NODE_VERSION}-trixie-slim AS worker
 COPY scripts/image/install-*.sh /tmp/scripts/
 COPY scripts/image/requirements.txt /tmp/scripts/

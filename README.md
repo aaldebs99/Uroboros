@@ -178,6 +178,8 @@ The repository needs these Actions variables and secrets:
 | `RENOVATE_TOKEN`            | secret   | The Renovate bot's token, scoped `write:repository`, `write:issue`, `read:user` and `read:organization`.                   |
 | `RENOVATE_GITHUB_COM_TOKEN` | secret   | A github.com token with no scopes, so Renovate can look up GitHub-hosted dependencies.                                     |
 
+Accepted risk: `REGISTRY_TOKEN` can write packages, yet `ci.yml` uses it to pull, so builds of same-repository pull requests, Renovate's branches included, can read a write-capable registry token; a read-only token would remove that risk. Pull requests from forks get no secrets, so their `images` job always fails at the ffmpeg pull.
+
 The bots must be ordinary accounts with write access: anything a workflow's own token creates
 fires no workflow events, so a release PR opened with it would show no checks and a release
 created with it would build no images.
