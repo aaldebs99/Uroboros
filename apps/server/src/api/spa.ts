@@ -44,14 +44,18 @@ function respond(body: Buffer, path: string, cache: string): Response {
 }
 
 /**
- * Whether a path the build lacks is a client-side route, answered with `index.html`. A name with
- * an extension (`sw.js`, `manifest.webmanifest`, `assets/x.js`) never is: answering those with
- * HTML turns a stale `index.html` into a script parse error, and a missing service worker into a
- * registration of the page itself.
+ * Whether a path the build lacks is a request for a static file, answered with a 404 rather than
+ * `index.html`. That is a name with an extension where the build puts files: anywhere under
+ * `/assets/` (Vite's hashed output), or directly under the root (`sw.js`, `manifest.webmanifest`,
+ * the icons, from `public/`). Answering those with HTML turns a stale `index.html` into a script
+ * parse error, and a missing service worker into a registration of the page itself. Any other
+ * path is a client route, dots and all (`/library/@john.doe`, `/watch/foo.bar`); a file that does
+ * exist elsewhere in the build is served before this is asked.
  */
-function isRoute(decoded: string): boolean {
-  const last = decoded.split("/").pop() ?? "";
-  return !decoded.startsWith("/assets/") && !last.includes(".");
+function isStaticFile(decoded: string): boolean {
+  if (decoded.startsWith("/assets/")) return true;
+  const segments = decoded.split("/").filter((s) => s !== "");
+  return segments.length === 1 && extname(segments[0] ?? "") !== "";
 }
 
 /**
@@ -74,7 +78,7 @@ export function createSpaHandler(webDist: string): (urlPath: string) => Promise<
         return respond(file, candidate, decoded.startsWith("/assets/") ? IMMUTABLE : NO_STORE);
       }
     }
-    if (!isRoute(decoded)) return null;
+    if (isStaticFile(decoded)) return null;
     const indexPath = join(root, "index.html");
     const index = await readIfFile(indexPath);
     return index ? respond(index, indexPath, NO_STORE) : null;

@@ -81,8 +81,10 @@ The UI is an installable PWA with Web Push; `docs/push.md` is the design. The se
 WebWorker lib), registered in production builds only; dev serves a `/sw.js` that removes itself.
 The manifest is static (`apps/web/public/manifest.webmanifest`). The icons are generated from
 `assets/logos/uroboros-transparent.svg` by `mise run icons` and committed; never edit the PNGs by
-hand. The SPA handler serves everything outside `assets/` with `no-store` and 404s a missing path
-with a file extension.
+hand. The SPA handler serves everything outside `assets/` with `no-store`. It 404s a missing file
+under `/assets/` or a missing root file with an extension (`/sw.js`); every other path, dotted or
+not (`/library/@john.doe`), is a client route and gets `index.html`. The service worker's
+navigation fallback has no extension rule, so dotted deep links work offline too.
 
 Sending lives in `apps/server/src/push/` (payload builder, allowlist, sender, `Pusher`), so the
 worker's `notify` queue can reuse it; a feature that notifies enqueues there rather than sending

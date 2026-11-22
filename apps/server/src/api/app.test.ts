@@ -200,7 +200,11 @@ describe("openapi", () => {
 
 describe("spa", () => {
   let dist: string;
+  /** A build with nothing but index.html: every static file is missing. */
+  let bare: string;
   beforeAll(async () => {
+    bare = await mkdtemp(join(tmpdir(), "uroboros-web-"));
+    await writeFile(join(bare, "index.html"), "<!doctype html><title>x</title>");
     dist = await mkdtemp(join(tmpdir(), "uroboros-web-"));
     await mkdir(join(dist, "assets"));
     await writeFile(join(dist, "index.html"), "<!doctype html><title>x</title>");
@@ -210,6 +214,7 @@ describe("spa", () => {
   });
   afterAll(async () => {
     await rm(dist, { recursive: true, force: true });
+    await rm(bare, { recursive: true, force: true });
   });
 
   it("falls back to index.html for client routes", async () => {
@@ -243,24 +248,35 @@ describe("spa", () => {
     expect(res.headers.get("content-type")).toBe("application/manifest+json");
   });
 
-  it.each(["/missing.js", "/assets/gone.js", "/deep/path/icon.png"])(
-    "answers a missing file with an extension (%s) with a 404, not the app",
+  it.each(["/missing.js", "/assets/gone.js", "/assets/deep/gone.css", "/manifest.webmanifest"])(
+    "answers a missing static file (%s) with a 404, not the app",
     async (path) => {
-      const res = await app({}, dist).request(path);
+      const res = await app({}, bare).request(path);
       expect(res.status).toBe(404);
       expect(res.headers.get("content-type")).not.toContain("text/html");
     },
   );
 
   it("answers a missing sw.js with a 404", async () => {
-    const bare = await mkdtemp(join(tmpdir(), "uroboros-web-"));
-    try {
-      await writeFile(join(bare, "index.html"), "<!doctype html><title>x</title>");
-      expect((await app({}, bare).request("/sw.js")).status).toBe(404);
-      expect((await app({}, bare).request("/settings")).status).toBe(200);
-    } finally {
-      await rm(bare, { recursive: true, force: true });
-    }
+    expect((await app({}, bare).request("/sw.js")).status).toBe(404);
+    expect((await app({}, bare).request("/settings")).status).toBe(200);
+  });
+
+  it.each(["/library/@john.doe", "/watch/foo.bar", "/deep/path/icon.png", "/a/b.c/d"])(
+    "serves the app for a client route with a dot in it (%s)",
+    async (path) => {
+      const res = await app({}, bare).request(path);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/html");
+    },
+  );
+
+  it("still serves an existing file below the root that is not under assets", async () => {
+    await mkdir(join(dist, "fonts"), { recursive: true });
+    await writeFile(join(dist, "fonts", "x.woff2"), "w");
+    const res = await app({}, dist).request("/fonts/x.woff2");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("font/woff2");
   });
 
   it("keeps the json 404 under /api", async () => {
