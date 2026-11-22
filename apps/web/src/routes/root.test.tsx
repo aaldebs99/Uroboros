@@ -20,7 +20,7 @@ async function renderAt(path: string) {
 
 beforeEach(() => {
   stubApi({
-    "/api/health": () => Response.json({ status: "ok", failing: [] }),
+    "/api/ready": () => Response.json({ status: "ok", failing: [] }),
     "/api/info": () => Response.json({ name: "uroboros", version: "0.0.0" }),
     "/api/me/push": () =>
       Response.json({ enabled: false, publicKey: null, devices: [], maxDevices: 10 }),

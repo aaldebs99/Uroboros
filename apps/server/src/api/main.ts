@@ -1,26 +1,44 @@
-import { Server } from "node:http";
 import { serve } from "@hono/node-server";
 import type { ServerType } from "@hono/node-server";
 import type { OpenAPIHono } from "@hono/zod-openapi";
+import type { Kysely } from "kysely";
 import { pino } from "pino";
 import type { Logger } from "pino";
 import pkg from "../../package.json" with { type: "json" };
 import { ConfigError, loadConfig } from "../config.ts";
 import type { Config } from "../config.ts";
 import { createDb } from "../db/kysely.ts";
+import type { Database } from "../db/schema.ts";
+import { defaultMigrationsDir } from "../migrate/dir.ts";
+import { migrateOnStart, startupGraceFromSecs } from "../migrate/onStart.ts";
+import type { MigrationOutcome } from "../migrate/runner.ts";
 import { createPushService } from "../push/service.ts";
+import { idleDuty, LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/leader.ts";
+import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createApp } from "./app.ts";
+import { CLEANUP_MS, drain, settlesWithin } from "./drain.ts";
 
-/** How often a draining server closes the keep-alive connections that have gone idle. */
-const IDLE_SWEEP_MS = 100;
+/** Past the shutdown budget, how long the process waits before exiting on its own. */
+const HARD_EXIT_SLACK_MS = 2000;
 
 export interface RunningApi {
   port: number;
   /**
-   * Stops accepting connections, closes idle ones and waits up to `shutdownGraceMs` for in-flight
-   * requests. If they outlast it, cuts every connection and rejects, after releasing the database
-   * and Valkey either way, so the caller can exit non-zero.
+   * Resolves once migrations ran and the database is attached (readiness turns 200); rejects when
+   * start-up failed (a broken migration, a database that refused us), and the replica never gets
+   * ready.
+   */
+  attached: Promise<void>;
+  /** Whether this replica holds the general leader lock. */
+  leader: LeaderStatus;
+  /** The longest `close()` may take: the drain grace plus the cleanup bound. */
+  shutdownBudgetMs: number;
+  /**
+   * Stops accepting connections, gives up leadership, closes idle connections and waits up to
+   * `shutdownGraceMs` for in-flight requests. If they outlast it, cuts every connection and
+   * rejects. The database and Valkey are released within `CLEANUP_MS` either way; a cleanup that
+   * overruns it rejects too, so the caller can exit non-zero.
    */
   close(): Promise<void>;
 }
@@ -28,90 +46,109 @@ export interface RunningApi {
 /** Test seams. */
 export interface StartApiOptions {
   /** Adds routes to the app before it listens (a slow route for the shutdown tests). */
-  configure?: (app: OpenAPIHono) => void;
+  configure?: (app: OpenAPIHono, db: Kysely<Database>) => void;
+  /** How often a replica that does not lead tries the lock again (default 5 s). */
+  leaderRetryMs?: number;
 }
 
-/** Resolves true once `server` has closed, false if connections remain after `graceMs`. */
-async function drain(server: ServerType, graceMs: number): Promise<boolean> {
-  const closed = new Promise<void>((resolve) => {
-    server.close(() => {
-      resolve();
+function listen(app: OpenAPIHono, bind: Config["bind"]): Promise<ServerType> {
+  return new Promise<ServerType>((resolve) => {
+    const s = serve({ fetch: app.fetch, hostname: bind.host, port: bind.port }, () => {
+      resolve(s);
     });
   });
-  if (!(server instanceof Server)) {
-    await closed;
-    return true;
-  }
-  // close() alone leaves keep-alive connections open until their idle timeout. Closing the idle
-  // ones now, and again as in-flight requests finish, lets the server close as soon as the last
-  // response is written.
-  server.closeIdleConnections();
-  const sweep = setInterval(() => {
-    server.closeIdleConnections();
-  }, IDLE_SWEEP_MS);
-  let deadline: NodeJS.Timeout | undefined;
-  const expired = new Promise<"timeout">((resolve) => {
-    deadline = setTimeout(() => {
-      resolve("timeout");
-    }, graceMs);
-  });
-  try {
-    if ((await Promise.race([closed.then(() => "closed" as const), expired])) === "closed") {
-      return true;
-    }
-    server.closeAllConnections();
-    await closed;
-    return false;
-  } finally {
-    clearInterval(sweep);
-    clearTimeout(deadline);
-  }
 }
 
-/** Wires deps and starts listening. Installs no process handlers; the caller owns shutdown. */
+function logMigrations(logger: Logger, { applied, ahead }: MigrationOutcome): void {
+  if (ahead.length > 0) {
+    logger.warn(
+      { ahead },
+      "the database is ahead of this build (a rollback?); continuing, as every migration works with the release before it",
+    );
+  }
+  logger.info({ applied }, applied.length > 0 ? "migrations applied" : "schema is up to date");
+}
+
+/**
+ * Listens at once (liveness answers, readiness says `starting`), then migrates on a dedicated
+ * connection, attaches the database and starts the leader loop: Djinn's `serve`. Installs no
+ * process handlers; the caller owns shutdown.
+ */
 export async function startApi(
   config: Config,
   logger: Logger,
   opts: StartApiOptions = {},
 ): Promise<RunningApi> {
+  // The pool connects lazily: nothing touches the database until it is attached.
   const db = createDb(config.databaseUrl, logger);
   const valkey = createValkey(config.valkeyUrl, "api", logger);
-  // Not fatal if Valkey is down at boot: health reports it as degraded.
-  await waitReady(valkey, 2000);
   const push = createPushService(config.push, db, logger);
+  let attached = false;
   const app = createApp(
-    { db, valkey, version: pkg.version, logger, push },
+    { db, valkey, version: pkg.version, logger, push, attached: () => attached },
     { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
   );
-  opts.configure?.(app);
-  const server = await new Promise<ServerType>((resolve) => {
-    const s = serve(
-      { fetch: app.fetch, hostname: config.bind.host, port: config.bind.port },
-      () => {
-        resolve(s);
-      },
-    );
-  });
+  opts.configure?.(app, db);
+  const server = await listen(app, config.bind);
   const address = server.address();
   const port = typeof address === "object" && address !== null ? address.port : config.bind.port;
   logger.info({ host: config.bind.host, port }, "api listening");
+
+  const stop = new AbortController();
+  const leader = new LeaderStatus();
+  let leading: Promise<void> = Promise.resolve();
+  const attaching = (async () => {
+    const [outcome] = await Promise.all([
+      migrateOnStart({
+        url: config.databaseUrl,
+        dir: config.migrationsDir ?? defaultMigrationsDir(),
+        grace: startupGraceFromSecs(config.dbStartupGraceSecs),
+        logger,
+        signal: stop.signal,
+      }),
+      // Not fatal if Valkey is down: readiness reports it as degraded.
+      waitReady(valkey, 2000),
+    ]);
+    logMigrations(logger, outcome);
+    attached = true;
+    logger.info("api ready");
+    // No duties yet: BullMQ's job schedulers already run each repeatable job exactly once. The
+    // loop keeps one replica leading for singleton work to come (the media reaper, say).
+    leading = leadAndRun({
+      lock: new PgLeaderLock(config.databaseUrl, URO_LEAD, { logger }),
+      name: "leader",
+      work: idleDuty,
+      shutdown: stop.signal,
+      ...(opts.leaderRetryMs === undefined ? {} : { retryMs: opts.leaderRetryMs }),
+      status: leader,
+      logger,
+    });
+  })();
+  // Observed through `attached`; this only keeps an unobserved failure from crashing the process.
+  attaching.catch(() => undefined);
+
   let closing: Promise<void> | undefined;
   const closeOnce = async () => {
-    let drained: boolean;
-    try {
-      drained = await drain(server, config.shutdownGraceMs);
-    } finally {
-      await db.destroy();
-      valkey.disconnect();
-    }
+    // Stops start-up and the leader loop now, so leadership goes while the drain still runs.
+    stop.abort();
+    const released = attaching.catch(() => undefined).then(() => leading);
+    const drained = await drain(server, config.shutdownGraceMs);
+    valkey.disconnect();
+    const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), CLEANUP_MS);
     if (!drained) {
       throw new Error(
         `api did not drain within ${String(config.shutdownGraceMs)} ms; connections cut`,
       );
     }
+    if (!cleaned) {
+      throw new Error(`api cleanup did not finish within ${String(CLEANUP_MS)} ms`);
+    }
   };
   return {
     port,
+    attached: attaching,
+    leader,
+    shutdownBudgetMs: config.shutdownGraceMs + CLEANUP_MS,
     close() {
       closing ??= closeOnce();
       return closing;
@@ -119,39 +156,87 @@ export async function startApi(
   };
 }
 
-/**
- * Waits for SIGTERM or SIGINT, then closes `api`. Resolves 0 once it drained, 1 if the drain
- * timed out or failed. The listeners are removed once either signal arrives.
- */
-export async function runUntilSignal(api: RunningApi, logger: Logger): Promise<number> {
-  const signal = await new Promise<string>((resolve) => {
-    const onTerm = () => {
-      done("SIGTERM");
-    };
-    const onInt = () => {
-      done("SIGINT");
-    };
-    const done = (name: string) => {
+/** Resolves with the first of SIGTERM or SIGINT; `dispose` removes the listeners. */
+function nextSignal(): { signal: Promise<string>; dispose(): void } {
+  let settle: (name: string) => void = () => undefined;
+  const signal = new Promise<string>((resolve) => {
+    settle = resolve;
+  });
+  const onTerm = () => {
+    settle("SIGTERM");
+  };
+  const onInt = () => {
+    settle("SIGINT");
+  };
+  process.once("SIGTERM", onTerm);
+  process.once("SIGINT", onInt);
+  return {
+    signal,
+    dispose() {
       process.off("SIGTERM", onTerm);
       process.off("SIGINT", onInt);
-      resolve(name);
-    };
-    process.once("SIGTERM", onTerm);
-    process.once("SIGINT", onInt);
-  });
-  logger.info({ signal }, "shutting down");
+    },
+  };
+}
+
+export interface RunOptions {
+  /** How the process ends when shutdown overruns its budget; tests pass a spy. */
+  exit?: (code: number) => void;
+  /** Past `shutdownBudgetMs`, how long before `exit(1)` (default 2 s). */
+  hardExitSlackMs?: number;
+}
+
+/**
+ * Waits for SIGTERM or SIGINT, then closes `api`. Resolves 0 once it drained, 1 if the drain
+ * timed out or failed, or if start-up failed first (then without waiting for a signal). A
+ * shutdown that outlasts the api's budget plus a little ends the process with `exit(1)`, so a
+ * hung cleanup never runs into the kubelet's SIGKILL.
+ */
+export async function runUntilSignal(
+  api: RunningApi,
+  logger: Logger,
+  opts: RunOptions = {},
+): Promise<number> {
+  const signals = nextSignal();
+  const startupFailed = api.attached.then(
+    () => new Promise<never>(() => undefined),
+    (err: unknown) => ({ err }),
+  );
+  const first = await Promise.race([signals.signal, startupFailed]);
+  signals.dispose();
+  if (typeof first !== "string") {
+    logger.fatal({ err: first.err }, "startup failed; exiting");
+    await api.close().catch(() => undefined);
+    return 1;
+  }
+  logger.info({ signal: first }, "shutting down");
+  const exit =
+    opts.exit ??
+    ((code: number) => {
+      process.exit(code);
+    });
+  const hardExit = setTimeout(
+    () => {
+      logger.fatal("shutdown overran its budget; exiting");
+      exit(1);
+    },
+    api.shutdownBudgetMs + (opts.hardExitSlackMs ?? HARD_EXIT_SLACK_MS),
+  );
+  hardExit.unref();
   try {
     await api.close();
     return 0;
   } catch (err) {
     logger.error({ err }, "shutdown failed");
     return 1;
+  } finally {
+    clearTimeout(hardExit);
   }
 }
 
 /**
- * Runs the API until SIGTERM/SIGINT; resolves with the exit code (0 clean, 1 failed or timed-out
- * drain, 2 config). bin/api.ts exits the process with it.
+ * Runs the API until SIGTERM/SIGINT; resolves with the exit code (0 clean, 1 failed start-up or
+ * failed or timed-out shutdown, 2 config). bin/api.ts exits the process with it.
  */
 export async function main(_argv: string[] = []): Promise<number> {
   const logger = pino({ name: "uroboros-api" });

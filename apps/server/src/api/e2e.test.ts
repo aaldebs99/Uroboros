@@ -1,7 +1,7 @@
 import { pino } from "pino";
 import { afterAll, beforeAll, expect, it } from "vitest";
+import { apiConfig } from "../../test/apiConfig.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import { startApi } from "./main.ts";
 import type { RunningApi } from "./main.ts";
 
@@ -10,24 +10,8 @@ let api: RunningApi;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  api = await startApi(
-    {
-      bind: { host: "127.0.0.1", port: 0 },
-      databaseUrl: testDb.url,
-      valkeyUrl: TestValkey.url(),
-      webDist: null,
-      bodyLimitBytes: 65_536,
-      shutdownGraceMs: 20_000,
-      push: {
-        publicBaseUrl: null,
-        subject: null,
-        vapid: null,
-        allowedHosts: [],
-        maxDevices: 10,
-      },
-    },
-    pino({ level: "silent" }),
-  );
+  api = await startApi(apiConfig(testDb.url), pino({ level: "silent" }));
+  await api.attached;
 });
 
 afterAll(async () => {
@@ -35,8 +19,12 @@ afterAll(async () => {
   await testDb.close();
 });
 
-it("serves /api/health over a real socket", async () => {
-  const res = await fetch(`http://127.0.0.1:${String(api.port)}/api/health`);
-  expect(res.status).toBe(200);
-  expect(await res.json()).toEqual({ status: "ok", failing: [] });
+it("serves /api/health and /api/ready over a real socket", async () => {
+  const base = `http://127.0.0.1:${String(api.port)}`;
+  const live = await fetch(`${base}/api/health`);
+  expect(live.status).toBe(200);
+  expect(await live.json()).toEqual({ status: "ok" });
+  const ready = await fetch(`${base}/api/ready`);
+  expect(ready.status).toBe(200);
+  expect(await ready.json()).toEqual({ status: "ok", failing: [] });
 });

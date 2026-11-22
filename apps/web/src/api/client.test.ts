@@ -1,7 +1,13 @@
-import { ApiErrorCode, Health, Info, PushTestResult, type ApiErrorBody } from "@uroboros/contract";
+import {
+  ApiErrorCode,
+  Info,
+  PushTestResult,
+  Readiness,
+  type ApiErrorBody,
+} from "@uroboros/contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, deleteJson, errorText, getJson, postJson } from "./client";
+import { ApiError, deleteJson, errorText, getJson, getReadiness, postJson } from "./client";
 
 function respondWith(response: Response) {
   vi.stubGlobal(
@@ -37,10 +43,10 @@ describe("getJson success", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { signal } = new AbortController();
 
-    await getJson("/api/health", Health, { signal });
+    await getJson("/api/ready", Readiness, { signal });
 
     const [path, init] = fetchMock.mock.calls[0] ?? [];
-    expect(path).toBe("/api/health");
+    expect(path).toBe("/api/ready");
     expect(init?.signal).toBe(signal);
     expect(new Headers(init?.headers).get("Accept")).toBe("application/json");
   });
@@ -81,7 +87,7 @@ describe("getJson errors", () => {
   it("throws ApiError with a null code when a 200 body fails the schema", async () => {
     respondWith(Response.json({ status: "weird" }));
 
-    const error: unknown = await getJson("/api/health", Health).catch((e: unknown) => e);
+    const error: unknown = await getJson("/api/ready", Readiness).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).status).toBe(200);
@@ -177,5 +183,21 @@ describe("errorText", () => {
     expect(
       errorText(new ApiError(422, "x", { code: "unprocessable", message: "turn one off first" })),
     ).toBe("turn one off first");
+  });
+});
+
+describe("getReadiness", () => {
+  it("reads the report on 200 and on 503 starting", async () => {
+    respondWith(Response.json({ status: "degraded", failing: ["valkey"] }));
+    await expect(getReadiness()).resolves.toEqual({ status: "degraded", failing: ["valkey"] });
+    respondWith(Response.json({ status: "starting", failing: [] }, { status: 503 }));
+    await expect(getReadiness()).resolves.toEqual({ status: "starting", failing: [] });
+  });
+
+  it("throws ApiError on any other failure", async () => {
+    respondWith(Response.json({ code: "internal", message: "x" }, { status: 500 }));
+    const error: unknown = await getReadiness().catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe("internal");
   });
 });

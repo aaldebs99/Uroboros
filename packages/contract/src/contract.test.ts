@@ -1,5 +1,12 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { ApiErrorBody, ApiErrorCode, Health, type Info, apiErrorStatus } from "./index.ts";
+import {
+  ApiErrorBody,
+  ApiErrorCode,
+  type Info,
+  Liveness,
+  Readiness,
+  apiErrorStatus,
+} from "./index.ts";
 
 describe("contract", () => {
   it("parses a valid error body and rejects an unknown code", () => {
@@ -7,8 +14,19 @@ describe("contract", () => {
     expect(() => ApiErrorBody.parse({ code: "teapot", message: "x" })).toThrow();
   });
 
-  it("parses a degraded health report", () => {
-    expect(Health.parse({ status: "degraded", failing: ["valkey"] }).failing).toEqual(["valkey"]);
+  it("parses a degraded readiness report", () => {
+    expect(Readiness.parse({ status: "degraded", failing: ["valkey"] }).failing).toEqual([
+      "valkey",
+    ]);
+  });
+
+  it("parses a replica that is still starting", () => {
+    expect(Readiness.parse({ status: "starting", failing: [] }).status).toBe("starting");
+  });
+
+  it("has liveness say ok and nothing else", () => {
+    expect(Liveness.parse({ status: "ok" })).toEqual({ status: "ok" });
+    expect(() => Liveness.parse({ status: "degraded" })).toThrow();
   });
 
   it("maps every error code to a status in enum order", () => {

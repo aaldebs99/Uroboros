@@ -8,4 +8,4 @@ export {
   PushTestResult,
   PushView,
 } from "./push.ts";
-export { DependencyName, Health, HealthStatus, Info } from "./system.ts";
+export { DependencyName, Info, Liveness, Readiness, ReadinessStatus } from "./system.ts";

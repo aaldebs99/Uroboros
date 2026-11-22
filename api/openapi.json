@@ -38,31 +38,6 @@
         ],
         "type": "string"
       },
-      "Health": {
-        "properties": {
-          "failing": {
-            "items": {
-              "$ref": "#/components/schemas/DependencyName"
-            },
-            "type": "array"
-          },
-          "status": {
-            "$ref": "#/components/schemas/HealthStatus"
-          }
-        },
-        "required": [
-          "status",
-          "failing"
-        ],
-        "type": "object"
-      },
-      "HealthStatus": {
-        "enum": [
-          "ok",
-          "degraded"
-        ],
-        "type": "string"
-      },
       "Info": {
         "properties": {
           "name": {
@@ -78,6 +53,20 @@
         "required": [
           "name",
           "version"
+        ],
+        "type": "object"
+      },
+      "Liveness": {
+        "properties": {
+          "status": {
+            "enum": [
+              "ok"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
         ],
         "type": "object"
       },
@@ -194,6 +183,32 @@
           "maxDevices"
         ],
         "type": "object"
+      },
+      "Readiness": {
+        "properties": {
+          "failing": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyName"
+            },
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReadinessStatus"
+          }
+        },
+        "required": [
+          "status",
+          "failing"
+        ],
+        "type": "object"
+      },
+      "ReadinessStatus": {
+        "enum": [
+          "ok",
+          "degraded",
+          "starting"
+        ],
+        "type": "string"
       }
     }
   },
@@ -210,24 +225,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Health"
+                  "$ref": "#/components/schemas/Liveness"
                 }
               }
             },
-            "description": "Health, possibly degraded"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorBody"
-                }
-              }
-            },
-            "description": "Unexpected error"
+            "description": "The process answers"
           }
         },
-        "summary": "Liveness and dependency health"
+        "summary": "Liveness: the process is up"
       }
     },
     "/api/info": {
@@ -494,6 +499,43 @@
         "tags": [
           "push"
         ]
+      }
+    },
+    "/api/ready": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            },
+            "description": "Ready; `degraded` names the failing dependencies but still takes traffic"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            },
+            "description": "Still starting: connecting to the database or running migrations"
+          }
+        },
+        "summary": "Readiness and dependency health"
       }
     }
   }

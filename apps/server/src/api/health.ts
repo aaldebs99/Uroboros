@@ -1,21 +1,40 @@
 import { createRoute } from "@hono/zod-openapi";
-import { ApiErrorBody, Health } from "@uroboros/contract";
+import { ApiErrorBody, Liveness, Readiness } from "@uroboros/contract";
 import type { DependencyName } from "@uroboros/contract";
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 import type { Redis } from "ioredis";
+import { pingDb } from "../db/kysely.ts";
 import type { Database } from "../db/schema.ts";
+import { withDeadline } from "../shared/deadline.ts";
 
 export const CHECK_TIMEOUT_MS = 2000;
 
+/** Liveness: answers while the process does, checking nothing (Djinn's `/api/health`). */
 export const healthRoute = createRoute({
   method: "get",
   path: "/api/health",
-  summary: "Liveness and dependency health",
+  summary: "Liveness: the process is up",
   responses: {
     200: {
-      description: "Health, possibly degraded",
-      content: { "application/json": { schema: Health } },
+      description: "The process answers",
+      content: { "application/json": { schema: Liveness } },
+    },
+  },
+});
+
+/** Readiness: 503 until migrations ran and the database is attached, then the dependency report. */
+export const readyRoute = createRoute({
+  method: "get",
+  path: "/api/ready",
+  summary: "Readiness and dependency health",
+  responses: {
+    200: {
+      description: "Ready; `degraded` names the failing dependencies but still takes traffic",
+      content: { "application/json": { schema: Readiness } },
+    },
+    503: {
+      description: "Still starting: connecting to the database or running migrations",
+      content: { "application/json": { schema: Readiness } },
     },
     500: {
       description: "Unexpected error",
@@ -24,28 +43,23 @@ export const healthRoute = createRoute({
   },
 });
 
-async function withTimeout(check: () => Promise<unknown>, ms: number): Promise<boolean> {
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      reject(new Error("health check timed out"));
-    }, ms);
-  });
+async function passes(check: () => Promise<unknown>): Promise<boolean> {
   try {
-    await Promise.race([check(), timeout]);
+    await withDeadline(check(), CHECK_TIMEOUT_MS, "health check timed out");
     return true;
   } catch {
     return false;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
-/** Runs `SELECT 1` and `PING` in parallel, each bounded by a timeout; never throws. */
-export async function checkHealth(db: Kysely<Database>, valkey: Redis): Promise<Health> {
+/**
+ * Runs `SELECT 1` and `PING` in parallel, each bounded at 2 s; never throws. The database check
+ * bounds its own query too, so a silent server costs a pool client 2 s, not the pool's 30 s.
+ */
+export async function checkHealth(db: Kysely<Database>, valkey: Redis): Promise<Readiness> {
   const [dbOk, valkeyOk] = await Promise.all([
-    withTimeout(() => sql`SELECT 1`.execute(db), CHECK_TIMEOUT_MS),
-    withTimeout(() => valkey.ping(), CHECK_TIMEOUT_MS),
+    passes(() => pingDb(db, CHECK_TIMEOUT_MS)),
+    passes(() => valkey.ping()),
   ]);
   const failing: DependencyName[] = [];
   if (!dbOk) failing.push("database");

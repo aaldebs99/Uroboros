@@ -18,11 +18,15 @@ export interface Config {
   bodyLimitBytes: number;
   /** How long a SIGTERM waits for in-flight requests before cutting them. */
   shutdownGraceMs: number;
+  /** How long start-up retries an unreachable database, in seconds; 0 waits forever. */
+  dbStartupGraceSecs: number;
+  /** The migrations applied on start: `UROBOROS_MIGRATIONS_DIR`, absolute; null is the repo's. */
+  migrationsDir: string | null;
   /** Web Push (docs/push.md); on only with an https `publicBaseUrl`. */
   push: PushSettings;
 }
 
-/** What the standalone migrate Job needs: the database and where the SQL files are. */
+/** What the manual migrate command needs: the database and where the SQL files are. */
 export interface MigrateConfig {
   databaseUrl: string;
   /** `UROBOROS_MIGRATIONS_DIR`, absolute; null means the repo root's `migrations/`. */
@@ -43,6 +47,8 @@ const DEFAULT_WORKER_CONCURRENCY = 4;
 const DEFAULT_BIND = "127.0.0.1:18081";
 const DEFAULT_SHUTDOWN_GRACE_MS = 20_000;
 const DEFAULT_BODY_LIMIT_BYTES = 64 * 1024;
+/** Djinn's default: wait for the database as long as it takes; the startupProbe bounds it. */
+const DEFAULT_DB_STARTUP_GRACE_SECS = 0;
 
 const bindSchema = z.string().transform((value, ctx) => {
   const idx = value.lastIndexOf(":");
@@ -62,6 +68,13 @@ const required = (name: string) =>
 /** An optional variable where an empty value means unset, as `${VAR:-}` in compose passes one. */
 const unsetIfEmpty = <S extends z.ZodType>(schema: S) =>
   z.preprocess((value) => (value === "" ? undefined : value), schema);
+
+const nonNegativeInt = (name: string) =>
+  z
+    .string()
+    .regex(/^(0|[1-9]\d*)$/, `${name} must be a whole number of seconds, 0 or more`)
+    .transform(Number)
+    .pipe(z.number().int());
 
 const positiveInt = (name: string) =>
   z
@@ -122,6 +135,11 @@ const configSchema = z
     UROBOROS_SHUTDOWN_GRACE_MS: unsetIfEmpty(
       positiveInt("UROBOROS_SHUTDOWN_GRACE_MS").prefault(String(DEFAULT_SHUTDOWN_GRACE_MS)),
     ),
+    UROBOROS_DB_STARTUP_GRACE_SECS: unsetIfEmpty(
+      nonNegativeInt("UROBOROS_DB_STARTUP_GRACE_SECS").prefault(
+        String(DEFAULT_DB_STARTUP_GRACE_SECS),
+      ),
+    ),
     UROBOROS_PUBLIC_BASE_URL: unsetIfEmpty(publicBaseUrl),
     UROBOROS_PUSH_SUBJECT: unsetIfEmpty(pushSubject),
     UROBOROS_VAPID_PUBLIC_KEY: unsetIfEmpty(z.string().optional()),
@@ -177,7 +195,7 @@ function parse<S extends z.ZodType>(schema: S, env: NodeJS.ProcessEnv): z.output
   return result.data;
 }
 
-/** Full configuration for the api and worker processes. */
+/** Full configuration for the api process. */
 export function loadConfig(env: NodeJS.ProcessEnv): Config {
   const e = parse(configSchema, env);
   return {
@@ -187,6 +205,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     webDist: e.UROBOROS_WEB_DIST ?? null,
     bodyLimitBytes: e.UROBOROS_BODY_LIMIT_BYTES,
     shutdownGraceMs: e.UROBOROS_SHUTDOWN_GRACE_MS,
+    dbStartupGraceSecs: e.UROBOROS_DB_STARTUP_GRACE_SECS,
+    migrationsDir: loadMigrationsDir(env),
     push: {
       publicBaseUrl: e.UROBOROS_PUBLIC_BASE_URL ?? null,
       subject: e.UROBOROS_PUSH_SUBJECT ?? null,
@@ -206,7 +226,7 @@ export function loadMigrationsDir(env: NodeJS.ProcessEnv): string | null {
   return dir === undefined ? null : resolve(dir);
 }
 
-/** Configuration for the migrate Job, which has no use for Valkey. */
+/** Configuration for the manual migrate command, which has no use for Valkey. */
 export function loadMigrateConfig(env: NodeJS.ProcessEnv): MigrateConfig {
   const e = parse(migrateSchema, env);
   return { databaseUrl: e.DATABASE_URL, migrationsDir: loadMigrationsDir(env) };

@@ -1,4 +1,4 @@
-import { ApiErrorCode, Health, Info } from "@uroboros/contract";
+import { ApiErrorCode, Info, Readiness } from "@uroboros/contract";
 import type { ApiErrorBody } from "@uroboros/contract";
 import { useQuery } from "@tanstack/react-query";
 import type { z } from "zod";
@@ -68,21 +68,39 @@ async function parseBody<S extends z.ZodType>(
   return parsed.data;
 }
 
-/** Sends a request to the app's own API and throws an `ApiError` for anything but a 2xx. */
-async function send(method: string, path: string, init?: RequestInit): Promise<Response> {
+/** Sends a request to the app's own API, asking for JSON. */
+async function request(method: string, path: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
-  const res = await fetch(path, { ...init, method, headers });
-  if (!res.ok) {
-    const body = await readErrorBody(res);
-    const detail = body ? `${body.code}: ${body.message}` : res.statusText;
-    throw new ApiError(
-      res.status,
-      `${method} ${path} failed: ${String(res.status)} ${detail}`.trim(),
-      body,
-    );
-  }
+  return fetch(path, { ...init, method, headers });
+}
+
+/** The `ApiError` for a failed response, with the server's typed body when it sent one. */
+async function failureOf(method: string, path: string, res: Response): Promise<ApiError> {
+  const body = await readErrorBody(res);
+  const detail = body ? `${body.code}: ${body.message}` : res.statusText;
+  return new ApiError(
+    res.status,
+    `${method} ${path} failed: ${String(res.status)} ${detail}`.trim(),
+    body,
+  );
+}
+
+/** Sends a request to the app's own API and throws an `ApiError` for anything but a 2xx. */
+async function send(method: string, path: string, init?: RequestInit): Promise<Response> {
+  const res = await request(method, path, init);
+  if (!res.ok) throw await failureOf(method, path, res);
   return res;
+}
+
+/**
+ * `GET /api/ready`. A replica still starting answers 503 with a `starting` report, so the body is
+ * read on 503 as on 200; anything else that is not a 2xx throws an `ApiError`.
+ */
+export async function getReadiness(init?: RequestInit): Promise<Readiness> {
+  const res = await request("GET", "/api/ready", init);
+  if (!res.ok && res.status !== 503) throw await failureOf("GET", "/api/ready", res);
+  return parseBody(res, "GET /api/ready", Readiness);
 }
 
 /**
@@ -147,7 +165,7 @@ export function errorText(error: unknown): string {
 
 export const queryKeys = {
   info: ["api", "info"] as const,
-  health: ["api", "health"] as const,
+  readiness: ["api", "ready"] as const,
   myPush: ["api", "me", "push"] as const,
 };
 
@@ -158,10 +176,10 @@ export function useInfo() {
   });
 }
 
-export function useHealth() {
+export function useReadiness() {
   return useQuery({
-    queryKey: queryKeys.health,
-    queryFn: ({ signal }) => getJson("/api/health", Health, { signal }),
+    queryKey: queryKeys.readiness,
+    queryFn: ({ signal }) => getReadiness({ signal }),
     refetchInterval: 15_000,
   });
 }

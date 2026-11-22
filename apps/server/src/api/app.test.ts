@@ -45,9 +45,9 @@ const deps = (over: Partial<Deps> = {}): Deps => ({
 const app = (over: Partial<Deps> = {}, webDist: string | null = null): OpenAPIHono =>
   createApp(deps(over), { webDist });
 
-describe("health", () => {
+describe("readiness", () => {
   it("is ok when both dependencies answer", async () => {
-    const res = await app().request("/api/health");
+    const res = await app().request("/api/ready");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "ok", failing: [] });
   });
@@ -55,7 +55,7 @@ describe("health", () => {
   it("is degraded with database failing when postgres is unreachable", async () => {
     const db = createDb(`postgres://u:p@${CLOSED}/x`, logger);
     extra.push({ close: () => db.destroy() });
-    const res = await app({ db }).request("/api/health");
+    const res = await app({ db }).request("/api/ready");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "degraded", failing: ["database"] });
   });
@@ -68,18 +68,18 @@ describe("health", () => {
       },
     });
     const start = Date.now();
-    const res = await app({ valkey: down }).request("/api/health");
+    const res = await app({ valkey: down }).request("/api/ready");
     expect(Date.now() - start).toBeLessThan(3000);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "degraded", failing: ["valkey"] });
   });
 });
 
-describe("health timeout", () => {
+describe("readiness timeout", () => {
   it("reports a hanging valkey as failing within 3s", async () => {
     const hung = { ping: () => new Promise<never>(() => undefined) } as unknown as Redis;
     const start = Date.now();
-    const res = await app({ valkey: hung }).request("/api/health");
+    const res = await app({ valkey: hung }).request("/api/ready");
     expect(Date.now() - start).toBeLessThan(3000);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "degraded", failing: ["valkey"] });
@@ -100,7 +100,7 @@ describe("health timeout", () => {
       },
     });
     const start = Date.now();
-    const res = await app({ db }).request("/api/health");
+    const res = await app({ db }).request("/api/ready");
     expect(Date.now() - start).toBeLessThan(3000);
     expect(await res.json()).toEqual({ status: "degraded", failing: ["database"] });
   });
@@ -122,7 +122,7 @@ describe("pool resilience", () => {
       );
       try {
         const a = app({ db });
-        expect(await (await a.request("/api/health")).json()).toEqual({
+        expect(await (await a.request("/api/ready")).json()).toEqual({
           status: "ok",
           failing: [],
         });
@@ -140,7 +140,7 @@ describe("pool resilience", () => {
           { timeout: 10_000 },
         );
         expect(uncaught).toEqual([]);
-        expect(await (await a.request("/api/health")).json()).toEqual({
+        expect(await (await a.request("/api/ready")).json()).toEqual({
           status: "ok",
           failing: [],
         });
@@ -187,7 +187,7 @@ describe("openapi", () => {
     const res = await app().request("/api/openapi.json");
     const doc = (await res.json()) as { components: { schemas: Record<string, unknown> } };
     expect(Object.keys(doc.components.schemas)).toEqual(
-      expect.arrayContaining(["Health", "Info", "ApiErrorBody"]),
+      expect.arrayContaining(["Liveness", "Readiness", "Info", "ApiErrorBody"]),
     );
   });
 

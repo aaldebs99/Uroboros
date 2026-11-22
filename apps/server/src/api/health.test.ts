@@ -27,7 +27,7 @@ afterAll(async () => {
 
 async function timedHealth(app: ReturnType<typeof createApp>) {
   const start = Date.now();
-  const body = (await (await app.request("/api/health")).json()) as { status: string };
+  const body = (await (await app.request("/api/ready")).json()) as { status: string };
   return { status: body.status, ms: Date.now() - start };
 }
 
@@ -62,6 +62,35 @@ describe("a database that goes silent after the handshake", () => {
         },
         { timeout: 10_000, interval: 250 },
       );
+    } finally {
+      await db.destroy();
+      await proxy.close();
+    }
+  });
+});
+
+describe("the readiness database check", () => {
+  it("frees its pool client at its own 2 s bound, not the pool's 30 s query timeout", async () => {
+    const proxy = await silentProxy(testDb.url);
+    // One client and the default query timeout: a check that held its client until the pool's
+    // 30 s timeout would leave none for the checks after it.
+    const db = createDb(proxy.url, logger, { max: 1 });
+    try {
+      const app = createApp({ db, valkey, version: "t", logger }, { webDist: null });
+      expect((await timedHealth(app)).status).toBe("ok");
+      proxy.silence();
+      const hung = await timedHealth(app);
+      expect(hung.status).toBe("degraded");
+      expect(hung.ms).toBeLessThan(3000);
+      proxy.resume();
+      const start = Date.now();
+      await vi.waitFor(
+        async () => {
+          expect((await timedHealth(app)).status).toBe("ok");
+        },
+        { timeout: 8000, interval: 100 },
+      );
+      expect(Date.now() - start).toBeLessThan(5000);
     } finally {
       await db.destroy();
       await proxy.close();

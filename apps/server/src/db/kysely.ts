@@ -10,6 +10,9 @@ const CONNECT_TIMEOUT_MS = 2000;
 export const DEFAULT_QUERY_TIMEOUT_MS = 30_000;
 const QUERY_READ_TIMEOUT = "Query read timeout";
 
+/** Each handle's pool, for `pingDb`, which needs a raw client to bound one query on its own. */
+const pools = new WeakMap<Kysely<Database>, pg.Pool>();
+
 export interface DbOptions {
   /**
    * Client-side bound on each query, in ms (pg's `query_timeout`); 0 turns it off. Default 30000.
@@ -66,7 +69,33 @@ export function createDb(
     log.error({ err }, "idle postgres client error");
   });
   pool.on("connect", endOnQueryTimeout);
-  return new Kysely<Database>({ dialect: new PostgresDialect({ pool }) });
+  const db = new Kysely<Database>({ dialect: new PostgresDialect({ pool }) });
+  pools.set(db, pool);
+  return db;
+}
+
+/**
+ * `SELECT 1` on a pool client, bounded by `timeoutMs` on its own rather than the pool's
+ * `query_timeout`: on a server gone silent the client is ended and dropped at `timeoutMs`, so a
+ * probe never keeps a pool client for 30 s. Rejects on failure or timeout.
+ */
+export async function pingDb(db: Kysely<Database>, timeoutMs: number): Promise<void> {
+  const pool = pools.get(db);
+  if (pool === undefined) throw new Error("pingDb needs a handle made by createDb");
+  const client = await pool.connect();
+  // pg reads a per-query `query_timeout` that its typings do not declare.
+  const ping: pg.QueryConfig & { query_timeout: number } = {
+    text: "SELECT 1",
+    query_timeout: timeoutMs,
+  };
+  try {
+    await client.query(ping);
+    client.release();
+  } catch (err) {
+    // Passing the error destroys the client instead of returning it to the pool.
+    client.release(err instanceof Error ? err : true);
+    throw err;
+  }
 }
 
 /**

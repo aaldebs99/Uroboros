@@ -51,6 +51,30 @@ describe("loadConfig shutdown grace", () => {
   });
 });
 
+describe("loadConfig database startup", () => {
+  it("waits for the database forever by default, and reads UROBOROS_DB_STARTUP_GRACE_SECS", () => {
+    expect(loadConfig(base).dbStartupGraceSecs).toBe(0);
+    expect(loadConfig({ ...base, UROBOROS_DB_STARTUP_GRACE_SECS: "" }).dbStartupGraceSecs).toBe(0);
+    expect(loadConfig({ ...base, UROBOROS_DB_STARTUP_GRACE_SECS: "0" }).dbStartupGraceSecs).toBe(0);
+    expect(loadConfig({ ...base, UROBOROS_DB_STARTUP_GRACE_SECS: "90" }).dbStartupGraceSecs).toBe(
+      90,
+    );
+  });
+
+  it.each(["-1", "1.5", "soon"])("rejects UROBOROS_DB_STARTUP_GRACE_SECS %j", (value) => {
+    expect(() => loadConfig({ ...base, UROBOROS_DB_STARTUP_GRACE_SECS: value })).toThrow(
+      /UROBOROS_DB_STARTUP_GRACE_SECS/,
+    );
+  });
+
+  it("reads UROBOROS_MIGRATIONS_DIR for the migrations it applies on start", () => {
+    expect(loadConfig(base).migrationsDir).toBeNull();
+    expect(loadConfig({ ...base, UROBOROS_MIGRATIONS_DIR: "/app/migrations" }).migrationsDir).toBe(
+      "/app/migrations",
+    );
+  });
+});
+
 describe("loadConfig body limit", () => {
   it("defaults to 64 KiB and reads UROBOROS_BODY_LIMIT_BYTES", () => {
     expect(loadConfig(base).bodyLimitBytes).toBe(65_536);

@@ -20,7 +20,9 @@ describe("renderOpenApi", () => {
     const text = renderOpenApi();
     expect(text.endsWith("}\n")).toBe(true);
     const doc = JSON.parse(text) as Doc;
-    expect(Object.keys(doc.paths)).toEqual(expect.arrayContaining(["/api/health", "/api/info"]));
+    expect(Object.keys(doc.paths)).toEqual(
+      expect.arrayContaining(["/api/health", "/api/ready", "/api/info"]),
+    );
   });
 
   it("only publishes schemas that the contract exports", async () => {
