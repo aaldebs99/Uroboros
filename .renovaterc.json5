@@ -178,6 +178,19 @@
       automerge: false,
     },
     {
+      // yt-dlp's patched static ffmpeg: the Dockerfile's FFMPEG_TAG and the sha256 of that
+      // release's checksums.sha256 (customManager below) move in one PR. A human looks first
+      // for the same reason as yt-dlp above. `build(image)`, not a `feat`.
+      description: "Image tools: the worker's pinned ffmpeg build, reviewed",
+      matchDepNames: ["yt-dlp/FFmpeg-Builds"],
+      groupName: "image tools",
+      semanticCommitType: "build",
+      semanticCommitScope: "image",
+      commitMessageTopic: "tool ffmpeg",
+      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}}):",
+      automerge: false,
+    },
+    {
       // package.json runs two compilers side by side: `@typescript/native` is an alias for
       // `typescript@7` (the native `tsc` that typecheck/build run), and `typescript` is an alias
       // for `@typescript/typescript6`, the JS API that typescript-eslint loads (it does not
@@ -265,6 +278,24 @@
       ],
       datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}docker{{/if}}",
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
+    },
+    {
+      // The worker's ffmpeg build in the Dockerfile: the release tag plus the sha256 of the
+      // release's checksums.sha256 asset, two consecutive ARGs under one annotation:
+      //   # renovate-digest: datasource=github-release-attachments depName=yt-dlp/FFmpeg-Builds versioning=regex:...
+      //   ARG FFMPEG_TAG=autobuild-2026-10-31-18-18
+      //   ARG FFMPEG_CHECKSUMS_SHA256=<64 hex>
+      // The tag is currentValue and the checksum currentDigest, so a bump rewrites both. The
+      // archives' own hashes are not pinned: install-ffmpeg.sh reads them from the verified
+      // checksums file. The `renovate-digest:` spelling keeps the plain-ARG manager above off it.
+      customType: "regex",
+      description: "yt-dlp FFmpeg-Builds release tag and checksums digest in the Dockerfile",
+      managerFilePatterns: ["/(^|/)Dockerfile$/"],
+      matchStrings: [
+        "#\\s*renovate-digest:\\s*datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\s*\\nARG\\s+\\S+=(?<currentValue>\\S+)\\s*\\nARG\\s+\\S+=(?<currentDigest>[a-f0-9]{64})",
+      ],
+      datasourceTemplate: "{{{datasource}}}",
+      versioningTemplate: "{{{versioning}}}",
     },
     {
       // The pinned validator in the `lint:renovate` task (`pnpm dlx ... --package renovate@X`).

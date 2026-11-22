@@ -5,8 +5,9 @@
 #           reports {"status":"ok","failing":[]} on /api/health, serves its OpenAPI document and
 #           falls back to the SPA's index.html on a deep link.
 #   worker  runs as uid 65532, `yt-dlp --version` and `ffmpeg -version` answer, no other
-#           downloader is installed, and the worker process starts, logs both tool versions and
-#           its "worker started" line.
+#           downloader is installed, ffmpeg is the pinned yt-dlp build (a GPL build, with its licence
+#           and SOURCE.md under /usr/share/licenses/ffmpeg), and the worker process starts, logs
+#           both tool versions and its "worker started" line.
 #
 # Usage: smoke-test.sh <api-image> <worker-image>
 set -euo pipefail
@@ -20,6 +21,11 @@ VALKEY_IMAGE="valkey/valkey:8-alpine"
 
 # The Node the images must run: the Dockerfile's pin, which `mise run ratchet:pins` ties to mise.
 NODE_VERSION="$(sed -n 's/^ARG NODE_VERSION=//p' "$(dirname "$0")/../../Dockerfile")"
+
+# The ffmpeg build the worker must carry: the Dockerfile's release tag (autobuild-YYYY-MM-DD-HH-MM).
+# yt-dlp's builds stamp the date into `ffmpeg -version`: "ffmpeg version N-<count>-g<hash>-YYYYMMDD".
+FFMPEG_TAG="$(sed -n 's/^ARG FFMPEG_TAG=//p' "$(dirname "$0")/../../Dockerfile")"
+FFMPEG_DATE="$(echo "${FFMPEG_TAG}" | sed -n 's/^autobuild-\([0-9]*\)-\([0-9]*\)-\([0-9]*\)-.*$/\1\2\3/p')"
 
 SUFFIX="$$"
 NETWORK="uroboros-smoke-${SUFFIX}"
@@ -170,6 +176,17 @@ for cmd in "${TESTS[@]}"; do
         fail "${cmd}"
     fi
 done
+# The pinned yt-dlp build of ffmpeg: its date-stamped version, built as a GPL build, with ffprobe
+# from the same release, and the licence notices that go with the binary.
+check "ffmpeg is the pinned build (${FFMPEG_TAG})" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
+    "ffmpeg -version | sed -n 1p | grep -Eq '^ffmpeg version N-[0-9]+-g[0-9a-f]+-${FFMPEG_DATE} ' && \
+     ffmpeg -version | grep -q -- '--enable-gpl' && \
+     ffprobe -version | sed -n 1p | grep -Eq '^ffprobe version N-[0-9]+-g[0-9a-f]+-${FFMPEG_DATE} '"
+check "ffmpeg licence and SOURCE.md are installed and name the pinned tag" \
+    docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
+    "test -s /usr/share/licenses/ffmpeg/LICENSE.txt && grep -q 'GNU GENERAL PUBLIC LICENSE' /usr/share/licenses/ffmpeg/LICENSE.txt && grep -qF '${FFMPEG_TAG}' /usr/share/licenses/ffmpeg/SOURCE.md"
+check "no apt ffmpeg: the binaries are the ones in /usr/local/bin" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
+    "test \"\$(command -v ffmpeg)\" = /usr/local/bin/ffmpeg && test \"\$(command -v ffprobe)\" = /usr/local/bin/ffprobe && ! dpkg -s ffmpeg"
 # yt-dlp is the only downloader; none of its forks may be on the image.
 check "no youtube-dl or youtube-dlc on PATH" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
     '! command -v youtube-dl && ! command -v youtube-dlc'

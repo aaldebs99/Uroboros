@@ -3,7 +3,7 @@
 # One Dockerfile, two runtime images. The server is bundled by tsdown into self-contained
 # dist/*.mjs files, so the runtime images carry no node_modules:
 #
-#     build (pnpm install, server + web build) ──┬──> worker (Debian slim Node + ffmpeg + pinned yt-dlp)
+#     build (pnpm install, server + web build) ──┬──> worker (Debian slim Node + static ffmpeg + pinned yt-dlp)
 #                                                └──> api    (distroless cc + the pinned node; the last stage)
 #
 #   docker build -t uroboros-api .                 # a bare build is the api
@@ -17,6 +17,15 @@
 ARG NODE_VERSION=24.21.0
 # renovate: datasource=npm depName=pnpm
 ARG PNPM_VERSION=12.12.1
+# yt-dlp's patched static ffmpeg build (https://github.com/yt-dlp/FFmpeg-Builds), by release tag
+# and the sha256 of that release's checksums.sha256 asset, which in turn lists the archives'
+# hashes (scripts/image/install-ffmpeg.sh checks both). Renovate bumps the two lines together;
+# its own annotation (`renovate-digest:`, not the plain one above) so the manager that owns
+# single-value ARGs leaves them alone. Daily autobuild tags are pruned after about two weeks;
+# the month-end ones stay.
+# renovate-digest: datasource=github-release-attachments depName=yt-dlp/FFmpeg-Builds versioning=regex:^autobuild-(?<major>\d+)-(?<minor>\d+)-(?<patch>\d+)-(?<build>\d+)-\d+$
+ARG FFMPEG_TAG=autobuild-2026-10-31-18-18
+ARG FFMPEG_CHECKSUMS_SHA256=b0861bfd4092ff38f4fc12dfb55ee3fef557f00809d342a0ed328db0f351ccf7
 # Stamped into the image labels.
 ARG VERSION=0.0.0-dev
 ARG REVISION=unknown
@@ -51,9 +60,21 @@ COPY migrations migrations
 # --- node: the official image, only so the api stage can copy its binary (--from takes no ARG).
 FROM node:${NODE_VERSION}-trixie-slim AS node
 
-# --- worker: Debian slim Node with ffmpeg, python3 and a venv holding the one downloader,
-# yt-dlp, pinned with hashes in scripts/image/requirements.txt (Renovate's pip_requirements
-# manager) and installed with --require-hashes. yt-dlp is the only downloader.
+# --- ffmpeg: downloads, verifies and unpacks yt-dlp's static ffmpeg and ffprobe, so curl and xz
+# stay out of the worker. Produces /usr/local/bin/{ffmpeg,ffprobe} and /usr/share/licenses/ffmpeg.
+FROM node:${NODE_VERSION}-trixie-slim AS ffmpeg
+ARG FFMPEG_TAG
+ARG FFMPEG_CHECKSUMS_SHA256
+COPY scripts/image/install-ffmpeg.sh /tmp/scripts/
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl xz-utils && \
+    rm -rf /var/lib/apt/lists/* && \
+    /tmp/scripts/install-ffmpeg.sh "${FFMPEG_TAG}" "${FFMPEG_CHECKSUMS_SHA256}"
+
+# --- worker: Debian slim Node with python3, yt-dlp's static ffmpeg (from the ffmpeg stage, with
+# its GPL licence and source pointer) and a venv holding the one downloader, yt-dlp, pinned with
+# hashes in scripts/image/requirements.txt (Renovate's pip_requirements manager) and installed
+# with --require-hashes. yt-dlp is the only downloader.
 FROM node:${NODE_VERSION}-trixie-slim AS worker
 COPY scripts/image/install-*.sh /tmp/scripts/
 COPY scripts/image/requirements.txt /tmp/scripts/
@@ -63,6 +84,8 @@ RUN chmod +x /tmp/scripts/*.sh && \
     rm -rf /tmp/scripts /var/lib/apt/lists/* && \
     groupadd --gid 65532 uroboros && \
     useradd --uid 65532 --gid uroboros --create-home --home-dir /home/uroboros --shell /usr/sbin/nologin uroboros
+COPY --from=ffmpeg /usr/local/bin/ffmpeg /usr/local/bin/ffprobe /usr/local/bin/
+COPY --from=ffmpeg /usr/share/licenses/ffmpeg/ /usr/share/licenses/ffmpeg/
 ARG VERSION
 ARG REVISION
 LABEL org.opencontainers.image.title="uroboros-worker" \
