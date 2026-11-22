@@ -65,10 +65,25 @@ const positiveInt = (name: string) =>
     .transform(Number)
     .pipe(z.number().int());
 
-/** The public origin, without a trailing slash. http is kept (push then stays off), not refused. */
+/**
+ * The public origin (scheme, host and port), without a trailing slash: push builds every URL from
+ * it, so a path would be silently dropped or doubled. http is kept (push then stays off).
+ */
 const publicBaseUrl = z
   .url({ protocol: /^https?$/, error: "UROBOROS_PUBLIC_BASE_URL must be an http(s) URL" })
-  .transform((value) => value.replace(/\/+$/, ""))
+  .refine((value) => {
+    if (!URL.canParse(value)) return true; // reported by z.url above
+    const url = new URL(value);
+    return (
+      url.pathname === "/" &&
+      url.search === "" &&
+      url.hash === "" &&
+      url.username === "" &&
+      url.password === "" &&
+      !/[?#]/.test(value)
+    );
+  }, "UROBOROS_PUBLIC_BASE_URL must be an origin only (https://host[:port]), with no path, query or credentials")
+  .transform((value) => new URL(value).origin)
   .optional();
 
 const pushSubject = z

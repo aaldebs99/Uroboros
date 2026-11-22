@@ -120,6 +120,18 @@ describe("loadConfig push", () => {
     );
   });
 
+  it.each([
+    "https://h.example/uroboros",
+    "https://h.example/app/",
+    "https://h.example/?x=1",
+    "https://h.example/#top",
+    "https://user:pw@h.example",
+  ])("refuses a base URL that is more than an origin (%j)", (url) => {
+    expect(() => loadConfig({ ...base, UROBOROS_PUBLIC_BASE_URL: url })).toThrow(
+      /UROBOROS_PUBLIC_BASE_URL must be an origin/,
+    );
+  });
+
   it.each(["http://ops.example", "ops@example.com", "mailto:"])("refuses the subject %j", (s) => {
     expect(() => loadConfig({ ...base, UROBOROS_PUSH_SUBJECT: s })).toThrow(
       /UROBOROS_PUSH_SUBJECT/,

@@ -153,6 +153,13 @@ if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yam
   exit 1
 fi
 echo "ok: a termination grace period shorter than the drain is rejected at render time"
+# Negative check: publicBaseUrl is an origin; one with a path must refuse to render.
+if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
+  --set publicBaseUrl=https://h.example/uroboros >/dev/null 2>&1; then
+  echo "expected render to fail: publicBaseUrl with a path" >&2
+  exit 1
+fi
+echo "ok: a publicBaseUrl with a path is rejected at render time"
 # One api pod gets no PodDisruptionBudget: minAvailable: 1 would block every node drain.
 if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
   --set api.hpa.enabled=false --set api.replicas=1 | grep -q '^kind: PodDisruptionBudget'; then

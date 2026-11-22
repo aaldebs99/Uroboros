@@ -83,7 +83,7 @@
     },
     "publicBaseUrl": {
       "type": "string",
-      "pattern": "^(https?://[^\\s/]+(/.*)?)?$"
+      "pattern": "^(https?://[^\\s/?#@]+/?)?$"
     },
     "push": {
       "type": "object",

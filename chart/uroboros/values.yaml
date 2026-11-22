@@ -35,8 +35,9 @@ valkey:
   existingSecret: ""
   existingSecretKey: VALKEY_URL
 
-# The public origin people open Uroboros at, e.g. https://uroboros.example.com. Exported to the
-# api as UROBOROS_PUBLIC_BASE_URL. Web Push is on only when it is https (docs/push.md).
+# The public origin people open Uroboros at, e.g. https://uroboros.example.com: scheme, host and
+# optional port, never a path (the schema refuses one). Exported to the api as
+# UROBOROS_PUBLIC_BASE_URL. Web Push is on only when it is https (docs/push.md).
 publicBaseUrl: ""
 
 # Web Push notifications to the installed web app (docs/push.md).
