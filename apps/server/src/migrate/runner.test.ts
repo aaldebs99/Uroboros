@@ -35,8 +35,22 @@ describe("runMigrations", () => {
 
   it("applies pending files in order, then nothing", async () => {
     const db = connect();
-    expect(await runMigrations(db, fixture("migrations-ok"))).toEqual({ applied: [A, B] });
-    expect(await runMigrations(db, fixture("migrations-ok"))).toEqual({ applied: [] });
+    expect(await runMigrations(db, fixture("migrations-ok"))).toEqual({
+      applied: [A, B],
+      ahead: [],
+    });
+    expect(await runMigrations(db, fixture("migrations-ok"))).toEqual({ applied: [], ahead: [] });
+  });
+
+  it("names the applied migrations this build does not have (a rollback), applying the rest", async () => {
+    const db = connect();
+    await runMigrations(db, fixture("migrations-ok"));
+    const future = "20991231235959_from_a_newer_release.sql";
+    await sql`INSERT INTO schema_migrations (name, sha256) VALUES (${future}, 'x')`.execute(db);
+    expect(await runMigrations(db, fixture("migrations-ok"))).toEqual({
+      applied: [],
+      ahead: [future],
+    });
   });
 
   it("applies exactly once under concurrent runners on separate pools", async () => {

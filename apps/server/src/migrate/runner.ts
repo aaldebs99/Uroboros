@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type Kysely, sql } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { MIGRATE_KEY_NAME } from "../shared/lockKeys.ts";
 import { MigrationError, parseMigrationName } from "./name.ts";
 
 export { MigrationError };
@@ -34,7 +35,17 @@ async function readMigrations(dir: string): Promise<MigrationFile[]> {
   );
 }
 
-async function applyAll(conn: Kysely<Database>, files: MigrationFile[]): Promise<string[]> {
+export interface MigrationOutcome {
+  /** The files this run applied, in order. */
+  applied: string[];
+  /**
+   * Applied migrations this build has no file for: the database is ahead of the build (a
+   * rollback). Not an error: every migration works with the release before it (CLAUDE.md).
+   */
+  ahead: string[];
+}
+
+async function applyAll(conn: Kysely<Database>, files: MigrationFile[]): Promise<MigrationOutcome> {
   await sql`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       name TEXT PRIMARY KEY,
@@ -67,7 +78,8 @@ async function applyAll(conn: Kysely<Database>, files: MigrationFile[]): Promise
     }
     done.push(file.name);
   }
-  return done;
+  const known = new Set(files.map((f) => f.name));
+  return { applied: done, ahead: [...applied.keys()].filter((n) => !known.has(n)).sort() };
 }
 
 /**
@@ -77,18 +89,14 @@ async function applyAll(conn: Kysely<Database>, files: MigrationFile[]): Promise
  * once). Lock, checks and migrations all run on one dedicated connection so they share a session,
  * and the lock is released in `finally`.
  */
-export async function runMigrations(
-  db: Kysely<Database>,
-  dir: string,
-): Promise<{ applied: string[] }> {
+export async function runMigrations(db: Kysely<Database>, dir: string): Promise<MigrationOutcome> {
   const files = await readMigrations(dir);
-  const applied = await db.connection().execute(async (conn) => {
-    await sql`SELECT pg_advisory_lock(hashtext('uroboros_migrate'))`.execute(conn);
+  return db.connection().execute(async (conn) => {
+    await sql`SELECT pg_advisory_lock(hashtext(${MIGRATE_KEY_NAME}))`.execute(conn);
     try {
       return await applyAll(conn, files);
     } finally {
-      await sql`SELECT pg_advisory_unlock(hashtext('uroboros_migrate'))`.execute(conn);
+      await sql`SELECT pg_advisory_unlock(hashtext(${MIGRATE_KEY_NAME}))`.execute(conn);
     }
   });
-  return { applied };
 }

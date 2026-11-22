@@ -2,19 +2,18 @@ import { Kysely, PostgresDialect } from "kysely";
 import pg from "pg";
 import { pino } from "pino";
 import type { Logger } from "pino";
+import { KEEPALIVE_DELAY_MS } from "./client.ts";
 import type { Database } from "./schema.ts";
 
 const CONNECT_TIMEOUT_MS = 2000;
 /** The default bound on one query: far above any request's, so it only catches a dead server. */
 export const DEFAULT_QUERY_TIMEOUT_MS = 30_000;
-/** TCP keepalive starts probing an idle connection after this long, to notice a vanished peer. */
-const KEEPALIVE_DELAY_MS = 10_000;
 const QUERY_READ_TIMEOUT = "Query read timeout";
 
 export interface DbOptions {
   /**
-   * Client-side bound on each query, in ms (pg's `query_timeout`); 0 turns it off, which the
-   * migrate Job does because a migration may legitimately run for minutes. Default 30000.
+   * Client-side bound on each query, in ms (pg's `query_timeout`); 0 turns it off. Default 30000.
+   * Migrations never run on a pool: they get a dedicated client with no bound at all.
    */
   queryTimeoutMs?: number;
   /** Pool size; pg's default (10) when unset. */
@@ -68,4 +67,18 @@ export function createDb(
   });
   pool.on("connect", endOnQueryTimeout);
   return new Kysely<Database>({ dialect: new PostgresDialect({ pool }) });
+}
+
+/**
+ * A Kysely handle over one dedicated client, for the migration runner: every query, transaction
+ * and session lock runs on that client. Destroying the handle leaves the client open; its owner
+ * closes it.
+ */
+export function singleClientDb(client: pg.Client): Kysely<Database> {
+  const pooled = Object.assign(client, { release: () => undefined });
+  return new Kysely<Database>({
+    dialect: new PostgresDialect({
+      pool: { connect: () => Promise.resolve(pooled), end: () => Promise.resolve(), options: {} },
+    }),
+  });
 }
