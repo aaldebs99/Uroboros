@@ -1,0 +1,23 @@
+{
+  "id": "/",
+  "name": "Uroboros",
+  "short_name": "Uroboros",
+  "description": "Self-hosted media downloads: library, queue and subscriptions",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "lang": "en",
+  "background_color": "#010611",
+  "theme_color": "#010611",
+  "icons": [
+    { "src": "pwa-64x64.png", "sizes": "64x64", "type": "image/png" },
+    { "src": "pwa-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "pwa-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

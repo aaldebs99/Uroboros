@@ -4,7 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <link rel="icon" type="image/svg+xml" href="/uroboros.svg" />
+    <!-- PWA: keep theme-color and the icon names in sync with public/manifest.webmanifest. -->
+    <meta name="theme-color" content="#010611" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Uroboros" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/svg+xml" href="/uroboros.svg" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <script>
       // Keep in sync with src/lib/theme.ts (resolveTheme); src/lib/theme.test.ts asserts they agree.
       try {

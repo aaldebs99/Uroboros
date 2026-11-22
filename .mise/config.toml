@@ -290,6 +290,19 @@ description = "Same as dev:ui, proxying /api to the compose stack's Caddy (docke
 env = { UROBOROS_API_URL = "http://127.0.0.1:{{ get_env(name='UROBOROS_PORT', default='18080') }}" }
 run = "pnpm -F @uroboros/web dev"
 
+[tasks.icons]
+description = "Regenerate the PWA icons in apps/web/public from assets/logos/uroboros-transparent.svg; commit the result"
+# The asset is the source of truth: it is copied to public/uroboros.svg (the favicon), and the
+# generator writes its PNGs and favicon.ico beside that copy, as apps/web/pwa-assets.config.ts
+# says. Pinned and run through dlx rather than installed: the generator pulls in sharp, a native
+# module, for a handful of files that change only when the logo does. Run from the repo root so
+# pnpm-workspace.yaml's minimumReleaseAge soak applies to what dlx resolves.
+run = """
+set -eu
+cp assets/logos/uroboros-transparent.svg apps/web/public/uroboros.svg
+pnpm dlx @vite-pwa/assets-generator@2.0.0 --root apps/web
+"""
+
 [tasks."build:server"]
 description = "Bundle the server with tsdown into apps/server/dist/{api,worker,migrate,gen}.mjs"
 depends = ["install"]

@@ -1,19 +1,7 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "types": ["vite/client", "node"],
-    "jsx": "react-jsx",
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "moduleDetection": "force",
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noUncheckedSideEffectImports": true,
-    "paths": { "@/*": ["./src/*"] }
-  },
-  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+  // Two programs: the app (DOM) and the service worker (WebWorker). `tsc -b` checks both. The
+  // paths entry is for tools that read only this file (the shadcn CLI).
+  "files": [],
+  "compilerOptions": { "paths": { "@/*": ["./src/*"] } },
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.sw.json" }]
 }
