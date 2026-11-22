@@ -26,7 +26,7 @@ What replaces the Rust: the rest of this section, with each choice paired to the
 | sqlx runtime queries + SQL migrations applied on startup | Kysely (typed query builder over `pg`) + plain `.sql` migrations in `migrations/`, forward-only, never edited once shipped. Applied by a one-shot `migrate` command (Helm pre-install/upgrade Job), not on every replica's startup, to avoid races between replicas. |
 | testcontainers + nextest setup script + per-test template DB clone | vitest `globalSetup` starting `@testcontainers/postgresql` and Valkey once per run, migrating `app_template`, each test `CREATE DATABASE … TEMPLATE app_template`. `APP_TEST_DATABASE_URL` override kept for Forgejo runners. |
 | clippy + cargo-deny | typescript-eslint strict-type-checked, plus `pnpm audit` and a license allowlist check |
-| xtask ratchets | Ratchets reimplemented as a small TS package `tools/ratchet` (arborist for complexity, which already supports TypeScript) |
+| xtask ratchets | Ratchets reimplemented as a small TS package `tools/ratchet` (complexity via eslint-plugin-sonarjs cognitive-complexity, the same SonarSource metric arborist computes; arborist itself is a Rust crate) |
 | rust-embed single binary | The API image serves `web/dist` statically; one image, two entrypoints (see below) |
 
 New pieces the template doesn't have: Valkey + BullMQ (queues, repeatable/scheduled jobs, rate limits), `ioredis` pub/sub for cross-replica events, OIDC via `openid-client` with sessions in Valkey, S3-compatible object storage via `@aws-sdk/client-s3` (with a local-disk adapter behind the same interface, dev only), TanStack Router for the SPA, shadcn/ui on Tailwind 4 for components, Vidstack for the player.
