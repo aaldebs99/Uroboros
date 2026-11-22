@@ -1,0 +1,18 @@
+# Caddy for the local compose stack: one entrypoint, round-robin over both api replicas.
+# `dynamic a` re-resolves the `api` service name every two seconds, so replicas that restart
+# or scale are picked up.
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	reverse_proxy {
+		dynamic a {
+			name api
+			port 8080
+			refresh 2s
+		}
+		lb_policy round_robin
+	}
+}
