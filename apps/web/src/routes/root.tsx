@@ -32,7 +32,10 @@ export function RootLayout() {
                 <Menu />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-64 gap-0 border-sidebar-border bg-sidebar p-0">
+            <SheetContent
+              side="left"
+              className="w-64 gap-0 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground"
+            >
               <SheetTitle className="sr-only">Navigation</SheetTitle>
               <SheetDescription className="sr-only">
                 Move between sections of Uroboros.

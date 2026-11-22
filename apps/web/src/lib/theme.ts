@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark";
 
-const STORAGE_KEY = "uroboros-theme";
+export const STORAGE_KEY = "uroboros-theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
 const listeners = new Set<() => void>();
 
