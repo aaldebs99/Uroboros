@@ -8,13 +8,13 @@
 #
 #   push to main          -> <REGISTRY>/aaldebs99/uroboros:main (no per-commit tags)
 #   published release X.Y.Z (cut by release-pr.yml) -> :X.Y.Z, :X.Y, :latest
-#   workflow_dispatch     -> same tags as a branch push
+#   workflow_dispatch     -> the tags of the ref it runs on (a branch: :<branch>; a tag: :X.Y.Z, :X.Y, :latest)
 #   the worker image      -> every tag above with -worker appended (:main-worker,
 #                            :X.Y.Z-worker, :X.Y-worker, :latest-worker), the chart's
 #                            image.workerSuffix
 #
-# A release's images pass scripts/image/smoke-test.sh before any tag is pushed; a push to main
-# publishes :main without it.
+# Every run on a tag ref (the release event, or a manual dispatch on a tag) passes
+# scripts/image/smoke-test.sh before any tag is pushed; a push to main publishes :main without it.
 #
 # Ported from Djinn's release.yml (its `slim` image is the worker here). This is not a CI gate:
 # `mise run ci` and ci:parity do not know about it.
@@ -107,8 +107,13 @@ jobs:
       # rebuilding from this builder's cache (the same layers, so the pushed image is the one
       # tested). A failure leaves :X.Y.Z, :latest and their -worker twins where they were. The
       # :main pushes skip this and push as before.
+      #
+      # Gated on the tag ref, the same condition that turns on the release tags below, not on the
+      # event name: a workflow_dispatch run on a tag also pushes :X.Y.Z, :X.Y and :latest, and must
+      # be smoked first too. (Djinn's release.yml gates on `github.event_name == 'release'` and has
+      # that gap.)
       - name: Build the api image for the smoke test
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -125,7 +130,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache
 
       - name: Build the worker image for the smoke test
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/')
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -144,7 +149,7 @@ jobs:
             type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache-worker
 
       - name: Smoke test the release images
-        if: github.event_name == 'release'
+        if: startsWith(github.ref, 'refs/tags/')
         run: scripts/image/smoke-test.sh uroboros:smoke uroboros:smoke-worker
 
       - name: Build and push the api image
