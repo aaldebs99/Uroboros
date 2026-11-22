@@ -11,5 +11,7 @@ docs/superpowers
 .playwright-mcp
 junit.xml
 *.log
-.env
-.env.*
+# Environment files anywhere in the tree, which may hold secrets; templates stay.
+**/.env
+**/.env.*
+!**/.env.example
