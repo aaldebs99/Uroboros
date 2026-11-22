@@ -163,9 +163,10 @@
     {
       // The worker image's pinned tools: yt-dlp with its hashes in scripts/image/requirements.txt
       // (the pip_requirements manager below, which rewrites the hashes with the pin). A human
-      // looks first: `mise run ci` never builds the image, so a bad pin would only show on the
-      // release build after merge. `build(image)`, never a `feat!`: a bundled tool's major is not
-      // a breaking change of Uroboros. yt-dlp is the only downloader; no other is tracked.
+      // looks first: `mise run ci` builds the worker image (so the hashes must install) but never
+      // runs it, and the release smoke test that does run yt-dlp only happens after merge.
+      // `build(image)`, never a `feat!`: a bundled tool's major is not a breaking change of
+      // Uroboros. yt-dlp is the only downloader; no other is tracked.
       description: "Image tools: the worker's pinned yt-dlp, reviewed",
       matchManagers: ["pip_requirements"],
       matchDepNames: ["yt-dlp"],
@@ -188,6 +189,35 @@
       matchPackageNames: ["typescript", "@typescript/typescript6", "typescript-eslint"],
       groupName: "typescript",
       automerge: false,
+    },
+
+    {
+      // The image .github/workflows/renovate.yml runs (github-actions manager, docker datasource)
+      // and the validator `mise run lint:renovate` pins (customManager below) are one release
+      // train; one PR moves both, so the config is validated by the version that runs it once the
+      // PR lands. Renovate ships minors weekly and they are as safe as its patches, so minor,
+      // patch and digest updates merge themselves (`lint:renovate` still gates the config). A
+      // major is where config keys get removed; it does not match this rule, so it arrives as a
+      // reviewed PR. `ci(renovate)`, never a `feat`/`fix`: a tooling bump must not cut a release
+      // (scripts/release/propose.sh releases on feat, fix, perf, revert, deps or a breaking change).
+      description: "Renovate: workflow image and config validator together, self-merging",
+      matchDepNames: ["renovate", "ghcr.io/renovatebot/renovate"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      groupName: "renovate",
+      semanticCommitType: "ci",
+      semanticCommitScope: "renovate",
+      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}}):",
+      automerge: true,
+    },
+    {
+      // GHCR returns no release timestamps, so under the soak (and Renovate's default
+      // minimumReleaseAgeBehaviour "timestamp-required") every update of the GHCR image would be
+      // held forever. Look the image up on Docker Hub instead, where Renovate publishes the same
+      // multi-arch index under the same digest and every tag carries its push time, so the image
+      // soaks and moves with the validator. The workflow still pulls from GHCR.
+      description: "Renovate's GHCR image: versions, digests and timestamps from Docker Hub's copy",
+      matchDepNames: ["ghcr.io/renovatebot/renovate"],
+      overridePackageName: "renovate/renovate",
     },
 
     // ── 4. Manager-specific fixes ─────────────────────────────────────────────────────────────

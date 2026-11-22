@@ -1,0 +1,190 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+#
+# CI. Portable: runs unchanged on GitHub Actions and on Forgejo/Gitea Actions (act-based runners).
+# No `permissions:` blocks: Forgejo ignores the field and warns about it on every run;
+# capabilities come from the forge's Authorized Integrations (zizmor's audit of the field is
+# off in .github/zizmor.yml for the same reason).
+#
+# EVERY GATE IS A ONE-LINE MISE TASK STEP. The commands live in .mise/config.toml, nowhere else,
+# and the set of tasks this file runs must equal `[tasks.ci].depends` there. The `ci:parity` task
+# (itself a gate below) fails the build if they drift in either direction. Adding a gate means
+# adding the task, one step here, and one entry in `[tasks.ci].depends`. The parity check refuses
+# any other line that names a mise task run (an echo, a flag, two chained tasks), so comments here
+# never spell that syntax out. The same check requires every job holding such a step to be in the
+# `ci` job's `needs`, and refuses continue-on-error anywhere here: either would let a gate fail
+# without failing the required check.
+#
+# Jobs split by what they need to warm up, not by topic:
+#   static  cheap checks; installs the workspace for the ratchets, builds nothing
+#   node    the TypeScript workspace: lock, audit, licences, codegen drift, eslint, tsc, the
+#           vitest projects (with Postgres and Valkey containers) and the web build
+#   chart   helm lint and kubeconform over the chart
+#   images  docker build of both image targets (api, worker); nothing is pushed. The smoke test
+#           runs on release, in release.yml, before any tag is pushed.
+#   ci      one stable name to mark as the required status check in branch protection
+#
+# Runner labels are the Gitea runner's (see .github/actionlint.yaml); `-dind` ones carry a Docker
+# daemon. Every timeout carries 90 extra minutes: the runner holds job pods Pending under the
+# scheduler's pod caps, and that wait counts against timeout-minutes.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # One run per PR (newer pushes cancel older ones); pushes to main each run to completion so
+  # every commit on main gets a verdict.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  static:
+    name: Static checks
+    # big, not small: lint:renovate installs and runs renovate, which a small runner killed
+    # (exit 137) in Djinn.
+    runs-on: big
+    timeout-minutes: 105
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          # Pin mise itself too, so a mise release can't change CI behaviour without a commit.
+          # Renovate's github-actions manager tracks this input.
+          version: 2026.9.14
+          # mise-action exports this as MISE_GITHUB_TOKEN for api.github.com. On a non-GitHub
+          # forge the job token is that forge's and would 401 there, so send none: installs come
+          # from the URLs pinned in .mise/mise.lock and do not need the API.
+          github_token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+      - run: mise run fmt:check
+      - run: mise run lint:workflows
+      - run: mise run lint:shell
+      - run: mise run lint:renovate
+      - run: mise run ratchet:lines
+      - run: mise run ratchet:suppressions
+      - run: mise run ratchet:complexity
+      - run: mise run ratchet:pins
+      - run: mise run ci:parity
+      - run: mise run ratchet:test
+
+  node:
+    name: TypeScript
+    # Docker for the Postgres and Valkey the server tests run against.
+    runs-on: big-dind
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.9.14
+          github_token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+      - run: mise run check:lock
+      - run: mise run check:audit
+      - run: mise run check:licenses
+      - run: mise run check:gen
+      - run: mise run lint
+      - run: mise run check:types
+      # Postgres and Valkey started here, as Djinn does, rather than by testcontainers: the job's
+      # Docker daemon starts empty, and pulls into it are retried here (Djinn saw them fail with
+      # containerd ingest-lock errors). The suite's global setup builds its migrated template on
+      # this server (UROBOROS_TEST_DATABASE_URL) and every test clones it, and skips starting
+      # containers of its own. The tags must equal the ones in apps/server/test/globalSetup.ts,
+      # which a laptop run starts itself.
+      - name: Start Postgres and Valkey for the tests
+        run: |
+          set -eu
+          for image in postgres:18-alpine valkey/valkey:8-alpine; do
+            for attempt in 1 2 3 4 5; do
+              docker pull "$image" && break
+              sleep $((attempt * 5))
+            done
+            docker image inspect "$image" > /dev/null
+          done
+          docker run -d --name uroboros-test-pg -p 127.0.0.1:5432:5432 \
+            -e POSTGRES_USER=uroboros -e POSTGRES_PASSWORD=uroboros -e POSTGRES_DB=uroboros_test \
+            postgres:18-alpine postgres -c fsync=off -c synchronous_commit=off \
+            -c full_page_writes=off -c max_connections=500
+          docker run -d --name uroboros-test-valkey -p 127.0.0.1:6379:6379 valkey/valkey:8-alpine
+          for _ in $(seq 1 60); do
+            if docker exec uroboros-test-pg pg_isready -U uroboros -d uroboros_test &&
+              docker exec uroboros-test-valkey valkey-cli ping; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs uroboros-test-pg
+          docker logs uroboros-test-valkey
+          exit 1
+      - run: mise run test
+        env:
+          UROBOROS_TEST_DATABASE_URL: postgres://uroboros:uroboros@127.0.0.1:5432/uroboros_test
+          UROBOROS_TEST_VALKEY_URL: redis://127.0.0.1:6379
+      - run: mise run build:ui
+
+  chart:
+    name: Helm chart
+    runs-on: small
+    timeout-minutes: 100
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.9.14
+          github_token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+      - run: mise run lint:chart
+
+  images:
+    name: Images
+    # Docker for the builds. Nothing is pushed and no registry is read; release.yml publishes.
+    runs-on: big-dind
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.9.14
+          github_token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+      - run: mise run docker:build
+
+  # The single required status check. `if: always()` so it reports (red) even when a dependency
+  # failed or was cancelled: a skipped required check reads as "pending" forever on some forges,
+  # and as "passed" on others.
+  ci:
+    name: CI
+    needs: [static, node, chart, images]
+    if: always()
+    runs-on: small
+    timeout-minutes: 95
+    steps:
+      - name: All jobs succeeded
+        env:
+          STATIC: ${{ needs.static.result }}
+          NODE: ${{ needs.node.result }}
+          CHART: ${{ needs.chart.result }}
+          IMAGES: ${{ needs.images.result }}
+        run: |
+          echo "static=$STATIC node=$NODE chart=$CHART images=$IMAGES"
+          for result in "$STATIC" "$NODE" "$CHART" "$IMAGES"; do
+            if [ "$result" != "success" ]; then
+              echo "::error::a CI job did not succeed (static=$STATIC node=$NODE chart=$CHART images=$IMAGES)"
+              exit 1
+            fi
+          done

@@ -1,0 +1,129 @@
+---
+# Release PR + release cut, on every push to main. Two idempotent jobs, in order:
+#
+#   publish   If the version main carries (apps/server/package.json) has no
+#             release yet, create it. The forge creates the tag with the
+#             release and fires `release: published`, which triggers
+#             release.yml to build, smoke-test and push the images. Reads the
+#             FILE, not commit messages, so how the release PR was merged is
+#             irrelevant. The 0.0.0 placeholder is never released.
+#   propose   Ask git-cliff for the next version from the conventional commits
+#             since the newest tag (the whole history before the first one,
+#             proposing 0.1.0); rebuild the `release/next` branch with the
+#             version stamped into apps/server/package.json, package.json,
+#             api/openapi.json and the chart's appVersion (scripts/release/lib.sh)
+#             plus the new CHANGELOG section, in ONE commit; force-push; open or
+#             refresh the `chore(release): X.Y.Z` PR. Merging that PR is what
+#             cuts a release (the next push to main runs `publish`).
+#
+# Ported from Djinn, which copied it from quire, where it replaced
+# release-please: the action only speaks GitHub's API. The scripts are in
+# scripts/release/ and the changelog and bump rules in cliff.toml. This is not
+# a CI gate: `mise run ci` and ci:parity do not know about it.
+#
+# --- Why a bot token and not the automatic token ----------------------------
+# The forge fires no workflow events for anything a workflow's own token
+# creates. With the automatic token the release PR would show no checks, and
+# the release it creates would trigger nothing, so the image would never be
+# built. `RELEASE_PLEASE_TOKEN` is an access token of a bot user: an ordinary
+# account with write access to this repository, the token scoped
+# write:repository, write:issue and read:user. Its pushes, PRs and releases
+# are ordinary user events. The scripts read the bot's login and email from
+# the API (that is what read:user is for), so nothing here names the account.
+#
+# --- Cold toolchain -----------------------------------------------------------
+# No cache in a job that publishes: a cache entry is writable by any job on any
+# branch. git-cliff and jq are installed cold and named on every `mise exec`
+# (a bare `mise exec --` would first install every tool in .mise/config.toml).
+# They are named without versions: both come from .mise/config.toml's [tools],
+# their only copy, and `--locked` takes the URL and checksum from
+# .mise/mise.lock, refusing a tool the lock does not hold. mise itself is
+# pinned as in ci.yml.
+#
+# `${{ }}` never appears inside a `run:` body: values go through `env:` and are
+# read as shell variables.
+
+name: Release PR
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Never cancel: a half-created release is far worse than a redundant run.
+  cancel-in-progress: false
+
+env:
+  # The forge exposes its own API root, web root and repo slug under the GitHub names.
+  FORGE_API: ${{ github.api_url }}
+  FORGE_URL: ${{ github.server_url }}
+  FORGE_REPO: ${{ github.repository }}
+
+jobs:
+  publish:
+    name: Publish release
+    runs-on: small
+    timeout-minutes: 100
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history and tags: git-cliff renders the release body from the
+          # commits since the previous tag.
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          # Pinned as in ci.yml, so a mise release cannot change this job without a commit.
+          version: 2026.9.14
+          cache: false
+          install: false
+          # Empty on purpose: the default is the job token, which the action
+          # exports as MISE_GITHUB_TOKEN and mise then presents to
+          # api.github.com, where a forge token is a 401. Unauthenticated is
+          # rate-limited, not broken.
+          github_token: ""
+
+      - name: Install git-cliff and jq
+        run: mise install --locked git-cliff jq
+
+      - name: Publish the release main carries, if any
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: mise exec git-cliff jq -- scripts/release/publish.sh
+
+  propose:
+    name: Propose next release
+    needs: publish
+    runs-on: small
+    timeout-minutes: 100
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          # The push is made with the bot token explicitly; nothing persisted.
+          persist-credentials: false
+
+      - name: Set up mise
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          # Pinned as in ci.yml, so a mise release cannot change this job without a commit.
+          version: 2026.9.14
+          cache: false
+          install: false
+          github_token: ""
+
+      - name: Install git-cliff and jq
+        run: mise install --locked git-cliff jq
+
+      - name: Propose the next release
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: mise exec git-cliff jq -- scripts/release/propose.sh

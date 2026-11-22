@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+#
+# Validate the PR title against Conventional Commits.
+#
+# The title is what lands as the squash-merge subject (and what a reader sees in the PR list), and
+# git-cliff (cliff.toml) builds CHANGELOG.md from conventional commit subjects — a title that does
+# not parse is dropped from the changelog.
+#
+# Runs on `pull_request`, not `pull_request_target`: it needs no secrets and no checkout. The
+# title is attacker-controlled text, so it reaches the script only through an env var, never by
+# `${{ }}` interpolation into the script body (template injection).
+name: PR Title
+
+on:
+  pull_request:
+    # `ready_for_review` is not a default activity type; without it a PR developed as a draft
+    # would reach "ready" with its title never checked. Naming any type replaces the defaults,
+    # so they are listed too.
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Conventional Commits
+    # A draft's title has not had to settle yet; `ready_for_review` above re-runs the check.
+    if: github.event.pull_request.draft == false
+    runs-on: small
+    timeout-minutes: 95
+    steps:
+      - name: Validate the title
+        shell: bash
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          # The types cliff.toml renders changelog sections for, plus `chore` and `revert`.
+          types='feat|fix|perf|refactor|revert|docs|style|test|build|ci|chore|deps'
+
+          # Scope is optional and unconstrained (`fix(ui,api):` is fine); `!` marks breaking.
+          # The pattern must go through a variable: inlined in `[[ =~ ]]`, bash parses the
+          # alternation's parens as shell syntax.
+          re="^($types)(\([^)]+\))?!?:[[:space:]].+"
+          if [[ "$TITLE" =~ $re ]]; then
+            echo "OK: $TITLE"
+            exit 0
+          fi
+
+          # `git revert` titles its commit `Revert "<subject>"`; accept it so an urgent revert
+          # never has to be retitled first.
+          if [[ "$TITLE" =~ ^Revert\ \".+\"$ ]]; then
+            echo "OK (git-revert title): $TITLE"
+            exit 0
+          fi
+
+          cat >&2 <<MSG
+          PR title is not a Conventional Commit:
+
+              $TITLE
+
+          Expected:  <type>[(scope)][!]: <description>
+          Types:     ${types//|/, }
+          Examples:  feat(api): add a downloads endpoint
+                     fix(web): stop refetching info on window focus
+                     refactor(server)!: rename UROBOROS_BIND to UROBOROS_LISTEN
+          MSG
+          exit 1

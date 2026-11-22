@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/woodruffw/zizmor/main/support/zizmor.schema.json
+# zizmor (`mise run lint:workflows`) configuration.
+#
+# The workflows carry no `permissions:` blocks: this repository runs on Forgejo Actions, which
+# does not implement the field, ignores it and warns about it on every run. Capabilities come
+# from the forge's Authorized Integrations instead, so an audit of the field has nothing to
+# measure here. Delete this file and restore the blocks if the workflows ever move to GitHub.
+rules:
+  excessive-permissions:
+    disable: true

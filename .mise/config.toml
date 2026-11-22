@@ -29,6 +29,9 @@ actionlint = "1.7.12"
 "aqua:zizmorcore/zizmor" = "1.30.1"
 # Renders CHANGELOG.md from conventional commits (cliff.toml). `mise run changelog`.
 git-cliff = "2.14.2"
+# JSON for scripts/release/ and `check:licenses`. release-pr.yml installs only git-cliff and jq,
+# from the lock, by name.
+jq = "1.8.2"
 # Chart rendering and manifest validation for the Kubernetes deployment.
 helm = "4.3.2"
 "aqua:yannh/kubeconform" = "0.8.0"
@@ -149,7 +152,7 @@ description = "Validate .renovaterc.json5 with Renovate's own validator (CI gate
 # `pnpm dlx` applies the same `minimumReleaseAge` soak to renovate's transitive dependencies.
 # Install scripts are blocked except re2's: without its native build the validator falls back to
 # JS RegExp and stops checking regexes the way Renovate runs them.
-run = "pnpm dlx --allow-build re2 --package renovate@44.150.1 renovate-config-validator --strict --no-global .renovaterc.json5"
+run = "pnpm dlx --allow-build re2 --package renovate@44.167.5 renovate-config-validator --strict --no-global .renovaterc.json5"
 
 [tasks.changelog]
 description = "Render CHANGELOG.md from conventional commits (git-cliff, cliff.toml)"
@@ -291,6 +294,52 @@ description = "Type-check and build the web UI into apps/web/dist"
 depends = ["install"]
 run = "pnpm -F @uroboros/web build"
 
+# ── Dependency checks ─────────────────────────────────────────────────────────────────────────
+
+[tasks."check:lock"]
+description = "Fail if pnpm-lock.yaml has drifted from the package.json files (CI gate)"
+# Resolves without touching node_modules: seconds. The image build installs with
+# --frozen-lockfile, which is the worst place to discover a stale lockfile.
+run = "pnpm install --frozen-lockfile --lockfile-only"
+
+[tasks."check:audit"]
+description = "Fail on any high or critical advisory in the dependency tree (CI gate, needs network)"
+# A real advisory is fixed by bumping the package (or a pnpm override with a reason), never by
+# an ignore list here.
+run = "pnpm audit --audit-level high"
+
+[tasks."check:licenses"]
+description = "Fail if a shipped dependency's license is outside the allowlist (CI gate)"
+depends = ["install"]
+# The shipped set: the production dependencies of the packages that end up in the images (the
+# server bundle and the web dist). Dev tooling is not distributed, so it is not checked here.
+#
+# The allowlist is policy, not an inventory: an entry nothing uses today is fine to keep. Beyond
+# the usual permissive set it holds OFL-1.1 (the SIL font licence of the bundled
+# @fontsource-variable fonts) and Unlicense (a public-domain dedication; isbot, under the router).
+# An SPDX expression such as `(MIT OR Apache-2.0)` is not split: it fails until it is listed as is,
+# so every new shape of licence is a deliberate decision.
+run = '''
+set -eu
+allow='["MIT","ISC","Apache-2.0","BSD-2-Clause","BSD-3-Clause","0BSD","BlueOak-1.0.0","MPL-2.0","OFL-1.1","Unlicense"]'
+report=$(pnpm licenses list --json --prod \
+  --filter @uroboros/server --filter @uroboros/web --filter @uroboros/contract)
+count=$(printf '%s' "$report" | jq '[.[][]] | length')
+if [ "$count" -eq 0 ]; then
+  echo "pnpm licenses list reported no packages; refusing to pass an empty set" >&2
+  exit 1
+fi
+bad=$(printf '%s' "$report" | jq -r --argjson allow "$allow" '
+  to_entries[] | select(.key as $k | $allow | index($k) | not)
+  | .key as $k | .value[] | "  \($k)  \(.name)@\(.versions | join(","))"')
+if [ -n "$bad" ]; then
+  echo "dependencies with a licence outside the allowlist:" >&2
+  echo "$bad" >&2
+  exit 1
+fi
+echo "ok: ${count} shipped packages, every licence on the allowlist"
+'''
+
 # ── Lint, types, tests ────────────────────────────────────────────────────────────────────────
 
 [tasks.lint]
@@ -308,3 +357,39 @@ run = "pnpm -r exec tsc -b --noEmit"
 description = "Every vitest project (needs Docker for the server's Postgres/Valkey containers)"
 depends = ["install"]
 run = "pnpm vitest run"
+
+# ── The aggregate gate ────────────────────────────────────────────────────────────────────────
+
+[tasks.ci]
+description = "Everything CI runs. If this passes locally it passes in CI."
+# THIS LIST IS THE PARITY SOURCE: `ci:parity` requires it to equal the set of `mise run <task>`
+# steps in .github/workflows/ci.yml, in both directions. Add a gate in both places or neither.
+# release.yml, release-pr.yml and renovate.yml are not gates and are not compared.
+#
+# Ordered cheap-first so a human reading output sees fast failures first, but mise runs `depends`
+# IN PARALLEL (default `--jobs` 4), so the order is a scheduling hint, not a sequence. Shared
+# dependencies (`install`) run once. Nothing here may depend on another gate having run first.
+#
+# `test` and `docker:build` need Docker; `check:audit` and `lint:renovate` need the network.
+depends = [
+  "fmt:check",
+  "lint:workflows",
+  "lint:shell",
+  "lint:renovate",
+  "ratchet:lines",
+  "ratchet:suppressions",
+  "ratchet:complexity",
+  "ratchet:pins",
+  "ci:parity",
+  "ratchet:test",
+  "check:lock",
+  "check:audit",
+  "check:licenses",
+  "check:gen",
+  "lint",
+  "check:types",
+  "test",
+  "build:ui",
+  "lint:chart",
+  "docker:build",
+]

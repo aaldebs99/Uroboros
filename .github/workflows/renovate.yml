@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+#
+# Renovate, self-hosted: two runs a day against this repository, plus a manual trigger. The policy
+# (what to bump, when to automerge, the soak) lives in .renovaterc.json5; this file only says
+# where and as whom Renovate runs. Forgejo schedules only the copy of this file that is on the
+# default branch, and reads `schedule` as UTC.
+#
+# RENOVATE_TOKEN is an access token of the Renovate bot account: a collaborator with write access,
+# scoped write:repository, write:issue, read:user and read:organization. Renovate signs its commits
+# as that account, reading the name and email from it, so both must be set on the account.
+#
+# RENOVATE_GITHUB_COM_TOKEN is a github.com token with no scopes (a fine-grained one with public
+# read-only access will do). Renovate looks up GitHub-hosted dependencies (every action, the mise
+# tools released on GitHub) on api.github.com, which this forge's token cannot reach; without it
+# those dependencies are skipped with a "GitHub token is required" warning. Forgejo refuses secret
+# names that start with GITHUB_, hence the prefix.
+#
+# A manual run can raise `log_level` to debug, which names the API call behind an abort.
+#
+# The job runs inside Renovate's own image, pinned by digest; Renovate keeps the pin current (the
+# github-actions manager reads `container.image`, looked up on Docker Hub's copy for its release
+# timestamps, see .renovaterc.json5) in one PR with the `lint:renovate` validator's pin. Whatever a
+# lockfile update needs (pnpm, hashin for the worker's requirements.txt) is installed on demand
+# inside the container.
+#
+# This is not a CI gate: `mise run ci` and ci:parity do not know about it.
+name: Renovate
+
+on:
+  schedule:
+    # 04:23 and 06:23 UTC, daily. Off the full hour so it does not queue behind everyone else's crons.
+    - cron: "23 4,6 * * *"
+  workflow_dispatch:
+    inputs:
+      log_level:
+        description: Renovate's log level
+        type: choice
+        options: [info, debug]
+        default: info
+
+concurrency:
+  # Never two runs at once; a scheduled run that overlaps a manual one simply waits.
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: medium
+    timeout-minutes: 150
+    container:
+      image: ghcr.io/renovatebot/renovate:44.167.5@sha256:c33150ec6407624a9399a2d827fd125becafdbe4519d7584488cbdd17f99081e
+    env:
+      RENOVATE_PLATFORM: forgejo
+      # The server root. Renovate appends /api/v1 itself (and strips it if given).
+      RENOVATE_ENDPOINT: ${{ github.server_url }}
+      RENOVATE_REPOSITORIES: ${{ github.repository }}
+      RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+      RENOVATE_GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_GITHUB_COM_TOKEN }}
+      # A scheduled run has no inputs.
+      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
+    steps:
+      - name: Require the token
+        run: |
+          set -eu
+          : "${RENOVATE_TOKEN:?the RENOVATE_TOKEN repository secret is not set}"
+
+      - name: Run Renovate
+        run: renovate

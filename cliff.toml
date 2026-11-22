@@ -1,19 +1,27 @@
-# git-cliff configuration: CHANGELOG.md from conventional commits. `mise run changelog`.
+# git-cliff configuration for the release pipeline (.github/workflows/release-pr.yml and
+# scripts/release/) and for `mise run changelog`. The section names, ordering and bump rules
+# reproduce what release-please generates. Ported from Djinn.
 #
-# Forge-agnostic on purpose: no hardcoded repository URLs, so commit hashes are rendered as plain
-# short SHAs. To link them, set `repo` in the body template below to your repository's web URL
-# and wrap the SHA in a link (`{{ repo }}/commit/{{ commit.id }}` works on GitHub, Forgejo, Gitea
-# and GitLab alike).
+# One thing git-cliff cannot express: a release should only be cut for a releasing commit type
+# (feat, fix, perf, revert, deps, breaking), while `--bumped-version` bumps for any conventional
+# commit. That gate lives in scripts/release/propose.sh, not here.
 #
-# Tags are bare semver (`0.3.11`, never `v0.3.11`): `tag_pattern` decides what counts as a release.
+# Tags are bare semver (`0.3.11`, never `v0.3.11`): `tag_pattern` decides what counts as a release
+# and scripts/release/lib.sh reads the same pattern. The link host is hardcoded on purpose: a
+# constant cannot go stale and needs no API access.
 
 [changelog]
 # `--prepend` re-emits the header once and inserts the new section directly under it, so it must
 # match the first line of CHANGELOG.md exactly.
 header = "# Changelog\n\n"
 body = """
+{%- set repo = "https://code.example.com/aaldebs99/Uroboros" -%}
 {% if version -%}
-## {{ version }} ({{ timestamp | date(format="%Y-%m-%d") }})
+{% if previous.version -%}
+## [{{ version }}]({{ repo }}/compare/{{ previous.version }}...{{ version }}) ({{ timestamp | date(format="%Y-%m-%d") }})
+{% else -%}
+## [{{ version }}]({{ repo }}/releases/tag/{{ version }}) ({{ timestamp | date(format="%Y-%m-%d") }})
+{% endif -%}
 {% else -%}
 ## Unreleased
 {% endif -%}
@@ -22,12 +30,16 @@ body = """
 ### {{ group | striptags | trim }}
 
 {% for commit in commits -%}
-* {% if commit.breaking %}**BREAKING** {% endif %}{% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | split(pat="\n") | first | trim }} ({{ commit.id | truncate(length=7, end="") }})
+* {% if commit.breaking %}**BREAKING** {% endif %}{% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | split(pat="\n") | first | trim }} ([{{ commit.id | truncate(length=7, end="") }}]({{ repo }}/commit/{{ commit.id }}))
 {% endfor -%}
 {% endfor %}
 """
 footer = ""
 trim = true
+# Turn "(#140)" PR references into links, the way release-please did.
+postprocessors = [
+  { pattern = '\(#(\d+)\)', replace = "([#${1}](https://code.example.com/aaldebs99/Uroboros/pulls/${1}))" },
+]
 
 [git]
 conventional_commits = true

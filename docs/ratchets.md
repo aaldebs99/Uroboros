@@ -131,7 +131,14 @@ The `Dockerfile` is mandatory: a missing file (a symlink to one counts), or a mi
 
 - **Checks:** the set of tasks that `.github/workflows/ci.yml` runs as `mise run` steps equals
   `[tasks.ci].depends` in `.mise/config.toml`, in both directions. If either set is empty, or
-  `ci.yml` is missing, the check is a layout error (exit 2), never a pass.
+  `ci.yml` is missing, the check is a layout error (exit 2), never a pass. A step counts only when
+  its whole line is `run: mise run <task>` (a trailing YAML comment is fine). Any other line that
+  mentions `mise run` outside a comment, such as an `echo`, a flag before the task, two chained
+  tasks or a multi-line `run: |` body, is a layout error too, because a line parser cannot tell
+  whether it runs a gate. Every job holding a gate step must be in the `ci` job's `needs` (the
+  `ci` job is the required status check), and `continue-on-error` may not appear anywhere, because
+  either lets a gate fail while the check stays green. Only `ci.yml` is read; the release,
+  release-pr and renovate workflows are not gates.
 - **Why:** `mise run ci` promises "if this passes locally it passes in CI". A gate added to only one
   side breaks that promise without anyone noticing.
 - **Updating:** a new gate is a new task, one step in `ci.yml`, and one entry in `depends`, all

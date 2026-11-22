@@ -1,0 +1,18 @@
+# Custom runner labels of the Gitea runner (gitea-default-runner), so actionlint
+# does not flag them as unknown. A size, plain or -dind (with a Docker daemon);
+# default is medium, dind and docker are medium-dind.
+self-hosted-runner:
+  labels:
+    - small
+    - medium
+    - big
+    - huge
+    - unlimited
+    - small-dind
+    - medium-dind
+    - big-dind
+    - huge-dind
+    - unlimited-dind
+    - default
+    - dind
+    - docker

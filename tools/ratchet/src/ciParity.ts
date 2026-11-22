@@ -5,30 +5,46 @@
  * the day someone adds a step to `.github/workflows/ci.yml` without adding the task to
  * `[tasks.ci].depends` (or the reverse). This gate compares the two sets in both directions.
  *
+ * It also requires every job holding such a step to be in the `ci` job's `needs`, and refuses
+ * `continue-on-error` anywhere in the workflow (`ciJobs.ts`): either would let a gate fail without
+ * failing the required check.
+ *
  * Both sets are checked for emptiness first: a renamed workflow or a reshaped `depends` would
  * otherwise compare nothing to nothing and pass, so an empty set is a layout error (exit 2).
  */
 import { parse as parseToml } from "smol-toml";
 
+import { jobSections, readJobs } from "./ciJobs.ts";
 import { newReport, pushSection, section, type Report } from "./report.ts";
 import { LayoutError, read, type Repo } from "./repo.ts";
 
 const WORKFLOW = ".github/workflows/ci.yml";
 const MISE = ".mise/config.toml";
-const TASK = /mise run +([a-z0-9:_-]+)/g;
+/** A gate step: the whole `run:` value is `mise run <task>`, optionally with a YAML comment. */
+const STEP = /^\s*(?:-\s+)?run:\s+mise run ([a-z0-9:_-]+)\s*(?:#.*)?$/;
+const MENTION = /\bmise\s+run\b/;
 
-/** Every task invoked as `mise run <task>` in a workflow. YAML comment lines are ignored. */
+/**
+ * Every task a workflow runs as a one-line `run: mise run <task>` step. YAML comment lines are
+ * ignored. Any other line that mentions `mise run` (an `echo "mise run x"`, `mise run --jobs 4
+ * x`, two tasks chained with `&&`, a multi-line `run: |` body) is a layout error rather than a
+ * guess: a line regex cannot tell which of those runs a gate, so the workflow must not contain
+ * them.
+ */
 export function workflowTasks(text: string): Set<string> {
   const tasks = new Set<string>();
-  for (const line of text.split("\n")) {
-    if (line.trimStart().startsWith("#")) {
+  const lines = text.split("\n");
+  for (const [index, line] of lines.entries()) {
+    if (line.trimStart().startsWith("#") || !MENTION.test(line)) {
       continue;
     }
-    for (const match of line.matchAll(TASK)) {
-      if (match[1] !== undefined) {
-        tasks.add(match[1]);
-      }
+    const task = STEP.exec(line)?.[1];
+    if (task === undefined) {
+      throw new LayoutError(
+        `${WORKFLOW}:${String(index + 1)} mentions \`mise run\` outside a one-line \`run: mise run <task>\` step: ${line.trim()}`,
+      );
     }
+    tasks.add(task);
   }
   return tasks;
 }
@@ -116,7 +132,12 @@ export function evaluateCiParity(ci: Set<string>, local: Set<string>): Report {
 }
 
 export function runCiParity(repo: Repo): Report {
-  const ci = workflowTasks(read(repo.root, WORKFLOW));
+  const workflow = read(repo.root, WORKFLOW);
+  const ci = workflowTasks(workflow);
   const local = ciDepends(read(repo.root, MISE));
-  return evaluateCiParity(ci, local);
+  const report = evaluateCiParity(ci, local);
+  for (const failure of jobSections(readJobs(workflow, WORKFLOW), WORKFLOW)) {
+    pushSection(report, failure);
+  }
+  return report;
 }
