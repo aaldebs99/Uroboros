@@ -199,13 +199,13 @@ run = "pnpm exec ratchet ci-parity"
 # ── Local development ─────────────────────────────────────────────────────────────────────────
 
 [tasks."dev:deps"]
-description = "Start local Postgres and Valkey on 127.0.0.1 (compose.yaml + compose.dev.yaml), for a host-run api, worker and ui"
+description = "Start local Postgres (127.0.0.1:15432) and Valkey (127.0.0.1:16379) for a host-run api, worker and ui"
 run = "docker compose $COMPOSE_DEV up postgres valkey"
 
 # ── Containers (not CI gates) ─────────────────────────────────────────────────────────────────
 
 [tasks."docker:up"]
-description = "Run the real artifact: production images, 2 api replicas behind Caddy on http://127.0.0.1:8080, 2 workers, migrate (minutes on a cold cache)"
+description = "Run the real artifact: production images, 2 api replicas behind Caddy on http://127.0.0.1:18080, 2 workers, migrate (minutes on a cold cache)"
 # COMPOSE_BAKE=false: compose's bake path builds the images in parallel, and on a
 # containerd-snapshotter host that was observed to trip BuildKit's overlay cache-mount race
 # ("device or resource busy"); the classic sequential builder did not. A retry also works.
@@ -213,7 +213,7 @@ env = { COMPOSE_BAKE = "false" }
 run = "docker compose up --build"
 
 [tasks."docker:up:dev"]
-description = "Run the dev stack with hot reload: api from source behind Caddy on :8080, deps on loopback ports (Vite: mise run dev:ui)"
+description = "Run the dev stack with hot reload: api from source behind Caddy on http://127.0.0.1:18080, deps on loopback ports (Vite: mise run dev:ui)"
 # COMPOSE_BAKE=false: compose's bake path builds the images in parallel, and on a
 # containerd-snapshotter host that was observed to trip BuildKit's overlay cache-mount race
 # ("device or resource busy"); the classic sequential builder did not. A retry also works.
@@ -251,8 +251,8 @@ description = "Apply pending migrations to $DATABASE_URL"
 run = "pnpm -F @uroboros/server exec tsx src/bin/migrate.ts"
 
 [tasks."dev:api"]
-description = "Run the API with reload against the dev:deps containers"
-env = { DATABASE_URL = "{{ get_env(name='DATABASE_URL', default='postgres://uroboros:uroboros@127.0.0.1:5432/uroboros') }}", VALKEY_URL = "{{ get_env(name='VALKEY_URL', default='redis://127.0.0.1:6379') }}" }
+description = "Run the API with reload on 127.0.0.1:18081 against the dev:deps containers"
+env = { DATABASE_URL = "{{ get_env(name='DATABASE_URL', default='postgres://uroboros:uroboros@127.0.0.1:15432/uroboros') }}", VALKEY_URL = "{{ get_env(name='VALKEY_URL', default='redis://127.0.0.1:16379') }}", UROBOROS_BIND = "{{ get_env(name='UROBOROS_BIND', default='127.0.0.1:18081') }}" }
 run = "pnpm -F @uroboros/server exec tsx watch src/bin/api.ts"
 
 [tasks."migration:new"]
@@ -262,7 +262,7 @@ run = 'pnpm -F @uroboros/server exec tsx src/migrate/new.ts "${usage_name}"'
 
 [tasks."dev:worker"]
 description = "Run the worker with reload against the dev:deps Valkey"
-env = { VALKEY_URL = "{{ get_env(name='VALKEY_URL', default='redis://127.0.0.1:6379') }}" }
+env = { VALKEY_URL = "{{ get_env(name='VALKEY_URL', default='redis://127.0.0.1:16379') }}" }
 run = "pnpm -F @uroboros/server exec tsx watch src/bin/worker.ts"
 
 [tasks.gen]
@@ -278,7 +278,7 @@ run = "pnpm -F @uroboros/server exec tsx src/bin/gen.ts --check"
 # ── Web ───────────────────────────────────────────────────────────────────────────────────────
 
 [tasks."dev:ui"]
-description = "Run the web UI with HMR; /api is proxied to $UROBOROS_API_URL (default http://127.0.0.1:8080)"
+description = "Run the web UI with HMR on http://127.0.0.1:18173 ($UROBOROS_UI_PORT); /api is proxied to $UROBOROS_API_URL (default http://127.0.0.1:18081, the host-run dev:api)"
 run = "pnpm -F @uroboros/web dev"
 
 [tasks."build:server"]

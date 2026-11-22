@@ -1,5 +1,5 @@
 # Local stack, the shape of a deployment: Postgres, Valkey and RustFS, a one-shot migrate, two api
-# replicas behind Caddy on 127.0.0.1:8080 (UROBOROS_PORT overrides the host port) and two workers.
+# replicas behind Caddy on 127.0.0.1:18080 (UROBOROS_PORT overrides the host port) and two workers.
 # `mise run docker:up` builds the real images and starts it. The proxy is the only port this file
 # publishes. Everything dev-only (hot reload for the api, loopback ports for Postgres, Valkey and
 # RustFS, which `mise run dev:deps` uses for a host-run api and worker) is in compose.dev.yaml.
@@ -45,8 +45,8 @@ services:
       retries: 12
 
   # S3-compatible object storage for downloaded media: RustFS, S3 API on :9000 and the console on
-  # :9001 (published in the dev overlay). Pinned by version and digest; Renovate bumps both. The
-  # credentials are dev-only. The image runs as uid 10001 and owns /data on a fresh volume.
+  # :9001 (the dev overlay publishes them on 127.0.0.1:19000 and :19001). Pinned by version and
+  # digest; Renovate bumps both. The credentials are dev-only. The image runs as uid 10001 and owns /data on a fresh volume.
   rustfs:
     image: rustfs/rustfs:1.0.6@sha256:ee717072290bec9b11abfc0365f8310b00df1cd9b3639943edae47bdef05044a
     restart: unless-stopped
@@ -122,7 +122,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${UROBOROS_PORT:-8080}:8080"
+      - "127.0.0.1:${UROBOROS_PORT:-18080}:8080"
     configs:
       - source: caddyfile
         target: /etc/caddy/Caddyfile

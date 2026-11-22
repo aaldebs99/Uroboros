@@ -16,9 +16,9 @@ describe("loadConfig", () => {
     expect(cfg.bind).toEqual({ host: "0.0.0.0", port: 9000 });
   });
 
-  it("defaults the bind to 127.0.0.1:8080 and webDist to null", () => {
+  it("defaults the bind to 127.0.0.1:18081 and webDist to null", () => {
     const cfg = loadConfig(base);
-    expect(cfg.bind).toEqual({ host: "127.0.0.1", port: 8080 });
+    expect(cfg.bind).toEqual({ host: "127.0.0.1", port: 18081 });
     expect(cfg.webDist).toBeNull();
     expect(cfg.databaseUrl).toBe(base.DATABASE_URL);
     expect(cfg.valkeyUrl).toBe(base.VALKEY_URL);

@@ -26,7 +26,7 @@ export interface WorkerConfig {
 
 const DEFAULT_WORKER_CONCURRENCY = 4;
 
-const DEFAULT_BIND = "127.0.0.1:8080";
+const DEFAULT_BIND = "127.0.0.1:18081";
 
 const bindSchema = z.string().transform((value, ctx) => {
   const idx = value.lastIndexOf(":");
