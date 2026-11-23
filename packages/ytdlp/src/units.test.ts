@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkExtraArgs, checkUrl, commandLine } from "./args.ts";
+import { checkUrl, commandLine } from "./args.ts";
 import { classifyFailure, failureMessage, YtDlpError, type YtDlpErrorKind } from "./errors.ts";
 import { LineSplitter, LineTail } from "./lines.ts";
 import { redactLine } from "./redact.ts";
@@ -140,34 +140,6 @@ describe("arguments", () => {
     ]) {
       expect(kindOf(() => checkUrl(url))).toBe("invalid_url");
     }
-  });
-
-  it("refuses extra arguments that run commands or read files of arguments", () => {
-    for (const arg of [
-      "--exec",
-      "--exec=rm -rf /",
-      "--exec-before-download",
-      "--batch-file",
-      "-a",
-      "-afile.txt",
-      "--config-location=/x",
-      "--netrc-cmd",
-      "-U",
-      "--update-to=nightly",
-      "--plugin-dirs",
-      "--cookies-from-browser",
-    ]) {
-      expect(
-        kindOf(() => {
-          checkExtraArgs([arg]);
-        }),
-      ).toBe("invalid_arguments");
-    }
-    expect(
-      kindOf(() => {
-        checkExtraArgs(["--limit-rate", "1M", "--sleep-requests", "1"]);
-      }),
-    ).toBe(null);
   });
 
   it("puts the URL last, behind --", () => {

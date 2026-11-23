@@ -1,12 +1,7 @@
-import {
-  checkExtraArgs,
-  checkUrl,
-  commandLine,
-  DEFAULT_BINARY,
-  type YtDlpOptions,
-} from "./args.ts";
+import { checkUrl, commandLine, DEFAULT_BINARY, type YtDlpOptions } from "./args.ts";
 import { withCookiesCopy } from "./cookies.ts";
 import { YtDlpError } from "./errors.ts";
+import { normalizeExtraArgs } from "./flags.ts";
 import { parseInfo, type ProbeResult } from "./info.ts";
 import {
   checkRun,
@@ -42,8 +37,7 @@ function parseJson(text: string, result: RunResult): unknown {
  */
 export async function probe(url: string, options: ProbeOptions = {}): Promise<ProbeResult> {
   const target = checkUrl(url);
-  const extra = options.extraArgs ?? [];
-  checkExtraArgs(extra);
+  const extra = normalizeExtraArgs(options.extraArgs ?? []);
   const own = ["--dump-single-json", "--no-warnings", "--no-progress"];
   if (options.flat === true) own.push("--flat-playlist");
   return withCookiesCopy(options.cookiesFile, async (cookies) => {

@@ -54,12 +54,12 @@ describe("probe", () => {
     const info = await probe(URL, {
       ...run.options,
       flat: true,
-      extraArgs: ["--playlist-end", "3"],
+      extraArgs: ["--playlist-items", "1:3"],
     });
     expect(info.kind).toBe("playlist");
     const argv = await run.argv();
     expect(argv).toContain("--flat-playlist");
-    expect(argv.slice(-4)).toEqual(["--playlist-end", "3", "--", URL]);
+    expect(argv.slice(-3)).toEqual(["--playlist-items=1:3", "--", URL]);
   });
 
   it("classifies a recorded unavailable video and keeps its stderr", async () => {
@@ -97,6 +97,13 @@ describe("probe", () => {
     const run = await fake({ steps: [] });
     const error = await failure(probe("file:///etc/passwd", run.options));
     expect(error.kind).toBe("invalid_url");
+    await expect(run.argv()).rejects.toThrow();
+  });
+
+  it("refuses a flag outside the allowlist before spawning anything", async () => {
+    const run = await fake({ steps: [] });
+    const error = await failure(probe(URL, { ...run.options, extraArgs: ["--exe", "id"] }));
+    expect(error.kind).toBe("invalid_arguments");
     await expect(run.argv()).rejects.toThrow();
   });
 

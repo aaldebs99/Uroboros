@@ -4,7 +4,10 @@ import { YtDlpError } from "./errors.ts";
 export interface YtDlpOptions {
   /** The yt-dlp executable; the worker passes `YTDLP_PATH`. Defaults to `yt-dlp` on PATH. */
   binary?: string;
-  /** Extra arguments placed after the wrapper's own, before the URL. */
+  /**
+   * Extra yt-dlp flags, placed after the wrapper's own and before the URL. Only the flags in
+   * `ALLOWED_FLAGS` are accepted (see `flags.ts`); anything else fails as `invalid_arguments`.
+   */
   extraArgs?: readonly string[];
   /**
    * A Netscape cookies file. yt-dlp rewrites the file it is given, so the wrapper hands it a
@@ -24,42 +27,6 @@ export interface YtDlpOptions {
 }
 
 export const DEFAULT_BINARY = "yt-dlp";
-
-/**
- * Arguments the wrapper never passes through: each one runs a command, reads arguments or
- * configuration from a file, or replaces the yt-dlp binary, none of which a job may do.
- */
-const FORBIDDEN_LONG = [
-  "--exec",
-  "--exec-before-download",
-  "--no-exec",
-  "--batch-file",
-  "--config-location",
-  "--config-locations",
-  "--load-info-json",
-  "--netrc-cmd",
-  "--update",
-  "--update-to",
-  "--plugin-dirs",
-  "--cookies-from-browser",
-] as const;
-const FORBIDDEN_SHORT = ["-a", "-U"] as const;
-
-function isForbidden(arg: string): boolean {
-  if (arg.startsWith("--")) {
-    const name = arg.split("=", 1)[0] ?? arg;
-    return name.startsWith("--exec") || FORBIDDEN_LONG.some((flag) => flag === name);
-  }
-  return FORBIDDEN_SHORT.some((flag) => arg.startsWith(flag));
-}
-
-/** Throws `invalid_arguments` for an extra argument the wrapper refuses to pass. */
-export function checkExtraArgs(args: readonly string[]): void {
-  const bad = args.find(isForbidden);
-  if (bad !== undefined) {
-    throw new YtDlpError("invalid_arguments", `extra argument not allowed: ${bad}`);
-  }
-}
 
 /** Parses `raw` and throws `invalid_url` unless it is an http(s) URL. */
 export function checkUrl(raw: string): string {

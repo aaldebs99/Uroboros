@@ -1,15 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
-import {
-  checkExtraArgs,
-  checkUrl,
-  commandLine,
-  DEFAULT_BINARY,
-  type YtDlpOptions,
-} from "./args.ts";
+import { checkUrl, commandLine, DEFAULT_BINARY, type YtDlpOptions } from "./args.ts";
 import { removePartialFiles } from "./cleanup.ts";
 import { withCookiesCopy } from "./cookies.ts";
 import { YtDlpError } from "./errors.ts";
+import { normalizeExtraArgs } from "./flags.ts";
 import { VideoInfo } from "./info.ts";
 import {
   checkRun,
@@ -120,8 +115,7 @@ class Reporter {
  */
 export async function download(url: string, options: DownloadOptions): Promise<DownloadResult> {
   const target = checkUrl(url);
-  const extra = options.extraArgs ?? [];
-  checkExtraArgs(extra);
+  const extra = normalizeExtraArgs(options.extraArgs ?? []);
   if (!isAbsolute(options.workDir)) {
     throw new YtDlpError("invalid_arguments", "workDir must be an absolute path");
   }

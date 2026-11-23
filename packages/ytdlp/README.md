@@ -17,9 +17,21 @@ itself), `extraArgs`, `cookiesFile`, `timeoutMs`, `signal`, `env`, `killGraceMs`
 ## Behaviour worth knowing
 
 Programs run without a shell, with the URL last behind `--`, and only http(s) URLs are accepted.
-`extraArgs` refuses the options that run commands or load arguments from elsewhere (`--exec*`,
-`--batch-file`, `--config-location`, `--netrc-cmd`, `--update`, `--plugin-dirs`,
-`--cookies-from-browser` and so on). Every run passes `--ignore-config --no-update --color never`.
+Every run passes `--ignore-config --no-update --color never`.
+
+`extraArgs` goes through an allowlist (`ALLOWED_FLAGS`, defined in `src/flags.ts`), not a
+block-list. yt-dlp expands shortened long options (`--exe` means `--exec`) and unbundles short
+ones (`-ia FILE`), and many of its options run programs or reach files, so no block-list can be
+complete. `normalizeExtraArgs` matches each token exactly: `--name`, `--name=value`,
+`--name value`, or one of a few whole short spellings such as `-x`. It checks each value against
+that flag's pattern and re-emits everything as `--name` or `--name=value`, so yt-dlp only ever
+sees spellings the wrapper wrote. Anything else fails as `invalid_arguments` before anything
+spawns, including a bare `--` or a positional argument. The basic set covers rate limits,
+retries and sleeps, playlist selection and filters, format sorting and remuxing, audio
+extraction, subtitles, thumbnails, metadata, chapters, SponsorBlock and filename sanitising. To
+allow another flag, add a row to the table. Never add one that takes a path, a URL, a binary, or
+arguments for another program (`--exec`, `-o`, `--cookies`, `--downloader`, `--ffmpeg-location`,
+`--postprocessor-args`, `--proxy` and the like).
 
 yt-dlp rewrites its cookie jar on exit, so it gets a private copy of `cookiesFile` (removed
 afterwards) and a read-only Secret mount is never written.

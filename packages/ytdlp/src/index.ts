@@ -11,6 +11,7 @@ export {
   type DownloadResult,
 } from "./download.ts";
 export { YTDLP_ERROR_KINDS, YtDlpError, type YtDlpErrorKind } from "./errors.ts";
+export { ALLOWED_FLAGS, normalizeExtraArgs } from "./flags.ts";
 export { ffprobe, MediaInfo, MediaStream, type FfprobeOptions } from "./ffprobe.ts";
 export {
   Chapter,
