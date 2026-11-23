@@ -3,6 +3,8 @@ import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { periodicDuty } from "../shared/periodic.ts";
+import { reapOnce, REAPER_EVERY_MS } from "../storage/reaper.ts";
+import type { MediaStore } from "../storage/store.ts";
 import { scheduleCheck, type CheckJob } from "./queue.ts";
 import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
 
@@ -43,8 +45,11 @@ export async function resyncSchedulers(
   return { added, removed };
 }
 
-/** The leader's automation duties: keep schedules in step and apply retention hourly. */
-export function automationDuties(ctx: DownloadContext) {
+/**
+ * The leader's automation duties: keep schedules in step, apply retention hourly, and run the
+ * reaper every 15 minutes.
+ */
+export function automationDuties(ctx: DownloadContext, store: MediaStore) {
   const resync = periodicDuty(
     "scheduler re-sync",
     RESYNC_EVERY_MS,
@@ -60,7 +65,13 @@ export function automationDuties(ctx: DownloadContext) {
     },
     ctx.logger,
   );
+  const reaper = periodicDuty(
+    "reaper",
+    REAPER_EVERY_MS,
+    () => reapOnce(ctx.db, store, ctx.logger),
+    ctx.logger,
+  );
   return async (signal: AbortSignal): Promise<void> => {
-    await Promise.all([resync(signal), retention(signal)]);
+    await Promise.all([resync(signal), retention(signal), reaper(signal)]);
   };
 }

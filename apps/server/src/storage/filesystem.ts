@@ -1,12 +1,23 @@
 import { randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { copyFile, mkdir, rename, rm, stat } from "node:fs/promises";
+import { copyFile, mkdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import type { MediaStore } from "./store.ts";
 
 function isNotFound(err: unknown): boolean {
   return (err as { code?: string }).code === "ENOENT";
+}
+
+/** Removes `dir` and its parents while they are empty, stopping at `base` (never removed). */
+async function pruneEmpty(base: string, dir: string): Promise<void> {
+  for (let d = dir; d.startsWith(base + sep); d = dirname(d)) {
+    try {
+      await rmdir(d);
+    } catch (err) {
+      if (!isNotFound(err)) return; // not empty (or not ours to remove): stop here
+    }
+  }
 }
 
 /** Organized folders under `root`; keys are relative paths, written atomically (temp + rename). */
@@ -58,7 +69,10 @@ export function createFilesystemStore(root: string): MediaStore {
       }
     },
     async delete(key) {
-      await rm(pathOf(key), { force: true });
+      const path = pathOf(key);
+      await rm(path, { force: true });
+      // A layout folder (`<channel>/<date> <title> [<id>]`) emptied by the delete goes too.
+      await pruneEmpty(base, dirname(path));
     },
     downloadUrl() {
       return Promise.resolve(null);

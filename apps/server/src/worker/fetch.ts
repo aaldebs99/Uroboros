@@ -105,13 +105,24 @@ async function existingRendition(deps: WorkerDeps, data: FetchJob) {
     .executeTakeFirst();
 }
 
-/** Marks every download waiting on the fetch done and gives each person a library entry. */
-async function settleDone(
+/**
+ * Marks every download waiting on the fetch done and gives each person a library entry. False
+ * (settling nothing) when the rendition is gone: the reaper deleted it, so the fetch runs anew.
+ */
+export async function settleDone(
   deps: WorkerDeps,
   data: FetchJob,
   rendition: { id: string; media_id: string },
-) {
+): Promise<boolean> {
   const settled = await deps.db.transaction().execute(async (tx) => {
+    // Held against the reaper's FOR UPDATE until the entries below are committed.
+    const live = await tx
+      .selectFrom("renditions")
+      .select("id")
+      .where("id", "=", rendition.id)
+      .forKeyShare()
+      .executeTakeFirst();
+    if (live === undefined) return null;
     const rows = await tx
       .updateTable("downloads")
       .set({
@@ -140,8 +151,10 @@ async function settleDone(
     }
     return rows;
   });
+  if (settled === null) return false;
   await publishAll(deps, settled);
   await dispatchUsers(deps, settled);
+  return true;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -176,7 +189,7 @@ function codecs(info: MediaInfo) {
  * file older library entries still point at: then the short revision is added before the extension.
  * (S3 keys already carry the revision.)
  */
-async function freeKey(
+export async function freeKey(
   deps: WorkerDeps,
   key: string,
   own: { mediaId: string; profileId: string; revision: string },
@@ -186,11 +199,18 @@ async function freeKey(
     .select(["media_id", "profile_id", "profile_revision"])
     .where("storage_key", "=", key)
     .executeTakeFirst();
+  // A key the reaper has yet to delete is taken too, or its pending delete would take the new file.
+  const trashed = await deps.db
+    .selectFrom("storage_trash")
+    .select("key")
+    .where("key", "=", key)
+    .executeTakeFirst();
   const mine =
-    holder === undefined ||
-    (holder.media_id === own.mediaId &&
-      holder.profile_id === own.profileId &&
-      holder.profile_revision === own.revision);
+    trashed === undefined &&
+    (holder === undefined ||
+      (holder.media_id === own.mediaId &&
+        holder.profile_id === own.profileId &&
+        holder.profile_revision === own.revision));
   if (mine) return key;
   const ext = extname(key);
   return `${key.slice(0, key.length - ext.length)} [${own.revision.slice(0, 8)}]${ext}`;
@@ -298,41 +318,50 @@ async function markRunning(deps: WorkerDeps, job: FetchJobLike): Promise<void> {
   await publishAll(deps, rows);
 }
 
+/** Runs yt-dlp into `scratch`, stores the file and settles everyone waiting on the fetch. */
+async function downloadAndSettle(
+  deps: WorkerDeps,
+  data: FetchJob,
+  scratch: string,
+  signal: AbortSignal,
+): Promise<void> {
+  const progress = createProgressPublisher(deps.valkey, deps.prefix, data.fetchKey);
+  const { format, extraArgs: profileArgs } = ytdlpArgsFor(data.args);
+  const extraArgs = [...profileArgs, ...subtitleArgs(deps.subtitles)];
+  const result = await download(data.url, {
+    binary: deps.ytdlp.binary,
+    ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
+    ...(deps.ytdlp.cookiesFile === null ? {} : { cookiesFile: deps.ytdlp.cookiesFile }),
+    ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
+    workDir: scratch,
+    format,
+    extraArgs,
+    signal,
+    timeoutMs: DOWNLOAD_TIMEOUT_MS,
+    onProgress: progress,
+  });
+  const file = result.files[0];
+  if (file === undefined) throw new StorageError("yt-dlp finished without a file");
+  progress({ phase: "storing" });
+  if (!(await settleDone(deps, data, await store(deps, data, file)))) {
+    throw new StorageError("the rendition was not recorded");
+  }
+}
+
 /** Downloads one video in one profile revision and settles everyone waiting on it. */
 export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
   return async (job: FetchJobLike, token?: string): Promise<void> => {
     const data = job.data;
     if ((await waitingUsers(deps, data.fetchKey)).length === 0) return;
     const stored = await existingRendition(deps, data);
-    if (stored !== undefined) {
-      await settleDone(deps, data, stored);
-      return;
-    }
+    if (stored !== undefined && (await settleDone(deps, data, stored))) return;
     const controller = cancels.start(data.fetchKey);
     const scratch = join(deps.workDir, encodeURIComponent(data.fetchKey));
     try {
       await markRunning(deps, job);
       await rm(scratch, { recursive: true, force: true });
       await mkdir(scratch, { recursive: true });
-      const progress = createProgressPublisher(deps.valkey, deps.prefix, data.fetchKey);
-      const { format, extraArgs: profileArgs } = ytdlpArgsFor(data.args);
-      const extraArgs = [...profileArgs, ...subtitleArgs(deps.subtitles)];
-      const result = await download(data.url, {
-        binary: deps.ytdlp.binary,
-        ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
-        ...(deps.ytdlp.cookiesFile === null ? {} : { cookiesFile: deps.ytdlp.cookiesFile }),
-        ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
-        workDir: scratch,
-        format,
-        extraArgs,
-        signal: controller.signal,
-        timeoutMs: DOWNLOAD_TIMEOUT_MS,
-        onProgress: progress,
-      });
-      const file = result.files[0];
-      if (file === undefined) throw new StorageError("yt-dlp finished without a file");
-      progress({ phase: "storing" });
-      await settleDone(deps, data, await store(deps, data, file));
+      await downloadAndSettle(deps, data, scratch, controller.signal);
     } catch (err) {
       if (controller.signal.reason instanceof ShutdownAbort) {
         // Back to the queue as it was: no failure, no cancel, and no attempt spent.

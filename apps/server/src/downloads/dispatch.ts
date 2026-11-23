@@ -49,15 +49,20 @@ async function storedRendition(
   videoId: string,
   profile: ProfileRow,
 ): Promise<{ id: string; media_id: string } | undefined> {
-  return tx
-    .selectFrom("renditions as r")
-    .innerJoin("media as m", "m.id", "r.media_id")
-    .select(["r.id", "r.media_id"])
-    .where("m.extractor", "=", extractor)
-    .where("m.video_id", "=", videoId)
-    .where("r.profile_id", "=", profile.id)
-    .where("r.profile_revision", "=", profile.revision)
-    .executeTakeFirst();
+  return (
+    tx
+      .selectFrom("renditions as r")
+      .innerJoin("media as m", "m.id", "r.media_id")
+      .select(["r.id", "r.media_id"])
+      .where("m.extractor", "=", extractor)
+      .where("m.video_id", "=", videoId)
+      .where("r.profile_id", "=", profile.id)
+      .where("r.profile_revision", "=", profile.revision)
+      // The reaper deletes a rendition under FOR UPDATE: this waits for it, then sees it gone and
+      // fetches anew, or holds it until the entry below is committed (docs/automation.md).
+      .forKeyShare()
+      .executeTakeFirst()
+  );
 }
 
 /**

@@ -80,6 +80,18 @@ describe.each(backends)("MediaStore (%s)", (kind, make) => {
   });
 
   if (kind === "filesystem") {
+    it("removes folders a delete leaves empty, never the root", async () => {
+      const root = config.kind === "filesystem" ? config.root : "";
+      await store.put("a/b/c.txt", await source("c"), "text/plain");
+      await store.put("a/other.txt", await source("o"), "text/plain");
+      await store.delete("a/b/c.txt");
+      expect(await readdir(join(root, "a"))).toEqual(["other.txt"]);
+      await store.delete("a/other.txt");
+      expect(await readdir(root)).not.toContain("a");
+      await store.delete("a/gone.txt");
+      expect(await readdir(root)).toBeDefined();
+    });
+
     it("leaves nothing behind when a put fails", async () => {
       await expect(
         store.put("y/five.txt", join(scratch, "missing"), "text/plain"),

@@ -6,7 +6,7 @@ import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import { queueDownload } from "../downloads/dispatch.ts";
 import { argsOf } from "../downloads/profiles.ts";
-import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
+import { createCancelRegistry, fetchProcessor, settleDone } from "./fetch.ts";
 
 let t: TestDb;
 let h: Awaited<ReturnType<typeof workerHarness>>;
@@ -105,5 +105,50 @@ describe("fetch provenance", () => {
       .where("user_id", "=", u.userId)
       .executeTakeFirstOrThrow();
     expect(entry.subscription_id).toBe(subscriptionId);
+  });
+
+  it("does not settle onto a rendition the reaper deleted", async () => {
+    const u = await signedIn(t.db, { username: "prov-reaped" });
+    const profile = await seededDefault(t.db);
+    const videoId = "prov-reaped";
+    await t.db.transaction().execute((tx) =>
+      queueDownload(tx, {
+        userId: u.userId,
+        requestId: null,
+        extractor: "Generic",
+        videoId,
+        url: `http://127.0.0.1:18765/${videoId}.mp4`,
+        title: videoId,
+        profile,
+      }),
+    );
+    const { fetch_key: fetchKey } = await t.db
+      .selectFrom("downloads")
+      .select("fetch_key")
+      .where("video_id", "=", videoId)
+      .executeTakeFirstOrThrow();
+    const m = await t.db
+      .insertInto("media")
+      .values({ extractor: "generic", video_id: videoId })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    const gone = { id: "0190a3f2-7c1e-7000-8000-00000000beef", media_id: m.id };
+    const data = {
+      fetchKey,
+      extractor: "generic",
+      videoId,
+      url: "u",
+      profileId: profile.id,
+      profileName: profile.name,
+      revision: profile.revision,
+      args: argsOf(profile),
+    };
+    expect(await settleDone(await h.deps({ steps: [] }), data, gone)).toBe(false);
+    const d = await t.db
+      .selectFrom("downloads")
+      .select("state")
+      .where("fetch_key", "=", fetchKey)
+      .executeTakeFirstOrThrow();
+    expect(d.state).toBe("queued");
   });
 });
