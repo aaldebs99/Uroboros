@@ -32,6 +32,33 @@
         ],
         "type": "string"
       },
+      "ApiTokenView": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "createdAt",
+          "lastUsedAt"
+        ],
+        "type": "object"
+      },
       "AuthMethod": {
         "enum": [
           "local",
@@ -167,6 +194,34 @@
           "role",
           "method",
           "isBootstrap"
+        ],
+        "type": "object"
+      },
+      "NewApiToken": {
+        "properties": {
+          "secret": {
+            "type": "string"
+          },
+          "token": {
+            "$ref": "#/components/schemas/ApiTokenView"
+          }
+        },
+        "required": [
+          "token",
+          "secret"
+        ],
+        "type": "object"
+      },
+      "NewApiTokenBody": {
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ],
         "type": "object"
       },
@@ -857,6 +912,123 @@
         "summary": "Send one of the caller's devices a test notification",
         "tags": [
           "push"
+        ]
+      }
+    },
+    "/api/me/tokens": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApiTokenView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Tokens"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Called with an API token"
+          }
+        },
+        "summary": "The caller's API tokens (never their secrets)",
+        "tags": [
+          "tokens"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewApiTokenBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewApiToken"
+                }
+              }
+            },
+            "description": "The token and its secret"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A token with that name exists"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The caller has as many tokens as allowed"
+          }
+        },
+        "summary": "Create an API token; its secret is shown once",
+        "tags": [
+          "tokens"
+        ]
+      }
+    },
+    "/api/me/tokens/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "Token id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Token id",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Revoked"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such token"
+          }
+        },
+        "summary": "Revoke one of the caller's API tokens",
+        "tags": [
+          "tokens"
         ]
       }
     },

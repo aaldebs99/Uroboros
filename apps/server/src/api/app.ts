@@ -11,6 +11,7 @@ import { createLimiter } from "../auth/limiter.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
+import { registerTokenRoutes, resolveToken } from "../auth/tokens.ts";
 import type { Database } from "../db/schema.ts";
 import { disabledPush, type PushService } from "../push/service.ts";
 import { registerDocs } from "./docs.ts";
@@ -41,7 +42,7 @@ export interface Deps {
 export interface AuthDeps {
   /** Mark cookies `Secure` (the public base URL is https). */
   secureCookies: boolean;
-  /** API-token lookup (personal tokens); defaults to "no tokens". */
+  /** API-token lookup; defaults to the `api_tokens` table (tests may stub it). */
   resolveToken?: ResolveToken;
   /** Sign-in settings; defaults to local sign-in only (what `gen` documents). */
   settings?: AuthConfig;
@@ -59,8 +60,6 @@ const DEFAULT_AUTH_SETTINGS: AuthConfig = {
   local: { enabled: true, bootstrap: null },
   oidc: null,
 };
-
-const noTokens: ResolveToken = () => Promise.resolve(null);
 
 /** Stands in when OIDC is not configured: never ready, so its routes answer "unavailable". */
 const noOidcProvider: OidcProvider = {
@@ -122,6 +121,7 @@ function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void 
         ? Promise.resolve(null)
         : oidcEndSessionUrl(deps.db, provider, new URL(oidc.redirectUrl).origin, userId),
   });
+  registerTokenRoutes(app, deps.db);
   registerAdminUserRoutes(app, {
     db: deps.db,
     provider: provider ?? noOidcProvider,
@@ -172,7 +172,10 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     }
     return errorResponse(c, "unavailable", "the server is starting");
   });
-  app.use("/api/*", authGuard({ db: deps.db, resolveToken: deps.auth?.resolveToken ?? noTokens }));
+  app.use(
+    "/api/*",
+    authGuard({ db: deps.db, resolveToken: deps.auth?.resolveToken ?? resolveToken }),
+  );
 
   app.onError(errorHandler(logger));
   app.notFound(async (c) => {
