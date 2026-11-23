@@ -52,13 +52,12 @@ describe("app shell", () => {
     expect(names).toEqual(["Library", "Downloads", "Subscriptions", "Settings"]);
   });
 
-  it("navigating to /downloads shows Coming soon", async () => {
-    await renderAt("/");
-    expect(screen.getByText("Coming soon")).toBeInTheDocument();
+  it("navigating to /subscriptions shows Coming soon", async () => {
+    await renderAt("/settings");
 
-    await userEvent.click(screen.getByRole("link", { name: "Downloads" }));
+    await userEvent.click(screen.getByRole("link", { name: "Subscriptions" }));
 
-    expect(await screen.findByRole("heading", { name: "Downloads" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Subscriptions" })).toBeInTheDocument();
     expect(screen.getByText("Coming soon")).toBeInTheDocument();
   });
 

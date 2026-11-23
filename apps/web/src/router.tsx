@@ -6,15 +6,16 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 
-import { DownloadsPage, LibraryPage, SettingsPage, SubscriptionsPage } from "./routes";
+import { LibraryPage, SettingsPage, SubscriptionsPage } from "./routes";
 import { AccountRoute, AdminUsersRoute } from "./routes/account";
+import { DownloadsRoute } from "./routes/downloads";
 import { RootLayout } from "./routes/root";
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
 const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: "/", component: LibraryPage }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/downloads", component: DownloadsPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/downloads", component: DownloadsRoute }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/subscriptions",

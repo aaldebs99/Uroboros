@@ -9,6 +9,5 @@ function itemFor(to: NavItem["to"]): NavItem {
 
 /** One placeholder page per section until the real features land. */
 export const LibraryPage = () => <ComingSoon item={itemFor("/")} />;
-export const DownloadsPage = () => <ComingSoon item={itemFor("/downloads")} />;
 export const SubscriptionsPage = () => <ComingSoon item={itemFor("/subscriptions")} />;
 export { SettingsPage } from "./settings";
