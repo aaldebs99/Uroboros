@@ -8,11 +8,13 @@ import {
 
 import { ChannelsPage } from "./library/ChannelsPage";
 import { PlaylistsPage } from "./library/PlaylistsPage";
-import { SettingsPage, SubscriptionsPage } from "./routes";
+import { SettingsPage } from "./routes";
 import { AccountRoute, AdminProfilesRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
 import { ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
 import { RootLayout } from "./routes/root";
+import { SubscriptionRoute } from "./routes/subscriptions";
+import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -44,6 +46,11 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/subscriptions",
     component: SubscriptionsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/subscriptions/$subscriptionId",
+    component: SubscriptionRoute,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/settings", component: SettingsPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/account", component: AccountRoute }),

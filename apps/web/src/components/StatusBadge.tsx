@@ -1,4 +1,10 @@
-import type { Download, DownloadProgress, RequestState } from "@uroboros/contract";
+import type {
+  Download,
+  DownloadProgress,
+  RequestState,
+  Subscription,
+  SubscriptionItemOutcome,
+} from "@uroboros/contract";
 
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 
@@ -43,4 +49,29 @@ export function DownloadBadge({
   const { label, tone } =
     state === "running" && progress !== null ? PHASE[progress.phase] : JOB[state];
   return <Badge tone={tone}>{label}</Badge>;
+}
+
+const OUTCOME = {
+  queued: { label: "Queued", tone: "success" },
+  filtered: { label: "Filtered", tone: "muted" },
+  existing: { label: "Skipped", tone: "muted" },
+  waiting: { label: "Waiting", tone: "warning" },
+} as const satisfies Record<SubscriptionItemOutcome, Look>;
+
+/** What became of a video a subscription saw. */
+export function ItemOutcomeBadge({ outcome }: { outcome: SubscriptionItemOutcome }) {
+  const { label, tone } = OUTCOME[outcome];
+  return <Badge tone={tone}>{label}</Badge>;
+}
+
+/** A subscription's state when it is not plainly active: checking, paused or failing. */
+export function SubscriptionBadge({
+  sub,
+}: {
+  sub: Pick<Subscription, "checking" | "enabled" | "failures">;
+}) {
+  if (sub.checking) return <Badge tone="primary">Checking</Badge>;
+  if (!sub.enabled) return <Badge tone="muted">Paused</Badge>;
+  if (sub.failures > 0) return <Badge tone="destructive">Failing</Badge>;
+  return null;
 }

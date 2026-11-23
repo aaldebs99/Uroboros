@@ -33,6 +33,7 @@ beforeEach(() => {
       }),
     "/api/me/push": () =>
       Response.json({ enabled: false, publicKey: null, devices: [], maxDevices: 10 }),
+    "/api/subscriptions": () => Response.json([]),
   });
 });
 
@@ -75,14 +76,14 @@ describe("app shell", () => {
     expect(within(nav).queryByRole("list", { name: "Library views" })).not.toBeInTheDocument();
   });
 
-  it("navigating to /subscriptions shows Coming soon", async () => {
+  it("navigating to /subscriptions shows the subscriptions", async () => {
     await renderAt("/settings");
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     await userEvent.click(within(nav).getByRole("link", { name: "Subscriptions" }));
 
     expect(await screen.findByRole("heading", { name: "Subscriptions" })).toBeInTheDocument();
-    expect(screen.getByText("Coming soon")).toBeInTheDocument();
+    expect(await screen.findByText("No subscriptions yet")).toBeInTheDocument();
   });
 
   it("puts the brand and the account menu in the top bar, and the nav below it", async () => {

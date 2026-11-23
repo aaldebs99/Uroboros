@@ -20,22 +20,32 @@ import { notify } from "@/components/ui/sonner";
 
 /**
  * "Download a link", opened from the Create menu (the top bar's pill, or the phone's "+"): a form
- * dialog that starts a download in one step.
+ * dialog that starts a download in one step. The Subscriptions page opens it as "Add a
+ * subscription" (`title`, `hint`): a channel or playlist comes back as a preview with Subscribe.
  */
 export function DownloadDialog({
   open,
   onOpenChange,
+  title = "Download a link",
+  hint,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
+  /** A visible line under the title; without it the description is for screen readers only. */
+  hint?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>Download a link</DialogTitle>
-        <DialogDescription className="sr-only">
-          Paste a link and pick a format to start a download.
-        </DialogDescription>
+        <DialogTitle>{title}</DialogTitle>
+        {hint === undefined ? (
+          <DialogDescription className="sr-only">
+            Paste a link and pick a format to start a download.
+          </DialogDescription>
+        ) : (
+          <DialogDescription>{hint}</DialogDescription>
+        )}
         <QuickDownloadForm
           onDone={() => {
             onOpenChange(false);
