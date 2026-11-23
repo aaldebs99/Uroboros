@@ -77,6 +77,10 @@ describe("security headers", () => {
     expect(policy.get("form-action")).toBe("'self'");
   });
 
+  it("allows blob: media, which Video.js's HLS engine plays from", async () => {
+    expect(csp(await app().request("/library/abc")).get("media-src")).toBe("'self' blob:");
+  });
+
   it("gives /api/docs a CSP of its own, also self-only for scripts", async () => {
     const policy = csp(await app().request("/api/docs"));
     expect(policy.get("script-src")).toBe("'self'");

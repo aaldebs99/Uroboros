@@ -47,6 +47,12 @@ export const LibraryItem = LibraryEntry.extend({
   webpageUrl: z.string().nullable(),
   /** The caller's playlists this video is in. */
   sources: z.array(z.object({ id: z.uuid(), title: z.string().nullable() })),
+  /** The file's container (its extension) and ffprobe's codec names: does this browser play it? */
+  container: z.string().nullable(),
+  videoCodec: z.string().nullable(),
+  audioCodec: z.string().nullable(),
+  /** Asks for, and follows, a compatible copy (docs/transcoding.md). */
+  playbackUrl: z.string(),
 }).openapi("LibraryItem");
 export type LibraryItem = z.infer<typeof LibraryItem>;
 
@@ -90,3 +96,25 @@ export const TagsBody = z
   })
   .openapi("TagsBody");
 export type TagsBody = z.infer<typeof TagsBody>;
+
+export const PlaybackState = z
+  .enum(["queued", "running", "done", "failed"])
+  .openapi("PlaybackState");
+export type PlaybackState = z.infer<typeof PlaybackState>;
+
+/** A compatible HLS copy of an entry's file, and how far along it is. */
+export const Playback = z
+  .object({
+    state: PlaybackState,
+    /** How it is made, once the job has looked at the file; null while queued. */
+    mode: z.enum(["encode", "remux", "audio"]).nullable(),
+    /** Segments stored so far (native HLS can start at 2). */
+    readySegments: z.number().int(),
+    /** 0 to 1, from ffmpeg's progress over the duration. */
+    progress: z.number(),
+    /** The multivariant playlist to play (valid once there is a mode). */
+    masterUrl: z.string(),
+    error: z.string().nullable(),
+  })
+  .openapi("Playback");
+export type Playback = z.infer<typeof Playback>;

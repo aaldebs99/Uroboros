@@ -244,3 +244,32 @@ describe("loadConfig job consumers", () => {
     expect(() => loadConfig({ ...base, UROBOROS_WORKER_CONCURRENCY: bad })).toThrow(ConfigError);
   });
 });
+
+describe("loadConfig transcoding", () => {
+  it("defaults to one copy at a time with libx264, kept 30 days", () => {
+    expect(loadConfig(base).worker.transcode).toEqual({
+      concurrency: 1,
+      encoder: "libx264",
+      keepDays: 30,
+    });
+  });
+
+  it("reads the transcode settings, 0 meaning none", () => {
+    expect(
+      loadConfig({
+        ...base,
+        UROBOROS_TRANSCODE_CONCURRENCY: "0",
+        UROBOROS_TRANSCODE_HWACCEL: "nvenc",
+        UROBOROS_TRANSCODE_KEEP_DAYS: "7",
+      }).worker.transcode,
+    ).toEqual({ concurrency: 0, encoder: "nvenc", keepDays: 7 });
+  });
+
+  it.each([
+    ["UROBOROS_TRANSCODE_CONCURRENCY", "-1"],
+    ["UROBOROS_TRANSCODE_HWACCEL", "vaapi"],
+    ["UROBOROS_TRANSCODE_KEEP_DAYS", "0"],
+  ])("rejects %s=%j", (name, bad) => {
+    expect(() => loadConfig({ ...base, [name]: bad })).toThrow(ConfigError);
+  });
+});

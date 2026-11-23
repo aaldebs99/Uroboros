@@ -2,6 +2,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
 import { authEnvProblems, authEnvSchema, toAuthConfig, type AuthConfig } from "./auth/config.ts";
+import type { TranscodeEncoder } from "./db/schema.ts";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 import { vapidPairProblem } from "./push/keys.ts";
 import {
@@ -62,6 +63,15 @@ export interface WorkerSettings {
   concurrency: number;
   /** The yt-dlp to run: `YTDLP_PATH` (set in the image), else `yt-dlp` on PATH. */
   ytdlpPath: string;
+  /** Compatible playback copies (docs/transcoding.md). */
+  transcode: {
+    /** Copies made at once by this process (`UROBOROS_TRANSCODE_CONCURRENCY`; 0: none here). */
+    concurrency: number;
+    /** `UROBOROS_TRANSCODE_HWACCEL`: `none` is libx264, `nvenc` the NVIDIA encoder. */
+    encoder: TranscodeEncoder;
+    /** Days an unused copy is kept (`UROBOROS_TRANSCODE_KEEP_DAYS`). */
+    keepDays: number;
+  };
 }
 
 const DEFAULT_WORKER_CONCURRENCY = 4;
@@ -166,6 +176,21 @@ const workerEnvSchema = z.object({
     z
       .enum(["true", "false"], { error: "UROBOROS_AUTO_SUBTITLES must be true or false" })
       .optional(),
+  ),
+  UROBOROS_TRANSCODE_CONCURRENCY: unsetIfEmpty(
+    z
+      .string()
+      .regex(/^(0|[1-9]\d*)$/, "UROBOROS_TRANSCODE_CONCURRENCY must be 0 or a positive integer")
+      .transform(Number)
+      .prefault("1"),
+  ),
+  UROBOROS_TRANSCODE_HWACCEL: unsetIfEmpty(
+    z
+      .enum(["none", "nvenc"], { error: "UROBOROS_TRANSCODE_HWACCEL must be none or nvenc" })
+      .prefault("none"),
+  ),
+  UROBOROS_TRANSCODE_KEEP_DAYS: unsetIfEmpty(
+    positiveInt("UROBOROS_TRANSCODE_KEEP_DAYS").prefault("30"),
   ),
 });
 
@@ -279,6 +304,11 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       },
       concurrency: e.UROBOROS_WORKER_CONCURRENCY,
       ytdlpPath: e.YTDLP_PATH ?? "yt-dlp",
+      transcode: {
+        concurrency: e.UROBOROS_TRANSCODE_CONCURRENCY,
+        encoder: e.UROBOROS_TRANSCODE_HWACCEL === "nvenc" ? "nvenc" : "libx264",
+        keepDays: e.UROBOROS_TRANSCODE_KEEP_DAYS,
+      },
     },
   };
 }

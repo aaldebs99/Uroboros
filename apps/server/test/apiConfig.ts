@@ -38,6 +38,7 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
       subtitles: { langs: null, automatic: false },
       concurrency: 2,
       ytdlpPath: "yt-dlp",
+      transcode: { concurrency: 0, encoder: "libx264", keepDays: 30 },
     },
     ...over,
   };

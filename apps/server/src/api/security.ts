@@ -13,7 +13,8 @@ export const DEFAULT_BODY_LIMIT_BYTES = 64 * 1024;
 const appCsp = (mediaOrigins: readonly string[]) =>
   [
     // The player streams from the app, or follows a redirect to presigned S3 URLs.
-    `media-src ${["'self'", ...mediaOrigins].join(" ")}`,
+    // blob: is where Video.js's HLS engine (MSE) plays a compatible copy from.
+    `media-src ${["'self'", "blob:", ...mediaOrigins].join(" ")}`,
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",

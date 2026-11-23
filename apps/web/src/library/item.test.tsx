@@ -58,6 +58,10 @@ const item = {
     },
   ],
   streamUrl: `/api/library/${ID}/stream`,
+  container: "mp4",
+  videoCodec: "h264",
+  audioCodec: "aac",
+  playbackUrl: `/api/library/${ID}/playback`,
   webpageUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
   sources: [],
 };

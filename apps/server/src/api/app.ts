@@ -17,11 +17,12 @@ import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
 import { registerItemRoutes } from "../library/itemRoutes.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
+import { registerPlaybackRoutes } from "../transcode/routes.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
 import { registerTokenRoutes, resolveToken } from "../auth/tokens.ts";
-import type { Database } from "../db/schema.ts";
+import type { Database, TranscodeEncoder } from "../db/schema.ts";
 import { disabledPush, type PushService } from "../push/service.ts";
 import { registerDocs } from "./docs.ts";
 import { ApiError, errorHandler, errorResponse } from "./errors.ts";
@@ -52,6 +53,8 @@ export interface Deps {
   store?: MediaStore;
   /** The replica's download event subscription; without it the event stream answers 503. */
   downloadEvents?: EventHub;
+  /** The encoder new playback copies are made with (`UROBOROS_TRANSCODE_HWACCEL`). */
+  transcodeEncoder?: TranscodeEncoder;
 }
 
 export interface AuthDeps {
@@ -217,6 +220,13 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerLibraryRoutes(app, deps.db, deps.store);
   registerItemRoutes(app, deps.db, deps.store);
   registerSubscriptionRoutes(app, deps.downloads);
+  registerPlaybackRoutes(
+    app,
+    deps.downloads === undefined
+      ? undefined
+      : { ...deps.downloads, encoder: deps.transcodeEncoder ?? "libx264" },
+    deps.store,
+  );
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

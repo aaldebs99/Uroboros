@@ -828,6 +828,10 @@
           },
           {
             "properties": {
+              "audioCodec": {
+                "nullable": true,
+                "type": "string"
+              },
               "chapters": {
                 "items": {
                   "$ref": "#/components/schemas/Chapter"
@@ -836,6 +840,9 @@
               },
               "description": {
                 "nullable": true,
+                "type": "string"
+              },
+              "playbackUrl": {
                 "type": "string"
               },
               "sources": {
@@ -867,6 +874,10 @@
                 },
                 "type": "array"
               },
+              "videoCodec": {
+                "nullable": true,
+                "type": "string"
+              },
               "webpageUrl": {
                 "nullable": true,
                 "type": "string"
@@ -878,7 +889,10 @@
               "subtitles",
               "streamUrl",
               "webpageUrl",
-              "sources"
+              "sources",
+              "videoCodec",
+              "audioCodec",
+              "playbackUrl"
             ],
             "type": "object"
           }
@@ -1168,6 +1182,54 @@
           "intervalMinutes"
         ],
         "type": "object"
+      },
+      "Playback": {
+        "properties": {
+          "error": {
+            "nullable": true,
+            "type": "string"
+          },
+          "masterUrl": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "encode",
+              "remux",
+              "audio",
+              null
+            ],
+            "nullable": true,
+            "type": "string"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "readySegments": {
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PlaybackState"
+          }
+        },
+        "required": [
+          "state",
+          "mode",
+          "readySegments",
+          "progress",
+          "masterUrl",
+          "error"
+        ],
+        "type": "object"
+      },
+      "PlaybackState": {
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed"
+        ],
+        "type": "string"
       },
       "PreviewEntry": {
         "properties": {
@@ -3373,6 +3435,245 @@
           }
         },
         "summary": "Keep the entry (retention never removes it) or stop keeping it",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/playback": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Playback"
+                }
+              }
+            },
+            "description": "The copy"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry, or no copy asked for"
+          }
+        },
+        "summary": "How far along the entry's compatible copy is",
+        "tags": [
+          "library"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Playback"
+                }
+              }
+            },
+            "description": "The copy and how far along it is"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "summary": "Ask for a copy of the entry this browser can play (made once, then kept)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/playback/master.m3u8": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.apple.mpegurl": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry or copy"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The copy has not started yet"
+          }
+        },
+        "summary": "The copy's multivariant HLS playlist",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/playback/{attempt}/index.m3u8": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{1,6}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.apple.mpegurl": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not stored, or another attempt"
+          }
+        },
+        "summary": "The copy's media playlist, which grows as segments are stored",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/playback/{attempt}/{file}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{1,6}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such file"
+          }
+        },
+        "summary": "One of the copy's files: init.mp4 or seg-NNNNN.m4s",
         "tags": [
           "library"
         ]

@@ -15,9 +15,22 @@ export async function getItem(
 ): Promise<LibraryItem> {
   const row = (await base(db, userId)
     .where("e.id", "=", entryId)
-    .select([...ENTRY_COLUMNS, "m.description", "m.chapters", "m.webpage_url"] as never)
+    .select([
+      ...ENTRY_COLUMNS,
+      "m.description",
+      "m.chapters",
+      "m.webpage_url",
+      "r.video_codec",
+      "r.audio_codec",
+    ] as never)
     .executeTakeFirst()) as
-    | (EntryRow & { description: string | null; chapters: unknown; webpage_url: string | null })
+    | (EntryRow & {
+        description: string | null;
+        chapters: unknown;
+        webpage_url: string | null;
+        video_codec: string | null;
+        audio_codec: string | null;
+      })
     | undefined;
   if (row === undefined) throw new ApiError("not_found", "no such library entry");
   const [subs, sources] = await Promise.all([
@@ -48,5 +61,9 @@ export async function getItem(
     streamUrl: `/api/library/${entryId}/stream`,
     webpageUrl: row.webpage_url,
     sources,
+    container: row.container,
+    videoCodec: row.video_codec,
+    audioCodec: row.audio_codec,
+    playbackUrl: `/api/library/${entryId}/playback`,
   };
 }
