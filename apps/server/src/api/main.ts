@@ -17,6 +17,7 @@ import { LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/leader.ts";
 import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createDownloadQueues } from "../downloads/queues.ts";
+import { createEventHub } from "../downloads/sse.ts";
 import { DEFAULT_PREFIX } from "../worker/queues.ts";
 import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
 import { startClaimsSync } from "../auth/claimsSync.ts";
@@ -97,6 +98,12 @@ export async function startApi(
     config.auth.oidc === null ? undefined : createOidcProvider(config.auth.oidc, { logger });
   // Producers only (the workers consume); they share the api's Valkey connection.
   const queues = createDownloadQueues(valkey, DEFAULT_PREFIX);
+  // One subscription per replica feeds every open download event stream.
+  const downloadEvents = createEventHub(
+    createValkey(config.valkeyUrl, "worker", logger),
+    DEFAULT_PREFIX,
+    logger,
+  );
   let attached = false;
   const app = createApp(
     {
@@ -120,6 +127,7 @@ export async function startApi(
         limits: config.downloads,
         logger,
       },
+      downloadEvents,
     },
     { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
   );
@@ -180,6 +188,8 @@ export async function startApi(
     // Stops start-up and the leader loop now, so leadership goes while the drain still runs.
     stop.abort();
     const released = attaching.catch(() => undefined).then(() => leading);
+    // Event streams never finish on their own: end them so the drain does not wait them out.
+    downloadEvents.close();
     const drained = await drain(server, config.shutdownGraceMs);
     await settlesWithin(queues.close(), CLEANUP_MS);
     valkey.disconnect();

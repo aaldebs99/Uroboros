@@ -316,6 +316,69 @@
         "nullable": true,
         "type": "string"
       },
+      "DownloadEvent": {
+        "oneOf": [
+          {
+            "properties": {
+              "download": {
+                "$ref": "#/components/schemas/Download"
+              },
+              "type": {
+                "enum": [
+                  "state"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "download"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "fetchKey": {
+                "type": "string"
+              },
+              "progress": {
+                "$ref": "#/components/schemas/DownloadProgress"
+              },
+              "type": {
+                "enum": [
+                  "progress"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "fetchKey",
+              "progress"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "removed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "DownloadProgress": {
         "nullable": true,
         "properties": {
@@ -1852,6 +1915,52 @@
           }
         },
         "summary": "Download a link: a worker probes it; a playlist or channel comes back as a preview",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/events": {
+      "get": {
+        "parameters": [
+          {
+            "description": "Everyone's (admins only)",
+            "in": "query",
+            "name": "all",
+            "required": false,
+            "schema": {
+              "description": "Everyone's (admins only)",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadEvent"
+                }
+              }
+            },
+            "description": "An event stream; each `data:` line is a DownloadEvent"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "all=true needs an admin"
+          }
+        },
+        "summary": "Server-sent events: the caller's download state changes and progress (all=true: everyone's, admins only)",
         "tags": [
           "downloads"
         ]

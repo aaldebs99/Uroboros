@@ -13,6 +13,7 @@ import type { DownloadContext } from "../downloads/dispatch.ts";
 import { registerLibraryRoutes } from "../downloads/libraryRoutes.ts";
 import { registerProfileRoutes } from "../downloads/profileRoutes.ts";
 import { registerDownloadRoutes } from "../downloads/routes.ts";
+import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
@@ -44,6 +45,8 @@ export interface Deps {
   auth?: AuthDeps;
   /** Download queues and limits; without them the download routes answer 503 (what `gen` uses). */
   downloads?: DownloadContext;
+  /** The replica's download event subscription; without it the event stream answers 503. */
+  downloadEvents?: EventHub;
 }
 
 export interface AuthDeps {
@@ -203,6 +206,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerAuthRoutes(app, deps, logger);
   registerProfileRoutes(app, deps.db);
   registerDownloadRoutes(app, deps.downloads);
+  registerEventRoutes(app, deps.downloads, deps.downloadEvents);
   registerLibraryRoutes(app, deps.db);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
