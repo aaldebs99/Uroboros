@@ -10,7 +10,9 @@ A subscription is made from the preview downloads already use (`src/subscription
 channel or playlist link, and its preview offers **Subscribe** beside queueing entries. The probe
 records the source (a channel's id with its videos' extractor, so the subscription's channel key
 matches the library's channel page; a playlist's id with its listing's extractor) and each group's
-listing URL (a channel's tabs, or the playlist).
+listing URL (a channel's tabs, or the playlist). A channel's main URL lists under its handle
+(`@name`), so the channel id comes from the listing's `channel_id`: subscribing through the main
+URL and through `/videos` is the same source.
 
 `POST /api/subscriptions` takes the request id, the tabs to follow, a format profile, a check
 interval, filters, a wait, what to do with the videos already there, retention and whether to
@@ -39,15 +41,18 @@ start per two seconds. A check (`src/subscriptions/check.ts`):
 2. Lists each followed feed flat, capped at `UROBOROS_MAX_PLAYLIST_ENTRIES` from the top (a channel
    tab lists newest first, so the cap keeps the newest). A playlist that reaches the cap sets the
    subscription's warning: only its first N entries are followed.
-3. Skips videos with a final outcome in `subscription_items`, the seen set; `waiting` ones come
-   back.
+3. Skips videos with a final outcome in `subscription_items`, the seen set. `waiting` ones come
+   back, except those held by the wait, which are left alone until their time.
 4. Primes each feed on its own first check. On the subscription's very first check the backfill
    applies: **none** records every listed video as `existing`, **newest** lets each tab's newest N
    through (channels only: a playlist's order says nothing about age), **all** lets them all
    through. A tab followed later primes with none.
-5. Filters what is left (`filters.ts`, `decisions.ts`), then queues it.
-6. Records how it went, frees the lease, and resets or counts the failures in a row. A check cut by
-   shutdown records nothing and frees its lease; the schedule runs it again.
+5. Filters what is left (`filters.ts`, `decisions.ts`), then queues it. Under the subscription's
+   row lock it first checks that the filters did not change while it ran; if they did, it records
+   nothing, frees the lease and queues a check under the new filters.
+6. Records how it went, frees the lease, and resets or counts the failures in a row. Priming sets
+   `primedAt` in SQL on the row's own feeds, so a tab added or removed while the check ran stays as
+   edited. A check cut by shutdown records nothing and frees its lease; the schedule runs it again.
 
 ### Filters, in order
 
@@ -66,26 +71,31 @@ start per two seconds. A check (`src/subscriptions/check.ts`):
 
 The listing decides whatever it can. When a filter needs a field the listing lacks (YouTube's
 listings carry no upload date), the check probes that one video in full, at most 50 per check;
-the rest wait for the next check unrecorded. A video whose probe says it is unavailable or private
-is filtered; any other probe failure leaves it for next time.
+the rest are recorded `waiting` ("not checked yet") for the next check. A probe that fails for good
+files the video as filtered: "unavailable" (removed, private), "age-restricted", "geo-blocked" or
+"unsupported"; any other failure leaves it `waiting` ("could not be checked").
 
 ### The wait
 
 With **wait before downloading**, a passing video waits until that many hours after Uroboros first
 saw it, then queues on the first check after that. It is for SponsorBlock: segments are submitted
-in the hours after a video goes up, and cutting a brand-new video usually cuts nothing.
+in the hours after a video goes up, and cutting a brand-new video usually cuts nothing. The backfill
+skips it, since old videos already have their segments.
 
 ### Queueing
 
 Passing videos go through `queueDownload` and `dispatchFor` like any other, with the
-subscription's profile and id. A first check's backfill is queued at priority 1 and everything
-else at 0, and `dispatchFor` takes priority first, then age, so a backfill of hundreds never holds
-up a pasted link or another subscription's new upload. The fetch's settle copies the
+subscription's profile and id. The backfill is queued at priority 1 and everything else at 0, and
+`dispatchFor` takes priority first, then age, so a backfill of hundreds never holds up a pasted link
+or another subscription's new upload. An item remembers that it is backfill
+(`subscription_items.backfill`), so a backfilled video decided on a later check (past the probe
+budget, or after a filter edit) still queues at priority 1 and sends no notification. The fetch's settle copies the
 subscription's id onto the library entry it creates. A video the person already has, or is already
 getting, is recorded `queued` with no download.
 
-Changing the filters forgets the `filtered` items, so the next check reconsiders those still listed
-under the new filters; `existing` and `queued` items stay as they are.
+Changing the filters sends the `filtered` items back to `waiting` ("filters changed") as backfill,
+so the next check reconsiders those still listed under the new filters; `existing` and `queued`
+items stay as they are.
 
 ## SponsorBlock
 
