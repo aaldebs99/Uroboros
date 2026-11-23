@@ -165,6 +165,7 @@ export async function startApi(
         config.storage.kind === "s3" && config.storage.publicUrl !== null
           ? [new URL(config.storage.publicUrl).origin]
           : [],
+      publicBaseUrl: config.push.publicBaseUrl,
     },
   );
   opts.configure?.(app, db);

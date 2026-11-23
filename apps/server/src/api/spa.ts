@@ -59,12 +59,25 @@ function isStaticFile(decoded: string): boolean {
 }
 
 /**
+ * Rewrites `index.html` for a client route that needs its own `<head>` (a public link's preview
+ * tags), with extra response headers; null leaves the page as built.
+ */
+export type IndexTransform = (
+  path: string,
+  html: string,
+  origin: string,
+) => Promise<{ html: string; headers: Record<string, string> } | null>;
+
+/**
  * Serves a built SPA: a file under `webDist` if the path names one, otherwise `index.html` for a
  * client route. Returns null (a 404) for a missing file and when there is no index.html either.
  */
-export function createSpaHandler(webDist: string): (urlPath: string) => Promise<Response | null> {
+export function createSpaHandler(
+  webDist: string,
+  transform?: IndexTransform,
+): (urlPath: string, origin?: string) => Promise<Response | null> {
   const root = resolve(webDist);
-  return async (urlPath) => {
+  return async (urlPath, origin = "") => {
     let decoded: string;
     try {
       decoded = decodeURIComponent(urlPath);
@@ -81,6 +94,15 @@ export function createSpaHandler(webDist: string): (urlPath: string) => Promise<
     if (isStaticFile(decoded)) return null;
     const indexPath = join(root, "index.html");
     const index = await readIfFile(indexPath);
-    return index ? respond(index, indexPath, NO_STORE) : null;
+    if (index === null) return null;
+    const changed = transform ? await transform(decoded, index.toString("utf8"), origin) : null;
+    if (changed === null) return respond(index, indexPath, NO_STORE);
+    return new Response(changed.html, {
+      headers: {
+        "content-type": MIME[".html"] ?? "",
+        "cache-control": NO_STORE,
+        ...changed.headers,
+      },
+    });
   };
 }

@@ -38,7 +38,8 @@ const PUBLIC_EXACT = new Set([
   "/api/auth/methods",
   "/api/auth/local/login",
 ]);
-const PUBLIC_PREFIXES = ["/api/docs", "/api/auth/oidc/"];
+/** `/api/public/` serves public links (docs/sharing.md), each checking its own code. */
+const PUBLIC_PREFIXES = ["/api/docs", "/api/auth/oidc/", "/api/public/"];
 
 /** Routes a token must never reach: it cannot mint a successor, act as admin or move push. */
 const TOKEN_REFUSED = [

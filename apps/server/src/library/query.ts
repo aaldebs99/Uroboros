@@ -146,7 +146,7 @@ async function ownsSource(
   return row !== undefined;
 }
 
-const dashed = (date: string | null): string | null => {
+export const dashed = (date: string | null): string | null => {
   const m = date === null ? null : /^(\d{4})(\d{2})(\d{2})$/.exec(date);
   return m === null ? null : `${m[1] ?? ""}-${m[2] ?? ""}-${m[3] ?? ""}`;
 };

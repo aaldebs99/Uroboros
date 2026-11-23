@@ -16,6 +16,8 @@ import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
 import { registerItemRoutes } from "../library/itemRoutes.ts";
 import { registerPlaylistRoutes } from "../playlists/routes.ts";
+import { linkPreviews } from "../sharing/previews.ts";
+import { registerPublicRoutes } from "../sharing/publicRoutes.ts";
 import { registerSharingRoutes } from "../sharing/routes.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
@@ -124,6 +126,8 @@ export interface AppOptions {
   bodyLimitBytes?: number;
   /** Origins the player may load media from besides the app's own (the S3 public URL). */
   mediaOrigins?: string[];
+  /** `UROBOROS_PUBLIC_BASE_URL`: absolute links in public link previews (else the request's origin). */
+  publicBaseUrl?: string | null;
 }
 
 function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void {
@@ -168,7 +172,10 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
       if (!result.success) throw new ApiError("bad_request", "invalid request");
     },
   });
-  const spa = opts.webDist === null ? null : createSpaHandler(opts.webDist);
+  const spa =
+    opts.webDist === null
+      ? null
+      : createSpaHandler(opts.webDist, linkPreviews(deps.db, opts.publicBaseUrl ?? null));
   const attached = deps.attached ?? (() => true);
 
   app.use("*", async (c, next) => {
@@ -203,7 +210,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   app.onError(errorHandler(logger));
   app.notFound(async (c) => {
     if (spa !== null && c.req.method === "GET" && !c.req.path.startsWith("/api/")) {
-      const response = await spa(c.req.path);
+      const response = await spa(c.req.path, new URL(c.req.url).origin);
       if (response) return response;
     }
     return errorResponse(c, "not_found", "not found");
@@ -224,13 +231,12 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerPlaylistRoutes(app, deps.db);
   registerSharingRoutes(app, deps.db);
   registerSubscriptionRoutes(app, deps.downloads);
-  registerPlaybackRoutes(
-    app,
+  const playback =
     deps.downloads === undefined
       ? undefined
-      : { ...deps.downloads, encoder: deps.transcodeEncoder ?? "libx264" },
-    deps.store,
-  );
+      : { ...deps.downloads, encoder: deps.transcodeEncoder ?? "libx264" };
+  registerPlaybackRoutes(app, playback, deps.store);
+  registerPublicRoutes(app, deps.db, deps.store, playback);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

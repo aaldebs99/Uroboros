@@ -1593,6 +1593,67 @@
         ],
         "type": "object"
       },
+      "PublicItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PublicListItem"
+          },
+          {
+            "properties": {
+              "audioCodec": {
+                "nullable": true,
+                "type": "string"
+              },
+              "chapters": {
+                "items": {
+                  "$ref": "#/components/schemas/Chapter"
+                },
+                "type": "array"
+              },
+              "container": {
+                "nullable": true,
+                "type": "string"
+              },
+              "description": {
+                "nullable": true,
+                "type": "string"
+              },
+              "fileUrl": {
+                "nullable": true,
+                "type": "string"
+              },
+              "playbackUrl": {
+                "type": "string"
+              },
+              "streamUrl": {
+                "type": "string"
+              },
+              "subtitles": {
+                "items": {
+                  "$ref": "#/components/schemas/SubtitleTrack"
+                },
+                "type": "array"
+              },
+              "videoCodec": {
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": [
+              "description",
+              "chapters",
+              "subtitles",
+              "streamUrl",
+              "fileUrl",
+              "container",
+              "videoCodec",
+              "audioCodec",
+              "playbackUrl"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "PublicLink": {
         "nullable": true,
         "properties": {
@@ -1637,6 +1698,77 @@
         "required": [
           "allowDownload",
           "expiresAt"
+        ],
+        "type": "object"
+      },
+      "PublicListItem": {
+        "properties": {
+          "channel": {
+            "nullable": true,
+            "type": "string"
+          },
+          "duration": {
+            "nullable": true,
+            "type": "number"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "uploadDate": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "channel",
+          "duration",
+          "uploadDate",
+          "thumbnailUrl"
+        ],
+        "type": "object"
+      },
+      "PublicShare": {
+        "properties": {
+          "allowDownload": {
+            "type": "boolean"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicListItem"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "entry",
+              "playlist"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "description",
+          "allowDownload",
+          "items"
         ],
         "type": "object"
       },
@@ -5616,6 +5748,622 @@
         "summary": "Move one entry to a position (0 is first; past the end is last)",
         "tags": [
           "playlists"
+        ]
+      }
+    },
+    "/api/public/s/{code}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicShare"
+                }
+              }
+            },
+            "description": "The link"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          }
+        },
+        "security": [],
+        "summary": "What a public link shows: its title and its videos",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicItem"
+                }
+              }
+            },
+            "description": "The video"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          }
+        },
+        "security": [],
+        "summary": "One of a public link's videos, with what its player needs",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/file": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file"
+          },
+          "302": {
+            "description": "A presigned URL"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          }
+        },
+        "security": [],
+        "summary": "Save the file, when the link allows downloads",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/playback": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Playback"
+                }
+              }
+            },
+            "description": "The copy"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry, or no copy asked for"
+          }
+        },
+        "security": [],
+        "summary": "How far along the entry's compatible copy is",
+        "tags": [
+          "public links"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Playback"
+                }
+              }
+            },
+            "description": "The copy and how far along it is"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "security": [],
+        "summary": "Ask for a copy of the entry this browser can play (made once, then kept)",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/playback/master.m3u8": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.apple.mpegurl": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry or copy"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The copy has not started yet"
+          }
+        },
+        "security": [],
+        "summary": "The copy's multivariant HLS playlist",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/playback/{attempt}/index.m3u8": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{1,6}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.apple.mpegurl": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not stored, or another attempt"
+          }
+        },
+        "security": [],
+        "summary": "The copy's media playlist, which grows as segments are stored",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/playback/{attempt}/{file}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attempt",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{1,6}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such file"
+          }
+        },
+        "security": [],
+        "summary": "One of the copy's files: init.mp4 or seg-NNNNN.m4s",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/stream": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range"
+          },
+          "302": {
+            "description": "A presigned URL"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          }
+        },
+        "security": [],
+        "summary": "The file inline, for the player (ranges; or a redirect to a presigned URL)",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/subtitles/{subId}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/vtt": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The subtitles"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          }
+        },
+        "security": [],
+        "summary": "One of a video's subtitle files (WebVTT)",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/thumbnail": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The image"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          }
+        },
+        "security": [],
+        "summary": "A video's thumbnail",
+        "tags": [
+          "public links"
         ]
       }
     },

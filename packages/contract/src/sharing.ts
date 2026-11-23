@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { Chapter, SubtitleTrack } from "./library.ts";
 
 /** What is shared: a library entry, a manual playlist, or a YouTube playlist (docs/sharing.md). */
 export const ShareKind = z.enum(["entry", "playlist", "youtube"]).openapi("ShareKind");
@@ -112,3 +113,43 @@ export const Directory = z
   })
   .openapi("Directory");
 export type Directory = z.infer<typeof Directory>;
+
+/** One video of a public link's list. */
+export const PublicListItem = z
+  .object({
+    id: z.uuid(),
+    title: z.string(),
+    channel: z.string().nullable(),
+    duration: z.number().nullable(),
+    uploadDate: z.string().nullable(),
+    thumbnailUrl: z.string().nullable(),
+  })
+  .openapi("PublicListItem");
+export type PublicListItem = z.infer<typeof PublicListItem>;
+
+/** What a public link shows (`/s/<code>`): never who shared it. */
+export const PublicShare = z
+  .object({
+    kind: z.enum(["entry", "playlist"]),
+    title: z.string(),
+    description: z.string().nullable(),
+    allowDownload: z.boolean(),
+    items: z.array(PublicListItem),
+  })
+  .openapi("PublicShare");
+export type PublicShare = z.infer<typeof PublicShare>;
+
+/** One video of a public link with what its player needs; every URL is under the link. */
+export const PublicItem = PublicListItem.extend({
+  description: z.string().nullable(),
+  chapters: z.array(Chapter),
+  subtitles: z.array(SubtitleTrack),
+  streamUrl: z.string(),
+  /** Present only when the link allows downloads. */
+  fileUrl: z.string().nullable(),
+  container: z.string().nullable(),
+  videoCodec: z.string().nullable(),
+  audioCodec: z.string().nullable(),
+  playbackUrl: z.string(),
+}).openapi("PublicItem");
+export type PublicItem = z.infer<typeof PublicItem>;

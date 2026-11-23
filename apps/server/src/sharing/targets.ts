@@ -11,7 +11,13 @@ export interface TargetFacts {
   thumbnailUrl: string | null;
   /** A playlist's videos (the owner's); null for one video. */
   count: number | null;
+  /** The entry whose thumbnail stands for it, if any has one. */
+  coverEntryId: string | null;
 }
+
+/** The entry id in a library thumbnail URL (`/api/library/<id>/thumbnail`). */
+const coverOf = (url: string | null) =>
+  /^\/api\/library\/([0-9a-f-]+)\/thumbnail$/.exec(url ?? "")?.[1] ?? null;
 
 /** The facts of `ownerId`'s entry, manual playlist or YouTube playlist; 404 when it is not theirs. */
 export async function describeTarget(
@@ -34,6 +40,7 @@ export async function describeTarget(
       description: row.description,
       thumbnailUrl: row.thumbnail_key === null ? null : `/api/library/${id}/thumbnail`,
       count: null,
+      coverEntryId: row.thumbnail_key === null ? null : id,
     };
   }
   const playlist = await getPlaylist(db, ownerId, id);
@@ -45,5 +52,6 @@ export async function describeTarget(
     description: playlist.description,
     thumbnailUrl: playlist.coverThumbnailUrl,
     count: playlist.count,
+    coverEntryId: coverOf(playlist.coverThumbnailUrl),
   };
 }
