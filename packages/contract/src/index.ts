@@ -47,4 +47,20 @@ export {
   QueueSelectionBody,
   QueueSelectionResult,
   RequestState,
+  WatchProgress,
 } from "./downloads.ts";
+export {
+  Chapter,
+  ChannelSummary,
+  LIBRARY_PAGE_SIZE,
+  LibraryItem,
+  LibraryPage,
+  LibrarySort,
+  MAX_TAGS,
+  ProgressBody,
+  SourceSummary,
+  SubtitleTrack,
+  Tag,
+  TagsBody,
+  WatchedBody,
+} from "./library.ts";

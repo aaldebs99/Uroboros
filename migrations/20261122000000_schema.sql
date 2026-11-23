@@ -164,6 +164,12 @@ CREATE TABLE media (
   webpage_url TEXT,
   thumbnail_key TEXT,
   info_key TEXT,
+  -- [{start, end, title}] from the .info.json.
+  chapters JSONB NOT NULL DEFAULT '[]',
+  -- Full-text search over title, channel and description; 'simple' so any language works.
+  search TSVECTOR GENERATED ALWAYS AS (
+    to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(channel, '') || ' ' || coalesce(description, ''))
+  ) STORED,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (extractor, video_id)
@@ -248,3 +254,63 @@ CREATE UNIQUE INDEX downloads_one_active ON downloads (user_id, fetch_key)
   WHERE state IN ('queued', 'running');
 CREATE INDEX downloads_user_idx ON downloads (user_id, created_at DESC);
 CREATE INDEX downloads_fetch_idx ON downloads (fetch_key) WHERE state IN ('queued', 'running');
+
+-- Library (docs/library.md). A media's subtitle files, captured at download time.
+CREATE TABLE subtitles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  media_id UUID NOT NULL REFERENCES media ON DELETE CASCADE,
+  lang TEXT NOT NULL,
+  name TEXT,
+  automatic BOOLEAN NOT NULL DEFAULT false,
+  storage_key TEXT NOT NULL UNIQUE,
+  UNIQUE (media_id, lang, automatic)
+);
+
+CREATE INDEX media_search_idx ON media USING GIN (search);
+
+-- A playlist someone queued from a preview, its entries in order, and who queued it (a playlist
+-- shows only to them). Channel tabs are not recorded: the channel page covers a channel.
+CREATE TABLE sources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  extractor TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('playlist')),
+  title TEXT,
+  url TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (extractor, source_id)
+);
+
+CREATE TABLE user_sources (
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  source_id UUID NOT NULL REFERENCES sources ON DELETE CASCADE,
+  queued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, source_id)
+);
+
+-- Joined to media by extractor and video id: a preview entry has no media row until fetched.
+CREATE TABLE source_items (
+  source_id UUID NOT NULL REFERENCES sources ON DELETE CASCADE,
+  extractor TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  PRIMARY KEY (source_id, extractor, video_id)
+);
+
+CREATE TABLE entry_tags (
+  entry_id UUID NOT NULL REFERENCES library_entries ON DELETE CASCADE,
+  tag TEXT NOT NULL CHECK (tag = lower(btrim(tag)) AND char_length(tag) BETWEEN 1 AND 32),
+  PRIMARY KEY (entry_id, tag)
+);
+CREATE INDEX entry_tags_tag_idx ON entry_tags (tag);
+
+-- Per person and media, so two profiles of one video share it.
+CREATE TABLE watch_progress (
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  media_id UUID NOT NULL REFERENCES media ON DELETE CASCADE,
+  position_s DOUBLE PRECISION NOT NULL CHECK (position_s >= 0),
+  duration_s DOUBLE PRECISION NOT NULL CHECK (duration_s > 0),
+  watched BOOLEAN NOT NULL DEFAULT false,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, media_id)
+);

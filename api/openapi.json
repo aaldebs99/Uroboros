@@ -613,6 +613,10 @@
             "nullable": true,
             "type": "string"
           },
+          "channelKey": {
+            "nullable": true,
+            "type": "string"
+          },
           "container": {
             "nullable": true,
             "type": "string"
@@ -632,8 +636,17 @@
           "profileName": {
             "type": "string"
           },
+          "progress": {
+            "$ref": "#/components/schemas/WatchProgress"
+          },
           "sizeBytes": {
             "type": "number"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "thumbnailUrl": {
             "nullable": true,
@@ -658,7 +671,10 @@
           "profileName",
           "sizeBytes",
           "container",
-          "addedAt"
+          "addedAt",
+          "progress",
+          "tags",
+          "channelKey"
         ],
         "type": "object"
       },
@@ -1171,6 +1187,26 @@
       "Username": {
         "pattern": "^[a-z0-9._-]{1,64}$",
         "type": "string"
+      },
+      "WatchProgress": {
+        "nullable": true,
+        "properties": {
+          "duration": {
+            "type": "number"
+          },
+          "position": {
+            "type": "number"
+          },
+          "watched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "position",
+          "duration",
+          "watched"
+        ],
+        "type": "object"
       }
     }
   },

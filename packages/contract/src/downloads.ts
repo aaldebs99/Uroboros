@@ -196,6 +196,11 @@ export const DownloadEvent = z
   .openapi("DownloadEvent");
 export type DownloadEvent = z.infer<typeof DownloadEvent>;
 
+export const WatchProgress = z
+  .object({ position: z.number(), duration: z.number(), watched: z.boolean() })
+  .openapi("WatchProgress");
+export type WatchProgress = z.infer<typeof WatchProgress>;
+
 export const LibraryEntry = z
   .object({
     id: Id,
@@ -210,6 +215,11 @@ export const LibraryEntry = z
     sizeBytes: z.number(),
     container: z.string().nullable(),
     addedAt: z.iso.datetime(),
+    /** The caller's progress on this video; null before they start it. */
+    progress: WatchProgress.nullable(),
+    tags: z.array(z.string()),
+    /** The channel page's key; null when the site gives no channel. */
+    channelKey: z.string().nullable(),
   })
   .openapi("LibraryEntry");
 export type LibraryEntry = z.infer<typeof LibraryEntry>;

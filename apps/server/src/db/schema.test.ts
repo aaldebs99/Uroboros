@@ -253,3 +253,95 @@ describe("schema: downloads, media and profiles", () => {
     }
   });
 });
+
+describe("schema: library", () => {
+  async function media(title: string): Promise<string> {
+    const row = await t.db
+      .insertInto("media")
+      .values({
+        extractor: "youtube",
+        video_id: randomUUID(),
+        title,
+        channel: "Blender",
+        description: "An open movie",
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+
+  it("indexes title, channel and description for search", async () => {
+    const id = await media("Big Buck Bunny");
+    for (const q of ["bunny", "blender", "movie"]) {
+      const hit = await sql<{
+        id: string;
+      }>`SELECT id FROM media WHERE search @@ to_tsquery('simple', ${q})`.execute(t.db);
+      expect(hit.rows.map((r) => r.id)).toContain(id);
+    }
+  });
+
+  it("keeps one progress row per person and media", async () => {
+    const u = await localUser("prog");
+    const m = await media("p");
+    const row = () =>
+      t.db
+        .insertInto("watch_progress")
+        .values({ user_id: u, media_id: m, position_s: 1, duration_s: 10 })
+        .execute();
+    await row();
+    expect(await errCode(row())).toBe("23505");
+  });
+
+  it("removes a person's tags, progress and playlists with them", async () => {
+    const u = await localUser("libgone");
+    const m = await media("g");
+    const p = await t.db
+      .selectFrom("format_profiles")
+      .select(["id", "revision"])
+      .where("is_default", "=", true)
+      .executeTakeFirstOrThrow();
+    const r = await t.db
+      .insertInto("renditions")
+      .values({
+        media_id: m,
+        profile_id: p.id,
+        profile_revision: p.revision,
+        storage_key: `k/${randomUUID()}`,
+        size_bytes: 1,
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    const e = await t.db
+      .insertInto("library_entries")
+      .values({ user_id: u, media_id: m, rendition_id: r.id })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await t.db.insertInto("entry_tags").values({ entry_id: e.id, tag: "music" }).execute();
+    await t.db
+      .insertInto("watch_progress")
+      .values({ user_id: u, media_id: m, position_s: 1, duration_s: 10 })
+      .execute();
+    const s = await t.db
+      .insertInto("sources")
+      .values({
+        extractor: "youtube",
+        source_id: randomUUID(),
+        kind: "playlist",
+        title: "P",
+        url: "https://x.example/p",
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await t.db.insertInto("user_sources").values({ user_id: u, source_id: s.id }).execute();
+    await t.db.deleteFrom("users").where("id", "=", u).execute();
+    expect(
+      await t.db.selectFrom("entry_tags").selectAll().where("entry_id", "=", e.id).execute(),
+    ).toEqual([]);
+    expect(
+      await t.db.selectFrom("watch_progress").selectAll().where("user_id", "=", u).execute(),
+    ).toEqual([]);
+    expect(
+      await t.db.selectFrom("user_sources").selectAll().where("user_id", "=", u).execute(),
+    ).toEqual([]);
+  });
+});

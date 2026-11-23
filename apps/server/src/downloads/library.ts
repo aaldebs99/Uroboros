@@ -2,6 +2,7 @@ import type { LibraryEntry } from "@uroboros/contract";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { channelKey } from "../library/channelKey.ts";
 
 function dashed(date: string | null): string | null {
   const m = date === null ? null : /^(\d{4})(\d{2})(\d{2})$/.exec(date);
@@ -23,6 +24,8 @@ export function entryQuery(db: Kysely<Database>) {
       "m.title",
       "m.video_id",
       "m.channel",
+      "m.channel_id",
+      "m.extractor",
       "m.uploader",
       "m.upload_date",
       "m.duration",
@@ -51,6 +54,9 @@ export async function listLibrary(db: Kysely<Database>, userId: string): Promise
     sizeBytes: Number(r.size_bytes),
     container: r.container,
     addedAt: r.added_at.toISOString(),
+    progress: null,
+    tags: [],
+    channelKey: channelKey(r.extractor, r.channel_id, r.channel ?? r.uploader),
   }));
 }
 

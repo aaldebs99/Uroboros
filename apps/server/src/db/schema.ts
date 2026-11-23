@@ -124,6 +124,9 @@ export interface MediaTable {
   webpage_url: string | null;
   thumbnail_key: string | null;
   info_key: string | null;
+  chapters: ColumnType<unknown, string | undefined, string>;
+  /** Generated; never written. */
+  search: ColumnType<string, never, never>;
   created_at: Created;
   updated_at: Defaulted<Date | string>;
 }
@@ -199,6 +202,54 @@ export interface DownloadsTable {
   finished_at: Timestamp | null;
 }
 
+/** `subtitles`: one subtitle file of a media. */
+export interface SubtitlesTable {
+  id: Generated<string>;
+  media_id: string;
+  lang: string;
+  name: string | null;
+  automatic: Defaulted<boolean>;
+  storage_key: string;
+}
+
+/** `sources`: a playlist someone queued from a preview. */
+export interface SourcesTable {
+  id: Generated<string>;
+  extractor: string;
+  source_id: string;
+  kind: "playlist";
+  title: string | null;
+  url: string;
+  created_at: Created;
+}
+
+export interface UserSourcesTable {
+  user_id: string;
+  source_id: string;
+  queued_at: Created;
+}
+
+export interface SourceItemsTable {
+  source_id: string;
+  extractor: string;
+  video_id: string;
+  position: number;
+}
+
+export interface EntryTagsTable {
+  entry_id: string;
+  tag: string;
+}
+
+export interface WatchProgressTable {
+  user_id: string;
+  media_id: string;
+  position_s: number;
+  duration_s: number;
+  watched: Defaulted<boolean>;
+  updated_at: Defaulted<Date | string>;
+}
+
 export interface Database {
   push_devices: PushDevicesTable;
   vapid_keys: VapidKeysTable;
@@ -214,4 +265,10 @@ export interface Database {
   library_entries: LibraryEntriesTable;
   download_requests: DownloadRequestsTable;
   downloads: DownloadsTable;
+  subtitles: SubtitlesTable;
+  sources: SourcesTable;
+  user_sources: UserSourcesTable;
+  source_items: SourceItemsTable;
+  entry_tags: EntryTagsTable;
+  watch_progress: WatchProgressTable;
 }

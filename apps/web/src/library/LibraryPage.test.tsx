@@ -19,6 +19,9 @@ const entry = {
   sizeBytes: 5 * 1024 * 1024,
   container: "mp4",
   addedAt: "2026-11-22T10:00:00.000Z",
+  progress: null,
+  tags: [],
+  channelKey: null,
 };
 
 afterEach(() => {
