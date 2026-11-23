@@ -20,6 +20,7 @@ import { notify } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import { formatDuration } from "@/downloads/format";
 
+import { Suggestions } from "./Suggestions";
 import { TagEditor } from "./TagEditor";
 import { useProgressReporter } from "./useProgressReporter";
 
@@ -70,7 +71,12 @@ function Chapters({ item, onSeek }: { item: LibraryItem; onSeek: (time: number) 
   );
 }
 
-/** One video: the player, then its details, chapters, tags and actions. */
+/**
+ * One video, laid out like a watch page: the player at the top left with its details, description,
+ * tags and chapters below it, and suggestions in a column on the right. The columns follow the
+ * width the page has (a container query), not the window, so a narrow page (or the side
+ * navigation taking room) stacks the suggestions under the details instead.
+ */
 export function ItemPage({ entryId }: { entryId: string }) {
   const item = useItem(entryId);
   const client = useQueryClient();
@@ -90,126 +96,133 @@ export function ItemPage({ entryId }: { entryId: string }) {
     notify.error(errorText(err));
   };
   return (
-    <article className="mx-auto grid w-full max-w-5xl gap-4">
-      <Suspense fallback={<div className="aspect-video w-full rounded-[12px] bg-raised" />}>
-        <Player
-          src={it.streamUrl}
-          title={it.title}
-          start={it.progress !== null && !it.progress.watched ? it.progress.position : 0}
-          seek={seek}
-          chapters={it.chapters}
-          subtitles={it.subtitles}
-          {...reporter}
-        />
-      </Suspense>
-      <h1 className="text-xl font-bold">{it.title}</h1>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <Avatar name={it.channel} />
-          <div className="min-w-0">
-            {it.channelKey === null ? (
-              <p className="truncate font-medium">{it.channel ?? "Unknown channel"}</p>
-            ) : (
-              <Link
-                to="/library/channels/$channelKey"
-                params={{ channelKey: it.channelKey }}
-                className="truncate font-medium hover:underline"
-              >
-                {it.channel}
-              </Link>
+    <div className="@container mx-auto w-full max-w-[1720px]">
+      <div className="grid gap-6 @5xl:grid-cols-[minmax(0,1fr)_minmax(18rem,25rem)]">
+        <article className="grid min-w-0 content-start gap-4">
+          <Suspense fallback={<div className="aspect-video w-full rounded-[12px] bg-raised" />}>
+            <Player
+              src={it.streamUrl}
+              title={it.title}
+              start={it.progress !== null && !it.progress.watched ? it.progress.position : 0}
+              seek={seek}
+              chapters={it.chapters}
+              subtitles={it.subtitles}
+              {...reporter}
+            />
+          </Suspense>
+          <h1 className="text-xl font-bold">{it.title}</h1>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <Avatar name={it.channel} />
+              <div className="min-w-0">
+                {it.channelKey === null ? (
+                  <p className="truncate font-medium">{it.channel ?? "Unknown channel"}</p>
+                ) : (
+                  <Link
+                    to="/library/channels/$channelKey"
+                    params={{ channelKey: it.channelKey }}
+                    className="truncate font-medium hover:underline"
+                  >
+                    {it.channel}
+                  </Link>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {[
+                    it.uploadDate,
+                    it.duration === null ? null : formatDuration(it.duration),
+                    it.profileName,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <Switch
+                aria-label="Watched"
+                checked={it.progress?.watched ?? false}
+                onCheckedChange={(watched) => {
+                  setWatched(entryId, watched)
+                    .then(() => client.invalidateQueries({ queryKey: itemKey(entryId) }))
+                    .then(refresh)
+                    .catch(fail);
+                }}
+              />
+              Watched
+            </label>
+            <Button variant="secondary" asChild>
+              <a href={`/api/library/${entryId}/file`} download>
+                <Download aria-hidden /> Save
+              </a>
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                confirm.ask({
+                  title: `Remove "${it.title}"?`,
+                  description: "It leaves your library. Others who downloaded it keep their copy.",
+                  confirmLabel: "Remove",
+                  destructive: true,
+                  onConfirm: () => {
+                    remove.mutate(entryId, {
+                      onSuccess: () => {
+                        void navigate({ to: "/" });
+                      },
+                      onError: fail,
+                    });
+                  },
+                });
+              }}
+            >
+              <Trash2 aria-hidden /> Remove
+            </Button>
+            {it.webpageUrl === null ? null : (
+              <Button variant="ghost" asChild>
+                <a href={it.webpageUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink aria-hidden /> Open on the site
+                </a>
+              </Button>
             )}
-            <p className="text-xs text-muted-foreground">
-              {[
-                it.uploadDate,
-                it.duration === null ? null : formatDuration(it.duration),
-                it.profileName,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
           </div>
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <Switch
-            aria-label="Watched"
-            checked={it.progress?.watched ?? false}
-            onCheckedChange={(watched) => {
-              setWatched(entryId, watched)
+          {it.description === null || it.description.trim() === "" ? null : (
+            <Description text={it.description} />
+          )}
+          <TagEditor
+            tags={it.tags}
+            onChange={(tags) => {
+              setTags(entryId, tags)
                 .then(() => client.invalidateQueries({ queryKey: itemKey(entryId) }))
                 .then(refresh)
                 .catch(fail);
             }}
           />
-          Watched
-        </label>
-        <Button variant="secondary" asChild>
-          <a href={`/api/library/${entryId}/file`} download>
-            <Download aria-hidden /> Save
-          </a>
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={() => {
-            confirm.ask({
-              title: `Remove "${it.title}"?`,
-              description: "It leaves your library. Others who downloaded it keep their copy.",
-              confirmLabel: "Remove",
-              destructive: true,
-              onConfirm: () => {
-                remove.mutate(entryId, {
-                  onSuccess: () => {
-                    void navigate({ to: "/" });
-                  },
-                  onError: fail,
-                });
-              },
-            });
-          }}
-        >
-          <Trash2 aria-hidden /> Remove
-        </Button>
-        {it.webpageUrl === null ? null : (
-          <Button variant="ghost" asChild>
-            <a href={it.webpageUrl} target="_blank" rel="noreferrer">
-              <ExternalLink aria-hidden /> Open on the site
-            </a>
-          </Button>
-        )}
+          {it.sources.length === 0 ? null : (
+            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <ListVideo className="size-4" aria-hidden /> In
+              {it.sources.map((s) => (
+                <Link
+                  key={s.id}
+                  to="/library/playlists/$sourceId"
+                  params={{ sourceId: s.id }}
+                  className="text-primary hover:underline"
+                >
+                  {s.title ?? "a playlist"}
+                </Link>
+              ))}
+            </p>
+          )}
+          {confirm.dialog}
+          <Chapters
+            item={it}
+            onSeek={(time) => {
+              setSeek({ time });
+            }}
+          />
+        </article>
+        <aside aria-label="Suggestions" className="min-w-0">
+          <Suggestions currentId={entryId} />
+        </aside>
       </div>
-      {it.description === null || it.description.trim() === "" ? null : (
-        <Description text={it.description} />
-      )}
-      <TagEditor
-        tags={it.tags}
-        onChange={(tags) => {
-          setTags(entryId, tags)
-            .then(() => client.invalidateQueries({ queryKey: itemKey(entryId) }))
-            .then(refresh)
-            .catch(fail);
-        }}
-      />
-      {it.sources.length === 0 ? null : (
-        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <ListVideo className="size-4" aria-hidden /> In
-          {it.sources.map((s) => (
-            <Link
-              key={s.id}
-              to="/library/playlists/$sourceId"
-              params={{ sourceId: s.id }}
-              className="text-primary hover:underline"
-            >
-              {s.title ?? "a playlist"}
-            </Link>
-          ))}
-        </p>
-      )}
-      {confirm.dialog}
-      <Chapters
-        item={it}
-        onSeek={(time) => {
-          setSeek({ time });
-        }}
-      />
-    </article>
+    </div>
   );
 }

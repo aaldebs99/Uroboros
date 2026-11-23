@@ -1,4 +1,4 @@
-import { act, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -105,6 +105,21 @@ describe("ItemPage", () => {
         tags: ["movies", "open"],
       });
     });
+  });
+});
+
+describe("ItemPage suggestions", () => {
+  it("suggests the rest of the library beside the player, without the video playing", async () => {
+    const other = { ...item, id: "0190a3f2-7c1e-7000-8000-0000000000d1", title: "Sintel" };
+    fakeApi({
+      [`GET /api/library/${ID}`]: () => Response.json(item),
+      "GET /api/library": () => Response.json({ entries: [item, other], nextCursor: null }),
+    });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    const aside = await screen.findByRole("complementary", { name: "Suggestions" });
+    const link = await within(aside).findByRole("link", { name: /Sintel/ });
+    expect(link).toHaveAttribute("href", `/library/${other.id}`);
+    expect(within(aside).queryByRole("link", { name: /Big Buck Bunny/ })).not.toBeInTheDocument();
   });
 });
 

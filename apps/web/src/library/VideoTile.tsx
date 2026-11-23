@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Download, Eye, EyeOff, Film, MoreVertical, Trash2 } from "lucide-react";
 
 import { Avatar } from "@/components/Avatar";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ResponsiveMenu } from "@/components/ui/responsive-menu";
 import { formatBytes, formatDuration } from "@/downloads/format";
@@ -10,12 +11,13 @@ import { formatBytes, formatDuration } from "@/downloads/format";
 const added = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 /** "added today", "added 3 days ago": days are close enough for a library. */
-function addedAgo(iso: string): string {
+export function addedAgo(iso: string): string {
   const days = Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
   return `added ${added.format(days, "day")}`;
 }
 
-function Thumbnail({ entry }: { entry: LibraryEntry }) {
+/** A video's 16:9 thumbnail with its duration badge and, once started, the watched bar. */
+export function VideoThumbnail({ entry, className }: { entry: LibraryEntry; className?: string }) {
   const watched = entry.progress;
   const fraction =
     watched === null || watched.duration <= 0
@@ -24,7 +26,7 @@ function Thumbnail({ entry }: { entry: LibraryEntry }) {
         ? 1
         : Math.min(1, watched.position / watched.duration);
   return (
-    <div className="relative aspect-video overflow-hidden bg-raised max-md:-mx-4 md:rounded-[12px]">
+    <div className={cn("relative aspect-video overflow-hidden bg-raised", className)}>
       {entry.thumbnailUrl === null ? (
         <Film className="absolute inset-0 m-auto size-8 text-muted-foreground" aria-hidden />
       ) : (
@@ -60,7 +62,17 @@ export function EntryTile({
   const watched = entry.progress?.watched ?? false;
   return (
     <li className="grid gap-3 max-md:gap-2.5">
-      <Thumbnail entry={entry} />
+      {/* The thumbnail opens the video too. The title is the link keyboards and screen readers
+          use, so this one stays out of the tab order and the accessibility tree. */}
+      <Link
+        to="/library/$entryId"
+        params={{ entryId: entry.id }}
+        tabIndex={-1}
+        aria-hidden
+        className="block max-md:-mx-4"
+      >
+        <VideoThumbnail entry={entry} className="md:rounded-[12px]" />
+      </Link>
       <div className="flex gap-3">
         <Avatar name={entry.channel} />
         <div className="min-w-0 flex-1">

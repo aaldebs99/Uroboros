@@ -43,6 +43,20 @@ describe("LibraryPage", () => {
     );
   });
 
+  it("opens the video from its thumbnail as well as its title", async () => {
+    fakeApi({ "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }) });
+    const { container } = await renderInRouter(<LibraryPage />);
+    expect(await screen.findByRole("link", { name: "Big Buck Bunny" })).toHaveAttribute(
+      "href",
+      `/library/${entry.id}`,
+    );
+    // The thumbnail link is hidden from assistive tech (the title is that link), so find it by
+    // its href rather than its role.
+    const thumb = container.querySelector(`a[href="/library/${entry.id}"][aria-hidden="true"]`);
+    expect(thumb).not.toBeNull();
+    expect(thumb).toHaveAttribute("tabindex", "-1");
+  });
+
   it("removes an entry after asking", async () => {
     const calls = fakeApi({
       "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }),
