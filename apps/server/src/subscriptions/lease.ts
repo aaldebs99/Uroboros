@@ -43,6 +43,11 @@ export async function renewLease(db: Kysely<Database>, id: string): Promise<void
   await db.updateTable("subscriptions").set({ lease_until: until }).where("id", "=", id).execute();
 }
 
+/** Lets the lease go without recording anything (a check cut by shutdown). */
+export async function freeLease(db: Kysely<Database>, id: string): Promise<void> {
+  await db.updateTable("subscriptions").set({ lease_until: null }).where("id", "=", id).execute();
+}
+
 export type CheckOutcome =
   | { ok: true; feeds: FeedJson[]; warning: string | null }
   | { ok: false; kind: DownloadErrorKind; message: string };

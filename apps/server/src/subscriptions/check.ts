@@ -3,8 +3,9 @@ import { toDownloadError } from "../downloads/errors.ts";
 import type { FeedJson } from "../db/schema.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
 import { filterAll, type Known } from "./decisions.ts";
-import { releaseLease, renewLease, takeLease } from "./lease.ts";
+import { freeLease, releaseLease, renewLease, takeLease } from "./lease.ts";
 import { listFeed, type Candidate } from "./listing.ts";
+import { enqueueNotice, FAILING_AFTER, failingNotice, newVideosNotice } from "./notices.ts";
 import { PatternTimeout } from "./patterns.ts";
 import type { CheckJob } from "./queue.ts";
 import { recordAndQueue, type Decision } from "./record.ts";
@@ -20,12 +21,12 @@ export function checkFailure(err: unknown): { kind: DownloadErrorKind; message: 
 }
 
 /** Lists every feed, merging by video (the first feed to list one keeps it). */
-async function listAll(deps: WorkerDeps, sub: SubscriptionRow) {
+async function listAll(deps: WorkerDeps, sub: SubscriptionRow, signal?: AbortSignal) {
   const seen = new Set<string>();
   const merged: Candidate[] = [];
   let capped = false;
   for (const feed of sub.feeds) {
-    const listed = await listFeed(deps, feed);
+    const listed = await listFeed(deps, feed, signal);
     capped ||= listed.capped;
     for (const c of listed.entries) {
       if (seen.has(keyOf(c))) continue;
@@ -85,6 +86,7 @@ async function decideAll(
   fresh: Candidate[],
   first: ReturnType<typeof firstCheckFeeds>,
   known: ReadonlyMap<string, Known>,
+  signal?: AbortSignal,
 ): Promise<Decision[]> {
   const existing: Decision[] = [];
   const passing: Candidate[] = [];
@@ -95,11 +97,15 @@ async function decideAll(
       passing.push(c);
     }
   }
-  return [...existing, ...(await filterAll(deps, sub, passing, known, keyOf))];
+  return [...existing, ...(await filterAll(deps, sub, passing, known, keyOf, signal))];
 }
 
-async function runCheck(deps: WorkerDeps, sub: SubscriptionRow): Promise<FeedJson[]> {
-  const { merged, warning } = await listAll(deps, sub);
+async function runCheck(
+  deps: WorkerDeps,
+  sub: SubscriptionRow,
+  signal?: AbortSignal,
+): Promise<FeedJson[]> {
+  const { merged, warning } = await listAll(deps, sub, signal);
   const known = await recorded(deps, sub, merged);
   const fresh = merged.filter((c) => {
     const k = known.get(keyOf(c));
@@ -109,24 +115,45 @@ async function runCheck(deps: WorkerDeps, sub: SubscriptionRow): Promise<FeedJso
   const waiting = new Map(
     [...known].map(([k, r]) => [k, { seenAt: new Date(r.seen_at) }] as const),
   );
-  const decisions = await decideAll(deps, sub, fresh, first, waiting);
-  await recordAndQueue(deps, sub, decisions, first.feeds);
+  const decisions = await decideAll(deps, sub, fresh, first, waiting, signal);
+  const { queuedNew } = await recordAndQueue(deps, sub, decisions, first.feeds);
+  if (sub.notify && queuedNew.length > 0) {
+    const titles = queuedNew.map((c) => c.title ?? c.videoId);
+    await enqueueNotice(deps.queues.notify, sub.user_id, newVideosNotice(sub, titles), "normal");
+  }
   const now = new Date().toISOString();
   const feeds = sub.feeds.map((f) => ({ ...f, primedAt: f.primedAt ?? now }));
   await releaseLease(deps.db, sub.id, { ok: true, feeds, warning });
   return feeds;
 }
 
-/** The `automation` queue's `check` job: list, filter, record and queue (docs/automation.md). */
-export function checkProcessor(deps: WorkerDeps) {
+/**
+ * The `automation` queue's `check` job: list, filter, record and queue (docs/automation.md).
+ * `signal` (shutdown) stops a running check; it records nothing and the schedule runs it again.
+ */
+export function checkProcessor(deps: WorkerDeps, signal?: AbortSignal) {
   return async (job: { data: CheckJob }): Promise<void> => {
     const sub = await takeLease(deps.db, job.data.subscriptionId);
     if (sub === undefined) return;
     try {
-      await runCheck(deps, sub);
+      await runCheck(deps, sub, signal);
     } catch (err) {
+      if (signal?.aborted === true) {
+        await freeLease(deps.db, sub.id);
+        return;
+      }
       deps.logger.warn({ err, subscriptionId: sub.id }, "subscription check failed");
-      await releaseLease(deps.db, sub.id, { ok: false, ...checkFailure(err) });
+      const failure = checkFailure(err);
+      const { failures } = await releaseLease(deps.db, sub.id, { ok: false, ...failure });
+      // Once per failing streak: the count only passes 3 again after a check succeeds.
+      if (sub.notify && failures === FAILING_AFTER) {
+        await enqueueNotice(
+          deps.queues.notify,
+          sub.user_id,
+          failingNotice(sub, failure.message),
+          "high",
+        );
+      }
     }
   };
 }

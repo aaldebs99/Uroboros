@@ -49,11 +49,13 @@ function candidate(feed: string, position: number, e: PlaylistEntry, fallback: s
 export async function listFeed(
   deps: WorkerDeps,
   feed: FeedJson,
+  signal?: AbortSignal,
 ): Promise<{ entries: Candidate[]; capped: boolean }> {
   const max = deps.limits.maxPlaylistEntries;
   const info = await probe(feed.url, {
     ...ytdlpOptions(deps),
     extraArgs: [`--playlist-items=1:${String(max)}`],
+    ...(signal === undefined ? {} : { signal }),
   });
   if (info.kind === "video") return { entries: [], capped: false };
   const fallback = info.extractorKey ?? "generic";

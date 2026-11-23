@@ -22,9 +22,14 @@ async function probed(
   deps: WorkerDeps,
   sub: SubscriptionRow,
   c: Candidate,
+  signal?: AbortSignal,
 ): Promise<Candidate | "unavailable" | null> {
   try {
-    const info = await probe(c.url, { ...ytdlpOptions(deps), flat: false });
+    const info = await probe(c.url, {
+      ...ytdlpOptions(deps),
+      flat: false,
+      ...(signal === undefined ? {} : { signal }),
+    });
     if (info.kind !== "video") return null;
     return {
       ...c,
@@ -36,6 +41,7 @@ async function probed(
       mediaType: info.mediaType ?? c.mediaType,
     };
   } catch (err) {
+    if (signal?.aborted === true) throw err;
     const kind = toDownloadError(err).kind;
     if (kind === "unavailable" || kind === "private") return "unavailable";
     deps.logger.warn({ err, url: c.url, subscriptionId: sub.id }, "probing a video failed");
@@ -56,6 +62,7 @@ export async function filterAll(
   passing: Candidate[],
   known: ReadonlyMap<string, Known>,
   keyOf: (c: Candidate) => string,
+  signal?: AbortSignal,
 ): Promise<Decision[]> {
   const ok = await titlesPass(
     deps.db,
@@ -72,7 +79,7 @@ export async function filterAll(
     if (verdict.outcome === "probe") {
       if (budget <= 0) continue;
       budget--;
-      const full = await probed(deps, sub, c);
+      const full = await probed(deps, sub, c, signal);
       if (full === null) continue;
       verdict =
         full === "unavailable"

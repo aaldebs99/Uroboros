@@ -275,6 +275,20 @@ describe("subscription checks", () => {
     expect(await items(id)).toHaveLength(50);
   }, 60_000);
 
+  it("records nothing for a check cut by shutdown", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);
+    const deps = await h.deps({ steps: [{ sleepMs: 3000 }, { stdout: listing(videos, []) }] });
+    const stop = new AbortController();
+    const running = checkProcessor(deps, stop.signal)({ data: { subscriptionId: id } });
+    await sleep(200);
+    stop.abort();
+    await running;
+    const after = await row(id);
+    expect(after).toMatchObject({ failures: 0, last_error_kind: null, lease_until: null });
+    expect(after.last_checked_at).toBeNull();
+  });
+
   it("fails the check when a pattern times out", () => {
     expect(checkFailure(new PatternTimeout())).toEqual({
       kind: "unknown",

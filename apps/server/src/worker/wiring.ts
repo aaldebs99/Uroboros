@@ -4,6 +4,7 @@ import type { Logger } from "pino";
 import type { Config } from "../config.ts";
 import type { Database } from "../db/schema.ts";
 import type { DownloadQueues } from "../downloads/queues.ts";
+import type { PushService } from "../push/service.ts";
 import type { MediaStore } from "../storage/index.ts";
 import type { WorkerDeps } from "./deps.ts";
 
@@ -14,6 +15,7 @@ export interface SharedResources {
   valkey: Redis;
   queues: DownloadQueues;
   store: MediaStore;
+  push: PushService;
 }
 
 /** What the probe and fetch processors run with, on the process's shared connections. */
@@ -41,5 +43,6 @@ export function workerDeps(
     },
     ffprobe: { binary: "ffprobe" },
     subtitles: config.worker.subtitles,
+    push: shared.push,
   };
 }

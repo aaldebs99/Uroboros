@@ -6,6 +6,7 @@ import type { Kysely } from "kysely";
 import type { Database } from "../src/db/schema.ts";
 import { DEFAULT_LAYOUT, type StorageConfig } from "../src/storage/config.ts";
 import { createStore } from "../src/storage/index.ts";
+import { disabledPush } from "../src/push/service.ts";
 import type { WorkerDeps } from "../src/worker/deps.ts";
 import { downloadHarness } from "./downloads.ts";
 
@@ -46,6 +47,7 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
         },
         ffprobe: { binary: ffprobeRun.options.binary, env: ffprobeRun.options.env },
         subtitles: { langs: "en.*", automatic: false },
+        push: disabledPush,
       };
     },
     async close(): Promise<void> {

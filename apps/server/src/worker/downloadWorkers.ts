@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import { cancelChannel } from "../downloads/events.ts";
 import { DOWNLOAD_QUEUE, PROBE_QUEUE, type FetchJob, type ProbeJob } from "../downloads/queues.ts";
+import { startAutomationWorkers } from "./automationWorkers.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
 import { probeProcessor } from "./probe.ts";
@@ -15,7 +16,7 @@ export interface DownloadWorkers {
 }
 
 /**
- * The probe and download consumers on `connection` (which must allow blocking commands), and a
+ * The probe, download, automation and notify consumers on `connection` (which must allow blocking commands), and a
  * subscriber on its own connection that aborts a running fetch when the api asks.
  */
 export async function startDownloadWorkers(
@@ -52,10 +53,12 @@ export async function startDownloadWorkers(
       deps.logger.error({ err, queue: w.name }, "worker error");
     });
   }
+  const automation = startAutomationWorkers(connection, deps, { prefix: opts.prefix });
   return {
-    workers: [probe, download],
+    workers: [probe, download, ...automation.workers],
     abortRunning() {
       cancels.abortAll();
+      automation.abortRunning();
     },
     async close() {
       subscriber.disconnect();

@@ -1,4 +1,5 @@
 import type { DownloadContext } from "../downloads/dispatch.ts";
+import type { PushService } from "../push/service.ts";
 import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
 import type { SubtitleSettings } from "./subtitles.ts";
@@ -19,4 +20,6 @@ export interface WorkerDeps extends DownloadContext {
   ffprobe: { binary: string; env?: Record<string, string> };
   /** Subtitles saved with each download. */
   subtitles: SubtitleSettings;
+  /** The process's push service, for the `notify` consumer. */
+  push: PushService;
 }

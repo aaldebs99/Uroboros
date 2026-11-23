@@ -24,6 +24,7 @@ import { startClaimsSync } from "../auth/claimsSync.ts";
 import { createOidcProvider } from "../auth/oidc/provider.ts";
 import { sweeperDuty } from "../auth/sweeper.ts";
 import { reconcileDuty } from "../downloads/reconcile.ts";
+import { automationDuties } from "../subscriptions/duties.ts";
 import { createApp } from "./app.ts";
 import { CLEANUP_MS, drain, settlesWithin } from "./drain.ts";
 
@@ -207,21 +208,24 @@ export async function startApi(
     if (oidc !== undefined) {
       startClaimsSync({ db, provider: oidc, databaseUrl: config.databaseUrl, logger }, stop.signal);
     }
-    // The leader sweeps expired sessions and pending sign-ins hourly. Scheduling never needs it:
-    // BullMQ's job schedulers already run each repeatable job exactly once.
+    // The leader sweeps expired sessions and pending sign-ins hourly, re-adds lost fetch jobs and
+    // keeps the subscription schedulers in step. The schedules themselves never need it: BullMQ's
+    // job schedulers already run each repeatable job exactly once.
     leading = leadAndRun({
       lock: new PgLeaderLock(config.databaseUrl, URO_LEAD, { logger }),
       name: "leader",
       work: (signal) =>
-        Promise.all([sweeperDuty(db, logger)(signal), reconcileDuty(downloadContext)(signal)]).then(
-          () => undefined,
-        ),
+        Promise.all([
+          sweeperDuty(db, logger)(signal),
+          reconcileDuty(downloadContext)(signal),
+          automationDuties(downloadContext)(signal),
+        ]).then(() => undefined),
       shutdown: stop.signal,
       ...(opts.leaderRetryMs === undefined ? {} : { retryMs: opts.leaderRetryMs }),
       status: leader,
       logger,
     });
-    const starting = opts.consumers?.start({ db, valkey, queues, store }, stop.signal);
+    const starting = opts.consumers?.start({ db, valkey, queues, store, push }, stop.signal);
     if (starting !== undefined) {
       // In the background: Valkey down delays the consumers, never readiness. A start aborted by
       // shutdown is no crash; any other failure is.
