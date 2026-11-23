@@ -5,6 +5,7 @@ import type { Redis } from "ioredis";
 import { pino } from "pino";
 import type { Logger } from "pino";
 import type { AuthConfig } from "../auth/config.ts";
+import { registerAccountRoutes } from "../auth/accountRoutes.ts";
 import { registerAdminUserRoutes } from "../auth/adminUserRoutes.ts";
 import { authGuard, type ResolveToken } from "../auth/guard.ts";
 import { createLimiter } from "../auth/limiter.ts";
@@ -122,6 +123,7 @@ function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void 
         : oidcEndSessionUrl(deps.db, provider, new URL(oidc.redirectUrl).origin, userId),
   });
   registerTokenRoutes(app, deps.db);
+  registerAccountRoutes(app, deps.db);
   registerAdminUserRoutes(app, {
     db: deps.db,
     provider: provider ?? noOidcProvider,

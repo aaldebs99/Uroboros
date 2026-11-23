@@ -2,6 +2,80 @@
   "components": {
     "parameters": {},
     "schemas": {
+      "AdminUser": {
+        "properties": {
+          "claimsSyncedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isBootstrap": {
+            "type": "boolean"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "method": {
+            "$ref": "#/components/schemas/AuthMethod"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "username": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "username",
+          "email",
+          "role",
+          "method",
+          "disabled",
+          "revoked",
+          "isBootstrap",
+          "lastLoginAt",
+          "claimsSyncedAt"
+        ],
+        "type": "object"
+      },
+      "AdminUserPatch": {
+        "properties": {
+          "disabled": {
+            "type": "boolean"
+          },
+          "displayName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object"
+      },
       "ApiErrorBody": {
         "properties": {
           "code": {
@@ -91,6 +165,25 @@
         "required": [
           "local",
           "oidc"
+        ],
+        "type": "object"
+      },
+      "ChangePasswordBody": {
+        "properties": {
+          "currentPassword": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "newPassword": {
+            "maxLength": 1024,
+            "minLength": 12,
+            "type": "string"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
         ],
         "type": "object"
       },
@@ -222,6 +315,33 @@
         },
         "required": [
           "name"
+        ],
+        "type": "object"
+      },
+      "NewLocalUserBody": {
+        "properties": {
+          "displayName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 12,
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "username": {
+            "$ref": "#/components/schemas/Username"
+          }
+        },
+        "required": [
+          "username",
+          "displayName",
+          "role",
+          "password"
         ],
         "type": "object"
       },
@@ -365,11 +485,58 @@
         ],
         "type": "string"
       },
+      "ResetPasswordBody": {
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 12,
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "type": "object"
+      },
       "Role": {
         "enum": [
           "admin",
           "member"
         ],
+        "type": "string"
+      },
+      "SessionView": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "userAgent": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "current",
+          "userAgent",
+          "createdAt",
+          "lastSeenAt"
+        ],
+        "type": "object"
+      },
+      "Username": {
+        "pattern": "^[a-z0-9._-]{1,64}$",
         "type": "string"
       }
     }
@@ -380,6 +547,77 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/admin/users": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUser"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Users"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Admins only"
+          }
+        },
+        "summary": "Every user",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewLocalUserBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUser"
+                }
+              }
+            },
+            "description": "The user"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The username is taken"
+          }
+        },
+        "summary": "Create a local account",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/users/oidc-sync": {
       "post": {
         "responses": {
@@ -408,6 +646,169 @@
           }
         },
         "summary": "Refresh every SSO user's groups and role from the provider now",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/users/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "User id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "User id",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such user"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not allowed for this user"
+          }
+        },
+        "summary": "Delete a local account",
+        "tags": [
+          "admin"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "description": "User id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "User id",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUser"
+                }
+              }
+            },
+            "description": "The user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such user"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not allowed for this user (SSO, yourself or the bootstrap admin)"
+          }
+        },
+        "summary": "Change a user's role, name, or disable or enable them",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/users/{id}/password": {
+      "post": {
+        "parameters": [
+          {
+            "description": "User id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "User id",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Set"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such user"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not a local account"
+          }
+        },
+        "summary": "Set a local user's password; signs them out everywhere",
         "tags": [
           "admin"
         ]
@@ -676,6 +1077,49 @@
         ]
       }
     },
+    "/api/me/password": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Changed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The current password is wrong"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An SSO account has no password here"
+          }
+        },
+        "summary": "Change the caller's password (local accounts); signs out the other sessions",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/me/push": {
       "get": {
         "responses": {
@@ -912,6 +1356,74 @@
         "summary": "Send one of the caller's devices a test notification",
         "tags": [
           "push"
+        ]
+      }
+    },
+    "/api/me/sessions": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "Signed out elsewhere"
+          }
+        },
+        "summary": "Sign out everywhere except this browser",
+        "tags": [
+          "account"
+        ]
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Sessions"
+          }
+        },
+        "summary": "The caller's signed-in browsers",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/me/sessions/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Signed out"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such session"
+          }
+        },
+        "summary": "Sign out one of the caller's sessions",
+        "tags": [
+          "account"
         ]
       }
     },
