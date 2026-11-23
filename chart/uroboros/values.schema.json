@@ -292,6 +292,19 @@
               "minLength": 1
             }
           }
+        },
+        "subtitles": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "langs": {
+              "type": "string",
+              "pattern": "^$|^[\\w.,*+\\-!^$|()]{1,200}$"
+            },
+            "automatic": {
+              "type": "boolean"
+            }
+          }
         }
       }
     },

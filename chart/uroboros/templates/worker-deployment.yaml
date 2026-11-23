@@ -40,6 +40,10 @@ spec:
             {{- include "uroboros.storageEnv" . | trim | nindent 12 }}
             - name: UROBOROS_WORK_DIR
               value: /scratch
+            - name: UROBOROS_SUBTITLE_LANGS
+              value: {{ .Values.worker.subtitles.langs | quote }}
+            - name: UROBOROS_AUTO_SUBTITLES
+              value: {{ .Values.worker.subtitles.automatic | quote }}
             {{- if .Values.worker.cookies.existingSecret }}
             - name: UROBOROS_YTDLP_COOKIES_FILE
               value: /secrets/cookies/{{ .Values.worker.cookies.key }}

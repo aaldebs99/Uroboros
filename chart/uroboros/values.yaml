@@ -181,6 +181,11 @@ downloads:
 
 worker:
   replicas: 1
+  # Subtitles saved with each download: yt-dlp --sub-langs values ("" saves none), and whether
+  # automatic captions count too.
+  subtitles:
+    langs: "en.*"
+    automatic: false
   # A Secret holding a Netscape cookies file for yt-dlp (age-restricted or members-only videos).
   # Mounted read-only; empty: no cookies.
   cookies:

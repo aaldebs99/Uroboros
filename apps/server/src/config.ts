@@ -58,6 +58,8 @@ export interface WorkerConfig {
   workDir: string;
   /** A Netscape cookies file for yt-dlp (`UROBOROS_YTDLP_COOKIES_FILE`, a mounted Secret). */
   cookiesFile: string | null;
+  /** Subtitles captured with each download: yt-dlp `--sub-langs` (null: none), and auto captions. */
+  subtitles: { langs: string | null; automatic: boolean };
   /** Parallel jobs per worker process. */
   concurrency: number;
   /** The yt-dlp to run: `YTDLP_PATH` (set in the worker image), else `yt-dlp` on PATH. */
@@ -65,6 +67,7 @@ export interface WorkerConfig {
 }
 
 const DEFAULT_WORKER_CONCURRENCY = 4;
+const DEFAULT_SUBTITLE_LANGS = "en.*";
 
 const DEFAULT_BIND = "127.0.0.1:18081";
 const DEFAULT_SHUTDOWN_GRACE_MS = 20_000;
@@ -219,6 +222,19 @@ const workerSchema = z
       positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(String(DEFAULT_WORKER_CONCURRENCY)),
     ),
     YTDLP_PATH: unsetIfEmpty(z.string().optional()),
+    // Unset: English; empty: no subtitles (so this one is not unsetIfEmpty).
+    UROBOROS_SUBTITLE_LANGS: z
+      .string()
+      .regex(
+        /^$|^[\w.,*+\-!^$|()]{1,200}$/,
+        "UROBOROS_SUBTITLE_LANGS must be yt-dlp --sub-langs values, comma-separated",
+      )
+      .optional(),
+    UROBOROS_AUTO_SUBTITLES: unsetIfEmpty(
+      z
+        .enum(["true", "false"], { error: "UROBOROS_AUTO_SUBTITLES must be true or false" })
+        .optional(),
+    ),
   })
   .superRefine((env, ctx) => {
     for (const [path, message] of storageEnvProblems(env)) {
@@ -285,6 +301,13 @@ export function loadWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
     downloads: toDownloadLimits(e),
     workDir: e.UROBOROS_WORK_DIR ?? join(tmpdir(), "uroboros-work"),
     cookiesFile: e.UROBOROS_YTDLP_COOKIES_FILE ?? null,
+    subtitles: {
+      langs:
+        e.UROBOROS_SUBTITLE_LANGS === undefined
+          ? DEFAULT_SUBTITLE_LANGS
+          : e.UROBOROS_SUBTITLE_LANGS || null,
+      automatic: e.UROBOROS_AUTO_SUBTITLES === "true",
+    },
     concurrency: e.UROBOROS_WORKER_CONCURRENCY,
     ytdlpPath: e.YTDLP_PATH ?? "yt-dlp",
   };

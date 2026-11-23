@@ -182,6 +182,9 @@ services:
       UROBOROS_WORKER_CONCURRENCY: ${UROBOROS_WORKER_CONCURRENCY:-}
       # A Netscape cookies file for yt-dlp; mount it and set the path to use one.
       UROBOROS_YTDLP_COOKIES_FILE: ${UROBOROS_YTDLP_COOKIES_FILE:-}
+      # Subtitles saved with each download (yt-dlp --sub-langs); an explicitly empty value saves none.
+      UROBOROS_SUBTITLE_LANGS: ${UROBOROS_SUBTITLE_LANGS-en.*}
+      UROBOROS_AUTO_SUBTITLES: ${UROBOROS_AUTO_SUBTITLES:-}
     volumes:
       - media-data:/media
     tmpfs:
