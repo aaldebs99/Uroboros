@@ -1,22 +1,25 @@
-import type { SourceSummary } from "@uroboros/contract";
-import { Link } from "@tanstack/react-router";
-import { ListVideo } from "lucide-react";
+import type { PlaylistSummary } from "@uroboros/contract";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { ListVideo, Plus } from "lucide-react";
+import { useState } from "react";
 
 import { errorText } from "@/api/client";
-import { useSources } from "@/api/library";
+import { usePlaylists } from "@/api/playlists";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 
+import { PlaylistDialog } from "./PlaylistDialog";
 import { tileGrid } from "./VideoTile";
 import { ViewTabs } from "./ViewTabs";
 
 /** A video tile that looks like a stack, with the count on the thumbnail. */
-function PlaylistTile({ source }: { source: SourceSummary }) {
+function PlaylistTile({ source }: { source: PlaylistSummary }) {
   return (
     <li className="grid gap-3">
       <Link
-        to="/library/playlists/$sourceId"
-        params={{ sourceId: source.id }}
+        to="/library/playlists/$playlistId"
+        params={{ playlistId: source.id }}
         className="grid gap-3 rounded-[0.75rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
       >
         <div className="relative pt-4.5">
@@ -48,26 +51,44 @@ function PlaylistTile({ source }: { source: SourceSummary }) {
             </span>
           </div>
         </div>
-        <span className="line-clamp-2 font-medium md:text-[0.9375rem]/[1.3125rem]">
-          {source.title ?? "Playlist"}
+        <span className="grid gap-0.5">
+          <span className="line-clamp-2 font-medium md:text-[0.9375rem]/[1.3125rem]">
+            {source.name}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {source.kind === "youtube" ? "From YouTube" : "Playlist"} · {source.count} videos
+          </span>
         </span>
       </Link>
     </li>
   );
 }
 
-/** The playlists the person queued. */
+/** The person's playlists: the ones they made, then the ones from YouTube. */
 export function PlaylistsPage() {
-  const sources = useSources();
-  const list = sources.data ?? [];
+  const playlists = usePlaylists();
+  const [creating, setCreating] = useState(false);
+  const navigate = useNavigate();
+  const list = playlists.data ?? [];
   return (
-    <section className="grid w-full gap-6">
-      <PageHeader title="Playlists" />
+    <section className="grid w-full grid-cols-1 gap-6">
+      <PageHeader
+        title="Playlists"
+        action={
+          <Button
+            onClick={() => {
+              setCreating(true);
+            }}
+          >
+            <Plus aria-hidden /> New playlist
+          </Button>
+        }
+      />
       <ViewTabs />
-      {sources.isError ? <p className="text-destructive">{errorText(sources.error)}</p> : null}
-      {sources.isSuccess && list.length === 0 ? (
+      {playlists.isError ? <p className="text-destructive">{errorText(playlists.error)}</p> : null}
+      {playlists.isSuccess && list.length === 0 ? (
         <EmptyState icon={ListVideo} title="No playlists yet.">
-          Playlists you download from show up here.
+          Make one, or download a YouTube playlist and it shows up here.
         </EmptyState>
       ) : (
         <ul className={tileGrid}>
@@ -76,6 +97,13 @@ export function PlaylistsPage() {
           ))}
         </ul>
       )}
+      <PlaylistDialog
+        open={creating}
+        onOpenChange={setCreating}
+        onSaved={(p) => {
+          void navigate({ to: "/library/playlists/$playlistId", params: { playlistId: p.id } });
+        }}
+      />
     </section>
   );
 }

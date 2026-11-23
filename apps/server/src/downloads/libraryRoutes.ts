@@ -1,12 +1,6 @@
 import { extname } from "node:path";
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import {
-  ApiErrorBody,
-  ChannelSummary,
-  LibraryPage,
-  LibrarySort,
-  SourceSummary,
-} from "@uroboros/contract";
+import { ApiErrorBody, ChannelSummary, LibraryPage, LibrarySort } from "@uroboros/contract";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
@@ -14,7 +8,7 @@ import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import { sanitizeSegment, type MediaStore } from "../storage/index.ts";
-import { listChannels, listSources } from "../library/channels.ts";
+import { listChannels } from "../library/channels.ts";
 import { listLibraryPage } from "../library/query.ts";
 import { visibleEntry } from "../sharing/access.ts";
 import { removeEntry } from "./library.ts";
@@ -85,14 +79,6 @@ const channelsRoute = createRoute({
   tags: ["library"],
   summary: "The channels in the caller's library, most entries first",
   responses: { 200: json(z.array(ChannelSummary), "Channels") },
-});
-
-const sourcesRoute = createRoute({
-  method: "get",
-  path: "/api/library/sources",
-  tags: ["library"],
-  summary: "The playlists the caller queued",
-  responses: { 200: json(z.array(SourceSummary), "Playlists") },
 });
 
 const removeRoute = createRoute({
@@ -199,9 +185,6 @@ export function registerLibraryRoutes(
   });
   app.openapi(channelsRoute, async (c) =>
     c.json(await listChannels(db, currentPrincipal(c).userId), 200),
-  );
-  app.openapi(sourcesRoute, async (c) =>
-    c.json(await listSources(db, currentPrincipal(c).userId), 200),
   );
 
   app.openapi(removeRoute, async (c) => {

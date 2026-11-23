@@ -64,7 +64,6 @@ export {
   Playback,
   PlaybackState,
   ProgressBody,
-  SourceSummary,
   SubtitleTrack,
   Tag,
   TagsBody,

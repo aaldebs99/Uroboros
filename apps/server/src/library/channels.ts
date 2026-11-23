@@ -1,4 +1,4 @@
-import type { ChannelSummary, SourceSummary } from "@uroboros/contract";
+import type { ChannelSummary } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { channelKey } from "./channelKey.ts";
@@ -44,42 +44,6 @@ export async function listChannels(
     extractor: r.extractor,
     count: Number(r.count),
     latestUpload: dashed(r.latest),
-    coverThumbnailUrl: thumb(r.cover),
-  }));
-}
-
-/** The playlists the caller queued that hold at least one of their entries. */
-export async function listSources(db: Kysely<Database>, userId: string): Promise<SourceSummary[]> {
-  const rows = await db
-    .selectFrom("user_sources as us")
-    .innerJoin("sources as s", "s.id", "us.source_id")
-    .innerJoin("source_items as si", "si.source_id", "s.id")
-    .innerJoin("media as m", (j) =>
-      j.onRef("m.extractor", "=", "si.extractor").onRef("m.video_id", "=", "si.video_id"),
-    )
-    .innerJoin("library_entries as e", (j) =>
-      j.onRef("e.media_id", "=", "m.id").on("e.user_id", "=", userId),
-    )
-    .where("us.user_id", "=", userId)
-    .select([
-      "s.id",
-      "s.title",
-      "s.url",
-      sql<string>`count(DISTINCT e.id)`.as("count"),
-      sql<
-        string | null
-      >`(array_agg(e.id ORDER BY si.position) FILTER (WHERE m.thumbnail_key IS NOT NULL))[1]`.as(
-        "cover",
-      ),
-    ])
-    .groupBy(["s.id", "s.title", "s.url", "us.queued_at"])
-    .orderBy("us.queued_at", "desc")
-    .execute();
-  return rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    url: r.url,
-    count: Number(r.count),
     coverThumbnailUrl: thumb(r.cover),
   }));
 }

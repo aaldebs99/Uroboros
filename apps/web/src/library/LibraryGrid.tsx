@@ -1,6 +1,6 @@
 import type { LibraryEntry } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { errorText } from "@/api/client";
 import { setWatched, useLibraryPages, useRemoveEntry, type LibraryFilters } from "@/api/library";
@@ -9,6 +9,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { TileSkeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/sonner";
 
+import { AddToPlaylist } from "./AddToPlaylist";
 import { EntryTile, tileGrid } from "./VideoTile";
 
 /** Loads the next page when the sentinel scrolls into view (where IntersectionObserver exists). */
@@ -34,6 +35,7 @@ export function LibraryGrid({ filters, empty }: { filters: LibraryFilters; empty
   const client = useQueryClient();
   const remove = useRemoveEntry();
   const confirm = useConfirm();
+  const [saving, setSaving] = useState<LibraryEntry | null>(null);
   const more = () => {
     if (pages.hasNextPage && !pages.isFetchingNextPage) void pages.fetchNextPage();
   };
@@ -78,6 +80,9 @@ export function LibraryGrid({ filters, empty }: { filters: LibraryFilters; empty
             onRemove={() => {
               onRemove(e);
             }}
+            onSaveToPlaylist={() => {
+              setSaving(e);
+            }}
             onToggleWatched={() => {
               setWatched(e.id, !(e.progress?.watched ?? false))
                 .then(() => client.invalidateQueries({ queryKey: ["api", "library"] }))
@@ -96,6 +101,16 @@ export function LibraryGrid({ filters, empty }: { filters: LibraryFilters; empty
         </div>
       ) : null}
       {confirm.dialog}
+      {saving === null ? null : (
+        <AddToPlaylist
+          entryId={saving.id}
+          title={saving.title}
+          open
+          onOpenChange={(open) => {
+            if (!open) setSaving(null);
+          }}
+        />
+      )}
     </>
   );
 }

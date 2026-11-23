@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import { ChannelSummary, LibraryPage, SourceSummary, type LibraryEntry } from "@uroboros/contract";
+import {
+  ChannelSummary,
+  LibraryPage,
+  PlaylistSummary,
+  type LibraryEntry,
+} from "@uroboros/contract";
 import type { Redis } from "ioredis";
 import { sql } from "kysely";
 import { pino } from "pino";
@@ -291,12 +296,14 @@ describe("GET /api/library", () => {
     ]);
     expect((await app(alice).request("/api/library?sort=position")).status).toBe(400);
     expect((await app(bob).request(`/api/library?source=${sourceId}`)).status).toBe(404);
-    const sources = z
-      .array(SourceSummary)
-      .parse(await (await app(alice).request("/api/library/sources")).json());
-    expect(sources).toEqual([expect.objectContaining({ id: sourceId, title: "Mix", count: 2 })]);
+    const playlists = z
+      .array(PlaylistSummary)
+      .parse(await (await app(alice).request("/api/playlists")).json());
+    expect(playlists).toEqual([
+      expect.objectContaining({ id: sourceId, kind: "youtube", name: "Mix", count: 2 }),
+    ]);
     expect(
-      z.array(SourceSummary).parse(await (await app(bob).request("/api/library/sources")).json()),
+      z.array(PlaylistSummary).parse(await (await app(bob).request("/api/playlists")).json()),
     ).toEqual([]);
   });
 

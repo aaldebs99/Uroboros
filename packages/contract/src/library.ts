@@ -75,17 +75,6 @@ export const ChannelSummary = z
   .openapi("ChannelSummary");
 export type ChannelSummary = z.infer<typeof ChannelSummary>;
 
-export const SourceSummary = z
-  .object({
-    id: z.uuid(),
-    title: z.string().nullable(),
-    url: z.string(),
-    count: z.number().int(),
-    coverThumbnailUrl: z.string().nullable(),
-  })
-  .openapi("SourceSummary");
-export type SourceSummary = z.infer<typeof SourceSummary>;
-
 export const ProgressBody = z
   .object({ position: z.number().min(0), duration: z.number().positive() })
   .openapi("ProgressBody");

@@ -44,7 +44,7 @@ export function LibraryRoute() {
 // fetch, say, the video "downloads" before it unmounts. The code-based route tree leaves params
 // untyped (`any`), so each `select` states its parameter's type.
 const channelRoute = getRouteApi("/library/channels/$channelKey");
-const playlistRoute = getRouteApi("/library/playlists/$sourceId");
+const playlistRoute = getRouteApi("/library/playlists/$playlistId");
 const itemRoute = getRouteApi("/library/$entryId");
 
 export function ChannelRoute() {
@@ -58,13 +58,18 @@ export function ChannelRoute() {
 export function PlaylistRoute() {
   return (
     <PlaylistPage
-      sourceId={playlistRoute.useParams({ select: (p: { sourceId: string }) => p.sourceId })}
+      playlistId={playlistRoute.useParams({ select: (p: { playlistId: string }) => p.playlistId })}
     />
   );
 }
 
+/** A watch page; `?list=<playlist id>` plays that playlist in order from it. */
 export function ItemRoute() {
+  const entryId = itemRoute.useParams({ select: (p: { entryId: string }) => p.entryId });
+  const list = itemRoute.useSearch({
+    select: (s: { list?: unknown }) => (typeof s.list === "string" ? s.list : null),
+  });
   return (
-    <ItemPage entryId={itemRoute.useParams({ select: (p: { entryId: string }) => p.entryId })} />
+    <ItemPage entryId={entryId} queue={list === null ? null : { kind: "playlist", id: list }} />
   );
 }

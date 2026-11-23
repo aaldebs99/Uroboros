@@ -2284,36 +2284,6 @@
         ],
         "type": "object"
       },
-      "SourceSummary": {
-        "properties": {
-          "count": {
-            "type": "integer"
-          },
-          "coverThumbnailUrl": {
-            "nullable": true,
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "title": {
-            "nullable": true,
-            "type": "string"
-          },
-          "url": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "url",
-          "count",
-          "coverThumbnailUrl"
-        ],
-        "type": "object"
-      },
       "SponsorBlockCategory": {
         "enum": [
           "sponsor",
@@ -3986,29 +3956,6 @@
           }
         },
         "summary": "The channels in the caller's library, most entries first",
-        "tags": [
-          "library"
-        ]
-      }
-    },
-    "/api/library/sources": {
-      "get": {
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SourceSummary"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Playlists"
-          }
-        },
-        "summary": "The playlists the caller queued",
         "tags": [
           "library"
         ]

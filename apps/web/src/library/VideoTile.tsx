@@ -1,6 +1,6 @@
 import type { LibraryEntry } from "@uroboros/contract";
 import { Link } from "@tanstack/react-router";
-import { Download, Eye, EyeOff, Film, MoreVertical, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, Film, ListPlus, MoreVertical, Trash2 } from "lucide-react";
 
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils";
@@ -54,10 +54,12 @@ export function EntryTile({
   entry,
   onRemove,
   onToggleWatched,
+  onSaveToPlaylist,
 }: {
   entry: LibraryEntry;
   onRemove: () => void;
   onToggleWatched: () => void;
+  onSaveToPlaylist: () => void;
 }) {
   const watched = entry.progress?.watched ?? false;
   return (
@@ -102,6 +104,7 @@ export function EntryTile({
           title={`Actions for ${entry.title}`}
           actions={[
             { label: "Save", icon: Download, href: `/api/library/${entry.id}/file` },
+            { label: "Save to playlist", icon: ListPlus, onSelect: onSaveToPlaylist },
             {
               label: watched ? "Mark unwatched" : "Mark watched",
               icon: watched ? EyeOff : Eye,

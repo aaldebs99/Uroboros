@@ -1,43 +1,222 @@
-import { ExternalLink, SearchX } from "lucide-react";
+import type { PlaylistDetail } from "@uroboros/contract";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Copy, ExternalLink, ListOrdered, Pencil, Play, SearchX, Trash2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
-import { useSources } from "@/api/library";
+import { errorText } from "@/api/client";
+import { useLibraryPages } from "@/api/library";
+import {
+  copyPlaylist,
+  deletePlaylist,
+  playlistFilters,
+  usePlaylist,
+  usePlaylistAction,
+} from "@/api/playlists";
+import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { notify } from "@/components/ui/sonner";
 
 import { LibraryGrid } from "./LibraryGrid";
+import { PlaylistDialog } from "./PlaylistDialog";
+import { PlaylistEditor } from "./PlaylistEditor";
 
-/** One playlist: the person's videos from it, in the playlist's order. */
-export function PlaylistPage({ sourceId }: { sourceId: string }) {
-  const source = useSources().data?.find((s) => s.id === sourceId);
+/** "Play all": the first video, playing the playlist in order (`?list=`). */
+function PlayAll({ playlistId, first }: { playlistId: string; first: string | undefined }) {
+  if (first === undefined) return null;
   return (
-    <section className="grid w-full gap-6">
-      <PageHeader
-        titleOnPhone
-        title={source?.title ?? "Playlist"}
-        description={
-          source === undefined ? undefined : `${String(source.count)} videos in your library`
-        }
-        action={
-          source === undefined ? undefined : (
-            <a
-              href={source.url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-            >
-              Open on the site <ExternalLink className="size-4" aria-hidden />
-            </a>
-          )
-        }
-      />
+    <Button asChild>
+      <Link to="/library/$entryId" params={{ entryId: first }} search={{ list: playlistId }}>
+        <Play aria-hidden /> Play all
+      </Link>
+    </Button>
+  );
+}
+
+function YouTubeActions({ playlist }: { playlist: PlaylistDetail }) {
+  const copy = usePlaylistAction(copyPlaylist);
+  const navigate = useNavigate();
+  return (
+    <>
+      <Button
+        variant="secondary"
+        disabled={copy.isPending}
+        onClick={() => {
+          copy.mutate(playlist.id, {
+            onSuccess: (p) => {
+              notify.success(`Saved as your playlist "${p.name}".`);
+              void navigate({ to: "/library/playlists/$playlistId", params: { playlistId: p.id } });
+            },
+            onError: (error) => {
+              notify.error(errorText(error));
+            },
+          });
+        }}
+      >
+        <Copy aria-hidden /> Save as my playlist
+      </Button>
+      {playlist.url === null ? null : (
+        <Button variant="ghost" asChild>
+          <a href={playlist.url} target="_blank" rel="noreferrer">
+            <ExternalLink aria-hidden /> Open on the site
+          </a>
+        </Button>
+      )}
+    </>
+  );
+}
+
+function ManualActions({
+  playlist,
+  editing,
+  onEditing,
+}: {
+  playlist: PlaylistDetail;
+  editing: boolean;
+  onEditing: (on: boolean) => void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const confirm = useConfirm();
+  const remove = usePlaylistAction(deletePlaylist);
+  const navigate = useNavigate();
+  return (
+    <>
+      <Button
+        variant="secondary"
+        aria-pressed={editing}
+        onClick={() => {
+          onEditing(!editing);
+        }}
+      >
+        <ListOrdered aria-hidden /> {editing ? "Done" : "Edit order"}
+      </Button>
+      <Button
+        variant="ghost"
+        onClick={() => {
+          setRenaming(true);
+        }}
+      >
+        <Pencil aria-hidden /> Rename
+      </Button>
+      <Button
+        variant="destructive"
+        onClick={() => {
+          confirm.ask({
+            title: `Delete "${playlist.name}"?`,
+            description: "Its videos stay in your library.",
+            confirmLabel: "Delete",
+            destructive: true,
+            onConfirm: () => {
+              remove.mutate(playlist.id, {
+                onSuccess: () => void navigate({ to: "/library/playlists" }),
+                onError: (error) => {
+                  notify.error(errorText(error));
+                },
+              });
+            },
+          });
+        }}
+      >
+        <Trash2 aria-hidden /> Delete
+      </Button>
+      <PlaylistDialog open={renaming} onOpenChange={setRenaming} playlist={playlist} />
+      {confirm.dialog}
+    </>
+  );
+}
+
+/** The playlist's videos: tiles, or the editor's rows while reordering a manual one. */
+function PlaylistBody({ playlist, editing }: { playlist: PlaylistDetail; editing: boolean }) {
+  const filters = playlistFilters(playlist);
+  const pages = useLibraryPages(filters);
+  if (!editing || playlist.kind !== "manual") {
+    return (
       <LibraryGrid
-        filters={{ source: sourceId }}
+        filters={filters}
         empty={
-          <EmptyState icon={SearchX} title="Nothing from this playlist.">
-            Its videos may have left your library.
+          <EmptyState icon={SearchX} title="Nothing in this playlist.">
+            {playlist.kind === "manual"
+              ? "Add videos with Save to playlist on a video."
+              : "Its videos may have left your library."}
           </EmptyState>
         }
       />
+    );
+  }
+  return (
+    <>
+      <PlaylistEditor
+        playlistId={playlist.id}
+        entries={pages.data?.pages.flatMap((page) => page.entries) ?? []}
+      />
+      {pages.hasNextPage ? (
+        <div className="flex justify-center">
+          <Button
+            variant="secondary"
+            disabled={pages.isFetchingNextPage}
+            onClick={() => void pages.fetchNextPage()}
+          >
+            Show more
+          </Button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** The header's actions: Play all, Share, and the kind's own. */
+function PlaylistActions({
+  playlist,
+  share,
+  editing,
+  onEditing,
+}: {
+  playlist: PlaylistDetail;
+  share: ReactNode;
+  editing: boolean;
+  onEditing: (on: boolean) => void;
+}) {
+  const pages = useLibraryPages(playlistFilters(playlist));
+  return (
+    <div className="flex flex-wrap gap-2">
+      <PlayAll playlistId={playlist.id} first={pages.data?.pages[0]?.entries[0]?.id} />
+      {share}
+      {playlist.kind === "manual" ? (
+        <ManualActions playlist={playlist} editing={editing} onEditing={onEditing} />
+      ) : (
+        <YouTubeActions playlist={playlist} />
+      )}
+    </div>
+  );
+}
+
+const kindLabel = (p: PlaylistDetail) => (p.kind === "youtube" ? "From YouTube" : "Playlist");
+
+/**
+ * One playlist, of either kind: its videos in order, Play all, and its own actions. A manual
+ * playlist can be reordered, renamed and deleted; a YouTube one saved as a manual copy. `share`
+ * is the Share button, when the page has one.
+ */
+export function PlaylistPage({ playlistId, share }: { playlistId: string; share?: ReactNode }) {
+  const playlist = usePlaylist(playlistId);
+  const [editing, setEditing] = useState(false);
+  if (playlist.isError) return <p className="text-destructive">{errorText(playlist.error)}</p>;
+  const p = playlist.data;
+  return (
+    <section className="grid w-full grid-cols-1 gap-6">
+      <PageHeader
+        titleOnPhone
+        title={p?.name ?? "Playlist"}
+        description={p === undefined ? undefined : `${kindLabel(p)} · ${String(p.count)} videos`}
+        action={
+          p === undefined ? undefined : (
+            <PlaylistActions playlist={p} share={share} editing={editing} onEditing={setEditing} />
+          )
+        }
+      />
+      {p?.description ? <p className="whitespace-pre-wrap text-sm">{p.description}</p> : null}
+      {p === undefined ? null : <PlaylistBody playlist={p} editing={editing} />}
     </section>
   );
 }

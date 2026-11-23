@@ -160,16 +160,18 @@ describe("library browsing", () => {
   });
 
   it("lists playlists as tiles with counts, and a playlist page asks for its videos in order", async () => {
+    const playlist = {
+      id: SOURCE,
+      kind: "youtube",
+      name: "Open movies",
+      url: "https://x.example/p",
+      count: 14,
+      coverThumbnailUrl: null,
+      updatedAt: "2026-11-22T10:00:00.000Z",
+    };
     const urls = api({
-      "/api/library/sources": () => [
-        {
-          id: SOURCE,
-          title: "Open movies",
-          url: "https://x.example/p",
-          count: 14,
-          coverThumbnailUrl: null,
-        },
-      ],
+      "/api/playlists": () => [playlist],
+      [`/api/playlists/${SOURCE}`]: () => ({ ...playlist, description: null }),
       "/api/library": () => ({ entries: [entry(1)], nextCursor: null }),
     });
     await renderInRouter(<PlaylistsPage />);
@@ -178,7 +180,7 @@ describe("library browsing", () => {
       "href",
       `/library/playlists/${SOURCE}`,
     );
-    await renderInRouter(<PlaylistPage sourceId={SOURCE} />);
+    await renderInRouter(<PlaylistPage playlistId={SOURCE} />);
     await waitFor(() => {
       expect(libraryCalls(urls).some((u) => u.searchParams.get("source") === SOURCE)).toBe(true);
     });

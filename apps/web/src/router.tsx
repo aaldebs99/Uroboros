@@ -37,7 +37,7 @@ const routeTree = rootRoute.addChildren([
   }),
   createRoute({
     getParentRoute: () => rootRoute,
-    path: "/library/playlists/$sourceId",
+    path: "/library/playlists/$playlistId",
     component: PlaylistRoute,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/library/$entryId", component: ItemRoute }),

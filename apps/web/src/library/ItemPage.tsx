@@ -1,28 +1,18 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Download, ExternalLink, ListVideo, Trash2 } from "lucide-react";
+import { ListVideo } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
-import {
-  itemKey,
-  reportProgress,
-  setTags,
-  setKept,
-  setWatched,
-  useItem,
-  useRemoveEntry,
-} from "@/api/library";
-import { Avatar } from "@/components/Avatar";
-import { Button } from "@/components/ui/button";
-import { useConfirm } from "@/components/ui/confirm";
+import { itemKey, reportProgress, setTags, useItem } from "@/api/library";
 import { notify } from "@/components/ui/sonner";
-import { Switch } from "@/components/ui/switch";
 import { formatDuration } from "@/downloads/format";
 
+import { ItemActions } from "./ItemActions";
 import { Suggestions } from "./Suggestions";
 import { TagEditor } from "./TagEditor";
+import { nextInQueue, UpNext, useQueue, type PlayQueue } from "./UpNext";
 import { useProgressReporter } from "./useProgressReporter";
 import { WatchPlayer } from "./WatchPlayer";
 
@@ -71,6 +61,30 @@ function Chapters({ item, onSeek }: { item: LibraryItem; onSeek: (time: number) 
   );
 }
 
+/** The playlists this video is in: the person's own, then YouTube ones. */
+function InPlaylists({ item }: { item: LibraryItem }) {
+  const all = [
+    ...item.playlists.map((p) => ({ id: p.id, name: p.name })),
+    ...item.sources.map((s) => ({ id: s.id, name: s.title ?? "a playlist" })),
+  ];
+  if (all.length === 0) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <ListVideo className="size-4" aria-hidden /> In
+      {all.map((p) => (
+        <Link
+          key={p.id}
+          to="/library/playlists/$playlistId"
+          params={{ playlistId: p.id }}
+          className="text-primary hover:underline"
+        >
+          {p.name}
+        </Link>
+      ))}
+    </p>
+  );
+}
+
 /**
  * One video, laid out like a watch page across the whole page: the player at the top left with its
  * details, description, tags and chapters below it, and suggestions in a column on the right. The
@@ -78,13 +92,12 @@ function Chapters({ item, onSeek }: { item: LibraryItem; onSeek: (time: number) 
  * suggestions the rest (at least 18rem). The columns follow the width the page has (a container
  * query), not the window: a narrow page stacks the suggestions under the details.
  */
-export function ItemPage({ entryId }: { entryId: string }) {
+export function ItemPage({ entryId, queue = null }: { entryId: string; queue?: PlayQueue | null }) {
   const item = useItem(entryId);
   const client = useQueryClient();
   const [seek, setSeek] = useState<{ time: number } | null>(null);
-  const confirm = useConfirm();
-  const remove = useRemoveEntry();
   const navigate = useNavigate();
+  const q = useQueue(queue);
   const reporter = useProgressReporter((position, duration) =>
     reportProgress(entryId, position, duration),
   );
@@ -96,6 +109,16 @@ export function ItemPage({ entryId }: { entryId: string }) {
   const fail = (err: unknown) => {
     notify.error(errorText(err));
   };
+  // In a queue, the end of a video moves on to the next one.
+  const onEnded = (position: number, duration: number) => {
+    reporter.onEnded(position, duration);
+    if (q === null) return;
+    void nextInQueue(q, entryId).then((next) => {
+      if (next !== null) {
+        void navigate({ to: "/library/$entryId", params: { entryId: next }, search: q.search });
+      }
+    });
+  };
   return (
     <div className="@container w-full">
       <div className="grid gap-6 @6xl:grid-cols-[minmax(0,13fr)_minmax(18rem,7fr)]">
@@ -106,102 +129,10 @@ export function ItemPage({ entryId }: { entryId: string }) {
             autoPlay
             seek={seek}
             {...reporter}
+            onEnded={onEnded}
           />
           <h1 className="text-xl font-bold">{it.title}</h1>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <Avatar name={it.channel} />
-              <div className="min-w-0">
-                {it.channelKey === null ? (
-                  <p className="truncate font-medium">{it.channel ?? "Unknown channel"}</p>
-                ) : (
-                  <Link
-                    to="/library/channels/$channelKey"
-                    params={{ channelKey: it.channelKey }}
-                    className="truncate font-medium hover:underline"
-                  >
-                    {it.channel}
-                  </Link>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {[
-                    it.uploadDate,
-                    it.duration === null ? null : formatDuration(it.duration),
-                    it.profileName,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <Switch
-                aria-label="Watched"
-                checked={it.progress?.watched ?? false}
-                onCheckedChange={(watched) => {
-                  setWatched(entryId, watched)
-                    .then(() => client.invalidateQueries({ queryKey: itemKey(entryId) }))
-                    .then(refresh)
-                    .catch(fail);
-                }}
-              />
-              Watched
-            </label>
-            {it.subscription === null ? null : (
-              <label
-                className="flex items-center gap-2 text-sm"
-                title="Retention never removes this video"
-              >
-                <Switch
-                  aria-label="Keep"
-                  aria-describedby="keep-help"
-                  checked={it.kept}
-                  onCheckedChange={(kept) => {
-                    setKept(entryId, kept)
-                      .then(() => client.invalidateQueries({ queryKey: itemKey(entryId) }))
-                      .catch(fail);
-                  }}
-                />
-                Keep
-                <span id="keep-help" className="sr-only">
-                  Retention never removes this video
-                </span>
-              </label>
-            )}
-            <Button variant="secondary" asChild>
-              <a href={`/api/library/${entryId}/file`} download>
-                <Download aria-hidden /> Save
-              </a>
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                confirm.ask({
-                  title: `Remove "${it.title}"?`,
-                  description: "It leaves your library. Others who downloaded it keep their copy.",
-                  confirmLabel: "Remove",
-                  destructive: true,
-                  onConfirm: () => {
-                    remove.mutate(entryId, {
-                      onSuccess: () => {
-                        void navigate({ to: "/" });
-                      },
-                      onError: fail,
-                    });
-                  },
-                });
-              }}
-            >
-              <Trash2 aria-hidden /> Remove
-            </Button>
-            {it.webpageUrl === null ? null : (
-              <Button variant="ghost" asChild>
-                <a href={it.webpageUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink aria-hidden /> Open on the site
-                </a>
-              </Button>
-            )}
-          </div>
+          <ItemActions item={it} />
           {it.description === null || it.description.trim() === "" ? null : (
             <Description text={it.description} />
           )}
@@ -214,22 +145,7 @@ export function ItemPage({ entryId }: { entryId: string }) {
                 .catch(fail);
             }}
           />
-          {it.sources.length === 0 ? null : (
-            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <ListVideo className="size-4" aria-hidden /> In
-              {it.sources.map((s) => (
-                <Link
-                  key={s.id}
-                  to="/library/playlists/$sourceId"
-                  params={{ sourceId: s.id }}
-                  className="text-primary hover:underline"
-                >
-                  {s.title ?? "a playlist"}
-                </Link>
-              ))}
-            </p>
-          )}
-          {confirm.dialog}
+          <InPlaylists item={it} />
           <Chapters
             item={it}
             onSeek={(time) => {
@@ -237,9 +153,15 @@ export function ItemPage({ entryId }: { entryId: string }) {
             }}
           />
         </article>
-        <aside aria-label="Suggestions" className="min-w-0">
-          <Suggestions currentId={entryId} />
-        </aside>
+        {q === null ? (
+          <aside aria-label="Suggestions" className="min-w-0">
+            <Suggestions currentId={entryId} />
+          </aside>
+        ) : (
+          <aside aria-label="Up next" className="min-w-0">
+            <UpNext queue={q} currentId={entryId} />
+          </aside>
+        )}
       </div>
     </div>
   );

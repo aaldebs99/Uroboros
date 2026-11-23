@@ -5,7 +5,6 @@ import {
   TagsBody,
   LibraryPage,
   Playback,
-  SourceSummary,
   type FormatProfilePatch,
   type LibrarySort,
   type NewFormatProfileBody,
@@ -22,7 +21,10 @@ const libraryKey = ["api", "library"] as const;
 export interface LibraryFilters {
   q?: string;
   channel?: string;
+  /** A YouTube playlist's id. */
   source?: string;
+  /** A manual playlist's id. */
+  playlist?: string;
   tag?: string;
   watched?: boolean;
   sort?: LibrarySort;
@@ -39,9 +41,10 @@ export function libraryQuery(f: LibraryFilters, cursor: string | null): string {
 }
 
 /** The caller's library, filtered, a page (60) at a time; `fetchNextPage` loads the next. */
-export function useLibraryPages(f: LibraryFilters) {
+export function useLibraryPages(f: LibraryFilters, enabled = true) {
   return useInfiniteQuery({
     queryKey: [...libraryKey, "pages", f],
+    enabled,
     initialPageParam: null as string | null,
     queryFn: ({ signal, pageParam }) =>
       getJson(`/api/library${libraryQuery(f, pageParam)}`, LibraryPage, { signal }),
@@ -62,13 +65,6 @@ export function useChannels() {
   return useQuery({
     queryKey: [...libraryKey, "channels"],
     queryFn: ({ signal }) => getJson("/api/library/channels", z.array(ChannelSummary), { signal }),
-  });
-}
-
-export function useSources() {
-  return useQuery({
-    queryKey: [...libraryKey, "sources"],
-    queryFn: ({ signal }) => getJson("/api/library/sources", z.array(SourceSummary), { signal }),
   });
 }
 
