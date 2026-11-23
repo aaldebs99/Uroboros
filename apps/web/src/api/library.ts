@@ -5,7 +5,6 @@ import {
   type NewFormatProfileBody,
 } from "@uroboros/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
 
 import { deleteJson, getJson, patchJson, postJson } from "./client";
 import { downloadKeys } from "./downloads";
