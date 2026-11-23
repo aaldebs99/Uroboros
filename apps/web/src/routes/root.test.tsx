@@ -75,10 +75,10 @@ describe("app shell", () => {
     expect(within(nav).queryByText("Uroboros")).not.toBeInTheDocument();
   });
 
-  it("shows the health badge in the header", async () => {
-    await renderAt("/settings");
+  it("keeps the health status out of the top bar", async () => {
+    await renderAt("/");
 
-    expect(await screen.findByText("Healthy")).toBeInTheDocument();
+    expect(screen.queryByText("Healthy")).not.toBeInTheDocument();
   });
 
   it("shows the Notifications section in Settings", async () => {
