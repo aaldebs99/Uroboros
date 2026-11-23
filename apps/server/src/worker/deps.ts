@@ -8,6 +8,12 @@ export interface WorkerDeps extends DownloadContext {
   storage: StorageConfig;
   /** Per-job scratch directories go under here. */
   workDir: string;
-  ytdlp: { binary: string; env?: Record<string, string>; cookiesFile: string | null };
+  ytdlp: {
+    binary: string;
+    env?: Record<string, string>;
+    cookiesFile: string | null;
+    /** Node, for yt-dlp's JavaScript challenges (the worker passes its own binary). */
+    jsRuntime?: string;
+  };
   ffprobe: { binary: string; env?: Record<string, string> };
 }

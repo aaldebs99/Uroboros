@@ -13,7 +13,8 @@ packages' tests. yt-dlp is the only downloader, with no setting and no fallback.
 | `ffprobe`  | A file's container, duration and typed streams.                                                                                                                                                |
 
 Every call takes `binary` (the worker passes `YTDLP_PATH`; this package reads no environment
-itself), `extraArgs`, `cookiesFile`, `timeoutMs`, `signal`, `env`, `killGraceMs` and
+itself), `jsRuntime` (an absolute path to Node, passed as `--js-runtimes node:<path>` so yt-dlp
+solves sites' JavaScript challenges with the yt-dlp-ejs scripts; the worker passes its own Node), `extraArgs`, `cookiesFile`, `timeoutMs`, `signal`, `env`, `killGraceMs` and
 `stderrTailLines`. Every failure is a `YtDlpError` with a closed `kind` (`YTDLP_ERROR_KINDS`) and
 `stderrTail`, the last stderr lines with signed URLs, cookies and credentials redacted.
 

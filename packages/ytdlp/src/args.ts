@@ -24,6 +24,21 @@ export interface YtDlpOptions {
   killGraceMs?: number;
   /** How many redacted stderr lines an error keeps. Defaults to 20. */
   stderrTailLines?: number;
+  /**
+   * An absolute path to Node, which yt-dlp then uses to solve sites' JavaScript challenges
+   * (`--js-runtimes node:<path>`, with the yt-dlp-ejs scripts from its [default] extras). Unset:
+   * yt-dlp's own default (Deno, if installed).
+   */
+  jsRuntime?: string;
+}
+
+/** The wrapper's own `--js-runtimes` arguments; throws `invalid_arguments` for a relative path. */
+export function runtimeArgs(jsRuntime: string | undefined): string[] {
+  if (jsRuntime === undefined) return [];
+  if (!jsRuntime.startsWith("/") || /[\s,]/.test(jsRuntime)) {
+    throw new YtDlpError("invalid_arguments", "jsRuntime must be an absolute path to node");
+  }
+  return ["--js-runtimes", `node:${jsRuntime}`];
 }
 
 export const DEFAULT_BINARY = "yt-dlp";

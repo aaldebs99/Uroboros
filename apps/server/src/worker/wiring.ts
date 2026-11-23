@@ -30,7 +30,12 @@ export function downloadWiring(config: WorkerConfig, prefix: string, logger: Log
           store: createStore(config.storage),
           storage: config.storage,
           workDir: config.workDir,
-          ytdlp: { binary: config.ytdlpPath, cookiesFile: config.cookiesFile },
+          // The worker's own Node solves sites' JavaScript challenges (yt-dlp-ejs).
+          ytdlp: {
+            binary: config.ytdlpPath,
+            cookiesFile: config.cookiesFile,
+            jsRuntime: process.execPath,
+          },
           ffprobe: { binary: "ffprobe" },
         },
         { prefix, concurrency: config.concurrency },

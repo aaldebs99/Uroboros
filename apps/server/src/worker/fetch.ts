@@ -292,6 +292,7 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
         binary: deps.ytdlp.binary,
         ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
         ...(deps.ytdlp.cookiesFile === null ? {} : { cookiesFile: deps.ytdlp.cookiesFile }),
+        ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
         workDir: scratch,
         format,
         extraArgs,

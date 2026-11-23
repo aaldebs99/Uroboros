@@ -25,6 +25,11 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
     root,
     workDir,
     /** Deps whose yt-dlp replays `scenario`. */
+    /** The arguments the most recent fake yt-dlp was started with. */
+    async lastArgv(): Promise<string[]> {
+      const run = runs.at(-1);
+      return run === undefined ? [] : run.argv();
+    },
     async deps(scenario: Scenario): Promise<WorkerDeps> {
       const run = await FakeRun.create(scenario);
       runs.push(run);
@@ -33,7 +38,12 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
         store: createStore(storage),
         storage,
         workDir,
-        ytdlp: { binary: run.options.binary, env: run.options.env, cookiesFile: null },
+        ytdlp: {
+          binary: run.options.binary,
+          env: run.options.env,
+          cookiesFile: null,
+          jsRuntime: "/usr/local/bin/node",
+        },
         ffprobe: { binary: ffprobeRun.options.binary, env: ffprobeRun.options.env },
       };
     },

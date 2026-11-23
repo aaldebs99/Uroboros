@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
-import { checkUrl, commandLine, DEFAULT_BINARY, type YtDlpOptions } from "./args.ts";
+import { checkUrl, commandLine, DEFAULT_BINARY, runtimeArgs, type YtDlpOptions } from "./args.ts";
 import { removePartialFiles } from "./cleanup.ts";
 import { withCookiesCopy } from "./cookies.ts";
 import { YtDlpError } from "./errors.ts";
@@ -128,6 +128,7 @@ export async function download(url: string, options: DownloadOptions): Promise<D
     options.workDir,
     "--write-info-json",
     ...REPORTING_ARGS,
+    ...runtimeArgs(options.jsRuntime),
   ];
   const reporter = new Reporter(options.onProgress);
   const result = await withCookiesCopy(options.cookiesFile, (cookies) =>

@@ -100,6 +100,13 @@ against that endpoint for 15 minutes instead. `GET /api/library/{id}/thumbnail` 
 thumbnail. Removing a library entry deletes the row only; the file stays until the reaper (with
 subscriptions and retention) deletes unreferenced renditions.
 
+## JavaScript challenges
+
+YouTube serves some formats only after a JavaScript challenge. The worker image installs yt-dlp's
+`[default]` extras, which include the yt-dlp-ejs solver scripts, and every probe and download runs
+with `--js-runtimes node:<the worker's own node>`, so the solver runs on the Node 24 already in the
+image (no Deno needed).
+
 ## Not yet
 
 Push notifications for finished downloads, per-site rate limits, per-user cookies, and the reaper.

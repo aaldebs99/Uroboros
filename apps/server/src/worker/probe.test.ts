@@ -64,6 +64,13 @@ describe("probe", () => {
     expect(await h.queues.download.getJob(d.fetch_key)).toBeDefined();
   });
 
+  it("has yt-dlp solve JavaScript challenges with Node", async () => {
+    const id = await request("https://www.youtube.com/watch?v=js-1");
+    await run(id, await h.deps({ steps: [{ stdout: await fixture("probe-video.json") }] }));
+    const argv = await h.lastArgv();
+    expect(argv[argv.indexOf("--js-runtimes") + 1]).toBe("node:/usr/local/bin/node");
+  });
+
   it("previews a playlist as one ticked group", async () => {
     const id = await request("https://www.youtube.com/playlist?list=x");
     await run(id, await h.deps({ steps: [{ stdout: await fixture("probe-playlist.json") }] }));

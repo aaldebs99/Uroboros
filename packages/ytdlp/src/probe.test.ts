@@ -192,4 +192,20 @@ describe("ffprobe", () => {
       await run.close();
     }
   });
+
+  it("tells yt-dlp to run JavaScript challenges with the given Node", async () => {
+    const run = await FakeRun.create({ steps: [{ stdout: await fixture("probe-video.json") }] });
+    try {
+      await probe("https://example.org/v", { ...run.options, jsRuntime: "/usr/local/bin/node" });
+      const argv = await run.argv();
+      expect(argv[argv.indexOf("--js-runtimes") + 1]).toBe("node:/usr/local/bin/node");
+      await expect(
+        probe("https://example.org/v", { ...run.options, jsRuntime: "node" }),
+      ).rejects.toMatchObject({
+        kind: "invalid_arguments",
+      });
+    } finally {
+      await run.close();
+    }
+  });
 });

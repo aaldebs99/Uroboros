@@ -17,6 +17,7 @@ function ytdlpOptions(deps: Deps) {
     binary: deps.ytdlp.binary,
     ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
     ...(deps.ytdlp.cookiesFile === null ? {} : { cookiesFile: deps.ytdlp.cookiesFile }),
+    ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
     timeoutMs: PROBE_TIMEOUT_MS,
     flat: true,
   };
