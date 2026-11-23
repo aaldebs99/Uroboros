@@ -32,6 +32,8 @@ gates need Docker (`test` and `docker:build`) and two need the network (`check:a
 | `scripts/release`     | `propose.sh`, `publish.sh` and their `lib.sh`: the release PR and the release cut that `.github/workflows/release-pr.yml` runs.                                                                                                                 |
 | `.github/workflows`   | `ci.yml` (the gates), `pr-title.yml`, `release-pr.yml`, `release.yml` (images) and `renovate.yml`.                                                                                                                                              |
 
+The web UI follows the `uroboros-design-system` skill (`.claude/skills/uroboros-design-system/`).
+
 ## Tasks
 
 | Task                                                               | Purpose                                                                     |
