@@ -219,7 +219,9 @@ export async function startApi(
         Promise.all([
           sweeperDuty(db, logger)(signal),
           reconcileDuty(downloadContext)(signal),
-          automationDuties(downloadContext, store)(signal),
+          automationDuties(downloadContext, store, {
+            keepDays: config.worker.transcode.keepDays,
+          })(signal),
         ]).then(() => undefined),
       shutdown: stop.signal,
       ...(opts.leaderRetryMs === undefined ? {} : { retryMs: opts.leaderRetryMs }),

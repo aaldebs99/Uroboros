@@ -5,6 +5,7 @@ import type { DownloadContext } from "../downloads/dispatch.ts";
 import { periodicDuty } from "../shared/periodic.ts";
 import { reapOnce, REAPER_EVERY_MS } from "../storage/reaper.ts";
 import type { MediaStore } from "../storage/store.ts";
+import { reconcileTranscodes, TRANSCODE_RECONCILE_EVERY_MS } from "../transcode/reconcile.ts";
 import { scheduleCheck, type CheckJob } from "./queue.ts";
 import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
 
@@ -46,10 +47,15 @@ export async function resyncSchedulers(
 }
 
 /**
- * The leader's automation duties: keep schedules in step, apply retention hourly, and run the
- * reaper every 15 minutes.
+ * The leader's automation duties: keep schedules in step, apply retention hourly, run the reaper
+ * every 15 minutes (with unused playback copies older than `keepDays`), and re-add lost transcode
+ * jobs every minute.
  */
-export function automationDuties(ctx: DownloadContext, store: MediaStore) {
+export function automationDuties(
+  ctx: DownloadContext,
+  store: MediaStore,
+  opts: { keepDays: number } = { keepDays: 30 },
+) {
   const resync = periodicDuty(
     "scheduler re-sync",
     RESYNC_EVERY_MS,
@@ -68,10 +74,16 @@ export function automationDuties(ctx: DownloadContext, store: MediaStore) {
   const reaper = periodicDuty(
     "reaper",
     REAPER_EVERY_MS,
-    () => reapOnce(ctx.db, store, ctx.logger),
+    () => reapOnce(ctx.db, store, ctx.logger, undefined, opts.keepDays),
+    ctx.logger,
+  );
+  const transcodes = periodicDuty(
+    "transcode reconcile",
+    TRANSCODE_RECONCILE_EVERY_MS,
+    () => reconcileTranscodes(ctx),
     ctx.logger,
   );
   return async (signal: AbortSignal): Promise<void> => {
-    await Promise.all([resync(signal), retention(signal), reaper(signal)]);
+    await Promise.all([resync(signal), retention(signal), reaper(signal), transcodes(signal)]);
   };
 }
