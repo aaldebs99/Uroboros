@@ -71,6 +71,8 @@ auth:
       existingSecret: ""
       usernameKey: UROBOROS_BOOTSTRAP_USERNAME
       passwordKey: UROBOROS_BOOTSTRAP_PASSWORD
+      # Accept a bootstrap password under 12 characters. For throwaway dev clusters only.
+      allowWeakPassword: false
   oidc:
     # The provider's issuer URL, e.g. https://sso.example/application/o/uroboros/. Empty: no SSO.
     # Needs publicBaseUrl (the callback is <publicBaseUrl>/api/auth/oidc/callback).

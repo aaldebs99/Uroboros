@@ -190,6 +190,8 @@ defaults cover the rest. A VAPID public key and its private-key Secret come toge
     secretKeyRef:
       name: {{ . }}
       key: {{ $a.local.bootstrap.passwordKey }}
+- name: UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD
+  value: {{ $a.local.bootstrap.allowWeakPassword | quote }}
 {{- end }}
 {{- if $oidcSet }}
 - name: UROBOROS_OIDC_ISSUER

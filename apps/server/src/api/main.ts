@@ -136,6 +136,12 @@ export async function startApi(
     ]);
     logMigrations(logger, outcome);
     const bootstrap = config.auth.local.bootstrap;
+    if (bootstrap?.weak === true) {
+      logger.warn(
+        { username: bootstrap.username },
+        "the bootstrap admin has a weak password (UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD); local dev stacks only",
+      );
+    }
     if (bootstrap !== null) await ensureBootstrapAdmin(db, bootstrap, logger);
     attached = true;
     logger.info("api ready");

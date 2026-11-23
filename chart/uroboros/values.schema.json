@@ -511,6 +511,9 @@
                 "passwordKey": {
                   "type": "string",
                   "minLength": 1
+                },
+                "allowWeakPassword": {
+                  "type": "boolean"
                 }
               }
             }

@@ -27,7 +27,9 @@ The **bootstrap admin** (`UROBOROS_BOOTSTRAP_USERNAME` and `_PASSWORD`, both or 
 created on the first start and re-seeded on every start: its username, password and admin role are
 put back if they changed, and the password is re-hashed only when it no longer verifies. With no
 flagged account, an existing local account of that name is adopted. Replicas starting together
-are fine. This is how a fresh install gets its first admin.
+are fine. This is how a fresh install gets its first admin. The password must be at least 12
+characters unless `UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD` is true, which the compose dev stack
+sets for its `admin` / `admin` account (the api logs a warning); never in production.
 
 ## Signing in
 

@@ -147,6 +147,7 @@ the worker's test seam and `vite.config.ts`. The compose stack and the chart set
 | `UROBOROS_TRUST_PROXY`                                        | api                           | `false`                                | Read the client IP from `X-Forwarded-For` for the per-IP sign-in limit; true behind a proxy.  |
 | `UROBOROS_LOCAL_LOGIN`                                        | api                           | `true`                                 | Local username/password sign-in; with it off, OIDC must be configured.                        |
 | `UROBOROS_BOOTSTRAP_USERNAME`, `UROBOROS_BOOTSTRAP_PASSWORD`  | api                           | unset (no bootstrap admin)             | The admin re-seeded on every start; both or neither, password 12+ characters.                 |
+| `UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD`                      | api                           | `false`                                | Accept a shorter bootstrap password (logs a warning). Local dev stacks only; compose sets it. |
 | `UROBOROS_OIDC_ISSUER`, `_CLIENT_ID`, `_CLIENT_SECRET`        | api                           | unset (no SSO)                         | The OIDC provider; all three or none, and `UROBOROS_PUBLIC_BASE_URL` is required with them.   |
 | `UROBOROS_OIDC_DISPLAY_NAME`                                  | api                           | `Authentik`                            | The provider's name on the sign-in button.                                                    |
 | `UROBOROS_OIDC_ADMIN_GROUPS`                                  | api                           | `authentik Admins`                     | Comma-separated groups whose members are admins.                                              |
@@ -160,7 +161,7 @@ the worker's test seam and `vite.config.ts`. The compose stack and the chart set
 | `UROBOROS_API_URL`, `UROBOROS_UI_PORT`                        | Vite (`dev:ui`)               | `http://127.0.0.1:18081`, `18173`      | Where the dev server proxies `/api`, and its own port.                                        |
 
 The compose host ports (`UROBOROS_PORT` and the others) are under Quickstart. The compose stack
-signs in with a dev-only bootstrap admin, `admin` / `uroboros-dev-admin`, unless you set
+signs in with a dev-only bootstrap admin, `admin` / `admin`, unless you set
 `UROBOROS_BOOTSTRAP_USERNAME` and `UROBOROS_BOOTSTRAP_PASSWORD` in the shell.
 
 ## CI and releases

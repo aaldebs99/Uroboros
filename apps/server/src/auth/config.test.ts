@@ -34,6 +34,7 @@ describe("auth config", () => {
     expect(cfg.auth.local.bootstrap).toEqual({
       username: "admin",
       password: "correct horse battery",
+      weak: false,
     });
   });
 
@@ -45,6 +46,31 @@ describe("auth config", () => {
         UROBOROS_BOOTSTRAP_PASSWORD: "short",
       }),
     ).toThrow(/UROBOROS_BOOTSTRAP_PASSWORD/);
+  });
+
+  it("accepts a short bootstrap password only with the dev opt-out, and marks it weak", () => {
+    const config = loadConfig({
+      ...base,
+      UROBOROS_BOOTSTRAP_USERNAME: "admin",
+      UROBOROS_BOOTSTRAP_PASSWORD: "admin",
+      UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD: "true",
+    });
+    expect(config.auth.local.bootstrap).toEqual({
+      username: "admin",
+      password: "admin",
+      weak: true,
+    });
+    expect(() =>
+      loadConfig({
+        ...base,
+        UROBOROS_BOOTSTRAP_USERNAME: "admin",
+        UROBOROS_BOOTSTRAP_PASSWORD: "admin",
+        UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD: "false",
+      }),
+    ).toThrow(/UROBOROS_BOOTSTRAP_PASSWORD/);
+    expect(() => loadConfig({ ...base, UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD: "maybe" })).toThrow(
+      /UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD/,
+    );
   });
 
   it("reads OIDC with its defaults and the callback URL", () => {

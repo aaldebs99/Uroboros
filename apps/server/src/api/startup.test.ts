@@ -135,7 +135,7 @@ describe("bootstrap admin on start", () => {
         trustProxy: false,
         local: {
           enabled: true,
-          bootstrap: { username: "admin", password: "correct horse battery" },
+          bootstrap: { username: "admin", password: "correct horse battery", weak: false },
         },
         oidc: null,
       },

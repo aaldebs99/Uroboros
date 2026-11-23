@@ -9,7 +9,8 @@ export interface AuthConfig {
   local: {
     enabled: boolean;
     /** The admin re-seeded on every start; null when unset. */
-    bootstrap: { username: string; password: string } | null;
+    /** `weak`: shorter than the minimum, allowed by UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD (dev only). */
+    bootstrap: { username: string; password: string; weak: boolean } | null;
   };
   oidc: OidcConfig | null;
 }
@@ -62,6 +63,7 @@ export const authEnvSchema = z.object({
   UROBOROS_LOCAL_LOGIN: flag("UROBOROS_LOCAL_LOGIN", true),
   UROBOROS_BOOTSTRAP_USERNAME: optional,
   UROBOROS_BOOTSTRAP_PASSWORD: optional,
+  UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD: flag("UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD", false),
   UROBOROS_OIDC_ISSUER: optional,
   UROBOROS_OIDC_CLIENT_ID: optional,
   UROBOROS_OIDC_CLIENT_SECRET: optional,
@@ -103,10 +105,14 @@ export function authEnvProblems(
       "UROBOROS_BOOTSTRAP_USERNAME and UROBOROS_BOOTSTRAP_PASSWORD are set together or not at all",
     ]);
   }
-  if (pass !== undefined && pass.length < MIN_PASSWORD_CHARS) {
+  if (
+    pass !== undefined &&
+    pass.length < MIN_PASSWORD_CHARS &&
+    !env.UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD
+  ) {
     problems.push([
       "UROBOROS_BOOTSTRAP_PASSWORD",
-      `UROBOROS_BOOTSTRAP_PASSWORD must be at least ${String(MIN_PASSWORD_CHARS)} characters`,
+      `UROBOROS_BOOTSTRAP_PASSWORD must be at least ${String(MIN_PASSWORD_CHARS)} characters (UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD=true allows less, for local dev stacks only)`,
     ]);
   }
   if (user !== undefined && !/^[a-z0-9._-]{1,64}$/.test(user.trim().toLowerCase())) {
@@ -169,7 +175,11 @@ export function toAuthConfig(env: AuthEnv, publicBaseUrl: string | undefined): A
       enabled: env.UROBOROS_LOCAL_LOGIN,
       bootstrap:
         user !== undefined && pass !== undefined
-          ? { username: user.trim().toLowerCase(), password: pass }
+          ? {
+              username: user.trim().toLowerCase(),
+              password: pass,
+              weak: pass.length < MIN_PASSWORD_CHARS,
+            }
           : null,
     },
     oidc,
