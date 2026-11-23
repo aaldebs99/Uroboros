@@ -1,7 +1,10 @@
 # @uroboros/ytdlp
 
 The typed wrapper the workers use to run yt-dlp and ffprobe. Only workers import it: the api never
-spawns either program. yt-dlp is the only downloader, with no setting and no fallback.
+spawns either program. The one exception is the subpath `@uroboros/ytdlp/flags`, the pure argument
+allowlist (`normalizeExtraArgs`), which the api uses to check a format profile's extra arguments
+when an admin saves it. `@uroboros/ytdlp/testing` exports the fake binary's helpers for other
+packages' tests. yt-dlp is the only downloader, with no setting and no fallback.
 
 | Export     | What it does                                                                                                                                                                                   |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -9,6 +9,7 @@ import { registerAccountRoutes } from "../auth/accountRoutes.ts";
 import { registerAdminUserRoutes } from "../auth/adminUserRoutes.ts";
 import { authGuard, type ResolveToken } from "../auth/guard.ts";
 import { createLimiter } from "../auth/limiter.ts";
+import { registerProfileRoutes } from "../downloads/profileRoutes.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
@@ -195,6 +196,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   });
   app.openapi(infoRoute, (c) => c.json({ name: "uroboros" as const, version: deps.version }, 200));
   registerAuthRoutes(app, deps, logger);
+  registerProfileRoutes(app, deps.db);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

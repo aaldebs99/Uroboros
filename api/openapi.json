@@ -194,6 +194,97 @@
         ],
         "type": "string"
       },
+      "FormatProfile": {
+        "properties": {
+          "audioFormat": {
+            "nullable": true,
+            "type": "string"
+          },
+          "audioOnly": {
+            "type": "boolean"
+          },
+          "extraArgs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "format": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "mergeFormat": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "format",
+          "mergeFormat",
+          "audioOnly",
+          "audioFormat",
+          "extraArgs",
+          "isDefault",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "FormatProfilePatch": {
+        "properties": {
+          "audioFormat": {
+            "nullable": true,
+            "pattern": "^[a-z0-9]{1,16}$",
+            "type": "string"
+          },
+          "audioOnly": {
+            "type": "boolean"
+          },
+          "extraArgs": {
+            "items": {
+              "maxLength": 512,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "format": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "isDefault": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "mergeFormat": {
+            "nullable": true,
+            "pattern": "^[a-z0-9]{1,16}$",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Info": {
         "properties": {
           "name": {
@@ -315,6 +406,50 @@
         },
         "required": [
           "name"
+        ],
+        "type": "object"
+      },
+      "NewFormatProfileBody": {
+        "properties": {
+          "audioFormat": {
+            "default": null,
+            "nullable": true,
+            "pattern": "^[a-z0-9]{1,16}$",
+            "type": "string"
+          },
+          "audioOnly": {
+            "default": false,
+            "type": "boolean"
+          },
+          "extraArgs": {
+            "default": [],
+            "items": {
+              "maxLength": 512,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "format": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "mergeFormat": {
+            "default": null,
+            "nullable": true,
+            "pattern": "^[a-z0-9]{1,16}$",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "format"
         ],
         "type": "object"
       },
@@ -562,6 +697,203 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/admin/format-profiles": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewFormatProfileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormatProfile"
+                }
+              }
+            },
+            "description": "Added"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A refused yt-dlp argument, or audio-only without an audio format"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Admins only"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The name is taken"
+          }
+        },
+        "summary": "Add a format profile",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/format-profiles/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "Profile id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Profile id",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Admins only"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such profile"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The default profile, or one that downloads or files use"
+          }
+        },
+        "summary": "Delete an unused format profile",
+        "tags": [
+          "admin"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "description": "Profile id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Profile id",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormatProfilePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormatProfile"
+                }
+              }
+            },
+            "description": "Edited"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A refused yt-dlp argument, or audio-only without an audio format"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Admins only"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such profile"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The name is taken"
+          }
+        },
+        "summary": "Edit a format profile; edits apply to downloads queued afterwards",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/users": {
       "get": {
         "responses": {
@@ -1015,6 +1347,29 @@
         "summary": "Start signing in with the OIDC provider (redirects to it)",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/format-profiles": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FormatProfile"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Profiles"
+          }
+        },
+        "summary": "The format profiles to pick from (the default first)",
+        "tags": [
+          "downloads"
         ]
       }
     },
