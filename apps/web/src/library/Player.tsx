@@ -22,6 +22,23 @@ export interface PlayerProps {
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
+  // Resume: at once if the metadata is already in (it can load before React's listeners attach),
+  // otherwise when it arrives.
+  useEffect(() => {
+    const v = video.current;
+    if (v === null || p.start <= 0) return;
+    const resume = () => {
+      v.currentTime = p.start;
+    };
+    if (v.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      resume();
+      return;
+    }
+    v.addEventListener("loadedmetadata", resume, { once: true });
+    return () => {
+      v.removeEventListener("loadedmetadata", resume);
+    };
+  }, [p.src, p.start]);
   useEffect(() => {
     if (p.seek !== null && video.current !== null) {
       video.current.currentTime = p.seek.time;
@@ -39,9 +56,6 @@ export function Player(p: PlayerProps) {
       playsInline
       preload="metadata"
       className="aspect-video w-full rounded-[12px] bg-black"
-      onLoadedMetadata={(e) => {
-        if (p.start > 0) e.currentTarget.currentTime = p.start;
-      }}
       onTimeUpdate={(e) => {
         p.onTime(...at(e.currentTarget));
       }}

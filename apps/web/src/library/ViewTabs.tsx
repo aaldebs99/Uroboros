@@ -9,7 +9,7 @@ const TABS = [
 /** The library's views: links between routes, underlined when current. */
 export function ViewTabs() {
   return (
-    <nav aria-label="Library views" className="flex gap-6 overflow-x-auto border-b border-border">
+    <nav aria-label="Library views" className="flex gap-6 overflow-x-auto overflow-y-hidden border-b border-border">
       {TABS.map((t) => (
         <Link
           key={t.to}
