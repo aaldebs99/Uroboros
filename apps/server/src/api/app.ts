@@ -16,6 +16,7 @@ import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
 import { registerItemRoutes } from "../library/itemRoutes.ts";
 import { registerPlaylistRoutes } from "../playlists/routes.ts";
+import { registerSharingRoutes } from "../sharing/routes.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
 import { registerPlaybackRoutes } from "../transcode/routes.ts";
@@ -221,6 +222,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerLibraryRoutes(app, deps.db, deps.store);
   registerItemRoutes(app, deps.db, deps.store);
   registerPlaylistRoutes(app, deps.db);
+  registerSharingRoutes(app, deps.db);
   registerSubscriptionRoutes(app, deps.downloads);
   registerPlaybackRoutes(
     app,

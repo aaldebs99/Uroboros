@@ -29,3 +29,42 @@ export async function addToLibrary(
     .executeTakeFirstOrThrow();
   return { id: existing.id, created: false };
 }
+
+/**
+ * Gives the caller their own entries on the same files as these entries, which they were checked
+ * to reach, and answers the caller's entry ids in the same order (one per file).
+ */
+export async function addManyToLibrary(
+  db: Kysely<Database>,
+  userId: string,
+  entryIds: readonly string[],
+): Promise<string[]> {
+  if (entryIds.length === 0) return [];
+  return db.transaction().execute(async (tx) => {
+    await tx
+      .insertInto("library_entries")
+      .columns(["user_id", "media_id", "rendition_id"])
+      .expression((eb) =>
+        eb
+          .selectFrom("library_entries")
+          .select([eb.val(userId).as("user_id"), "media_id", "rendition_id"])
+          .where("id", "in", entryIds),
+      )
+      .onConflict((oc) => oc.columns(["user_id", "rendition_id"]).doNothing())
+      .execute();
+    const pairs = await tx
+      .selectFrom("library_entries as theirs")
+      .innerJoin("library_entries as mine", (j) =>
+        j.onRef("mine.rendition_id", "=", "theirs.rendition_id").on("mine.user_id", "=", userId),
+      )
+      .select(["theirs.id as theirs", "mine.id as mine"])
+      .where("theirs.id", "in", entryIds)
+      .execute();
+    const mine = new Map(pairs.map((p) => [p.theirs, p.mine]));
+    const out = entryIds.flatMap((id) => {
+      const m = mine.get(id);
+      return m === undefined ? [] : [m];
+    });
+    return [...new Set(out)];
+  });
+}

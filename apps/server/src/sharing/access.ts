@@ -18,6 +18,7 @@ export interface LiveShare {
   target: { kind: ShareTargetKind; id: string };
   allowDownload: boolean;
   expiresAt: Date | null;
+  sharedAt: Date;
 }
 
 /** Usable now: not expired, and its owner neither disabled nor revoked. `s` and `o` are bound. */
@@ -93,6 +94,7 @@ interface ShareRow {
   source_id: string | null;
   allow_download: boolean;
   expires_at: Date | null;
+  created_at: Date;
 }
 
 function toLive(r: ShareRow): LiveShare {
@@ -109,11 +111,12 @@ function toLive(r: ShareRow): LiveShare {
     target,
     allowDownload: r.allow_download,
     expiresAt: r.expires_at,
+    sharedAt: r.created_at,
   };
 }
 
-async function findShare(db: Kysely<Database>, where: RawBuilder<boolean>) {
-  const row = await db
+function sharesWhere(db: Kysely<Database>, where: RawBuilder<boolean>) {
+  return db
     .selectFrom("shares as s")
     .innerJoin("users as o", "o.id", "s.owner_id")
     .where(LIVE)
@@ -127,9 +130,25 @@ async function findShare(db: Kysely<Database>, where: RawBuilder<boolean>) {
       "s.source_id",
       "s.allow_download",
       "s.expires_at",
-    ])
-    .executeTakeFirst();
+      "s.created_at",
+    ]);
+}
+
+async function findShare(db: Kysely<Database>, where: RawBuilder<boolean>) {
+  const row = await sharesWhere(db, where).executeTakeFirst();
   return row === undefined ? undefined : toLive(row);
+}
+
+/** Every live share that reaches this person, newest change first (Shared › With me). */
+export async function sharesReaching(
+  db: Kysely<Database>,
+  viewer: { userId: string },
+): Promise<LiveShare[]> {
+  const rows = await sharesWhere(db, reachesUser(viewer.userId))
+    .orderBy("s.updated_at", "desc")
+    .orderBy("s.id")
+    .execute();
+  return rows.map(toLive);
 }
 
 /** A live people-share that reaches this person, by id; undefined otherwise. */

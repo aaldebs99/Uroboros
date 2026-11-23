@@ -274,6 +274,57 @@
         ],
         "type": "string"
       },
+      "Directory": {
+        "properties": {
+          "groups": {
+            "items": {
+              "properties": {
+                "members": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "members"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "users": {
+            "items": {
+              "properties": {
+                "handle": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "handle"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "users",
+          "groups"
+        ],
+        "type": "object"
+      },
       "Download": {
         "properties": {
           "attempts": {
@@ -705,6 +756,11 @@
           }
         },
         "type": "object"
+      },
+      "GroupName": {
+        "maxLength": 256,
+        "minLength": 1,
+        "type": "string"
       },
       "Info": {
         "properties": {
@@ -1244,6 +1300,52 @@
         ],
         "type": "object"
       },
+      "PeopleShare": {
+        "nullable": true,
+        "properties": {
+          "expired": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/SharePerson"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "people",
+          "expiresAt",
+          "expired"
+        ],
+        "type": "object"
+      },
+      "PeopleShareBody": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/SharePersonRef"
+            },
+            "maxItems": 100,
+            "type": "array"
+          }
+        },
+        "required": [
+          "people",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
       "Playback": {
         "properties": {
           "error": {
@@ -1488,6 +1590,53 @@
         "required": [
           "position",
           "duration"
+        ],
+        "type": "object"
+      },
+      "PublicLink": {
+        "nullable": true,
+        "properties": {
+          "allowDownload": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "path",
+          "allowDownload",
+          "expiresAt",
+          "expired"
+        ],
+        "type": "object"
+      },
+      "PublicLinkBody": {
+        "properties": {
+          "allowDownload": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "allowDownload",
+          "expiresAt"
         ],
         "type": "object"
       },
@@ -1754,6 +1903,237 @@
           "userAgent",
           "createdAt",
           "lastSeenAt"
+        ],
+        "type": "object"
+      },
+      "ShareKind": {
+        "enum": [
+          "entry",
+          "playlist",
+          "youtube"
+        ],
+        "type": "string"
+      },
+      "SharePerson": {
+        "oneOf": [
+          {
+            "properties": {
+              "handle": {
+                "nullable": true,
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "user"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id",
+              "name",
+              "handle"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "group"
+                ],
+                "type": "string"
+              },
+              "members": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "name",
+              "members"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SharePersonRef": {
+        "oneOf": [
+          {
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "user"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "group"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "$ref": "#/components/schemas/GroupName"
+              }
+            },
+            "required": [
+              "kind",
+              "name"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ShareState": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ShareKind"
+          },
+          "link": {
+            "$ref": "#/components/schemas/PublicLink"
+          },
+          "people": {
+            "$ref": "#/components/schemas/PeopleShare"
+          },
+          "thumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "thumbnailUrl",
+          "people",
+          "link",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "SharedDetail": {
+        "properties": {
+          "count": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ShareKind"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "shareId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "shareId",
+          "kind",
+          "id",
+          "title",
+          "description",
+          "owner",
+          "count"
+        ],
+        "type": "object"
+      },
+      "SharedWithMe": {
+        "properties": {
+          "count": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ShareKind"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "shareId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "sharedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "shareId",
+          "kind",
+          "id",
+          "title",
+          "thumbnailUrl",
+          "count",
+          "owner",
+          "sharedAt",
+          "expiresAt"
         ],
         "type": "object"
       },
@@ -2874,6 +3254,26 @@
         "summary": "Start signing in with the OIDC provider (redirects to it)",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/directory": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Directory"
+                }
+              }
+            },
+            "description": "The directory"
+          }
+        },
+        "summary": "Who the caller can share with: the other accounts and the groups in use",
+        "tags": [
+          "sharing"
         ]
       }
     },
@@ -5254,6 +5654,469 @@
           }
         },
         "summary": "Readiness and dependency health"
+      }
+    },
+    "/api/shared": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SharedWithMe"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Shares"
+          }
+        },
+        "summary": "What other people share with the caller, newest first",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/shared/{shareId}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "shareId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedDetail"
+                }
+              }
+            },
+            "description": "The share"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not shared with the caller"
+          }
+        },
+        "summary": "One thing shared with the caller",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/shared/{shareId}/entries": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "shareId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 2000,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LibrarySort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryPage"
+                }
+              }
+            },
+            "description": "A page"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A bad cursor or sort"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not shared with the caller"
+          }
+        },
+        "summary": "A page of what a share holds, in order, with the caller's progress",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/shared/{shareId}/save": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "shareId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetail"
+                }
+              }
+            },
+            "description": "The caller's new playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not shared with the caller"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A single video (use Add to my library)"
+          }
+        },
+        "summary": "Save as my playlist: a shared playlist's videos into the caller's library, as their own playlist",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/shares": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShareState"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Shares"
+          }
+        },
+        "summary": "Everything the caller shares, one row per thing, latest change first",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/shares/{kind}/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ShareKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareState"
+                }
+              }
+            },
+            "description": "Its sharing"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not one of the caller's things"
+          }
+        },
+        "summary": "How one of the caller's videos or playlists is shared",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/shares/{kind}/{id}/link": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ShareKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Stopped"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not one of the caller's things"
+          }
+        },
+        "summary": "Turn the public link off; its code never works again",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ShareKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicLinkBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareState"
+                }
+              }
+            },
+            "description": "Its sharing"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not one of the caller's things"
+          }
+        },
+        "summary": "Turn the public link on (a new code) or change it (the same code)",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/api/shares/{kind}/{id}/people": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ShareKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Stopped"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not one of the caller's things"
+          }
+        },
+        "summary": "Stop sharing with people",
+        "tags": [
+          "sharing"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ShareKind"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PeopleShareBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareState"
+                }
+              }
+            },
+            "description": "Its sharing"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Yourself, or no such user"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not one of the caller's things"
+          }
+        },
+        "summary": "Share with these people and groups (an empty list stops sharing with people)",
+        "tags": [
+          "sharing"
+        ]
       }
     },
     "/api/subscriptions": {

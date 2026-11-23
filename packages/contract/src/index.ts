@@ -95,3 +95,17 @@ export {
   PlaylistPatch,
   PlaylistSummary,
 } from "./playlists.ts";
+export {
+  Directory,
+  GroupName,
+  PeopleShare,
+  PeopleShareBody,
+  PublicLink,
+  PublicLinkBody,
+  SharedDetail,
+  SharedWithMe,
+  ShareKind,
+  SharePerson,
+  SharePersonRef,
+  ShareState,
+} from "./sharing.ts";
