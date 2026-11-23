@@ -94,7 +94,7 @@ function Shell({ me }: { me: Me }) {
               <Menu className="size-5" />
             </Button>
           )}
-          <Brand />
+          <Brand home />
         </div>
         <div className="hidden flex-1 justify-center md:flex">
           <SearchBar />

@@ -12,7 +12,9 @@ to right:
 
 1. A ghost icon button with `Menu`, which toggles the side navigation between full and mini (on a
    watch page, and on phones, it opens the navigation drawer).
-2. The brand: `Brand` (the tile and "Uroboros" in Roboto 700, 18px).
+2. The brand: `Brand` (the tile and "Uroboros" in Roboto 700, 18px), a link to the library
+   (`<Brand home />`, as in the navigation drawer; the sign-in page and a public link keep the
+   bare mark).
 3. The [search](actions-and-forms.md#search), centred and up to about 640px wide.
 4. **"+ Create"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500.
 5. The account avatar, a 32px circle, which opens the [account menu](#account-menu).

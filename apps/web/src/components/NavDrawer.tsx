@@ -180,7 +180,7 @@ export function NavDrawer({
                   >
                     <Menu className="size-5" />
                   </Button>
-                  <Brand />
+                  <Brand home />
                 </div>
                 <div className="min-h-0 flex-1">
                   <SidebarNav isAdmin={isAdmin} />

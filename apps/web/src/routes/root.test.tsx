@@ -105,6 +105,25 @@ describe("app shell", () => {
     expect(within(nav).queryByText("Uroboros")).not.toBeInTheDocument();
   });
 
+  it("takes the brand in the top bar to the library, dropping a search", async () => {
+    const router = await renderAt("/downloads");
+    const header = screen.getByRole("banner");
+    await userEvent.click(
+      within(header).getByRole("link", { name: "Uroboros, go to the library" }),
+    );
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/");
+    });
+
+    await router.navigate({ href: "/?q=bunny" });
+    await userEvent.click(
+      within(header).getByRole("link", { name: "Uroboros, go to the library" }),
+    );
+    await waitFor(() => {
+      expect(router.state.location.searchStr).toBe("");
+    });
+  });
+
   it("keeps the health status out of the top bar", async () => {
     await renderAt("/");
 
