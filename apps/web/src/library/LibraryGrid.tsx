@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { errorText } from "@/api/client";
-import { useLibraryPages, useRemoveEntry, type LibraryFilters } from "@/api/library";
+import { setWatched, useLibraryPages, useRemoveEntry, type LibraryFilters } from "@/api/library";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { TileSkeleton } from "@/components/ui/skeleton";
@@ -77,6 +77,13 @@ export function LibraryGrid({ filters, empty }: { filters: LibraryFilters; empty
             entry={e}
             onRemove={() => {
               onRemove(e);
+            }}
+            onToggleWatched={() => {
+              setWatched(e.id, !(e.progress?.watched ?? false))
+                .then(() => client.invalidateQueries({ queryKey: ["api", "library"] }))
+                .catch((err: unknown) => {
+                  notify.error(errorText(err));
+                });
             }}
           />
         ))}

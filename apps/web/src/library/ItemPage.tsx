@@ -1,13 +1,21 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Download, ExternalLink, ListVideo } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Download, ExternalLink, ListVideo, Trash2 } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
 import { errorText } from "@/api/client";
-import { itemKey, reportProgress, setTags, setWatched, useItem } from "@/api/library";
+import {
+  itemKey,
+  reportProgress,
+  setTags,
+  setWatched,
+  useItem,
+  useRemoveEntry,
+} from "@/api/library";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { notify } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import { formatDuration } from "@/downloads/format";
@@ -67,6 +75,9 @@ export function ItemPage({ entryId }: { entryId: string }) {
   const item = useItem(entryId);
   const client = useQueryClient();
   const [seek, setSeek] = useState<{ time: number } | null>(null);
+  const confirm = useConfirm();
+  const remove = useRemoveEntry();
+  const navigate = useNavigate();
   const reporter = useProgressReporter((position, duration) =>
     reportProgress(entryId, position, duration),
   );
@@ -136,6 +147,27 @@ export function ItemPage({ entryId }: { entryId: string }) {
             <Download aria-hidden /> Save
           </a>
         </Button>
+        <Button
+          variant="destructive"
+          onClick={() => {
+            confirm.ask({
+              title: `Remove "${it.title}"?`,
+              description: "It leaves your library. Others who downloaded it keep their copy.",
+              confirmLabel: "Remove",
+              destructive: true,
+              onConfirm: () => {
+                remove.mutate(entryId, {
+                  onSuccess: () => {
+                    void navigate({ to: "/" });
+                  },
+                  onError: fail,
+                });
+              },
+            });
+          }}
+        >
+          <Trash2 aria-hidden /> Remove
+        </Button>
         {it.webpageUrl === null ? null : (
           <Button variant="ghost" asChild>
             <a href={it.webpageUrl} target="_blank" rel="noreferrer">
@@ -171,6 +203,7 @@ export function ItemPage({ entryId }: { entryId: string }) {
           ))}
         </p>
       )}
+      {confirm.dialog}
       <Chapters
         item={it}
         onSeek={(time) => {

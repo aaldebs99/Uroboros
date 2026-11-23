@@ -23,7 +23,9 @@ export function TagEditor({
           key={t}
           className="inline-flex h-8 items-center gap-1 rounded-full bg-raised pr-1 pl-3 text-[13px] font-medium"
         >
-          {t}
+          <a href={`/?tag=${encodeURIComponent(t)}`} className="hover:underline">
+            {t}
+          </a>
           <button
             type="button"
             aria-label={`Remove tag ${t}`}

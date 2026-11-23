@@ -10,6 +10,13 @@ import { Chip, ChipRow, FilterChip } from "./Chips";
 import { LibraryGrid } from "./LibraryGrid";
 import { ViewTabs } from "./ViewTabs";
 
+const SORTS = [
+  { value: "", label: "Newest first" },
+  { value: "uploaded", label: "Upload date" },
+  { value: "title", label: "Title" },
+  { value: "duration", label: "Longest first" },
+] as const;
+
 const WATCHED = [
   { label: "All", value: undefined },
   { label: "Unwatched", value: false },
@@ -69,6 +76,31 @@ export function LibraryPage({
           />
         )}
       </ChipRow>
+      <label className="flex items-center gap-2 self-start text-sm text-muted-foreground">
+        Sort
+        <select
+          aria-label="Sort"
+          value={filters.sort ?? ""}
+          onChange={(e) => {
+            const sort = e.target.value;
+            onFilters(
+              sort === ""
+                ? without(filters, "sort")
+                : { ...filters, sort: sort as NonNullable<LibraryFilters["sort"]> },
+            );
+          }}
+          className="h-9 rounded-[10px] border border-foreground/22 bg-card px-3 text-sm text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
+        >
+          {(filters.q === undefined
+            ? SORTS
+            : [{ value: "", label: "Best match" }, ...SORTS.slice(1)]
+          ).map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </label>
       <LibraryGrid
         filters={filters}
         empty={

@@ -1,6 +1,6 @@
 import type { LibraryEntry } from "@uroboros/contract";
 import { Link } from "@tanstack/react-router";
-import { Download, Film, MoreVertical, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, Film, MoreVertical, Trash2 } from "lucide-react";
 
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,16 @@ function Thumbnail({ entry }: { entry: LibraryEntry }) {
 }
 
 /** A bare tile: the thumbnail, then the avatar, a two-line title, the meta line and ⋮. */
-export function EntryTile({ entry, onRemove }: { entry: LibraryEntry; onRemove: () => void }) {
+export function EntryTile({
+  entry,
+  onRemove,
+  onToggleWatched,
+}: {
+  entry: LibraryEntry;
+  onRemove: () => void;
+  onToggleWatched: () => void;
+}) {
+  const watched = entry.progress?.watched ?? false;
   return (
     <li className="grid gap-3 max-md:gap-2.5">
       <Thumbnail entry={entry} />
@@ -81,6 +90,11 @@ export function EntryTile({ entry, onRemove }: { entry: LibraryEntry; onRemove: 
           title={`Actions for ${entry.title}`}
           actions={[
             { label: "Save", icon: Download, href: `/api/library/${entry.id}/file` },
+            {
+              label: watched ? "Mark unwatched" : "Mark watched",
+              icon: watched ? EyeOff : Eye,
+              onSelect: onToggleWatched,
+            },
             { label: "Remove", icon: Trash2, destructive: true, onSelect: onRemove },
           ]}
           trigger={

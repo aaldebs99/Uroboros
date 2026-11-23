@@ -22,12 +22,15 @@ export interface PlayerProps {
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
+  /** The source already resumed: a later change to the saved position must not jump back. */
+  const resumedFor = useRef<string | null>(null);
   // Resume: at once if the metadata is already in (it can load before React's listeners attach),
   // otherwise when it arrives.
   useEffect(() => {
     const v = video.current;
-    if (v === null || p.start <= 0) return;
+    if (v === null || p.start <= 0 || resumedFor.current === p.src) return;
     const resume = () => {
+      resumedFor.current = p.src;
       v.currentTime = p.start;
     };
     if (v.readyState >= HTMLMediaElement.HAVE_METADATA) {

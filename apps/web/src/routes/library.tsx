@@ -13,9 +13,11 @@ function filtersFrom(searchStr: string): LibraryFilters {
     return v === null || v === "" ? {} : { [k]: v };
   };
   const watched = p.get("watched");
+  const sort = p.get("sort");
   return {
     ...text("q"),
     ...text("tag"),
+    ...(sort === "uploaded" || sort === "title" || sort === "duration" ? { sort } : {}),
     ...(watched === "true" || watched === "false" ? { watched: watched === "true" } : {}),
   };
 }

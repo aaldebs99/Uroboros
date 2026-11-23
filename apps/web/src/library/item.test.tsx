@@ -108,6 +108,25 @@ describe("ItemPage", () => {
   });
 });
 
+describe("ItemPage actions", () => {
+  it("links each tag to the library filtered by it, and removes the entry after asking", async () => {
+    const calls = fakeApi({
+      [`GET /api/library/${ID}`]: () => Response.json(item),
+      [`DELETE /api/library/${ID}`]: () => new Response(null, { status: 204 }),
+    });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    expect(await screen.findByRole("link", { name: "movies" })).toHaveAttribute(
+      "href",
+      "/?tag=movies",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Remove" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "DELETE")).toBe(true);
+    });
+  });
+});
+
 describe("useProgressReporter", () => {
   it("reports at most every 10 seconds, and at once on pause", () => {
     vi.useFakeTimers();

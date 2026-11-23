@@ -87,6 +87,24 @@ describe("library browsing", () => {
     expect(onFilters).toHaveBeenLastCalledWith({ q: "bunny" });
   });
 
+  it("sorts from the menu", async () => {
+    api({ "/api/library": () => ({ entries: [entry(1)], nextCursor: null }) });
+    const onFilters = vi.fn();
+    await renderInRouter(<LibraryPage filters={{ q: "x" }} onFilters={onFilters} />);
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Sort" }), "title");
+    expect(onFilters).toHaveBeenLastCalledWith({ q: "x", sort: "title" });
+  });
+
+  it("marks a tile watched from its menu", async () => {
+    const urls = api({ "/api/library": () => ({ entries: [entry(1)], nextCursor: null }) });
+    await renderInRouter(<LibraryPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for Video 1" }));
+    await userEvent.click(await screen.findByText("Mark watched"));
+    await waitFor(() => {
+      expect(urls.some((u) => u.pathname === `/api/library/${entry(1).id}/watched`)).toBe(true);
+    });
+  });
+
   it("loads the next page from the cursor", async () => {
     const urls = api({
       "/api/library": (u) =>

@@ -31,4 +31,31 @@ describe("Player", () => {
       if (desc) Object.defineProperty(HTMLMediaElement.prototype, "readyState", desc);
     }
   });
+
+  it("resumes once per video, not again when the saved position changes", () => {
+    const desc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "readyState");
+    Object.defineProperty(HTMLMediaElement.prototype, "readyState", {
+      configurable: true,
+      get: () => 4,
+    });
+    try {
+      const props = {
+        src: "/v",
+        title: "t",
+        seek: null,
+        chapters: [],
+        subtitles: [],
+        onTime: noop,
+        onPause: noop,
+        onEnded: noop,
+      };
+      const { container, rerender } = render(<Player {...props} start={42} />);
+      const video = container.querySelector("video") as HTMLVideoElement;
+      video.currentTime = 300;
+      rerender(<Player {...props} start={290} />);
+      expect(video.currentTime).toBe(300);
+    } finally {
+      if (desc) Object.defineProperty(HTMLMediaElement.prototype, "readyState", desc);
+    }
+  });
 });
