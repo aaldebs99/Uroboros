@@ -1,5 +1,4 @@
-import { LibraryEntry } from "@uroboros/contract";
-import { z } from "zod";
+import { LibraryPage } from "@uroboros/contract";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness, seededDefault } from "../../test/downloads.ts";
@@ -57,9 +56,9 @@ afterAll(async () => {
 
 describe("library", () => {
   it("lists only the caller's entries, with the profile name", async () => {
-    const mine = z
-      .array(LibraryEntry)
-      .parse(await (await h.app(alice).request("/api/library")).json());
+    const mine = LibraryPage.parse(
+      await (await h.app(alice).request("/api/library")).json(),
+    ).entries;
     expect(mine).toEqual([
       expect.objectContaining({
         id: entryId,
@@ -72,7 +71,7 @@ describe("library", () => {
       }),
     ]);
     expect(
-      z.array(LibraryEntry).parse(await (await h.app(bob).request("/api/library")).json()),
+      LibraryPage.parse(await (await h.app(bob).request("/api/library")).json()).entries,
     ).toEqual([]);
   });
 

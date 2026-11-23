@@ -1,6 +1,12 @@
 import { extname } from "node:path";
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { ApiErrorBody, LibraryEntry } from "@uroboros/contract";
+import {
+  ApiErrorBody,
+  ChannelSummary,
+  LibraryPage,
+  LibrarySort,
+  SourceSummary,
+} from "@uroboros/contract";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
@@ -8,7 +14,9 @@ import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import { sanitizeSegment, type MediaStore } from "../storage/index.ts";
-import { listLibrary, ownEntry, removeEntry } from "./library.ts";
+import { listChannels, listSources } from "../library/channels.ts";
+import { listLibraryPage } from "../library/query.ts";
+import { ownEntry, removeEntry } from "./library.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
   description,
@@ -21,12 +29,65 @@ const binary = (description: string, type: string) => ({
 });
 const idParams = z.object({ id: z.uuid().openapi({ param: { name: "id", in: "path" } }) });
 
+const libraryQuery = z.object({
+  q: z
+    .string()
+    .max(1000)
+    .optional()
+    .openapi({ param: { name: "q", in: "query" }, description: "Full-text search" }),
+  channel: z
+    .string()
+    .max(1000)
+    .optional()
+    .openapi({ param: { name: "channel", in: "query" }, description: "A channel key" }),
+  source: z
+    .uuid()
+    .optional()
+    .openapi({ param: { name: "source", in: "query" }, description: "A playlist id" }),
+  tag: z
+    .string()
+    .max(64)
+    .optional()
+    .openapi({ param: { name: "tag", in: "query" } }),
+  watched: z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({ param: { name: "watched", in: "query" } }),
+  sort: LibrarySort.optional().openapi({ param: { name: "sort", in: "query" } }),
+  cursor: z
+    .string()
+    .max(2000)
+    .optional()
+    .openapi({ param: { name: "cursor", in: "query" } }),
+});
+
 const listRoute = createRoute({
   method: "get",
   path: "/api/library",
   tags: ["library"],
-  summary: "The caller's library, newest first",
-  responses: { 200: json(z.array(LibraryEntry), "Entries") },
+  summary: "A page of the caller's library: search, filters and sort (docs/library.md)",
+  request: { query: libraryQuery },
+  responses: {
+    200: json(LibraryPage, "A page"),
+    400: error("A bad cursor, channel key, or a sort that needs another parameter"),
+    404: error("A playlist the caller did not queue"),
+  },
+});
+
+const channelsRoute = createRoute({
+  method: "get",
+  path: "/api/library/channels",
+  tags: ["library"],
+  summary: "The channels in the caller's library, most entries first",
+  responses: { 200: json(z.array(ChannelSummary), "Channels") },
+});
+
+const sourcesRoute = createRoute({
+  method: "get",
+  path: "/api/library/sources",
+  tags: ["library"],
+  summary: "The playlists the caller queued",
+  responses: { 200: json(z.array(SourceSummary), "Playlists") },
 });
 
 const removeRoute = createRoute({
@@ -122,8 +183,20 @@ export function registerLibraryRoutes(
   db: Kysely<Database>,
   store: MediaStore | undefined,
 ): void {
-  app.openapi(listRoute, async (c) =>
-    c.json(await listLibrary(db, currentPrincipal(c).userId), 200),
+  // Literal paths first, so they are never taken for an entry id.
+  app.openapi(listRoute, async (c) => {
+    const { watched, ...rest } = c.req.valid("query");
+    const page = await listLibraryPage(db, currentPrincipal(c).userId, {
+      ...rest,
+      ...(watched === undefined ? {} : { watched: watched === "true" }),
+    });
+    return c.json(page, 200);
+  });
+  app.openapi(channelsRoute, async (c) =>
+    c.json(await listChannels(db, currentPrincipal(c).userId), 200),
+  );
+  app.openapi(sourcesRoute, async (c) =>
+    c.json(await listSources(db, currentPrincipal(c).userId), 200),
   );
 
   app.openapi(removeRoute, async (c) => {

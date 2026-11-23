@@ -1,6 +1,6 @@
 import {
   FormatProfile,
-  LibraryEntry,
+  LibraryPage,
   type FormatProfilePatch,
   type NewFormatProfileBody,
 } from "@uroboros/contract";
@@ -12,10 +12,12 @@ import { downloadKeys } from "./downloads";
 
 const libraryKey = ["api", "library"] as const;
 
+/** The first page of the caller's library, newest first (the paged, filtered form comes with step 4's pages). */
 export function useLibrary() {
   return useQuery({
     queryKey: libraryKey,
-    queryFn: ({ signal }) => getJson("/api/library", z.array(LibraryEntry), { signal }),
+    queryFn: ({ signal }) => getJson("/api/library", LibraryPage, { signal }),
+    select: (page) => page.entries,
   });
 }
 

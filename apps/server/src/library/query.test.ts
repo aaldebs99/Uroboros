@@ -1,0 +1,262 @@
+import { randomUUID } from "node:crypto";
+import type { OpenAPIHono } from "@hono/zod-openapi";
+import { ChannelSummary, LibraryPage, SourceSummary, type LibraryEntry } from "@uroboros/contract";
+import type { Redis } from "ioredis";
+import { pino } from "pino";
+import { z } from "zod";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
+import { seededDefault } from "../../test/downloads.ts";
+import { TestDb } from "../../test/testDb.ts";
+import { createApp } from "../api/app.ts";
+
+const logger = pino({ level: "silent" });
+let testDb: TestDb;
+let alice: SignedIn;
+let bob: SignedIn;
+let sourceId: string;
+const CHANNELS = ["Blender", "Kurzgesagt", "NASA"];
+
+async function add(
+  user: SignedIn,
+  i: number,
+  over: Record<string, unknown> = {},
+): Promise<{ entryId: string; mediaId: string }> {
+  const p = await seededDefault(testDb.db);
+  const channel = CHANNELS[i % 3] ?? "Blender";
+  const media = await testDb.db
+    .insertInto("media")
+    .values({
+      extractor: "youtube",
+      video_id: `v${String(i)}-${randomUUID().slice(0, 6)}`,
+      title: `Video ${String(i)}`,
+      channel,
+      channel_id: `UC-${channel}`,
+      description: i === 7 ? "a story about a dragon" : "plain",
+      upload_date: `2020${String((i % 12) + 1).padStart(2, "0")}01`,
+      duration: i * 10,
+      ...over,
+    })
+    .returning(["id", "video_id"])
+    .executeTakeFirstOrThrow();
+  const r = await testDb.db
+    .insertInto("renditions")
+    .values({
+      media_id: media.id,
+      profile_id: p.id,
+      profile_revision: p.revision,
+      storage_key: `k/${randomUUID()}`,
+      size_bytes: 1,
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  const e = await testDb.db
+    .insertInto("library_entries")
+    .values({
+      user_id: user.userId,
+      media_id: media.id,
+      rendition_id: r.id,
+      added_at: new Date(Date.UTC(2026, 0, 1, 0, 0, i)),
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  return { entryId: e.id, mediaId: media.id };
+}
+
+let bunny: { entryId: string; mediaId: string };
+
+beforeAll(async () => {
+  testDb = await TestDb.create();
+  alice = await signedIn(testDb.db, { username: "qalice" });
+  bob = await signedIn(testDb.db, { username: "qbob" });
+  const made: { entryId: string; mediaId: string }[] = [];
+  for (let i = 0; i < 130; i++) made.push(await add(alice, i));
+  bunny = await add(alice, 500, {
+    title: "Big Buck Bunny",
+    channel: "Blender",
+    channel_id: "UC-Blender",
+  });
+  for (const m of made.slice(0, 5))
+    await testDb.db
+      .insertInto("entry_tags")
+      .values({ entry_id: m.entryId, tag: "music" })
+      .execute();
+  await testDb.db
+    .insertInto("watch_progress")
+    .values({
+      user_id: alice.userId,
+      media_id: made[0]?.mediaId ?? "",
+      position_s: 95,
+      duration_s: 100,
+      watched: true,
+    })
+    .execute();
+  await testDb.db
+    .insertInto("watch_progress")
+    .values({
+      user_id: bob.userId,
+      media_id: made[1]?.mediaId ?? "",
+      position_s: 99,
+      duration_s: 100,
+      watched: true,
+    })
+    .execute();
+  const bobOwn = await add(bob, 900, { title: "Bob's secret" });
+  await testDb.db
+    .insertInto("entry_tags")
+    .values({ entry_id: bobOwn.entryId, tag: "secret" })
+    .execute();
+  const s = await testDb.db
+    .insertInto("sources")
+    .values({
+      extractor: "youtubetab",
+      source_id: "PLx",
+      kind: "playlist",
+      title: "Mix",
+      url: "https://x.example/p",
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  sourceId = s.id;
+  await testDb.db
+    .insertInto("user_sources")
+    .values({ user_id: alice.userId, source_id: s.id })
+    .execute();
+  const ids = await testDb.db
+    .selectFrom("media")
+    .select("video_id")
+    .where("id", "in", [made[9]?.mediaId ?? "", made[3]?.mediaId ?? ""])
+    .execute();
+  const [nine, three] = [made[9], made[3]];
+  const vid = async (m: { mediaId: string } | undefined) =>
+    (
+      await testDb.db
+        .selectFrom("media")
+        .select("video_id")
+        .where("id", "=", m?.mediaId ?? "")
+        .executeTakeFirstOrThrow()
+    ).video_id;
+  expect(ids).toHaveLength(2);
+  await testDb.db
+    .insertInto("source_items")
+    .values([
+      { source_id: s.id, extractor: "youtube", video_id: await vid(nine), position: 0 },
+      { source_id: s.id, extractor: "youtube", video_id: await vid(three), position: 1 },
+    ])
+    .execute();
+});
+afterAll(async () => {
+  await testDb.close();
+});
+
+const app = (s: SignedIn): OpenAPIHono =>
+  asUser(
+    createApp({ db: testDb.db, valkey: {} as Redis, version: "t", logger }, { webDist: null }),
+    s,
+  );
+
+async function page(s: SignedIn, query: string): Promise<LibraryPage> {
+  const res = await app(s).request(`/api/library${query}`);
+  expect(res.status).toBe(200);
+  return LibraryPage.parse(await res.json());
+}
+
+const titles = (entries: LibraryEntry[]) => entries.map((e) => e.title);
+
+describe("GET /api/library", () => {
+  it("pages 60 at a time without duplicates or gaps, even when entries are added between pages", async () => {
+    const first = await page(alice, "");
+    expect(first.entries).toHaveLength(60);
+    await add(alice, 1000, { title: "Added later" });
+    const seen = new Set(first.entries.map((e) => e.id));
+    let cursor = first.nextCursor;
+    while (cursor !== null) {
+      const next = await page(alice, `?cursor=${encodeURIComponent(cursor)}`);
+      for (const e of next.entries) {
+        expect(seen.has(e.id)).toBe(false);
+        seen.add(e.id);
+      }
+      cursor = next.nextCursor;
+    }
+    expect(seen.size).toBe(131);
+  });
+
+  it("finds by title, channel and description, and survives odd queries", async () => {
+    expect(titles((await page(alice, "?q=bunny")).entries)).toEqual(["Big Buck Bunny"]);
+    expect((await page(alice, "?q=dragon")).entries.map((e) => e.title)).toEqual(["Video 7"]);
+    expect((await page(alice, "?q=kurzgesagt")).entries.length).toBeGreaterThan(40);
+    for (const q of ['"big buck"', "bunny OR dragon", "-bunny", "!!!", "x".repeat(300)]) {
+      expect((await app(alice).request(`/api/library?q=${encodeURIComponent(q)}`)).status).toBe(
+        200,
+      );
+    }
+    expect(titles((await page(alice, "?q=bunny%20OR%20dragon")).entries).sort()).toEqual([
+      "Big Buck Bunny",
+      "Video 7",
+    ]);
+  });
+
+  it("filters by channel, tag and watched, alone and together", async () => {
+    const channels = z
+      .array(ChannelSummary)
+      .parse(await (await app(alice).request("/api/library/channels")).json());
+    const nasa = channels.find((c) => c.name === "NASA");
+    expect(nasa?.count).toBe(43);
+    const byChannel = await page(alice, `?channel=${encodeURIComponent(nasa?.key ?? "")}`);
+    expect(byChannel.entries.every((e) => e.channel === "NASA")).toBe(true);
+    expect((await page(alice, "?tag=music")).entries).toHaveLength(5);
+    expect(titles((await page(alice, "?watched=true")).entries)).toEqual(["Video 0"]);
+    expect(titles((await page(alice, "?tag=music&watched=true")).entries)).toEqual(["Video 0"]);
+    expect((await page(alice, "?tag=Music")).entries).toHaveLength(5);
+  });
+
+  it("sorts by title, duration and upload date", async () => {
+    expect(titles((await page(alice, "?sort=title")).entries).slice(0, 2)).toEqual([
+      "Added later",
+      "Big Buck Bunny",
+    ]);
+    expect((await page(alice, "?sort=duration")).entries[0]?.duration).toBe(10000);
+    const uploaded = (await page(alice, "?sort=uploaded")).entries.map((e) => e.uploadDate ?? "");
+    expect([...uploaded].sort().reverse()).toEqual(uploaded);
+  });
+
+  it("lists a playlist in its order, and only for whoever queued it", async () => {
+    expect(titles((await page(alice, `?source=${sourceId}`)).entries)).toEqual([
+      "Video 9",
+      "Video 3",
+    ]);
+    expect((await app(alice).request("/api/library?sort=position")).status).toBe(400);
+    expect((await app(bob).request(`/api/library?source=${sourceId}`)).status).toBe(404);
+    const sources = z
+      .array(SourceSummary)
+      .parse(await (await app(alice).request("/api/library/sources")).json());
+    expect(sources).toEqual([expect.objectContaining({ id: sourceId, title: "Mix", count: 2 })]);
+    expect(
+      z.array(SourceSummary).parse(await (await app(bob).request("/api/library/sources")).json()),
+    ).toEqual([]);
+  });
+
+  it("never shows another person's tags, progress or entries", async () => {
+    const all = (await page(alice, "?q=video")).entries;
+    expect(all.find((e) => e.title === "Video 1")?.progress).toBeNull();
+    expect(all.find((e) => e.title === "Video 0")?.progress).toMatchObject({ watched: true });
+    expect(all.find((e) => e.title === "Video 0")?.tags).toEqual(["music"]);
+    expect((await page(alice, "?tag=secret")).entries).toEqual([]);
+    expect((await page(alice, "?q=secret")).entries).toEqual([]);
+    expect(
+      z
+        .array(ChannelSummary)
+        .parse(await (await app(bob).request("/api/library/channels")).json())
+        .map((c) => c.count),
+    ).toEqual([1]);
+  });
+
+  it("refuses a bad cursor or channel key (400)", async () => {
+    expect((await app(alice).request("/api/library?cursor=garbage")).status).toBe(400);
+    expect((await app(alice).request("/api/library?channel=garbage")).status).toBe(400);
+  });
+
+  it("keeps the bunny reachable by its entry id", () => {
+    expect(bunny.entryId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});

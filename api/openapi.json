@@ -187,6 +187,39 @@
         ],
         "type": "object"
       },
+      "ChannelSummary": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "coverThumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "extractor": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "latestUpload": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "extractor",
+          "count",
+          "latestUpload",
+          "coverThumbnailUrl"
+        ],
+        "type": "object"
+      },
       "DependencyName": {
         "enum": [
           "database",
@@ -677,6 +710,36 @@
           "channelKey"
         ],
         "type": "object"
+      },
+      "LibraryPage": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/LibraryEntry"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "LibrarySort": {
+        "enum": [
+          "added",
+          "uploaded",
+          "title",
+          "duration",
+          "position",
+          "relevance"
+        ],
+        "type": "string"
       },
       "Liveness": {
         "properties": {
@@ -1181,6 +1244,36 @@
           "userAgent",
           "createdAt",
           "lastSeenAt"
+        ],
+        "type": "object"
+      },
+      "SourceSummary": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "coverThumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "url",
+          "count",
+          "coverThumbnailUrl"
         ],
         "type": "object"
       },
@@ -2271,22 +2364,158 @@
     },
     "/api/library": {
       "get": {
+        "parameters": [
+          {
+            "description": "Full-text search",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "description": "Full-text search",
+              "maxLength": 1000,
+              "type": "string"
+            }
+          },
+          {
+            "description": "A channel key",
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "description": "A channel key",
+              "maxLength": 1000,
+              "type": "string"
+            }
+          },
+          {
+            "description": "A playlist id",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "description": "A playlist id",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "watched",
+            "required": false,
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LibrarySort"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 2000,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryPage"
+                }
+              }
+            },
+            "description": "A page"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A bad cursor, channel key, or a sort that needs another parameter"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A playlist the caller did not queue"
+          }
+        },
+        "summary": "A page of the caller's library: search, filters and sort (docs/library.md)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/channels": {
+      "get": {
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/LibraryEntry"
+                    "$ref": "#/components/schemas/ChannelSummary"
                   },
                   "type": "array"
                 }
               }
             },
-            "description": "Entries"
+            "description": "Channels"
           }
         },
-        "summary": "The caller's library, newest first",
+        "summary": "The channels in the caller's library, most entries first",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/sources": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceSummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Playlists"
+          }
+        },
+        "summary": "The playlists the caller queued",
         "tags": [
           "library"
         ]

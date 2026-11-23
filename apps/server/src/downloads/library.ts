@@ -1,13 +1,6 @@
-import type { LibraryEntry } from "@uroboros/contract";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
-import { channelKey } from "../library/channelKey.ts";
-
-function dashed(date: string | null): string | null {
-  const m = date === null ? null : /^(\d{4})(\d{2})(\d{2})$/.exec(date);
-  return m === null ? null : `${m[1] ?? ""}-${m[2] ?? ""}-${m[3] ?? ""}`;
-}
 
 /** One library entry with what serving and listing it needs. */
 export function entryQuery(db: Kysely<Database>) {
@@ -35,29 +28,6 @@ export function entryQuery(db: Kysely<Database>) {
       "r.container",
       "p.name as profile_name",
     ]);
-}
-
-export async function listLibrary(db: Kysely<Database>, userId: string): Promise<LibraryEntry[]> {
-  const rows = await entryQuery(db)
-    .where("e.user_id", "=", userId)
-    .orderBy("e.added_at", "desc")
-    .execute();
-  return rows.map((r) => ({
-    id: r.id,
-    mediaId: r.media_id,
-    title: r.title ?? r.video_id,
-    channel: r.channel ?? r.uploader,
-    uploadDate: dashed(r.upload_date),
-    duration: r.duration,
-    thumbnailUrl: r.thumbnail_key === null ? null : `/api/library/${r.id}/thumbnail`,
-    profileName: r.profile_name,
-    sizeBytes: Number(r.size_bytes),
-    container: r.container,
-    addedAt: r.added_at.toISOString(),
-    progress: null,
-    tags: [],
-    channelKey: channelKey(r.extractor, r.channel_id, r.channel ?? r.uploader),
-  }));
 }
 
 /** The caller's own entry; another person's is 404. */
