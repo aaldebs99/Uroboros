@@ -143,16 +143,20 @@ export function sidecarKey(
   return `${dir}${base}${kind === "info" ? ".info" : ""}.${ext}`;
 }
 
-/** Where a media's subtitle file for `lang` goes: beside the media file on a filesystem. */
+/**
+ * Where a media's subtitle file for `lang` goes: on a filesystem, beside the media file and named
+ * after it (`<file>.<lang>.vtt`), so videos that share a title never share a subtitle file.
+ */
 export function subtitleKey(
-  config: KeyConfig,
+  config: Pick<StorageConfig, "kind">,
   mediaId: string,
-  names: MediaNames,
+  mediaKey: string,
   lang: string,
 ): string {
   const safe = sanitizeSegment(lang.replace(/[/\\]/g, "_"));
   if (config.kind === "s3") return `media/${mediaId}/subs/${safe}.vtt`;
-  const media = renderLayout(config.layout, names);
-  const dir = media.includes("/") ? media.slice(0, media.lastIndexOf("/") + 1) : "";
-  return `${dir}${sanitizeSegment(`${sanitizeSegment(names.title ?? names.id)}.${safe}.vtt`)}`;
+  const dot = mediaKey.lastIndexOf(".");
+  const slash = mediaKey.lastIndexOf("/");
+  const base = dot > slash ? mediaKey.slice(0, dot) : mediaKey;
+  return `${base}.${safe}.vtt`;
 }

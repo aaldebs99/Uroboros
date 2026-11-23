@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { ChannelSummary, LibraryPage, SourceSummary, type LibraryEntry } from "@uroboros/contract";
 import type { Redis } from "ioredis";
+import { sql } from "kysely";
 import { pino } from "pino";
 import { z } from "zod";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -179,6 +180,69 @@ describe("GET /api/library", () => {
       cursor = next.nextCursor;
     }
     expect(seen.size).toBe(131);
+  });
+
+  it("pages through entries added in one transaction (same timestamp) without losing any", async () => {
+    const carol = await signedIn(testDb.db, { username: "qcarol" });
+    const p = await seededDefault(testDb.db);
+    await testDb.db.transaction().execute(async (tx) => {
+      for (let i = 0; i < 75; i++) {
+        const m = await tx
+          .insertInto("media")
+          .values({
+            extractor: "youtube",
+            video_id: `tx-${String(i)}-${randomUUID().slice(0, 6)}`,
+            title: `T${String(i)}`,
+          })
+          .returning("id")
+          .executeTakeFirstOrThrow();
+        const r = await tx
+          .insertInto("renditions")
+          .values({
+            media_id: m.id,
+            profile_id: p.id,
+            profile_revision: p.revision,
+            storage_key: `k/${randomUUID()}`,
+            size_bytes: 1,
+          })
+          .returning("id")
+          .executeTakeFirstOrThrow();
+        await tx
+          .insertInto("library_entries")
+          .values({
+            user_id: carol.userId,
+            media_id: m.id,
+            rendition_id: r.id,
+            added_at: new Date("2026-01-01T00:00:00.123456Z"),
+          })
+          .execute();
+      }
+      await sql`UPDATE library_entries SET added_at = '2026-01-01T00:00:00.123456Z' WHERE user_id = ${carol.userId}`.execute(
+        tx,
+      );
+    });
+    const seen = new Set<string>();
+    let cursor: string | null = "";
+    while (cursor !== null) {
+      const next: LibraryPage = await page(
+        carol,
+        cursor === "" ? "" : `?cursor=${encodeURIComponent(cursor)}`,
+      );
+      for (const e of next.entries) seen.add(e.id);
+      cursor = next.nextCursor;
+    }
+    expect(seen.size).toBe(75);
+  });
+
+  it("refuses a hand-made cursor whose id is not a uuid or whose key is the wrong type (400)", async () => {
+    const bad = (key: unknown, id: string) =>
+      Buffer.from(JSON.stringify([key, id])).toString("base64url");
+    expect(
+      (await app(alice).request(`/api/library?cursor=${bad("x", "-".repeat(36))}`)).status,
+    ).toBe(400);
+    expect(
+      (await app(alice).request(`/api/library?cursor=${bad("not a date", randomUUID())}`)).status,
+    ).toBe(400);
   });
 
   it("finds by title, channel and description, and survives odd queries", async () => {

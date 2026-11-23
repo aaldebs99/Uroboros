@@ -1,6 +1,9 @@
 import { readdir } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
-import type { VideoInfo } from "@uroboros/ytdlp";
+import type { DownloadedFile, VideoInfo } from "@uroboros/ytdlp";
+import { contentTypeOf } from "../storage/contentType.ts";
+import { subtitleKey } from "../storage/index.ts";
+import type { WorkerDeps } from "./deps.ts";
 
 export interface SubtitleSettings {
   /** yt-dlp `--sub-langs`; null saves none. */
@@ -41,4 +44,31 @@ export async function findSubtitles(mediaPath: string, info: VideoInfo): Promise
       return { lang, path: join(dir, n), automatic };
     })
     .filter((s) => s.lang !== "");
+}
+
+/**
+ * Stores each subtitle file beside the media and records it (one per language and kind). A subtitle
+ * that cannot be stored is logged and skipped: the video itself is what was asked for.
+ */
+export async function storeSubtitles(
+  deps: WorkerDeps,
+  mediaId: string,
+  mediaKey: string,
+  file: DownloadedFile,
+) {
+  for (const sub of await findSubtitles(file.path, file.info)) {
+    try {
+      const key = subtitleKey(deps.storage, mediaId, mediaKey, sub.lang);
+      await deps.store.put(key, sub.path, contentTypeOf("vtt"));
+      await deps.db
+        .insertInto("subtitles")
+        .values({ media_id: mediaId, lang: sub.lang, automatic: sub.automatic, storage_key: key })
+        .onConflict((oc) =>
+          oc.columns(["media_id", "lang", "automatic"]).doUpdateSet({ storage_key: key }),
+        )
+        .execute();
+    } catch (err) {
+      deps.logger.warn({ err, mediaId, lang: sub.lang }, "storing a subtitle failed; skipping it");
+    }
+  }
 }

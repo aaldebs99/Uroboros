@@ -22,6 +22,8 @@ export interface LibraryFilters {
 
 interface SortSpec {
   expr: RawBuilder<unknown>;
+  /** What the cursor stores, when the ordered value would lose precision in JSON (timestamps). */
+  keyExpr?: RawBuilder<unknown>;
   dir: "asc" | "desc";
   /** Casts a cursor key back for comparison. */
   cast: (key: Cursor["key"]) => RawBuilder<unknown>;
@@ -32,7 +34,13 @@ const queryOf = (q: string) => sql`websearch_to_tsquery('simple', ${q})`;
 function sortSpec(sort: LibrarySort, q: string | null): SortSpec {
   switch (sort) {
     case "added":
-      return { expr: sql`e.added_at`, dir: "desc", cast: (k) => sql`${k}::timestamptz` };
+      // A JS Date keeps milliseconds only; the cursor carries Postgres's own microsecond text.
+      return {
+        expr: sql`e.added_at`,
+        keyExpr: sql`e.added_at::text`,
+        dir: "desc",
+        cast: (k) => sql`${k}::timestamptz`,
+      };
     case "uploaded":
       return { expr: sql`coalesce(m.upload_date, '')`, dir: "desc", cast: (k) => sql`${k}::text` };
     case "title":
@@ -160,11 +168,12 @@ export async function listLibraryPage(
     qb = qb.where(sql<boolean>`(${spec.expr}, e.id) ${op} (${spec.cast(c.key)}, ${c.id}::uuid)`);
   }
   const rows = await (qb as SelectQueryBuilder<Database, never, object>)
-    .select([...ENTRY_COLUMNS, spec.expr.as("sort_key")] as never)
+    .select([...ENTRY_COLUMNS, (spec.keyExpr ?? spec.expr).as("sort_key")] as never)
     .orderBy(sql`${spec.expr} ${sql.raw(spec.dir)}`)
     .orderBy(sql`e.id ${sql.raw(spec.dir)}`)
     .limit(LIBRARY_PAGE_SIZE + 1)
-    .execute();
+    .execute()
+    .catch(badCursorKey);
   const typed = rows as unknown as EntryRow[];
   const pageRows = typed.slice(0, LIBRARY_PAGE_SIZE);
   const last = pageRows.at(-1);
@@ -225,6 +234,15 @@ export interface EntryRow {
   watched: boolean | null;
   tags: string[];
   sort_key: unknown;
+}
+
+/** A hand-made cursor whose key does not cast to the sort's type (22007, 22P02) is 400. */
+function badCursorKey(err: unknown): never {
+  const code = (err as { code?: string }).code;
+  if (code === "22007" || code === "22P02" || code === "22008") {
+    throw new ApiError("bad_request", "not a valid cursor");
+  }
+  throw err;
 }
 
 const keyOf = (v: unknown): Cursor["key"] =>

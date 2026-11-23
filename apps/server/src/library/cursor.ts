@@ -17,7 +17,12 @@ export function decodeCursor(raw: string): Cursor {
     if (Array.isArray(parsed) && parsed.length === 2) {
       const [key, id] = parsed as unknown[];
       const okKey = key === null || typeof key === "string" || typeof key === "number";
-      if (okKey && typeof id === "string" && /^[0-9a-f-]{36}$/.test(id)) return { key, id };
+      if (
+        okKey &&
+        typeof id === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)
+      )
+        return { key, id };
     }
   } catch {
     // reported below

@@ -121,13 +121,14 @@ describe("keys", () => {
     );
   });
 
-  it("names subtitle files per language, safely", () => {
-    expect(subtitleKey({ kind: "s3" }, "m1", bunny, "en")).toBe("media/m1/subs/en.vtt");
-    const fs = { kind: "filesystem", layout: DEFAULT_LAYOUT } as const;
-    expect(subtitleKey(fs, "m1", bunny, "en")).toBe(
-      "Blender/2008-05-20 Big Buck Bunny [aqz-KE-bpKQ]/Big Buck Bunny.en.vtt",
+  it("names subtitle files per language beside the media file, safely", () => {
+    expect(subtitleKey({ kind: "s3" }, "m1", "media/m1/p-r.mp4", "en")).toBe(
+      "media/m1/subs/en.vtt",
     );
-    expect(subtitleKey(fs, "m1", bunny, "../x")).not.toContain("/../");
-    expect(subtitleKey({ kind: "s3" }, "m1", bunny, "../x")).toBe("media/m1/subs/_x.vtt");
+    const fs = { kind: "filesystem" } as const;
+    expect(subtitleKey(fs, "m1", "Chan/Title [a].mp4", "en")).toBe("Chan/Title [a].en.vtt");
+    expect(subtitleKey(fs, "m1", "Chan/Title [b].mp4", "en")).toBe("Chan/Title [b].en.vtt");
+    expect(subtitleKey(fs, "m1", "Chan/Title [a].mp4", "../x")).toBe("Chan/Title [a]._x.vtt");
+    expect(subtitleKey({ kind: "s3" }, "m1", "x", "../x")).toBe("media/m1/subs/_x.vtt");
   });
 });

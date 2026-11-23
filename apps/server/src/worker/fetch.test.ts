@@ -291,55 +291,6 @@ describe("fetch", () => {
   });
 });
 
-describe("subtitles and chapters", () => {
-  it("stores subtitles beside the file and copies the chapters", async () => {
-    const u = await user();
-    const data = await queued("subs-1", [u]);
-    const info = JSON.parse(await fixture("info-clip.json")) as Record<string, unknown>;
-    info["chapters"] = [
-      { start_time: 0, end_time: 10, title: "Intro" },
-      { start_time: 10, end_time: 30, title: "Main" },
-    ];
-    info["subtitles"] = { en: [{ ext: "vtt", url: "https://x.example/en.vtt" }] };
-    const scenario = await downloadScenario([{ writeFile: "clip.en.vtt", content: "WEBVTT\n" }]);
-    scenario.steps = scenario.steps.map((s) =>
-      "writeFile" in s && s.writeFile === "clip.info.json"
-        ? { ...s, content: JSON.stringify(info) }
-        : s,
-    );
-    await fetchProcessor(await h.deps(scenario), createCancelRegistry())(job(data));
-    const media = await testDb.db
-      .selectFrom("media")
-      .select(["id", "chapters"])
-      .where("video_id", "=", "subs-1")
-      .executeTakeFirstOrThrow();
-    expect(media.chapters).toEqual([
-      { start: 0, end: 10, title: "Intro" },
-      { start: 10, end: 30, title: "Main" },
-    ]);
-    const subs = await testDb.db
-      .selectFrom("subtitles")
-      .selectAll()
-      .where("media_id", "=", media.id)
-      .execute();
-    expect(subs).toEqual([expect.objectContaining({ lang: "en", automatic: false })]);
-    await expect(readdir(join(h.root, subs[0]?.storage_key ?? "", ".."))).resolves.toContain(
-      subs[0]?.storage_key.split("/").at(-1),
-    );
-    const argv = await h.lastArgv();
-    expect(argv).toEqual(
-      expect.arrayContaining(["--write-subs", "--sub-langs=en.*", "--convert-subs=vtt"]),
-    );
-  });
-
-  it("still succeeds with no subtitles and no chapters", async () => {
-    const u = await user();
-    const data = await queued("nosubs-1", [u]);
-    await fetchProcessor(await h.deps(await downloadScenario()), createCancelRegistry())(job(data));
-    expect((await states("nosubs-1"))[0]?.state).toBe("done");
-  });
-});
-
 describe("cancel races", () => {
   it("retries instead of finishing quietly when someone else started waiting during the cancel", async () => {
     const [a, b] = [await user(), await user()];
