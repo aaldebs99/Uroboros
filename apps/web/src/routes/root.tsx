@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthGate } from "@/auth/AuthGate";
 import { UserMenu } from "@/auth/UserMenu";
+import { DESKTOP_QUERY, useMediaQuery } from "@/lib/media";
 import { cn } from "@/lib/utils";
 import { isWatchPage } from "@/nav";
 import { usePushSync } from "@/push/usePushSync";
@@ -25,11 +26,11 @@ export function RootLayout() {
 }
 
 /**
- * The app shell, on the page colour throughout. From `md` up: a 56-pixel (3.5rem) top bar (menu, brand,
+ * The app shell, on the page colour throughout. From `md` up: a 3.5rem top bar (menu, brand,
  * search, "+ Create", avatar) over the side navigation, full or mini; a watch page gives the
  * navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar (menu,
- * brand, search, avatar), the menu opening the navigation as a drawer, and the bottom tabs. It
- * also mends this browser's push subscription once per launch.
+ * brand, search, avatar), the navigation as a drawer that the menu opens or a finger drags in from
+ * anywhere, and the bottom tabs. It also mends this browser's push subscription once per launch.
  */
 function Shell({ me }: { me: Me }) {
   const [mini, setMini] = useState(readMini);
@@ -38,13 +39,7 @@ function Shell({ me }: { me: Me }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const watching = isWatchPage(pathname);
-  const [drawer, setDrawer] = useState(false);
-  // Any navigation closes the drawer (a link in it, back or forward), adjusted during render.
-  const [drawerPath, setDrawerPath] = useState(pathname);
-  if (drawerPath !== pathname) {
-    setDrawerPath(pathname);
-    setDrawer(false);
-  }
+  const desktop = useMediaQuery(DESKTOP_QUERY);
   const isAdmin = me.role === "admin";
   usePushSync();
   const openDownload = () => {
@@ -64,11 +59,12 @@ function Shell({ me }: { me: Me }) {
       ) : null}
       <header className="fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-2 bg-background px-3 md:h-14 md:gap-4 md:px-4">
         <div className="flex shrink-0 items-center gap-2 md:w-52">
-          {/* The menu: the drawer's button on phones, and on a watch page at every size. */}
+          {/* The menu: the drawer's button on phones, and on a watch page at every size. On a
+              phone a finger also drags the drawer in from anywhere. */}
           <NavDrawer
-            open={drawer}
-            onOpenChange={setDrawer}
+            location={pathname}
             isAdmin={isAdmin}
+            swipe={!desktop}
             triggerClassName={watching ? undefined : "md:hidden"}
           />
           {watching ? null : (

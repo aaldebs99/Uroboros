@@ -128,9 +128,12 @@ export function Player(p: PlayerProps) {
   return (
     <VideoPlayer>
       {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
+      {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
+          navigation drawer (components/useDrawerDrag.ts). */}
       <NeutralVideoSkin
         style={brand}
         className="uro-player overflow-hidden rounded-[0.75rem] bg-black"
+        data-own-swipe=""
       >
         <Media
           ref={video}

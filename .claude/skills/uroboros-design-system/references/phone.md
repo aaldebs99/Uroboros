@@ -8,9 +8,16 @@ A slim top bar with a menu button, and bottom tabs.
   the brand (tile and wordmark at 16px), a ghost search button, and the 28px avatar (the account
   menu).
 - **The menu button** opens the side navigation as a 240px drawer from the left
-  (`components/NavDrawer.tsx`, over the scrim), with its own menu button and brand where the top
-  bar's sit. It holds everything the side navigation does on desktop (the library's views,
-  Settings, the Admin pages); any navigation closes it.
+  (`components/NavDrawer.tsx`, a native `<dialog>` over the scrim, ported from Djinn), with its own
+  menu button and brand where the top bar's sit. It holds everything the side navigation does on
+  desktop (the library's views, Settings, the Admin pages); any navigation closes it.
+- **A finger drags it** in from anywhere on the page and drags it shut, following one to one, and
+  a release settles on the nearer side or the way it was thrown. It is not an edge swipe, because
+  phones take a swipe from the bezel as Back. A sideways drag that starts on something with its
+  own use for one stays theirs: a sideways scroller (the chips, the library's tabs), a field, a
+  slider, or anything marked `data-own-swipe` (the player).
+- **Motion:** it slides in and out in 200ms on iOS's curve (`cubic-bezier(0.32, 0.72, 0, 1)`); the
+  close button, the scrim and Escape slide it out, and reduced motion makes it instant.
 - **No section titles:** a section page starts with its content. `PageHeader` hides a section's
   title and description on phones (screen readers still get them) and shows only its action. A
   page about one thing (a playlist, a subscription) keeps its title: pass `titleOnPhone`.

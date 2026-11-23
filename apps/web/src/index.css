@@ -125,6 +125,9 @@
   }
   html {
     font-size: calc(100% * var(--ui-scale, 1));
+    /* A sideways drag that runs out of page is not a request to go back: Chrome on Android keeps
+       its history swipe to itself, so the navigation drawer's drag is the page's. */
+    overscroll-behavior-x: none;
   }
   @media (width < 48rem) {
     html {
@@ -251,7 +254,101 @@ select[data-slot] option {
   animation: shimmer 1.4s linear infinite;
 }
 
+/*
+ * The navigation drawer (components/NavDrawer.tsx, ported from Djinn): a native dialog covering
+ * the screen, holding the scrim that dims the page and the panel pinned to the left edge. The
+ * scrim is a child rather than ::backdrop because ::backdrop exists only while the dialog is
+ * modal, and under a finger the drawer is seen before that. A dialog's own centring, sizing,
+ * border and background are undone here. It slides in from @starting-style in 200ms on iOS's
+ * curve (a quick start, a soft settle); under a finger, inline styles place it and nothing eases.
+ */
+@layer components {
+  .drawer {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--foreground);
+    overflow: hidden;
+  }
+
+  .drawer::backdrop {
+    background: transparent;
+  }
+
+  .drawer-scrim {
+    position: absolute;
+    inset: 0;
+    background: var(--scrim);
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+
+  .drawer-panel {
+    position: absolute;
+    inset: 0 auto 0 0;
+    display: flex;
+    flex-direction: column;
+    width: min(15rem, 85vw);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+    background: var(--background);
+    overflow: auto;
+    /* A scroll that reaches the end stays in the drawer instead of moving the page. */
+    overscroll-behavior: contain;
+    box-shadow: var(--elev-menu);
+    translate: -100% 0;
+    transition: translate 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    /* It takes the focus as it opens (so no control rings after a swipe); it is not a control. */
+    outline: none;
+  }
+
+  .drawer[open] .drawer-scrim {
+    opacity: 1;
+    @starting-style {
+      opacity: 0;
+    }
+  }
+
+  .drawer[open] .drawer-panel {
+    translate: 0 0;
+    @starting-style {
+      translate: -100% 0;
+    }
+  }
+
+  /* Rendered without being open: under a finger, or settling back after one. */
+  .drawer[data-phase="dragging"],
+  .drawer[data-phase="settling"] {
+    display: block;
+    z-index: 60;
+  }
+
+  /* A transparent full-screen box would otherwise swallow taps while it slides away. */
+  .drawer[data-phase="settling"] {
+    pointer-events: none;
+  }
+
+  /* Under a finger the inline styles are the truth and nothing eases. */
+  .drawer[data-phase="dragging"] .drawer-scrim,
+  .drawer[data-phase="dragging"] .drawer-panel,
+  .drawer[data-dragging] .drawer-scrim,
+  .drawer[data-dragging] .drawer-panel {
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .drawer-scrim,
+  .drawer-panel {
+    transition-duration: 0.01ms;
+  }
   .toast-timer {
     display: none;
   }

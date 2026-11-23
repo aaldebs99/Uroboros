@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -203,14 +203,16 @@ describe("app shell", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("closes the watch page's drawer with its own menu button", async () => {
+  it("closes the watch page's drawer with its own menu button, sliding it out first", async () => {
     await renderAt("/library/0190a3f2-7c1e-7000-8000-000000000200", () =>
       screen.findByRole("button", { name: "Open navigation" }),
     );
     await userEvent.click(screen.getByRole("button", { name: "Open navigation" }));
     await userEvent.click(screen.getByRole("button", { name: "Close navigation" }));
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
     expect(screen.getByRole("button", { name: "Open navigation" })).toHaveFocus();
   });
 

@@ -38,7 +38,8 @@ A list of sections in the page colour, below the top bar, not a separate coloure
   aside for the player, as on YouTube: the menu button opens it as a 240px drawer from the left
   over the scrim (`components/NavDrawer.tsx`), with its own menu button and brand where the top
   bar's sit. Any navigation closes it, and closing it returns the focus to the menu button. The
-  same drawer is the [phone](phone.md#getting-around) menu.
+  same drawer is the [phone](phone.md#getting-around) menu, where a finger can also drag it in and
+  out; from `md` up only the button opens it.
 - The navigation list stays in `nav.ts`.
 
 ## Page width
