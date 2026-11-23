@@ -325,6 +325,39 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/admin/users/oidc-sync": {
+      "post": {
+        "responses": {
+          "204": {
+            "description": "Pass finished (or OIDC is not set up)"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Admins only"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A pass is already running"
+          }
+        },
+        "summary": "Refresh every SSO user's groups and role from the provider now",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/auth/local/login": {
       "post": {
         "requestBody": {

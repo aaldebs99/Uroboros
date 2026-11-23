@@ -13,11 +13,13 @@ import { defaultMigrationsDir } from "../migrate/dir.ts";
 import { migrateOnStart, startupGraceFromSecs } from "../migrate/onStart.ts";
 import type { MigrationOutcome } from "../migrate/runner.ts";
 import { createPushService } from "../push/service.ts";
-import { idleDuty, LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/leader.ts";
+import { LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/leader.ts";
 import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
+import { startClaimsSync } from "../auth/claimsSync.ts";
 import { createOidcProvider } from "../auth/oidc/provider.ts";
+import { sweeperDuty } from "../auth/sweeper.ts";
 import { createApp } from "./app.ts";
 import { CLEANUP_MS, drain, settlesWithin } from "./drain.ts";
 
@@ -103,6 +105,7 @@ export async function startApi(
       auth: {
         secureCookies: config.push.publicBaseUrl?.startsWith("https://") ?? false,
         settings: config.auth,
+        databaseUrl: config.databaseUrl,
         ...(oidc === undefined ? {} : { oidc }),
       },
     },
@@ -136,12 +139,15 @@ export async function startApi(
     if (bootstrap !== null) await ensureBootstrapAdmin(db, bootstrap, logger);
     attached = true;
     logger.info("api ready");
-    // No duties yet: BullMQ's job schedulers already run each repeatable job exactly once. The
-    // loop keeps one replica leading for singleton work to come (the media reaper, say).
+    if (oidc !== undefined) {
+      startClaimsSync({ db, provider: oidc, databaseUrl: config.databaseUrl, logger }, stop.signal);
+    }
+    // The leader sweeps expired sessions and pending sign-ins hourly. Scheduling never needs it:
+    // BullMQ's job schedulers already run each repeatable job exactly once.
     leading = leadAndRun({
       lock: new PgLeaderLock(config.databaseUrl, URO_LEAD, { logger }),
       name: "leader",
-      work: idleDuty,
+      work: sweeperDuty(db, logger),
       shutdown: stop.signal,
       ...(opts.leaderRetryMs === undefined ? {} : { retryMs: opts.leaderRetryMs }),
       status: leader,

@@ -42,5 +42,11 @@ export function lockKey(namespace: string, resource: string): bigint {
  */
 export const URO_LEAD = roleKey("URO_LEAD");
 
+/**
+ * One OIDC claims-sync pass at a time across replicas: refresh tokens rotate and are single-use,
+ * so two replicas redeeming the same one would look like a revocation (Djinn's OIDC_SYNC_KEY).
+ */
+export const URO_OSYN = roleKey("URO_OSYN");
+
 /** Every fixed role key, for the uniqueness test. */
-export const ROLE_KEYS = { URO_LEAD } as const;
+export const ROLE_KEYS = { URO_LEAD, URO_OSYN } as const;

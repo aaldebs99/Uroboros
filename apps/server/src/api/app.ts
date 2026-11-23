@@ -5,6 +5,7 @@ import type { Redis } from "ioredis";
 import { pino } from "pino";
 import type { Logger } from "pino";
 import type { AuthConfig } from "../auth/config.ts";
+import { registerAdminUserRoutes } from "../auth/adminUserRoutes.ts";
 import { authGuard, type ResolveToken } from "../auth/guard.ts";
 import { createLimiter } from "../auth/limiter.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
@@ -48,6 +49,8 @@ export interface AuthDeps {
   limiterPrefix?: string;
   /** The OIDC provider when `settings.oidc` is set. */
   oidc?: OidcProvider;
+  /** For advisory locks on connections of their own (the claims sync); empty disables those routes' work. */
+  databaseUrl?: string;
 }
 
 const DEFAULT_AUTH_SETTINGS: AuthConfig = {
@@ -118,6 +121,12 @@ function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void 
       provider === undefined || oidc === null
         ? Promise.resolve(null)
         : oidcEndSessionUrl(deps.db, provider, new URL(oidc.redirectUrl).origin, userId),
+  });
+  registerAdminUserRoutes(app, {
+    db: deps.db,
+    provider: provider ?? noOidcProvider,
+    databaseUrl: deps.auth?.databaseUrl ?? "",
+    logger,
   });
   // Registered even without OIDC (answering "unavailable"), so the API document lists them.
   registerOidcRoutes(app, {

@@ -34,6 +34,8 @@ export interface TestIdp {
   fetch: (url: string, options: FetchOptions) => Promise<Response>;
   /** Simulates the user signing in at the provider: returns the code for the callback. */
   authorize(location: string, person: Person): string;
+  /** A refresh token for `person`, as if they had signed in (for claims-sync tests). */
+  issueRefresh(person: Person): string;
   /** Changes a person's groups (seen by the next refresh). */
   setGroups(sub: string, groups: string[]): void;
   /** Make every refresh answer invalid_grant (the user was removed). */
@@ -290,6 +292,11 @@ export async function startIdp(): Promise<TestIdp> {
         redirectUri: url.searchParams.get("redirect_uri") ?? "",
       });
       return code;
+    },
+    issueRefresh(person) {
+      const rt = b64url(randomBytes(16));
+      refresh.set(rt, person);
+      return rt;
     },
     setGroups: (sub, g) => {
       groups.set(sub, g);
