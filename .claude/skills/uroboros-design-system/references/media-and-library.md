@@ -58,6 +58,22 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
 - The watched bar (a 4px `bg-primary` bar on a `bg-white/35` track along the thumbnail's bottom
   edge) appears only once watch progress is tracked.
 
+## Player
+
+Video.js 10's packaged Neutral video skin (`library/Player.tsx`), branded through its public
+custom properties (accent, radius, font) and, for the timeline only, `library/player.css`:
+
+- The timeline is a full-width row along the top of the control bar, after YouTube's: 3px, 5px
+  while pointed at (the pointed-at chapter 7px), chapters 2px apart. Unplayed is white at 20%,
+  buffered white at 40%, the run up to the pointer white at 30%, and played the accent with a soft
+  glow. The thumb is a 13px accent circle, shown on hover, drag or focus.
+- `player.css` targets the skin's own class names; `playerSkin.test.ts` fails when an upgrade
+  renames one. Keep new styling to the public custom properties where they reach.
+- Shortcuts: Space and `k` play and pause, `j`/`l` seek 10 s, the arrows 5 s (`PlayerHotkeys`), `,`
+  and `.` pause and step one frame, `m` mute, `f` fullscreen, `c` captions, `i`
+  picture-in-picture, `0`-`9` jump, `<`/`>` speed.
+- The volume and mute are remembered in this browser; opening a video plays it.
+
 ## List row
 
 A wide row: a large thumbnail at the left, the details beside it.

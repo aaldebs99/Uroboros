@@ -1,0 +1,100 @@
+/*
+ * The timeline, after YouTube's, in the app's accent: a full-width bar along the top of the control
+ * bar, 3px until pointed at (5px, the pointed-at chapter 7px), the played part in the accent, a
+ * lighter run up to the pointer, and a round accent thumb that shows on hover, drag or focus.
+ *
+ * These rules target the Neutral video skin's own class names, which its public styling hooks
+ * don't cover. Player.test.tsx pins that every one still exists in the shipped stylesheet, so a
+ * Video.js upgrade that renames them fails CI. The skin wraps all its rules in :where(), so these
+ * win on ordinary specificity.
+ */
+
+/* The timeline gets its own row above the buttons. */
+.uro-player .video-controls-content {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+
+.uro-player .video-time-slider-group {
+  flex: 0 0 100%;
+  order: -1;
+  padding-inline: 4px;
+  /* A tall hit area around the thin bar. */
+  --media-slider-height: 16px;
+  /* The skin fades the inline timeline while the volume popover is open; this one has its row. */
+  mask-image: none;
+}
+
+/* Chapters are 2px apart. */
+.uro-player .media-time-slider-chapter {
+  --media-chapter-inset-start: 0.25;
+  --media-chapter-inset-end: 0.25;
+}
+
+.uro-player .media-time-slider-chapter:first-of-type {
+  --media-chapter-inset-start: 0;
+}
+
+.uro-player .media-time-slider-chapter:last-of-type {
+  --media-chapter-inset-end: 0;
+}
+
+.uro-player .media-time-slider-chapter-track[data-orientation="horizontal"] {
+  height: 3px;
+  transition: height 0.1s ease-out;
+}
+
+.uro-player
+  .media-time-slider:is([data-pointing], [data-dragging])
+  .media-time-slider-chapter-track[data-orientation="horizontal"] {
+  height: 5px;
+}
+
+.uro-player
+  .media-time-slider-chapter[data-highlighted]
+  .media-time-slider-chapter-track[data-orientation="horizontal"] {
+  height: 7px;
+}
+
+/* Unplayed, buffered, played. */
+.uro-player .media-time-slider .media-slider-track::before {
+  border-radius: 0;
+  background-color: rgb(255 255 255 / 20%);
+}
+
+.uro-player .media-time-slider .media-slider-buffer::before {
+  border-radius: 0;
+  background-color: rgb(255 255 255 / 40%);
+}
+
+.uro-player .media-time-slider .media-slider-fill::before {
+  border-radius: 0;
+  background-color: var(--primary);
+  box-shadow: 0 0 6px color-mix(in oklch, var(--primary) 60%, transparent);
+}
+
+/* The lighter run from the start up to the pointer, under the played part. */
+.uro-player .media-time-slider[data-pointing] .media-time-slider-chapter-track::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: var(--media-slider-pointer);
+  background-color: rgb(255 255 255 / 30%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* No hairline at the pointer: the lighter run marks it. */
+.uro-player .media-time-slider .media-slider-preview::before {
+  display: none;
+}
+
+/* The round thumb. */
+.uro-player .media-time-slider-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  box-shadow: 0 0 8px color-mix(in oklch, var(--primary) 70%, transparent);
+}

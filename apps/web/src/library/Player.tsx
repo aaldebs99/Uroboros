@@ -1,4 +1,5 @@
 import "@videojs/react/video/neutral-skin.css";
+import "./player.css";
 
 import type { Chapter, SubtitleTrack } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
@@ -6,6 +7,8 @@ import { NeutralVideoSkin, Video, VideoPlayer } from "@videojs/react/video";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 
 import { readVolume, storeVolume } from "@/lib/playerPrefs";
+
+import { PlayerHotkeys } from "./PlayerHotkeys";
 
 export interface PlayerProps {
   src: string;
@@ -66,7 +69,8 @@ function tryPlay(v: HTMLVideoElement): void {
 }
 
 /**
- * Video.js 10 (the Neutral video skin, in the app's accent): keyboard and touch controls, a
+ * Video.js 10 (the Neutral video skin, in the app's accent, with a timeline styled after YouTube's
+ * in player.css): keyboard and touch controls (PlayerHotkeys adds 5 s arrows and frame steps), a
  * captions menu for the subtitle tracks, chapters on the timeline, resume, seek, autoplay, and
  * the volume and mute remembered in this browser.
  */
@@ -112,7 +116,10 @@ export function Player(p: PlayerProps) {
   return (
     <VideoPlayer>
       {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
-      <NeutralVideoSkin style={brand} className="overflow-hidden rounded-[12px] bg-black">
+      <NeutralVideoSkin
+        style={brand}
+        className="uro-player overflow-hidden rounded-[12px] bg-black"
+      >
         <Video
           ref={video}
           src={p.src}
@@ -143,6 +150,7 @@ export function Player(p: PlayerProps) {
             />
           ))}
         </Video>
+        <PlayerHotkeys video={video} />
       </NeutralVideoSkin>
     </VideoPlayer>
   );
