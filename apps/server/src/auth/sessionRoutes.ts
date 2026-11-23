@@ -28,6 +28,7 @@ const error = (description: string) => json(ApiErrorBody, description);
 const methodsRoute = createRoute({
   method: "get",
   path: "/api/auth/methods",
+  security: [],
   tags: ["auth"],
   summary: "The sign-in methods this server offers",
   responses: { 200: json(AuthMethods, "Sign-in methods") },
@@ -36,6 +37,7 @@ const methodsRoute = createRoute({
 const loginRoute = createRoute({
   method: "post",
   path: "/api/auth/local/login",
+  security: [],
   tags: ["auth"],
   summary: "Sign in with a local username and password",
   request: {

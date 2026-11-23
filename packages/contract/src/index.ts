@@ -92,6 +92,7 @@ export {
   PlaylistDetail,
   PlaylistItemsBody,
   PlaylistKind,
+  PlaylistMoveBody,
   PlaylistName,
   PlaylistPatch,
   PlaylistSummary,

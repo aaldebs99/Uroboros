@@ -18,6 +18,7 @@ import { registerItemRoutes } from "../library/itemRoutes.ts";
 import { registerPlaylistRoutes } from "../playlists/routes.ts";
 import { linkPreviews } from "../sharing/previews.ts";
 import { registerPublicRoutes } from "../sharing/publicRoutes.ts";
+import { openApiConfig, registerSecuritySchemes } from "./openapiDoc.ts";
 import { registerSharingRoutes } from "../sharing/routes.ts";
 import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { MediaStore } from "../storage/index.ts";
@@ -111,14 +112,6 @@ function servedWhileStarting(path: string): boolean {
     path === "/api/docs" ||
     path.startsWith("/api/docs/")
   );
-}
-
-/** The one OpenAPI document config, shared by the runtime route and `gen`. */
-export function openApiConfig(version: string) {
-  return {
-    openapi: "3.1.0",
-    info: { title: "Uroboros API", version },
-  } as const;
 }
 
 export interface AppOptions {
@@ -240,6 +233,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerPlaybackRoutes(app, playback, deps.store);
   registerPublicRoutes(app, deps.db, deps.store, playback);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
+  registerSecuritySchemes(app);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);
 

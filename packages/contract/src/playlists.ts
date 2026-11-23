@@ -50,3 +50,9 @@ export type PlaylistPatch = z.infer<typeof PlaylistPatch>;
 /** Entries of the caller's library, in order; no duplicates. */
 export const PlaylistItemsBody = z.object({ entryIds: EntryIds }).openapi("PlaylistItemsBody");
 export type PlaylistItemsBody = z.infer<typeof PlaylistItemsBody>;
+
+/** Where to move one entry: 0 is first; past the end is last. */
+export const PlaylistMoveBody = z
+  .object({ position: z.number().int().min(0) })
+  .openapi("PlaylistMoveBody");
+export type PlaylistMoveBody = z.infer<typeof PlaylistMoveBody>;

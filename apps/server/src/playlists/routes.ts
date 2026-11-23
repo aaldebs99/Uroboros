@@ -4,6 +4,7 @@ import {
   NewPlaylistBody,
   PlaylistDetail,
   PlaylistItemsBody,
+  PlaylistMoveBody,
   PlaylistPatch,
   PlaylistSummary,
 } from "@uroboros/contract";
@@ -119,7 +120,7 @@ const moveRoute = createRoute({
   summary: "Move one entry to a position (0 is first; past the end is last)",
   request: {
     params: z.object({ id, entryId }),
-    ...body(z.object({ position: z.number().int().min(0) }).openapi("PlaylistMoveBody")),
+    ...body(PlaylistMoveBody),
   },
   responses: { 204: done, 404: error("No such playlist or entry in it"), 409: youtube },
 });

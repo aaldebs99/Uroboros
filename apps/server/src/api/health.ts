@@ -13,6 +13,7 @@ export const CHECK_TIMEOUT_MS = 2000;
 export const healthRoute = createRoute({
   method: "get",
   path: "/api/health",
+  security: [],
   summary: "Liveness: the process is up",
   responses: {
     200: {
@@ -26,6 +27,7 @@ export const healthRoute = createRoute({
 export const readyRoute = createRoute({
   method: "get",
   path: "/api/ready",
+  security: [],
   summary: "Readiness and dependency health",
   responses: {
     200: {

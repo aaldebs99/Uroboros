@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { createApp, openApiConfig } from "../api/app.ts";
+import { createApp } from "../api/app.ts";
+import { openApiConfig } from "../api/openapiDoc.ts";
 import { findRepoRoot } from "../shared/repoRoot.ts";
 
 /** A stand-in that throws on any use: the document is built without touching a dependency. */

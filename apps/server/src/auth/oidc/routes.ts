@@ -21,6 +21,7 @@ type AuthError = "expired" | "cancelled" | "unavailable" | "failed" | "disabled"
 const loginRoute = createRoute({
   method: "get",
   path: "/api/auth/oidc/login",
+  security: [],
   tags: ["auth"],
   summary: "Start signing in with the OIDC provider (redirects to it)",
   request: { query: z.object({ returnTo: z.string().max(2048).optional() }) },
@@ -30,6 +31,7 @@ const loginRoute = createRoute({
 const callbackRoute = createRoute({
   method: "get",
   path: "/api/auth/oidc/callback",
+  security: [],
   tags: ["auth"],
   summary: "The provider's redirect back after sign-in",
   request: {
