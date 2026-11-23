@@ -24,8 +24,14 @@ function ItemTitle({ item }: { item: SubscriptionItem }) {
 }
 
 /** What the subscription saw, newest first: each video's outcome and why. */
-export function ActivityList({ subscriptionId }: { subscriptionId: string }) {
-  const items = useSubscriptionItems(subscriptionId);
+export function ActivityList({
+  subscriptionId,
+  lastCheckedAt,
+}: {
+  subscriptionId: string;
+  lastCheckedAt: string | null;
+}) {
+  const items = useSubscriptionItems(subscriptionId, lastCheckedAt);
   const list = items.data?.pages.flatMap((p) => p.items) ?? [];
   if (items.isError) return <p className="text-destructive">{errorText(items.error)}</p>;
   if (!items.isSuccess) return null;

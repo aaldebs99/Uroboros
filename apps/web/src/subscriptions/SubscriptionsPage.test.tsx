@@ -107,6 +107,27 @@ describe("SubscriptionPage", () => {
     expect(within(activity).getByText("Queued")).toBeInTheDocument();
   });
 
+  it("refreshes the activity when a running check finishes", async () => {
+    let subCalls = 0;
+    let itemCalls = 0;
+    fakeApi({
+      [`GET /api/subscriptions/${SUB_ID}`]: () =>
+        Response.json(
+          ++subCalls === 1
+            ? subscriptionFixture({ checking: true, lastCheckedAt: null })
+            : subscriptionFixture({ checking: false }),
+        ),
+      [`GET /api/subscriptions/${SUB_ID}/items`]: () =>
+        Response.json({ items: ++itemCalls === 1 ? [] : [itemFixture()], nextCursor: null }),
+      "GET /api/format-profiles": () => Response.json([]),
+    });
+    await renderInRouter(<SubscriptionPage subscriptionId={SUB_ID} />);
+    expect(await screen.findByText(/Nothing yet/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Blender 5.3 overview", undefined, { timeout: 6000 }),
+    ).toBeInTheDocument();
+  }, 10_000);
+
   it("checks now from its page and pauses it", async () => {
     const calls = fakeApi({
       [`GET /api/subscriptions/${SUB_ID}`]: () => Response.json(subscriptionFixture()),

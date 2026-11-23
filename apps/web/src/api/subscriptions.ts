@@ -12,12 +12,17 @@ import { deleteJson, getJson, patchJson, postJson } from "./client";
 export const subscriptionKeys = {
   all: ["api", "subscriptions"] as const,
   one: (id: string) => ["api", "subscriptions", id] as const,
-  items: (id: string) => ["api", "subscriptions", id, "items"] as const,
+  /** Keyed by the last check too, so a finished check loads its activity afresh. */
+  items: (id: string, lastCheckedAt: string | null = null) =>
+    ["api", "subscriptions", id, "items", lastCheckedAt] as const,
 };
 
 const path = (id: string) => `/api/subscriptions/${encodeURIComponent(id)}`;
-/** While a check runs the lists refetch this often, so its outcome shows up by itself. */
+/** While a check runs (or a new one has yet to) the lists refetch this often. */
 const CHECKING_POLL_MS = 3000;
+
+/** A check is running, or an enabled subscription has never been checked: its first is coming. */
+const pending = (s: Subscription) => s.checking || (s.enabled && s.lastCheckedAt === null);
 
 /** The caller's subscriptions; polled while any check runs. */
 export function useSubscriptions() {
@@ -25,7 +30,7 @@ export function useSubscriptions() {
     queryKey: subscriptionKeys.all,
     queryFn: ({ signal }) => getJson("/api/subscriptions", z.array(Subscription), { signal }),
     refetchInterval: (query) =>
-      query.state.data?.some((s) => s.checking) === true ? CHECKING_POLL_MS : false,
+      query.state.data?.some(pending) === true ? CHECKING_POLL_MS : false,
   });
 }
 
@@ -33,14 +38,17 @@ export function useSubscription(id: string) {
   return useQuery({
     queryKey: subscriptionKeys.one(id),
     queryFn: ({ signal }) => getJson(path(id), Subscription, { signal }),
-    refetchInterval: (query) => (query.state.data?.checking === true ? CHECKING_POLL_MS : false),
+    refetchInterval: (query) => {
+      const s = query.state.data;
+      return s !== undefined && pending(s) ? CHECKING_POLL_MS : false;
+    },
   });
 }
 
-/** What a subscription has seen, newest first, a page at a time. */
-export function useSubscriptionItems(id: string) {
+/** What a subscription has seen, newest first, a page at a time, as of its last check. */
+export function useSubscriptionItems(id: string, lastCheckedAt: string | null) {
   return useInfiniteQuery({
-    queryKey: subscriptionKeys.items(id),
+    queryKey: subscriptionKeys.items(id, lastCheckedAt),
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) =>
       getJson(

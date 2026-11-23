@@ -125,7 +125,7 @@ export function SubscriptionPage({ subscriptionId }: { subscriptionId: string })
       <Settings sub={sub} />
       <div className="grid gap-2">
         <h2 className="text-base font-bold">Recent activity</h2>
-        <ActivityList subscriptionId={sub.id} />
+        <ActivityList subscriptionId={sub.id} lastCheckedAt={sub.lastCheckedAt} />
       </div>
     </section>
   );

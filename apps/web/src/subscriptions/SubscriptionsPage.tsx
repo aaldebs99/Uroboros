@@ -20,6 +20,9 @@ import { notify } from "@/components/ui/sonner";
 
 import { SubscriptionRow, type RowActions } from "./SubscriptionRow";
 
+/** After Check now, when to look for the check having started. */
+const RECHECK_AFTER_MS = 2500;
+
 /** The row actions, each refreshing the subscriptions and toasting a failure. */
 export function useSubscriptionActions(): RowActions & { dialog: ReactNode } {
   const client = useQueryClient();
@@ -37,6 +40,10 @@ export function useSubscriptionActions(): RowActions & { dialog: ReactNode } {
   return {
     check: (sub) => {
       run(checkSubscription(sub.id), `Checking ${sub.title ?? "the subscription"}.`);
+      // The job takes its lease a moment later; look again then, so polling starts.
+      setTimeout(() => {
+        void client.invalidateQueries({ queryKey: subscriptionKeys.all });
+      }, RECHECK_AFTER_MS);
     },
     setEnabled: (sub, enabled) => {
       run(updateSubscription(sub.id, { enabled }), enabled ? "Resumed." : "Paused.");
