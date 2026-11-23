@@ -36,11 +36,17 @@ function previewEntry(e: PlaylistEntry, fallbackExtractor: string): PreviewEntry
   };
 }
 
-function group(name: string, ticked: boolean, info: PlaylistInfo, limit: number): PreviewGroup {
+function group(
+  name: string,
+  url: string,
+  ticked: boolean,
+  info: PlaylistInfo,
+  limit: number,
+): PreviewGroup {
   const entries = info.entries
     .map((e) => previewEntry(e, info.extractorKey ?? "generic"))
     .filter((e): e is PreviewEntry => e !== null);
-  return { name, ticked, truncated: entries.length > limit, entries: entries.slice(0, limit) };
+  return { name, url, ticked, truncated: entries.length > limit, entries: entries.slice(0, limit) };
 }
 
 /** "Blender - Videos" → "Videos"; a tab URL's last segment otherwise. */
@@ -69,7 +75,9 @@ async function tabGroups(
         ...(signal === undefined ? {} : { signal }),
       });
       if (listed.kind === "video") continue;
-      groups.push(group(tabName(tab), isVideosTab(tab), listed, deps.limits.maxPlaylistEntries));
+      groups.push(
+        group(tabName(tab), tab.url, isVideosTab(tab), listed, deps.limits.maxPlaylistEntries),
+      );
     } catch (err) {
       deps.logger.warn({ err, url: tab.url }, "probing a channel tab failed; leaving it out");
     }
@@ -113,23 +121,41 @@ async function queueVideo(
   await dispatchFor(deps, req.user_id);
 }
 
-async function preview(deps: Deps, requestId: string, info: PlaylistInfo): Promise<void> {
+/**
+ * The source a subscription or a recorded playlist names. A playlist keeps its listing's
+ * extractor (as `sources` does); a channel takes its videos' extractor, so its key matches the
+ * library's channel page (`youtube`, not `youtubetab`).
+ */
+function sourceOf(info: PlaylistInfo, channel: boolean, groups: PreviewGroup[]) {
+  const listing = (info.extractorKey ?? "generic").toLowerCase();
+  if (!channel) return { source_extractor: listing, source_id: info.id };
+  const videos = groups
+    .flatMap((g) => g.entries)
+    .at(0)
+    ?.extractor.toLowerCase();
+  return { source_extractor: videos ?? listing, source_id: info.id };
+}
+
+async function preview(
+  deps: Deps,
+  req: { id: string; url: string },
+  info: PlaylistInfo,
+): Promise<void> {
   const isRoot = info.entries.length > 0 && info.entries.every((e) => e.kind === "playlist");
   const groups = isRoot
     ? await tabGroups(deps, info)
-    : [group(info.title ?? "Videos", true, info, deps.limits.maxPlaylistEntries)];
+    : [group(info.title ?? "Videos", req.url, true, info, deps.limits.maxPlaylistEntries)];
+  const kind = isRoot ? "channel" : info.kind;
   await deps.db
     .updateTable("download_requests")
     .set({
       state: "choosing",
-      kind: isRoot ? "channel" : info.kind,
+      kind,
       title: info.title,
       entries: JSON.stringify(groups),
-      ...(isRoot || info.kind !== "playlist"
-        ? {}
-        : { source_extractor: (info.extractorKey ?? "generic").toLowerCase(), source_id: info.id }),
+      ...sourceOf(info, kind === "channel", groups),
     })
-    .where("id", "=", requestId)
+    .where("id", "=", req.id)
     .execute();
 }
 
@@ -145,7 +171,7 @@ export function probeProcessor(deps: Deps) {
     try {
       const info = await probe(req.url, ytdlpOptions(deps));
       if (info.kind === "video") await queueVideo(deps, req, info);
-      else await preview(deps, req.id, info);
+      else await preview(deps, req, info);
     } catch (err) {
       const failure = toDownloadError(err);
       deps.logger.warn({ err, requestId: req.id }, "probe failed");

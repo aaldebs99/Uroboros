@@ -119,6 +119,41 @@ describe("probe", () => {
     expect(req.groups[0]?.entries).toHaveLength(3);
   });
 
+  it("records channel ids and tab URLs", async () => {
+    const base = "https://www.youtube.com/@BlenderOfficial";
+    const id = await request(base);
+    await run(
+      id,
+      await h.deps({
+        steps: [{ stdout: await fixture("probe-channel-root.json") }],
+        variants: [
+          { whenArg: `${base}/videos`, steps: [{ stdout: await fixture("probe-channel.json") }] },
+          { whenArg: `${base}/shorts`, steps: [{ stdout: await fixture("probe-playlist.json") }] },
+          { whenArg: `${base}/streams`, steps: [{ stdout: await fixture("probe-playlist.json") }] },
+        ],
+      }),
+    );
+    expect((await load(id)).groups.map((g) => g.url)).toEqual([
+      `${base}/videos`,
+      `${base}/shorts`,
+      `${base}/streams`,
+    ]);
+    const row = await testDb.db
+      .selectFrom("download_requests")
+      .select(["source_extractor", "source_id"])
+      .where("id", "=", id)
+      .executeTakeFirstOrThrow();
+    // The videos' extractor, so the channel key matches the library's channel page.
+    expect(row).toEqual({ source_extractor: "youtube", source_id: "UCSMOQeBJ2RAnuFungnQOxLg" });
+  });
+
+  it("names a single listing's group by the pasted URL", async () => {
+    const url = "https://www.youtube.com/@BlenderOfficial/videos";
+    const id = await request(url);
+    await run(id, await h.deps({ steps: [{ stdout: await fixture("probe-channel.json") }] }));
+    expect((await load(id)).groups.map((g) => g.url)).toEqual([url]);
+  });
+
   it("cuts a long group at the entry limit, saying so", async () => {
     const id = await request("https://www.youtube.com/@BlenderOfficial/videos");
     const deps = await h.deps({ steps: [{ stdout: await fixture("probe-channel.json") }] });

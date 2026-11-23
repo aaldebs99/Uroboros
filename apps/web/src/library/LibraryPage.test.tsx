@@ -21,6 +21,8 @@ const entry = {
   addedAt: "2026-11-22T10:00:00.000Z",
   progress: null,
   tags: [],
+  kept: false,
+  subscription: null,
   channelKey: null,
 };
 

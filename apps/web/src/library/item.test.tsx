@@ -40,6 +40,8 @@ const item = {
   addedAt: "2026-11-22T10:00:00.000Z",
   progress: { position: 42, duration: 596, watched: false },
   tags: ["movies"],
+  kept: false,
+  subscription: null,
   channelKey: "a2V5",
   description: "A large rabbit deals with three tiny bullies. ".repeat(20),
   chapters: [

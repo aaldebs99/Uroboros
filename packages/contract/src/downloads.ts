@@ -127,6 +127,8 @@ export type PreviewEntry = z.infer<typeof PreviewEntry>;
 export const PreviewGroup = z
   .object({
     name: z.string(),
+    /** The listing's URL (a channel tab, or the pasted link); what a subscription follows. */
+    url: z.string().nullable().default(null),
     /** Whether the preview starts with this group's entries ticked. */
     ticked: z.boolean(),
     /** True when the group was cut at the server's entry limit. */
@@ -237,6 +239,10 @@ export const LibraryEntry = z
     /** The caller's progress on this video; null before they start it. */
     progress: WatchProgress.nullable(),
     tags: z.array(z.string()),
+    /** Retention never removes a kept entry. */
+    kept: z.boolean(),
+    /** The subscription that brought it, if any. */
+    subscription: z.object({ id: Id, title: z.string().nullable() }).nullable(),
     /** The channel page's key; null when the site gives no channel. */
     channelKey: z.string().nullable(),
   })

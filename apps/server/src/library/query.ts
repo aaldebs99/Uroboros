@@ -206,6 +206,11 @@ export const ENTRY_COLUMNS = [
   "wp.position_s",
   "wp.duration_s",
   "wp.watched",
+  "e.kept",
+  "e.subscription_id",
+  sql<string | null>`(SELECT s.title FROM subscriptions s WHERE s.id = e.subscription_id)`.as(
+    "subscription_title",
+  ),
   sql<
     string[]
   >`coalesce((SELECT array_agg(t.tag ORDER BY t.tag) FROM entry_tags t WHERE t.entry_id = e.id), '{}')`.as(
@@ -232,6 +237,9 @@ export interface EntryRow {
   position_s: number | null;
   duration_s: number | null;
   watched: boolean | null;
+  kept: boolean;
+  subscription_id: string | null;
+  subscription_title: string | null;
   tags: string[];
   sort_key: unknown;
 }
@@ -266,6 +274,9 @@ export function toEntry(r: EntryRow): LibraryEntry {
         ? null
         : { position: r.position_s, duration: r.duration_s, watched: r.watched ?? false },
     tags: r.tags,
+    kept: r.kept,
+    subscription:
+      r.subscription_id === null ? null : { id: r.subscription_id, title: r.subscription_title },
     channelKey: channelKey(r.extractor, r.channel_id, r.channel ?? r.uploader),
   };
 }

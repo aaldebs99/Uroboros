@@ -697,6 +697,9 @@
             "format": "uuid",
             "type": "string"
           },
+          "kept": {
+            "type": "boolean"
+          },
           "mediaId": {
             "format": "uuid",
             "type": "string"
@@ -709,6 +712,24 @@
           },
           "sizeBytes": {
             "type": "number"
+          },
+          "subscription": {
+            "nullable": true,
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "title": {
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "type": "object"
           },
           "tags": {
             "items": {
@@ -742,6 +763,8 @@
           "addedAt",
           "progress",
           "tags",
+          "kept",
+          "subscription",
           "channelKey"
         ],
         "type": "object"
@@ -1096,6 +1119,11 @@
           },
           "truncated": {
             "type": "boolean"
+          },
+          "url": {
+            "default": null,
+            "nullable": true,
+            "type": "string"
           }
         },
         "required": [

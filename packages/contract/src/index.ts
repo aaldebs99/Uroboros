@@ -66,3 +66,19 @@ export {
   TagsBody,
   WatchedBody,
 } from "./library.ts";
+export {
+  Backfill,
+  BackfillMode,
+  CHECK_INTERVAL_PRESETS,
+  Feed,
+  KeptBody,
+  MAX_CHECK_INTERVAL_MINUTES,
+  NewSubscriptionBody,
+  Retention,
+  Subscription,
+  SubscriptionFilters,
+  SubscriptionItem,
+  SubscriptionItemOutcome,
+  SubscriptionItemsPage,
+  SubscriptionPatch,
+} from "./subscriptions.ts";
