@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAppRouter } from "../router";
 import { stubApi } from "../test/render";
@@ -166,6 +166,29 @@ describe("app shell", () => {
     router.history.back();
     await screen.findByRole("button", { name: "Open navigation" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["a watch page", "/library/0190a3f2-7c1e-7000-8000-000000000200"],
+    ["a channel page", "/library/channels/Blender"],
+    ["a playlist page", "/library/playlists/0190a3f2-7c1e-7000-8000-000000000300"],
+    ["a subscription's page", "/subscriptions/0190a3f2-7c1e-7000-8000-000000000400"],
+  ])("leaving %s asks for nothing under the next page's name", async (_, path) => {
+    const router = await renderAt(path, () =>
+      screen.findByRole("button", { name: "Account menu for Alice" }),
+    );
+    await router.navigate({ to: "/downloads" });
+    await screen.findByRole("navigation", { name: "Primary" });
+
+    const asked = vi
+      .mocked(fetch)
+      .mock.calls.map(([input]) =>
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+      );
+    // Only the downloads page's own requests may name it.
+    expect(
+      asked.filter((url) => url.includes("downloads") && !url.startsWith("/api/downloads")),
+    ).toEqual([]);
   });
 
   it("closes the watch page's drawer with its own menu button", async () => {

@@ -1,4 +1,4 @@
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { getRouteApi, useNavigate, useRouterState } from "@tanstack/react-router";
 
 import type { LibraryFilters } from "@/api/library";
 import { ChannelPage } from "@/library/ChannelPage";
@@ -39,20 +39,32 @@ export function LibraryRoute() {
   );
 }
 
-/** The route's last path segment, decoded (the `$channelKey` or `$sourceId` param). */
-function useLastSegment(): string {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  return decodeURIComponent(pathname.split("/").filter(Boolean).at(-1) ?? "");
-}
+// Each page reads its own route's parameter, never the location: while a navigation away is
+// under way the location is already the next page's, and a page reading its last segment would
+// fetch, say, the video "downloads" before it unmounts. The code-based route tree leaves params
+// untyped (`any`), so each `select` states its parameter's type.
+const channelRoute = getRouteApi("/library/channels/$channelKey");
+const playlistRoute = getRouteApi("/library/playlists/$sourceId");
+const itemRoute = getRouteApi("/library/$entryId");
 
 export function ChannelRoute() {
-  return <ChannelPage channelKey={useLastSegment()} />;
+  return (
+    <ChannelPage
+      channelKey={channelRoute.useParams({ select: (p: { channelKey: string }) => p.channelKey })}
+    />
+  );
 }
 
 export function PlaylistRoute() {
-  return <PlaylistPage sourceId={useLastSegment()} />;
+  return (
+    <PlaylistPage
+      sourceId={playlistRoute.useParams({ select: (p: { sourceId: string }) => p.sourceId })}
+    />
+  );
 }
 
 export function ItemRoute() {
-  return <ItemPage entryId={useLastSegment()} />;
+  return (
+    <ItemPage entryId={itemRoute.useParams({ select: (p: { entryId: string }) => p.entryId })} />
+  );
 }

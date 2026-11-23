@@ -1,12 +1,19 @@
-import { useRouterState } from "@tanstack/react-router";
+import { getRouteApi, useRouterState } from "@tanstack/react-router";
 
 import { NewSubscriptionPage } from "@/subscriptions/NewSubscriptionPage";
 import { SubscriptionPage } from "@/subscriptions/SubscriptionPage";
 
-/** `/subscriptions/<id>`: the id is the path's last segment (code-based routes are untyped here). */
+const subscriptionRoute = getRouteApi("/subscriptions/$subscriptionId");
+
+/**
+ * `/subscriptions/<id>`: the id from the route's own params, never the location, which is the next
+ * page's while a navigation away is under way. The code-based route tree leaves params untyped
+ * (`any`), so the `select` states the parameter's type.
+ */
 export function SubscriptionRoute() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const id = decodeURIComponent(pathname.split("/").filter(Boolean).at(-1) ?? "");
+  const id = subscriptionRoute.useParams({
+    select: (p: { subscriptionId: string }) => p.subscriptionId,
+  });
   return <SubscriptionPage subscriptionId={id} />;
 }
 
