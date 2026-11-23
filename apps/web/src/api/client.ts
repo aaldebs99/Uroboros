@@ -174,6 +174,28 @@ export async function postNoContent(path: string, body?: unknown): Promise<void>
   await res.body?.cancel();
 }
 
+/** PUT that sends JSON and validates the JSON answer. */
+export async function putJson<S extends z.ZodType>(
+  path: string,
+  schema: S,
+  body: unknown,
+): Promise<z.infer<S>> {
+  const res = await send("PUT", path, {
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseBody(res, `PUT ${path}`, schema);
+}
+
+/** PUT that sends JSON and expects no body back (204). */
+export async function putNoContent(path: string, body: unknown): Promise<void> {
+  const res = await send("PUT", path, {
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  await res.body?.cancel();
+}
+
 /** DELETE that expects no body back (204). */
 export async function deleteJson(path: string, init?: RequestInit): Promise<void> {
   const res = await send("DELETE", path, init);

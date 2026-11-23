@@ -55,7 +55,13 @@ export function EntryTile({ entry, onRemove }: { entry: LibraryEntry; onRemove: 
       <div className="flex gap-3">
         <Avatar name={entry.channel} />
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-2 font-medium md:text-[15px]/[21px]">{entry.title}</p>
+          <Link
+            to="/library/$entryId"
+            params={{ entryId: entry.id }}
+            className="line-clamp-2 font-medium hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none md:text-[15px]/[21px]"
+          >
+            {entry.title}
+          </Link>
           {entry.channel === null ? null : entry.channelKey === null ? (
             <p className="text-xs text-muted-foreground">{entry.channel}</p>
           ) : (

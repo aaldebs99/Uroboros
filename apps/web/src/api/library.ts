@@ -1,6 +1,8 @@
 import {
   ChannelSummary,
   FormatProfile,
+  LibraryItem,
+  TagsBody,
   LibraryPage,
   SourceSummary,
   type FormatProfilePatch,
@@ -10,7 +12,7 @@ import {
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { deleteJson, getJson, patchJson, postJson } from "./client";
+import { deleteJson, getJson, patchJson, postJson, putJson, putNoContent } from "./client";
 import { downloadKeys } from "./downloads";
 
 const libraryKey = ["api", "library"] as const;
@@ -97,3 +99,23 @@ export const usePatchProfile = () =>
   );
 export const useDeleteProfile = () =>
   useProfileMutation((id: string) => deleteJson(profilePath(id)));
+
+export const itemKey = (id: string) => ["api", "library", "item", id] as const;
+
+/** One entry with its chapters, subtitles and stream URL. */
+export function useItem(id: string) {
+  return useQuery({
+    queryKey: itemKey(id),
+    queryFn: ({ signal }) =>
+      getJson(`/api/library/${encodeURIComponent(id)}`, LibraryItem, { signal }),
+  });
+}
+
+export const reportProgress = (id: string, position: number, duration: number) =>
+  putNoContent(`/api/library/${encodeURIComponent(id)}/progress`, { position, duration });
+
+export const setWatched = (id: string, watched: boolean) =>
+  putNoContent(`/api/library/${encodeURIComponent(id)}/watched`, { watched });
+
+export const setTags = (id: string, tags: string[]) =>
+  putJson(`/api/library/${encodeURIComponent(id)}/tags`, TagsBody, { tags });

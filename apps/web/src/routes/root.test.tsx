@@ -124,4 +124,11 @@ describe("app shell", () => {
     await renderAt("/");
     expect(screen.queryByText("Admin")).not.toBeInTheDocument();
   });
+
+  it("opens a search field under the slim top bar on phones", async () => {
+    await renderAt("/settings");
+    expect(screen.getAllByRole("searchbox")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Open search" }));
+    expect(screen.getAllByRole("searchbox")).toHaveLength(2);
+  });
 });

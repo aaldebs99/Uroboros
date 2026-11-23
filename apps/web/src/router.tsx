@@ -11,7 +11,7 @@ import { PlaylistsPage } from "./library/PlaylistsPage";
 import { SettingsPage, SubscriptionsPage } from "./routes";
 import { AccountRoute, AdminProfilesRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
-import { ChannelRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
+import { ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
 import { RootLayout } from "./routes/root";
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -38,6 +38,7 @@ const routeTree = rootRoute.addChildren([
     path: "/library/playlists/$sourceId",
     component: PlaylistRoute,
   }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/library/$entryId", component: ItemRoute }),
   createRoute({ getParentRoute: () => rootRoute, path: "/downloads", component: DownloadsRoute }),
   createRoute({
     getParentRoute: () => rootRoute,

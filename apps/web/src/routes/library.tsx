@@ -2,6 +2,7 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 
 import type { LibraryFilters } from "@/api/library";
 import { ChannelPage } from "@/library/ChannelPage";
+import { ItemPage } from "@/library/ItemPage";
 import { LibraryPage } from "@/library/LibraryPage";
 import { PlaylistPage } from "@/library/PlaylistPage";
 
@@ -48,4 +49,8 @@ export function ChannelRoute() {
 
 export function PlaylistRoute() {
   return <PlaylistPage sourceId={useLastSegment()} />;
+}
+
+export function ItemRoute() {
+  return <ItemPage entryId={useLastSegment()} />;
 }
