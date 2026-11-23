@@ -37,8 +37,10 @@ caller's playlists that hold at least one of their entries.
 `GET /api/library/{id}` gives an entry with its description, chapters, subtitles, playlists and
 stream URL. `GET /api/library/{id}/stream` serves the file inline with range support (or redirects
 to a presigned URL when `UROBOROS_S3_PUBLIC_URL` is set; the CSP's `media-src` allows that origin),
-and `GET /api/library/{id}/subtitles/{subId}` serves a WebVTT file. The web app plays it in the
-browser's own `<video>` (native controls, subtitles as `<track>`s, chapters as a list that seeks).
+and `GET /api/library/{id}/subtitles/{subId}` serves a WebVTT file. The web app plays it with
+Video.js 10 (`@videojs/react`, the Neutral video skin in the app's accent): subtitles are `<track>`s
+in its captions menu, chapters are a text track its time slider divides into sections, and the page
+also lists the chapters to jump to (`apps/web/src/library/Player.tsx`).
 
 ## Watch progress
 
@@ -59,5 +61,6 @@ Per entry and person: lower-cased, trimmed, 1–32 characters, at most 20 (`PUT
 Every download saves subtitles: `--write-subs --sub-langs <UROBOROS_SUBTITLE_LANGS>
 --convert-subs vtt` (default `en.*`; empty saves none), plus automatic captions with
 `UROBOROS_AUTO_SUBTITLES=true`. Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
-on S3, `<title>.<lang>.vtt` in the folder layout) and recorded in `subtitles`. Chapters come from
+on S3; in the folder layout, beside the media file and named after it, `<file>.<lang>.vtt`, so
+videos that share a title never share a subtitle; one that cannot be stored is skipped) and recorded in `subtitles`. Chapters come from
 the `.info.json` into `media.chapters`. Media downloaded before this step has neither.
