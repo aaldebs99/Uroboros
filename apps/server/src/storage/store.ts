@@ -17,4 +17,8 @@ export interface MediaStore {
   delete(key: string): Promise<void>;
   /** A URL a browser can fetch the file from directly, or null to stream it through the api. */
   downloadUrl(key: string, filename: string): Promise<string | null>;
+  /** Removes every key under `prefix` (which ends in `/`); none is fine. */
+  deletePrefix(prefix: string): Promise<void>;
+  /** The file's path on this machine (the filesystem backend), or null (S3). */
+  localPath(key: string): string | null;
 }

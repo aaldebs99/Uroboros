@@ -222,6 +222,19 @@ describe("the reaper", () => {
     expect(await store.stat(key)).toBeNull();
   });
 
+  it("empties a trashed prefix", async () => {
+    const dir = `.transcodes/${randomUUID()}/`;
+    await store.put(`${dir}1/init.mp4`, src, "video/mp4");
+    await store.put(`${dir}1/seg-00001.m4s`, src, "video/mp4");
+    await t.db.insertInto("storage_trash").values({ key: dir }).execute();
+    await emptyTrash(t.db, store, logger);
+    expect(await store.stat(`${dir}1/init.mp4`)).toBeNull();
+    expect(await store.stat(`${dir}1/seg-00001.m4s`)).toBeNull();
+    expect(
+      await t.db.selectFrom("storage_trash").select("key").where("key", "=", dir).execute(),
+    ).toEqual([]);
+  });
+
   it("drops a trashed key a row uses again", async () => {
     const a = await stored();
     await t.db.insertInto("storage_trash").values({ key: a.key }).execute();

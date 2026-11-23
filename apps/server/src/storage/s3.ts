@@ -2,6 +2,8 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
   GetObjectCommand,
   HeadObjectCommand,
   S3Client,
@@ -82,6 +84,27 @@ export function createS3Store(config: S3Config): MediaStore {
         new GetObjectCommand({ Bucket, Key: key, ResponseContentDisposition: disposition }),
         { expiresIn: PRESIGN_SECONDS },
       );
+    },
+    async deletePrefix(prefix) {
+      // A page of up to 1000 keys at a time: the most DeleteObjects takes.
+      let token: string | undefined;
+      do {
+        const page = await s3.send(
+          new ListObjectsV2Command({ Bucket, Prefix: prefix, ContinuationToken: token }),
+        );
+        const keys = (page.Contents ?? []).flatMap((o) =>
+          o.Key === undefined ? [] : [{ Key: o.Key }],
+        );
+        if (keys.length > 0) {
+          await s3.send(
+            new DeleteObjectsCommand({ Bucket, Delete: { Objects: keys, Quiet: true } }),
+          );
+        }
+        token = page.IsTruncated === true ? page.NextContinuationToken : undefined;
+      } while (token !== undefined);
+    },
+    localPath() {
+      return null;
     },
   };
 }

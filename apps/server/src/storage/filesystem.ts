@@ -77,5 +77,13 @@ export function createFilesystemStore(root: string): MediaStore {
     downloadUrl() {
       return Promise.resolve(null);
     },
+    async deletePrefix(prefix) {
+      const dir = pathOf(prefix.replace(/\/+$/, ""));
+      await rm(dir, { recursive: true, force: true });
+      await pruneEmpty(base, dirname(dir));
+    },
+    localPath(key) {
+      return pathOf(key);
+    },
   };
 }

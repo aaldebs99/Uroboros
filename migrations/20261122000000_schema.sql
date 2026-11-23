@@ -402,7 +402,34 @@ CREATE TABLE watch_progress (
   PRIMARY KEY (user_id, media_id)
 );
 
--- Storage keys whose rows are gone and whose files the reaper still has to delete.
+-- Transcoding (docs/transcoding.md): a compatible HLS copy of a rendition, made on demand for
+-- browsers that cannot play the file and kept while used. Its files live under
+-- `.transcodes/<id>/<attempt>/`; `encoder` is fixed when it is made, and `settings` revises the
+-- encode settings with it, so changing either makes new copies.
+CREATE TABLE transcodes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_rendition_id UUID NOT NULL REFERENCES renditions ON DELETE CASCADE,
+  encoder TEXT NOT NULL CHECK (encoder IN ('libx264', 'nvenc')),
+  settings TEXT NOT NULL,
+  mode TEXT CHECK (mode IN ('encode', 'remux', 'audio')),
+  state TEXT NOT NULL DEFAULT 'queued' CHECK (state IN ('queued', 'running', 'done', 'failed')),
+  attempt INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0),
+  ready_segments INTEGER NOT NULL DEFAULT 0,
+  duration DOUBLE PRECISION,
+  progress DOUBLE PRECISION NOT NULL DEFAULT 0,
+  -- The variant's RFC 6381 codecs and its resolution, for the multivariant playlist.
+  codecs TEXT,
+  resolution TEXT,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  started_at TIMESTAMPTZ,
+  finished_at TIMESTAMPTZ,
+  last_used_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (source_rendition_id, settings)
+);
+
+-- Storage keys whose rows are gone and whose files the reaper still has to delete. A key ending in
+-- `/` is a prefix: everything under it goes.
 CREATE TABLE storage_trash (
   key TEXT PRIMARY KEY,
   added_at TIMESTAMPTZ NOT NULL DEFAULT now()

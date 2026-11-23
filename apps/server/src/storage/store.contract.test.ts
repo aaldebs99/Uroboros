@@ -75,6 +75,27 @@ describe.each(backends)("MediaStore (%s)", (kind, make) => {
     await expect(store.delete("x/never.txt")).resolves.toBeUndefined();
   });
 
+  it("deletes everything under a prefix, and nothing beside it", async () => {
+    await store.put("pre/a.txt", await source("a"), "text/plain");
+    await store.put("pre/b/c.txt", await source("c"), "text/plain");
+    await store.put("press/d.txt", await source("d"), "text/plain");
+    await store.deletePrefix("pre/");
+    expect(await store.stat("pre/a.txt")).toBeNull();
+    expect(await store.stat("pre/b/c.txt")).toBeNull();
+    expect(await store.stat("press/d.txt")).not.toBeNull();
+    await store.deletePrefix("nothing-here/");
+  });
+
+  it("gives a local path only on the filesystem", async () => {
+    await store.put("local/e.txt", await source("e"), "text/plain");
+    const path = store.localPath("local/e.txt");
+    if (kind === "filesystem") {
+      expect(path).toMatch(/local\/e\.txt$/);
+    } else {
+      expect(path).toBeNull();
+    }
+  });
+
   it("has no download URL without a public endpoint", async () => {
     expect(await store.downloadUrl("x/two.bin", "two.bin")).toBeNull();
   });

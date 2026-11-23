@@ -180,7 +180,11 @@ export async function emptyTrash(
   let deleted = 0;
   for (const { key } of keys) {
     try {
-      if (!(await inUse(db, key))) {
+      if (key.endsWith("/")) {
+        // A prefix (a transcode's folder): nothing else is stored under it.
+        await store.deletePrefix(key);
+        deleted++;
+      } else if (!(await inUse(db, key))) {
         await store.delete(key);
         deleted++;
       }
