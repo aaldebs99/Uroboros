@@ -1,0 +1,185 @@
+import { randomUUID } from "node:crypto";
+import { DownloadRequest, QueueSelectionResult } from "@uroboros/contract";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { signedIn, type SignedIn } from "../../test/auth.ts";
+import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
+import { TestDb } from "../../test/testDb.ts";
+import { sweepExpiredRequests } from "./requests.ts";
+
+let testDb: TestDb;
+let h: Awaited<ReturnType<typeof downloadHarness>>;
+let alice: SignedIn;
+
+beforeAll(async () => {
+  testDb = await TestDb.create();
+  h = await downloadHarness(testDb.db);
+  alice = await signedIn(testDb.db, { username: "ralice" });
+});
+afterAll(async () => {
+  await h.close();
+  await testDb.close();
+});
+
+const entry = (id: string) => ({
+  id,
+  extractor: "youtube",
+  url: `https://www.youtube.com/watch?v=${id}`,
+  title: `Video ${id}`,
+  duration: 10,
+  uploader: "Blender",
+  thumbnailUrl: null,
+});
+
+/** A request the worker has probed into a preview. */
+async function choosing(userId: string, ids: string[]): Promise<string> {
+  const p = await seededDefault(testDb.db);
+  const row = await testDb.db
+    .insertInto("download_requests")
+    .values({
+      user_id: userId,
+      url: "https://www.youtube.com/playlist?list=x",
+      profile_id: p.id,
+      state: "choosing",
+      kind: "playlist",
+      title: "A playlist",
+      entries: JSON.stringify([
+        { name: "Videos", ticked: true, truncated: false, entries: ids.map(entry) },
+      ]),
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  return row.id;
+}
+
+describe("POST /api/downloads", () => {
+  it("refuses a URL that is not http(s)", async () => {
+    expect((await post(h.app(alice), "/api/downloads", { url: "file:///etc/passwd" })).status).toBe(
+      400,
+    );
+  });
+
+  it("creates a probing request on the default profile and a probe job", async () => {
+    const res = await post(h.app(alice), "/api/downloads", {
+      url: "https://www.youtube.com/watch?v=a",
+    });
+    expect(res.status).toBe(202);
+    const req = DownloadRequest.parse(await res.json());
+    expect(req).toMatchObject({ state: "probing", kind: null, groups: [] });
+    expect(req.profileId).toBe((await seededDefault(testDb.db)).id);
+    expect(await h.queues.probe.getJob(`probe|${req.id}`)).toBeDefined();
+  });
+
+  it("refuses an unknown profile (400)", async () => {
+    const res = await post(h.app(alice), "/api/downloads", {
+      url: "https://www.youtube.com/watch?v=a",
+      profileId: randomUUID(),
+    });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/downloads/requests/{id}/queue", () => {
+  it("queues the ticked entries and skips what the person already has", async () => {
+    const id = await choosing(alice.userId, ["q1", "q2", "q3"]);
+    const res = await post(h.app(alice), `/api/downloads/requests/${id}/queue`, {
+      entryIds: ["q1", "q2", "q3"],
+    });
+    expect(QueueSelectionResult.parse(await res.json())).toEqual({ queued: 3, skipped: 0 });
+    const again = await choosing(alice.userId, ["q1", "q4"]);
+    const second = await post(h.app(alice), `/api/downloads/requests/${again}/queue`, {
+      entryIds: ["q1", "q4"],
+    });
+    expect(QueueSelectionResult.parse(await second.json())).toEqual({ queued: 1, skipped: 1 });
+    const req = DownloadRequest.parse(
+      await (await h.app(alice).request(`/api/downloads/requests/${id}`)).json(),
+    );
+    expect(req.state).toBe("queued");
+  });
+
+  it("refuses an entry that is not in the preview (400) and a request that is not choosing (409)", async () => {
+    const id = await choosing(alice.userId, ["n1"]);
+    expect(
+      (await post(h.app(alice), `/api/downloads/requests/${id}/queue`, { entryIds: ["zzz"] }))
+        .status,
+    ).toBe(400);
+    const probing = await testDb.db
+      .insertInto("download_requests")
+      .values({
+        user_id: alice.userId,
+        url: "https://x.example/v",
+        profile_id: (await seededDefault(testDb.db)).id,
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    expect(
+      (
+        await post(h.app(alice), `/api/downloads/requests/${probing.id}/queue`, {
+          entryIds: ["n1"],
+        })
+      ).status,
+    ).toBe(409);
+  });
+
+  it("answers 404 for another person's request", async () => {
+    const bob = await signedIn(testDb.db, { username: "rbob" });
+    const id = await choosing(alice.userId, ["b1"]);
+    expect(
+      (await post(h.app(bob), `/api/downloads/requests/${id}/queue`, { entryIds: ["b1"] })).status,
+    ).toBe(404);
+  });
+
+  it("finishes at once, without a job, when the rendition is already stored", async () => {
+    const p = await seededDefault(testDb.db);
+    const media = await testDb.db
+      .insertInto("media")
+      .values({ extractor: "youtube", video_id: "stored1", title: "Stored" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await testDb.db
+      .insertInto("renditions")
+      .values({
+        media_id: media.id,
+        profile_id: p.id,
+        profile_revision: p.revision,
+        storage_key: "k",
+        size_bytes: 5,
+      })
+      .execute();
+    const carol = await signedIn(testDb.db, { username: "rcarol" });
+    const id = await choosing(carol.userId, ["stored1"]);
+    await post(h.app(carol), `/api/downloads/requests/${id}/queue`, { entryIds: ["stored1"] });
+    const d = await testDb.db
+      .selectFrom("downloads")
+      .select(["state", "rendition_id", "fetch_key"])
+      .where("user_id", "=", carol.userId)
+      .executeTakeFirstOrThrow();
+    expect(d.state).toBe("done");
+    expect(d.rendition_id).not.toBeNull();
+    expect(await h.queues.download.getJob(d.fetch_key)).toBeUndefined();
+    const lib = await testDb.db
+      .selectFrom("library_entries")
+      .selectAll()
+      .where("user_id", "=", carol.userId)
+      .execute();
+    expect(lib).toHaveLength(1);
+  });
+});
+
+describe("sweepExpiredRequests", () => {
+  it("deletes previews nobody finished within a day, and keeps fresh ones", async () => {
+    const old = await choosing(alice.userId, ["s1"]);
+    await testDb.db
+      .updateTable("download_requests")
+      .set({ expires_at: new Date(Date.now() - 1000) })
+      .where("id", "=", old)
+      .execute();
+    const fresh = await choosing(alice.userId, ["s2"]);
+    expect(await sweepExpiredRequests(testDb.db)).toBeGreaterThanOrEqual(1);
+    const left = await testDb.db
+      .selectFrom("download_requests")
+      .select("id")
+      .where("id", "in", [old, fresh])
+      .execute();
+    expect(left.map((r) => r.id)).toEqual([fresh]);
+  });
+});

@@ -16,6 +16,8 @@ import { createPushService } from "../push/service.ts";
 import { LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/leader.ts";
 import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
+import { createDownloadQueues } from "../downloads/queues.ts";
+import { DEFAULT_PREFIX } from "../worker/queues.ts";
 import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
 import { startClaimsSync } from "../auth/claimsSync.ts";
 import { createOidcProvider } from "../auth/oidc/provider.ts";
@@ -93,6 +95,8 @@ export async function startApi(
   const push = createPushService(config.push, db, logger);
   const oidc =
     config.auth.oidc === null ? undefined : createOidcProvider(config.auth.oidc, { logger });
+  // Producers only (the workers consume); they share the api's Valkey connection.
+  const queues = createDownloadQueues(valkey, DEFAULT_PREFIX);
   let attached = false;
   const app = createApp(
     {
@@ -107,6 +111,14 @@ export async function startApi(
         settings: config.auth,
         databaseUrl: config.databaseUrl,
         ...(oidc === undefined ? {} : { oidc }),
+      },
+      downloads: {
+        db,
+        valkey,
+        prefix: DEFAULT_PREFIX,
+        queues,
+        limits: config.downloads,
+        logger,
       },
     },
     { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
@@ -169,6 +181,7 @@ export async function startApi(
     stop.abort();
     const released = attaching.catch(() => undefined).then(() => leading);
     const drained = await drain(server, config.shutdownGraceMs);
+    await settlesWithin(queues.close(), CLEANUP_MS);
     valkey.disconnect();
     const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), CLEANUP_MS);
     if (!drained) {

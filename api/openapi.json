@@ -194,6 +194,243 @@
         ],
         "type": "string"
       },
+      "Download": {
+        "properties": {
+          "attempts": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "errorKind": {
+            "$ref": "#/components/schemas/DownloadErrorKind"
+          },
+          "errorMessage": {
+            "nullable": true,
+            "type": "string"
+          },
+          "extractor": {
+            "type": "string"
+          },
+          "fetchKey": {
+            "type": "string"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "owner": {
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "displayName"
+            ],
+            "type": "object"
+          },
+          "profileId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/DownloadProgress"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/DownloadState"
+          },
+          "stderrTail": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "videoId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "url",
+          "title",
+          "extractor",
+          "videoId",
+          "profileId",
+          "fetchKey",
+          "state",
+          "progress",
+          "errorKind",
+          "errorMessage",
+          "stderrTail",
+          "attempts",
+          "createdAt",
+          "startedAt",
+          "finishedAt"
+        ],
+        "type": "object"
+      },
+      "DownloadErrorKind": {
+        "enum": [
+          "unavailable",
+          "private",
+          "geo_blocked",
+          "age_restricted",
+          "rate_limited",
+          "network",
+          "unsupported_url",
+          "unknown",
+          "invalid_url",
+          "invalid_arguments",
+          "cancelled",
+          "timed_out",
+          "spawn_failed",
+          "invalid_output",
+          "storage",
+          null
+        ],
+        "nullable": true,
+        "type": "string"
+      },
+      "DownloadProgress": {
+        "nullable": true,
+        "properties": {
+          "downloadedBytes": {
+            "nullable": true,
+            "type": "number"
+          },
+          "eta": {
+            "nullable": true,
+            "type": "number"
+          },
+          "percent": {
+            "nullable": true,
+            "type": "number"
+          },
+          "phase": {
+            "enum": [
+              "downloading",
+              "merging",
+              "postprocessing",
+              "storing"
+            ],
+            "type": "string"
+          },
+          "speed": {
+            "nullable": true,
+            "type": "number"
+          },
+          "totalBytes": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "phase",
+          "percent",
+          "downloadedBytes",
+          "totalBytes",
+          "speed",
+          "eta"
+        ],
+        "type": "object"
+      },
+      "DownloadRequest": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "errorKind": {
+            "$ref": "#/components/schemas/DownloadErrorKind"
+          },
+          "errorMessage": {
+            "nullable": true,
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewGroup"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "video",
+              "playlist",
+              "channel",
+              null
+            ],
+            "nullable": true,
+            "type": "string"
+          },
+          "profileId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RequestState"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "profileId",
+          "state",
+          "kind",
+          "title",
+          "groups",
+          "errorKind",
+          "errorMessage",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "DownloadState": {
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed",
+          "cancelled"
+        ],
+        "type": "string"
+      },
       "FormatProfile": {
         "properties": {
           "audioFormat": {
@@ -303,6 +540,65 @@
         ],
         "type": "object"
       },
+      "LibraryEntry": {
+        "properties": {
+          "addedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "channel": {
+            "nullable": true,
+            "type": "string"
+          },
+          "container": {
+            "nullable": true,
+            "type": "string"
+          },
+          "duration": {
+            "nullable": true,
+            "type": "number"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mediaId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "number"
+          },
+          "thumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "uploadDate": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "mediaId",
+          "title",
+          "channel",
+          "uploadDate",
+          "duration",
+          "thumbnailUrl",
+          "profileName",
+          "sizeBytes",
+          "container",
+          "addedAt"
+        ],
+        "type": "object"
+      },
       "Liveness": {
         "properties": {
           "status": {
@@ -409,6 +705,23 @@
         ],
         "type": "object"
       },
+      "NewDownloadBody": {
+        "properties": {
+          "profileId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      },
       "NewFormatProfileBody": {
         "properties": {
           "audioFormat": {
@@ -477,6 +790,71 @@
           "displayName",
           "role",
           "password"
+        ],
+        "type": "object"
+      },
+      "PreviewEntry": {
+        "properties": {
+          "duration": {
+            "nullable": true,
+            "type": "number"
+          },
+          "extractor": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "uploader": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "extractor",
+          "url",
+          "title",
+          "duration",
+          "uploader",
+          "thumbnailUrl"
+        ],
+        "type": "object"
+      },
+      "PreviewGroup": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewEntry"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ticked": {
+            "type": "boolean"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "ticked",
+          "truncated",
+          "entries"
         ],
         "type": "object"
       },
@@ -609,6 +987,39 @@
         ],
         "type": "object"
       },
+      "QueueSelectionBody": {
+        "properties": {
+          "entryIds": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "entryIds"
+        ],
+        "type": "object"
+      },
+      "QueueSelectionResult": {
+        "properties": {
+          "queued": {
+            "type": "integer"
+          },
+          "skipped": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queued",
+          "skipped"
+        ],
+        "type": "object"
+      },
       "Readiness": {
         "properties": {
           "failing": {
@@ -632,6 +1043,15 @@
           "ok",
           "degraded",
           "starting"
+        ],
+        "type": "string"
+      },
+      "RequestState": {
+        "enum": [
+          "probing",
+          "choosing",
+          "queued",
+          "failed"
         ],
         "type": "string"
       },
@@ -1350,6 +1770,293 @@
         ]
       }
     },
+    "/api/downloads": {
+      "get": {
+        "parameters": [
+          {
+            "description": "Everyone's (admins only)",
+            "in": "query",
+            "name": "all",
+            "required": false,
+            "schema": {
+              "description": "Everyone's (admins only)",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Download"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Downloads"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "all=true needs an admin"
+          }
+        },
+        "summary": "The caller's downloads (everyone's with all=true, admins only), active first",
+        "tags": [
+          "downloads"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewDownloadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadRequest"
+                }
+              }
+            },
+            "description": "Probing"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not an http(s) URL, or no such profile"
+          }
+        },
+        "summary": "Download a link: a worker probes it; a playlist or channel comes back as a preview",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/requests/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadRequest"
+                }
+              }
+            },
+            "description": "The request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such request"
+          }
+        },
+        "summary": "A pasted link: probing, its preview, or why it failed",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/requests/{id}/queue": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueSelectionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSelectionResult"
+                }
+              }
+            },
+            "description": "Queued"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An entry that is not in the preview"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The request has no preview to queue"
+          }
+        },
+        "summary": "Queue the ticked entries of a playlist or channel preview",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/{id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cancelled"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such download"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not active"
+          }
+        },
+        "summary": "Cancel a download; a fetch others still wait on keeps going",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/{id}/retry": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Queued again"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such download"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not failed or cancelled, or already being downloaded"
+          }
+        },
+        "summary": "Queue a failed or cancelled download again",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
     "/api/format-profiles": {
       "get": {
         "responses": {
@@ -1415,6 +2122,63 @@
           }
         },
         "summary": "Service name and version"
+      }
+    },
+    "/api/library": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryEntry"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Entries"
+          }
+        },
+        "summary": "The caller's library, newest first",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "summary": "Remove an entry from the caller's library (the shared file stays)",
+        "tags": [
+          "library"
+        ]
       }
     },
     "/api/me": {

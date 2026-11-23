@@ -94,6 +94,8 @@ export const PreviewEntry = z
   .object({
     id: z.string(),
     extractor: z.string(),
+    /** The page to download it from. */
+    url: z.string(),
     title: z.string().nullable(),
     duration: z.number().nullable(),
     uploader: z.string().nullable(),

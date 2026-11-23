@@ -9,7 +9,10 @@ import { registerAccountRoutes } from "../auth/accountRoutes.ts";
 import { registerAdminUserRoutes } from "../auth/adminUserRoutes.ts";
 import { authGuard, type ResolveToken } from "../auth/guard.ts";
 import { createLimiter } from "../auth/limiter.ts";
+import type { DownloadContext } from "../downloads/dispatch.ts";
+import { registerLibraryRoutes } from "../downloads/libraryRoutes.ts";
 import { registerProfileRoutes } from "../downloads/profileRoutes.ts";
+import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
@@ -39,6 +42,8 @@ export interface Deps {
   attached?: () => boolean;
   /** Sign-in wiring; defaults suit `gen` and tests that only hit public routes. */
   auth?: AuthDeps;
+  /** Download queues and limits; without them the download routes answer 503 (what `gen` uses). */
+  downloads?: DownloadContext;
 }
 
 export interface AuthDeps {
@@ -197,6 +202,8 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   app.openapi(infoRoute, (c) => c.json({ name: "uroboros" as const, version: deps.version }, 200));
   registerAuthRoutes(app, deps, logger);
   registerProfileRoutes(app, deps.db);
+  registerDownloadRoutes(app, deps.downloads);
+  registerLibraryRoutes(app, deps.db);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

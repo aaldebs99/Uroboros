@@ -1,12 +1,14 @@
 import type { Kysely } from "kysely";
 import type { Logger } from "pino";
 import type { Database } from "../db/schema.ts";
+import { sweepExpiredRequests } from "../downloads/requests.ts";
 import { sweepExpired } from "./sessions.ts";
 
 export const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
 
 /**
- * The leader's duty: delete expired sessions and pending OIDC logins at once, then hourly, until
+ * The leader's duty: delete expired sessions, pending OIDC logins and unfinished download previews
+ * at once, then hourly, until
  * leadership ends (`signal` aborts).
  */
 export function sweeperDuty(db: Kysely<Database>, logger: Logger) {
@@ -15,6 +17,8 @@ export function sweeperDuty(db: Kysely<Database>, logger: Logger) {
       try {
         const removed = await sweepExpired(db);
         if (removed > 0) logger.info({ removed }, "swept expired sessions and sign-ins");
+        const previews = await sweepExpiredRequests(db);
+        if (previews > 0) logger.info({ previews }, "swept expired download previews");
       } catch (err) {
         logger.warn({ err }, "sweeping expired sessions failed");
       }
