@@ -1,5 +1,5 @@
 import type { Me } from "@uroboros/contract";
-import { Outlet } from "@tanstack/react-router";
+import { Outlet, useNavigate } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { useState } from "react";
 
@@ -31,11 +31,13 @@ export function RootLayout() {
  */
 function Shell({ me }: { me: Me }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const isAdmin = me.role === "admin";
   usePushSync();
   return (
     <div className="page-glow min-h-dvh md:pl-64">
       <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-sidebar-border md:block">
-        <SidebarNav label="Primary" />
+        <SidebarNav label="Primary" isAdmin={isAdmin} />
       </aside>
       <div className="flex min-h-dvh flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur md:px-8">
@@ -55,6 +57,7 @@ function Shell({ me }: { me: Me }) {
               </SheetDescription>
               <SidebarNav
                 label="Mobile"
+                isAdmin={isAdmin}
                 onNavigate={() => {
                   setMenuOpen(false);
                 }}
@@ -67,7 +70,12 @@ function Shell({ me }: { me: Me }) {
           <div className="ml-auto flex items-center gap-2">
             <HealthBadge />
             <ThemeToggle />
-            <UserMenu me={me} />
+            <UserMenu
+              me={me}
+              onOpenAccount={() => {
+                void navigate({ to: "/account" });
+              }}
+            />
           </div>
         </header>
         <main className="flex-1 px-4 py-8 md:px-8 md:py-10">

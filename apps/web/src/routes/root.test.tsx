@@ -84,4 +84,9 @@ describe("app shell", () => {
     expect(["light", "dark"]).toContain(stored);
     expect(document.documentElement.classList.contains("dark")).toBe(stored === "dark");
   });
+
+  it("shows the Admin section only to admins", async () => {
+    await renderAt("/");
+    expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+  });
 });

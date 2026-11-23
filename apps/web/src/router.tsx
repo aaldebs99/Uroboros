@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 
 import { DownloadsPage, LibraryPage, SettingsPage, SubscriptionsPage } from "./routes";
+import { AccountRoute, AdminUsersRoute } from "./routes/account";
 import { RootLayout } from "./routes/root";
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -20,6 +21,12 @@ const routeTree = rootRoute.addChildren([
     component: SubscriptionsPage,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/settings", component: SettingsPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/account", component: AccountRoute }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/users",
+    component: AdminUsersRoute,
+  }),
 ]);
 
 /** Code-based routes (no file-route codegen). Tests pass a memory history. */

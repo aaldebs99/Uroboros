@@ -1,5 +1,5 @@
 import type { Me } from "@uroboros/contract";
-import { LogOut, UserRound } from "lucide-react";
+import { LogOut, Settings2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { signOut } from "@/api/auth";
@@ -23,11 +23,14 @@ const ROLE_LABEL = { admin: "Admin", member: "Member" } as const satisfies Recor
 /** The header's account menu: who is signed in, and Sign out. */
 export function UserMenu({
   me,
+  onOpenAccount = () => undefined,
   navigate = (url: string) => {
     window.location.assign(url);
   },
 }: {
   me: Me;
+  /** Opens the Account page (the shell passes the router's navigate). */
+  onOpenAccount?: () => void;
   /** Where sign-out sends the browser; injectable for tests. */
   navigate?: (url: string) => void;
 }) {
@@ -53,6 +56,10 @@ export function UserMenu({
           <Badge variant="secondary">{ROLE_LABEL[me.role]}</Badge>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onOpenAccount}>
+          <Settings2 aria-hidden />
+          Account
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
             void leave();

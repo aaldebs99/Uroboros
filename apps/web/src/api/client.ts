@@ -151,6 +151,19 @@ export async function postJson<S extends z.ZodType>(
   return parseBody(res, `POST ${path}`, schema);
 }
 
+/** Typed PATCH: `body` is sent as JSON; the answer is validated like `getJson`'s. */
+export async function patchJson<S extends z.ZodType>(
+  path: string,
+  schema: S,
+  body: unknown,
+): Promise<z.infer<S>> {
+  const res = await send("PATCH", path, {
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseBody(res, `PATCH ${path}`, schema);
+}
+
 /** POST that sends JSON and expects no body back (204). */
 export async function postNoContent(path: string, body?: unknown): Promise<void> {
   const res = await send("POST", path, {
