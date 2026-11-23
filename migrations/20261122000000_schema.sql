@@ -184,7 +184,9 @@ CREATE TABLE renditions (
   height INTEGER,
   duration DOUBLE PRECISION,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (media_id, profile_id, profile_revision)
+  UNIQUE (media_id, profile_id, profile_revision),
+  -- Two renditions never share a file.
+  UNIQUE (storage_key)
 );
 
 -- A user's library: entries pointing at shared renditions. Removing one deletes the row only.

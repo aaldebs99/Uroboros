@@ -64,6 +64,20 @@ describe("storage settings", () => {
     ).toThrow(/\{nope\}/);
   });
 
+  it.each(["{channel}/{title} [{profile}].{ext}", "{channel}/{title} [{id}].{ext}"])(
+    "refuses a layout %s that could put two files on one path",
+    (layout) => {
+      expect(() =>
+        loadConfig({
+          ...base,
+          UROBOROS_STORAGE: "filesystem",
+          UROBOROS_STORAGE_ROOT: "/media",
+          UROBOROS_STORAGE_LAYOUT: layout,
+        }),
+      ).toThrow(/UROBOROS_STORAGE_LAYOUT/);
+    },
+  );
+
   it("refuses an unknown backend", () => {
     expect(() => loadConfig({ ...base, UROBOROS_STORAGE: "ftp" })).toThrow(ConfigError);
   });

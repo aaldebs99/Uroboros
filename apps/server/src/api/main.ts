@@ -24,6 +24,7 @@ import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
 import { startClaimsSync } from "../auth/claimsSync.ts";
 import { createOidcProvider } from "../auth/oidc/provider.ts";
 import { sweeperDuty } from "../auth/sweeper.ts";
+import { reconcileDuty } from "../downloads/reconcile.ts";
 import { createApp } from "./app.ts";
 import { CLEANUP_MS, drain, settlesWithin } from "./drain.ts";
 
@@ -105,6 +106,14 @@ export async function startApi(
     DEFAULT_PREFIX,
     logger,
   );
+  const downloadContext = {
+    db,
+    valkey,
+    prefix: DEFAULT_PREFIX,
+    queues,
+    limits: config.downloads,
+    logger,
+  };
   let attached = false;
   const app = createApp(
     {
@@ -120,14 +129,7 @@ export async function startApi(
         databaseUrl: config.databaseUrl,
         ...(oidc === undefined ? {} : { oidc }),
       },
-      downloads: {
-        db,
-        valkey,
-        prefix: DEFAULT_PREFIX,
-        queues,
-        limits: config.downloads,
-        logger,
-      },
+      downloads: downloadContext,
       downloadEvents,
       store: createStore(config.storage),
     },
@@ -175,7 +177,10 @@ export async function startApi(
     leading = leadAndRun({
       lock: new PgLeaderLock(config.databaseUrl, URO_LEAD, { logger }),
       name: "leader",
-      work: sweeperDuty(db, logger),
+      work: (signal) =>
+        Promise.all([sweeperDuty(db, logger)(signal), reconcileDuty(downloadContext)(signal)]).then(
+          () => undefined,
+        ),
       shutdown: stop.signal,
       ...(opts.leaderRetryMs === undefined ? {} : { retryMs: opts.leaderRetryMs }),
       status: leader,

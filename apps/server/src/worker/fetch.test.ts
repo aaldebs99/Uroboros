@@ -134,6 +134,43 @@ describe("fetch", () => {
     expect(next.dispatched_at).not.toBeNull();
   });
 
+  it("never overwrites another revision's file when a profile is edited (filesystem)", async () => {
+    const u = await user();
+    const first = await queued("rev-1", [u]);
+    await fetchProcessor(
+      await h.deps(await downloadScenario()),
+      createCancelRegistry(),
+    )(job(first));
+    const edited = { ...first, revision: "edited00000", fetchKey: `${first.fetchKey}-edited` };
+    await testDb.db
+      .insertInto("downloads")
+      .values({
+        user_id: u.userId,
+        profile_id: first.profileId,
+        profile_revision: edited.revision,
+        args: JSON.stringify(first.args),
+        extractor: "generic",
+        video_id: "rev-1",
+        url: first.url,
+        fetch_key: edited.fetchKey,
+      })
+      .execute();
+    await fetchProcessor(
+      await h.deps(await downloadScenario()),
+      createCancelRegistry(),
+    )(job(edited));
+    const rows = await testDb.db
+      .selectFrom("renditions as r")
+      .innerJoin("media as m", "m.id", "r.media_id")
+      .select(["r.storage_key", "r.profile_revision"])
+      .where("m.video_id", "=", "rev-1")
+      .execute();
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.storage_key)).size).toBe(2);
+    for (const r of rows)
+      await expect(readdir(join(h.root, r.storage_key, ".."))).resolves.toBeDefined();
+  });
+
   it("fails a private video at once, keeping the stderr tail, without a retry", async () => {
     const u = await user();
     const data = await queued("private-1", [u]);
@@ -251,6 +288,30 @@ describe("fetch", () => {
     await expect(running).resolves.toBeUndefined();
     expect(await readdir(h.workDir)).toEqual([]);
     expect((await states("cancel-1"))[0]?.state).toBe("cancelled");
+  });
+});
+
+describe("cancel races", () => {
+  it("retries instead of finishing quietly when someone else started waiting during the cancel", async () => {
+    const [a, b] = [await user(), await user()];
+    const data = await queued("race-c", [a]);
+    const registry = createCancelRegistry();
+    const running = fetchProcessor(
+      await h.deps(await downloadScenario([{ sleepMs: 10_000 }])),
+      registry,
+    )(job(data));
+    await vi.waitFor(async () => {
+      expect((await states("race-c"))[0]?.state).toBe("running");
+    });
+    await testDb.db
+      .updateTable("downloads")
+      .set({ state: "cancelled" })
+      .where("user_id", "=", a.userId)
+      .where("video_id", "=", "race-c")
+      .execute();
+    await queued("race-c", [b]);
+    registry.cancel(data.fetchKey);
+    await expect(running).rejects.toThrow(/still waits/);
   });
 });
 

@@ -107,6 +107,39 @@ export async function queueDownload(
   return { outcome: stored === undefined ? "queued" : "done", downloadId: row.id };
 }
 
+/** A download row's fetch, as a job: everything a worker needs is on the row (the snapshot). */
+export interface FetchRow {
+  fetch_key: string;
+  extractor: string;
+  video_id: string;
+  url: string;
+  profile_id: string;
+  profile_revision: string;
+  args: unknown;
+  profile_name: string;
+}
+
+/** Adds the fetch job for `r` (ignored by BullMQ while a job with that id is live). */
+export async function addFetchJob(ctx: DownloadContext, r: FetchRow): Promise<void> {
+  const job: FetchJob = {
+    fetchKey: r.fetch_key,
+    extractor: r.extractor,
+    videoId: r.video_id,
+    url: r.url,
+    profileId: r.profile_id,
+    profileName: r.profile_name,
+    revision: r.profile_revision,
+    args: r.args as ProfileArgs,
+  };
+  await ctx.queues.download.add("fetch", job, {
+    jobId: r.fetch_key,
+    attempts: FETCH_ATTEMPTS,
+    backoff: { type: "exponential", delay: BACKOFF_MS },
+    removeOnComplete: true,
+    removeOnFail: true,
+  });
+}
+
 /**
  * Dispatches a person's oldest waiting downloads until they have `maxActivePerUser` dispatched, under a
  * per-user transaction lock so concurrent calls never over-dispatch. Each dispatch adds the fetch
@@ -156,25 +189,7 @@ export async function dispatchFor(ctx: DownloadContext, userId: string): Promise
         rows.map((r) => r.id),
       )
       .execute();
-    for (const r of rows) {
-      const job: FetchJob = {
-        fetchKey: r.fetch_key,
-        extractor: r.extractor,
-        videoId: r.video_id,
-        url: r.url,
-        profileId: r.profile_id,
-        profileName: r.profile_name,
-        revision: r.profile_revision,
-        args: r.args as ProfileArgs,
-      };
-      await ctx.queues.download.add("fetch", job, {
-        jobId: r.fetch_key,
-        attempts: FETCH_ATTEMPTS,
-        backoff: { type: "exponential", delay: BACKOFF_MS },
-        removeOnComplete: true,
-        removeOnFail: true,
-      });
-    }
+    for (const r of rows) await addFetchJob(ctx, r);
     return rows;
   });
   return picked.length;

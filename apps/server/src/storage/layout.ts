@@ -71,6 +71,35 @@ function tokenValue(token: LayoutToken, names: MediaNames): string {
   return TOKENS[token](names);
 }
 
+const bytes = (s: string) => Buffer.byteLength(s, "utf8");
+
+/**
+ * One segment of a layout. When it would pass 100 bytes, the longest token values are cut (never
+ * the literal text), so `[{id}]`, `[{profile}]` and `.{ext}` survive a long title and different
+ * videos or profiles never end up on the same path.
+ */
+function renderSegment(segment: string, names: MediaNames): string {
+  const parts = segment.split(/(\{[a-z_]+\})/).filter((p) => p !== "");
+  const values = parts.map((p) => {
+    const m = /^\{([a-z_]+)\}$/.exec(p);
+    return m === null ? null : sanitizeSegment(tokenValue(m[1] as LayoutToken, names));
+  });
+  const total = () => parts.reduce((n, p, k) => n + bytes(values[k] ?? p), 0);
+  let excess = total() - MAX_SEGMENT_BYTES;
+  while (excess > 0) {
+    let longest = -1;
+    values.forEach((v, k) => {
+      if (v !== null && v.length > 1 && (longest === -1 || bytes(v) > bytes(values[longest] ?? "")))
+        longest = k;
+    });
+    const v = longest === -1 ? null : values[longest];
+    if (v === null || v === undefined) break;
+    values[longest] = cutToBytes(v, Math.max(1, bytes(v) - excess)).trim() || "_";
+    excess = total() - MAX_SEGMENT_BYTES;
+  }
+  return sanitizeSegment(parts.map((p, k) => values[k] ?? p).join(""));
+}
+
 /**
  * The relative, `/`-separated path a layout gives. Every token value is sanitized on its own, and
  * every resulting segment is sanitized again, so no metadata can add a separator or a `..`.
@@ -78,13 +107,7 @@ function tokenValue(token: LayoutToken, names: MediaNames): string {
 export function renderLayout(layout: string, names: MediaNames): string {
   return layout
     .split("/")
-    .map((segment) =>
-      sanitizeSegment(
-        segment.replace(/\{([a-z_]+)\}/g, (_, token: string) =>
-          sanitizeSegment(tokenValue(token as LayoutToken, names)),
-        ),
-      ),
-    )
+    .map((segment) => renderSegment(segment, names))
     .join("/");
 }
 

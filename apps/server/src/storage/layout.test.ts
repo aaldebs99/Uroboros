@@ -73,6 +73,24 @@ describe("renderLayout", () => {
     ).toBe("Someone/unknown-date unknown-year Big Buck Bunny.mp4");
   });
 
+  it("keeps [id], [profile] and the extension however long the title is", () => {
+    for (const title of ["x".repeat(400), "字".repeat(60), "😀".repeat(40)]) {
+      const paths = new Set(
+        [
+          { ...bunny, title, id: "AAA" },
+          { ...bunny, title, id: "BBB" },
+          { ...bunny, title, id: "AAA", profile: "Best available" },
+        ].map((n) => renderLayout(DEFAULT_LAYOUT, n)),
+      );
+      expect(paths.size).toBe(3);
+      for (const p of paths) {
+        expect(p).toMatch(/\.mp4$/);
+        expect(p.split("/").every((seg) => Buffer.byteLength(seg) <= 100)).toBe(true);
+        expect(p.split("/")[1]).toMatch(/\[(AAA|BBB)\]$/);
+      }
+    }
+  });
+
   it("never leaves the root, whatever the metadata", () => {
     const root = "/media";
     for (const evil of ["../../etc", "/abs", "..", ".", "a/../../b", "\u0000"]) {

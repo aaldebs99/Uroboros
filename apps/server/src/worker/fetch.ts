@@ -144,6 +144,31 @@ function codecs(info: MediaInfo) {
   };
 }
 
+/**
+ * A filesystem layout names files by profile, not revision, so an edited profile would land on the
+ * file older library entries still point at: then the short revision is added before the extension.
+ * (S3 keys already carry the revision.)
+ */
+async function freeKey(
+  deps: WorkerDeps,
+  key: string,
+  own: { mediaId: string; profileId: string; revision: string },
+): Promise<string> {
+  const holder = await deps.db
+    .selectFrom("renditions")
+    .select(["media_id", "profile_id", "profile_revision"])
+    .where("storage_key", "=", key)
+    .executeTakeFirst();
+  const mine =
+    holder === undefined ||
+    (holder.media_id === own.mediaId &&
+      holder.profile_id === own.profileId &&
+      holder.profile_revision === own.revision);
+  if (mine) return key;
+  const ext = extname(key);
+  return `${key.slice(0, key.length - ext.length)} [${own.revision.slice(0, 8)}]${ext}`;
+}
+
 /** Stores the downloaded file and its sidecars, and records the rendition. */
 async function store(
   deps: WorkerDeps,
@@ -171,7 +196,11 @@ async function store(
     { extractor: data.extractor, videoId: data.videoId },
     info,
   );
-  const key = renditionKey(deps.storage, mediaId, data.profileId, data.revision, names);
+  const key = await freeKey(
+    deps,
+    renditionKey(deps.storage, mediaId, data.profileId, data.revision, names),
+    { mediaId, profileId: data.profileId, revision: data.revision },
+  );
   const size = await put(deps, key, file.path, ext);
   const thumbnail = file.path.slice(0, -extname(file.path).length) + ".jpg";
   const thumbnailKey = (await exists(thumbnail))
@@ -275,7 +304,12 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
       progress({ phase: "storing" });
       await settleDone(deps, data, await store(deps, data, file));
     } catch (err) {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted) {
+        // Someone may have started waiting while the cancel was on its way; their dispatch found
+        // this job still live and added nothing, so the fetch must run again for them.
+        if ((await waitingUsers(deps, data.fetchKey)).length === 0) return;
+        throw new Error("cancelled while someone still waits; retrying", { cause: err });
+      }
       const failure = toDownloadError(err);
       deps.logger.warn({ err, fetchKey: data.fetchKey, kind: failure.kind }, "fetch failed");
       if (await recordFailure(deps, job, failure)) throw new UnrecoverableError(failure.message);

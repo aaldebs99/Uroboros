@@ -39,6 +39,13 @@ workers do.
    tail. A stalled job (a dead worker) runs again; storage keys are deterministic and the rendition
    and library inserts are idempotent, so a rerun never duplicates anything.
 
+A job can also vanish while downloads still wait on it: past BullMQ's stall limit, or when a cancel
+or a finished fetch races someone else's dispatch of the same key. The api leader's reconciler
+(`src/downloads/reconcile.ts`, every minute) adds the job back, from the row's snapshot, for every
+active download dispatched more than two minutes ago whose job is gone, so nobody's slots are held
+by work nobody will do. An aborted fetch that someone started waiting on during the cancel retries
+instead of finishing quietly.
+
 ## Cancel and retry
 
 Cancelling marks that person's download `cancelled`. Only when no other active download waits on
@@ -79,7 +86,12 @@ stay. Exactly one profile is the default. A profile in use cannot be deleted. Se
   `.info.json` beside the media file. Tokens: `channel`, `uploader`, `title`, `id`, `extractor`,
   `upload_date` (YYYY-MM-DD, or `unknown-date`), `year`, `profile`, `ext`. Every token value, and
   then every path segment, is sanitized: no separators or control characters, no leading dots, at
-  most 100 bytes on a character boundary, never empty. Writes go to a temp file and are renamed
+  most 100 bytes on a character boundary, never empty. When a segment would pass 100 bytes, the
+  longest token values are cut, never the literal text, so `[{id}]`, `[{profile}]` and `.{ext}`
+  survive a long title. A custom layout must use `{id}`, `{profile}` and `{ext}`. A file name carries
+  the profile's name, not its revision, so when an edited profile's file would land on another
+  revision's path, the short revision is added before the extension; `renditions.storage_key` is
+  unique. Writes go to a temp file and are renamed
   into place. The stored key is the relative path, so a new layout affects new files only.
 
 `GET /api/library/{id}/file` streams the file with range support, named

@@ -101,8 +101,10 @@ function layoutProblems(layout: string): string[] {
     (t) =>
       `UROBOROS_STORAGE_LAYOUT has an unknown token {${t}} (known: ${LAYOUT_TOKENS.join(", ")})`,
   );
-  if (!layout.includes("{ext}"))
-    problems.push("UROBOROS_STORAGE_LAYOUT must end the file name with {ext}");
+  for (const needed of ["{id}", "{profile}", "{ext}"]) {
+    // Without these, two videos or two profiles could be stored on one path.
+    if (!layout.includes(needed)) problems.push(`UROBOROS_STORAGE_LAYOUT must use ${needed}`);
+  }
   return problems;
 }
 
