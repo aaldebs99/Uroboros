@@ -253,7 +253,7 @@ describe("content security policy", () => {
       { webDist: null, mediaOrigins: ["https://media.example.org"] },
     ).request("/api/health");
     expect(res.headers.get("content-security-policy")).toContain(
-      "media-src 'self' https://media.example.org",
+      "media-src 'self' blob: https://media.example.org",
     );
   });
 });
