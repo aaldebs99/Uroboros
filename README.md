@@ -51,10 +51,11 @@ The image takes its ffmpeg from an image in a private registry, so the `docker:*
 To run the real thing instead, `mise run docker:up` builds the image and starts Postgres, Valkey,
 RustFS and two replicas (each migrating as it starts, serving and downloading) behind Caddy on
 http://127.0.0.1:18080. `mise run docker:up:dev` is the same stack with the server reloading from
-source (`mise run docker:up:dev:build` after a dependency or Dockerfile change), and
-`mise run docker:down` stops either. For the UI against either stack, run
-`mise run dev:ui:docker`, which is `dev:ui` with `UROBOROS_API_URL=http://127.0.0.1:18080`
-(plain `dev:ui` proxies to a host-run `dev:server` on :18081). Every host port can be moved with an environment
+source (`mise run docker:up:dev:build` after a dependency or Dockerfile change), listening on port
+18080 on every interface so other devices on the network can reach it (Postgres, Valkey and
+RustFS stay on loopback), and `mise run docker:down` stops either. For the UI against either
+stack, run `mise run dev:ui:docker`, which is `dev:ui` with `UROBOROS_API_URL=http://127.0.0.1:18080`,
+also on every interface (plain `dev:ui` proxies to a host-run `dev:server` on :18081). Every host port can be moved with an environment
 variable (`UROBOROS_PORT`, `UROBOROS_POSTGRES_PORT`, `UROBOROS_VALKEY_PORT`, `UROBOROS_S3_PORT`,
 `UROBOROS_S3_CONSOLE_PORT`, `UROBOROS_UI_PORT`, `UROBOROS_BIND`).
 

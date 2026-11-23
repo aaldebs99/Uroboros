@@ -196,7 +196,7 @@ env = { COMPOSE_BAKE = "false" }
 run = "docker compose up --build"
 
 [tasks."docker:up:dev"]
-description = "Run the dev stack with hot reload: the server from source (downloads included) behind Caddy on http://127.0.0.1:18080, deps on loopback ports (Vite against it: mise run dev:ui:docker)"
+description = "Run the dev stack with hot reload: the server from source (downloads included) behind Caddy on port 18080 on every interface, deps on loopback ports (Vite against it: mise run dev:ui:docker)"
 # COMPOSE_BAKE=false: compose's bake path builds the images in parallel, and on a
 # containerd-snapshotter host that was observed to trip BuildKit's overlay cache-mount race
 # ("device or resource busy"); the classic sequential builder did not. A retry also works.
@@ -261,10 +261,11 @@ description = "Run the web UI with HMR on http://127.0.0.1:18173 ($UROBOROS_UI_P
 run = "pnpm -F @uroboros/web dev"
 
 [tasks."dev:ui:docker"]
-description = "Same as dev:ui, proxying /api to the compose stack's Caddy (docker:up or docker:up:dev) on http://127.0.0.1:18080"
-# Honours UROBOROS_PORT, the same override that moves Caddy's host port.
+description = "Same as dev:ui, on every interface like the dev stack, proxying /api to the compose stack's Caddy (docker:up or docker:up:dev) on http://127.0.0.1:18080"
+# Honours UROBOROS_PORT, the same override that moves Caddy's host port. `--host` overrides
+# vite.config.ts's loopback host, so a phone on the network can use the hot-reloading UI too.
 env = { UROBOROS_API_URL = "http://127.0.0.1:{{ get_env(name='UROBOROS_PORT', default='18080') }}" }
-run = "pnpm -F @uroboros/web dev"
+run = "pnpm -F @uroboros/web dev --host"
 
 [tasks.icons]
 description = "Regenerate the PWA icons in apps/web/public from assets/logos/uroboros-transparent.svg; commit the result"

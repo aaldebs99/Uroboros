@@ -10,9 +10,14 @@
 #             Migrations apply as a replica starts, reading ./migrations from the host, so a new
 #             file applies on the next restart (an edit under apps/server/src restarts it).
 #             A dependency or Dockerfile change needs `mise run docker:up:dev:build`.
+#   caddy     published on every interface (port 18080, UROBOROS_PORT), not only loopback as in
+#             compose.yaml, so phones and other machines on the network can reach the dev stack.
+#             Anyone who can reach the port can reach the sign-in page, and the dev bootstrap
+#             account is admin / admin.
 #   host ports on loopback for Postgres (15432), Valkey (16379) and RustFS (19000, console
-#             19001), which `mise run dev:deps` uses for a server run on the host. Each has an env
-#             override (UROBOROS_POSTGRES_PORT, UROBOROS_VALKEY_PORT, UROBOROS_S3_PORT,
+#             19001), which `mise run dev:deps` uses for a server run on the host. They stay on
+#             loopback because their credentials are fixed dev ones. Each has an env override
+#             (UROBOROS_POSTGRES_PORT, UROBOROS_VALKEY_PORT, UROBOROS_S3_PORT,
 #             UROBOROS_S3_CONSOLE_PORT); the container side keeps the services' own ports.
 #
 # The dev image is tagged uroboros:dev so it never overwrites the production uroboros:local.
@@ -55,3 +60,9 @@ services:
       - ./apps/server/src:/src/apps/server/src:ro
       - ./packages/contract/src:/src/packages/contract/src:ro
       - ./packages/ytdlp/src:/src/packages/ytdlp/src:ro
+
+  caddy:
+    # `!override` replaces compose.yaml's loopback mapping instead of adding a second one beside it
+    # (two mappings of one host port would collide). No host address: every interface, IPv4 and IPv6.
+    ports: !override
+      - "${UROBOROS_PORT:-18080}:8080"
