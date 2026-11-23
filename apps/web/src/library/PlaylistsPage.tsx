@@ -61,8 +61,8 @@ export function PlaylistsPage() {
   const sources = useSources();
   const list = sources.data ?? [];
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-6">
-      <PageHeader title="Library" description="Everything you have downloaded, in one place." />
+    <section className="grid w-full gap-6">
+      <PageHeader title="Playlists" />
       <ViewTabs />
       {sources.isError ? <p className="text-destructive">{errorText(sources.error)}</p> : null}
       {sources.isSuccess && list.length === 0 ? (

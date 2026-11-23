@@ -10,7 +10,7 @@ import { LibraryGrid } from "./LibraryGrid";
 export function PlaylistPage({ sourceId }: { sourceId: string }) {
   const source = useSources().data?.find((s) => s.id === sourceId);
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-6">
+    <section className="grid w-full gap-6">
       <PageHeader
         title={source?.title ?? "Playlist"}
         description={

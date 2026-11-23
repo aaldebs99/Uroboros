@@ -42,14 +42,37 @@ afterEach(() => {
 });
 
 describe("app shell", () => {
-  it("renders the four nav links", async () => {
+  it("renders the nav links, with the library's views indented under Library", async () => {
     await renderAt("/");
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
     const names = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(names).toEqual(["Library", "Downloads", "Subscriptions", "Settings"]);
+    expect(names).toEqual([
+      "Library",
+      "Videos",
+      "Channels",
+      "Playlists",
+      "Downloads",
+      "Subscriptions",
+      "Settings",
+    ]);
+  });
+
+  it("marks the current library view, and hides the views on the mini rail", async () => {
+    await renderAt("/library/channels");
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const views = within(nav).getByRole("list", { name: "Library views" });
+    expect(within(views).getByRole("link", { name: "Channels" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(views).getByRole("link", { name: "Videos" })).not.toHaveAttribute("aria-current");
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
+    expect(within(nav).queryByRole("list", { name: "Library views" })).not.toBeInTheDocument();
   });
 
   it("navigating to /subscriptions shows Coming soon", async () => {

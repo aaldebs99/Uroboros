@@ -1,19 +1,18 @@
 import { Link } from "@tanstack/react-router";
 
-const TABS = [
-  { to: "/", label: "Videos" },
-  { to: "/library/channels", label: "Channels" },
-  { to: "/library/playlists", label: "Playlists" },
-] as const;
+import { LIBRARY_VIEWS } from "@/nav";
 
-/** The library's views: links between routes, underlined when current. */
+/**
+ * The library's views as underlined tabs, on phones only: from `md` up they are rows under
+ * Library in the side navigation.
+ */
 export function ViewTabs() {
   return (
     <nav
       aria-label="Library views"
-      className="flex gap-6 overflow-x-auto overflow-y-hidden border-b border-border"
+      className="flex gap-6 overflow-x-auto overflow-y-hidden border-b border-border md:hidden"
     >
-      {TABS.map((t) => (
+      {LIBRARY_VIEWS.map((t) => (
         <Link
           key={t.to}
           to={t.to}

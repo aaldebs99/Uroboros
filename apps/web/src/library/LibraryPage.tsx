@@ -40,8 +40,8 @@ export function LibraryPage({
   const narrowed =
     filters.q !== undefined || filters.tag !== undefined || filters.watched !== undefined;
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-6">
-      <PageHeader title="Library" description="Everything you have downloaded, in one place." />
+    <section className="grid w-full gap-6">
+      <PageHeader title="Library" />
       <ViewTabs />
       <ChipRow>
         {WATCHED.map((w) => (

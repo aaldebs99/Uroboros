@@ -10,7 +10,7 @@ import { LibraryGrid } from "./LibraryGrid";
 export function ChannelPage({ channelKey }: { channelKey: string }) {
   const channel = useChannels().data?.find((c) => c.key === channelKey);
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-6">
+    <section className="grid w-full gap-6">
       <header className="flex items-center gap-4 border-b border-border pb-4">
         <Avatar name={channel?.name ?? null} className="size-20 text-2xl" />
         <div className="min-w-0">

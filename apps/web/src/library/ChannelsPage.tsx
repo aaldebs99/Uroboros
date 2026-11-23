@@ -14,8 +14,8 @@ export function ChannelsPage() {
   const channels = useChannels();
   const list = channels.data ?? [];
   return (
-    <section className="mx-auto grid w-full max-w-7xl gap-6">
-      <PageHeader title="Library" description="Everything you have downloaded, in one place." />
+    <section className="grid w-full gap-6">
+      <PageHeader title="Channels" />
       <ViewTabs />
       {channels.isError ? <p className="text-destructive">{errorText(channels.error)}</p> : null}
       {channels.isSuccess && list.length === 0 ? (
@@ -23,7 +23,7 @@ export function ChannelsPage() {
           Channels of the videos you download show up here.
         </EmptyState>
       ) : (
-        <ul className="grid gap-1 md:grid-cols-2">
+        <ul className="grid gap-1 sm:grid-cols-[repeat(auto-fill,minmax(20rem,1fr))]">
           {list.map((c) => (
             <li key={c.key}>
               <Link
