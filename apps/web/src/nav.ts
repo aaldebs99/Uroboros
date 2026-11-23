@@ -1,7 +1,21 @@
-import { Download, Library, Rss, Settings, Users, type LucideIcon } from "lucide-react";
+import {
+  Download,
+  Library,
+  Rss,
+  Settings,
+  SlidersHorizontal,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 export type NavItem = {
-  to: "/" | "/downloads" | "/subscriptions" | "/settings" | "/admin/users";
+  to:
+    | "/"
+    | "/downloads"
+    | "/subscriptions"
+    | "/settings"
+    | "/admin/users"
+    | "/admin/format-profiles";
   label: string;
   icon: LucideIcon;
   blurb: string;
@@ -31,5 +45,11 @@ export const ADMIN_ITEMS: readonly NavItem[] = [
     label: "Users",
     icon: Users,
     blurb: "Who can sign in, and what they can do.",
+  },
+  {
+    to: "/admin/format-profiles",
+    label: "Format profiles",
+    icon: SlidersHorizontal,
+    blurb: "The presets people pick from when downloading.",
   },
 ];

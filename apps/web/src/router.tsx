@@ -6,8 +6,9 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 
-import { LibraryPage, SettingsPage, SubscriptionsPage } from "./routes";
-import { AccountRoute, AdminUsersRoute } from "./routes/account";
+import { LibraryPage } from "./library/LibraryPage";
+import { SettingsPage, SubscriptionsPage } from "./routes";
+import { AccountRoute, AdminProfilesRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
 import { RootLayout } from "./routes/root";
 
@@ -27,6 +28,11 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/admin/users",
     component: AdminUsersRoute,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/format-profiles",
+    component: AdminProfilesRoute,
   }),
 ]);
 
