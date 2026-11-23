@@ -23,6 +23,12 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
     dbStartupGraceSecs: 0,
     migrationsDir: MIGRATIONS,
     push: { publicBaseUrl: null, subject: null, vapid: null, allowedHosts: [], maxDevices: 10 },
+    auth: {
+      sessionTtlHours: 720,
+      trustProxy: false,
+      local: { enabled: true, bootstrap: null },
+      oidc: null,
+    },
     ...over,
   };
 }

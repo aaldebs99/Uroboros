@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { z } from "zod";
+import { authEnvProblems, authEnvSchema, toAuthConfig, type AuthConfig } from "./auth/config.ts";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 import { vapidPairProblem } from "./push/keys.ts";
 import { DEFAULT_MAX_DEVICES, type PushSettings } from "./push/service.ts";
@@ -24,6 +25,8 @@ export interface Config {
   migrationsDir: string | null;
   /** Web Push (docs/push.md); on only with an https `publicBaseUrl`. */
   push: PushSettings;
+  /** Sign-in: sessions, local accounts, OIDC (docs/auth.md). */
+  auth: AuthConfig;
 }
 
 /** What the manual migrate command needs: the database and where the SQL files are. */
@@ -148,8 +151,12 @@ const configSchema = z
     UROBOROS_PUSH_MAX_DEVICES: unsetIfEmpty(
       positiveInt("UROBOROS_PUSH_MAX_DEVICES").prefault(String(DEFAULT_MAX_DEVICES)),
     ),
+    ...authEnvSchema.shape,
   })
   .superRefine((env, ctx) => {
+    for (const [path, message] of authEnvProblems(env, env.UROBOROS_PUBLIC_BASE_URL)) {
+      ctx.addIssue({ code: "custom", path: [path], message });
+    }
     const pub = env.UROBOROS_VAPID_PUBLIC_KEY;
     const priv = env.UROBOROS_VAPID_PRIVATE_KEY;
     if (pub === undefined && priv === undefined) return;
@@ -217,6 +224,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       allowedHosts: e.UROBOROS_PUSH_ALLOWED_HOSTS ?? [...DEFAULT_ALLOWED_HOSTS],
       maxDevices: e.UROBOROS_PUSH_MAX_DEVICES,
     },
+    auth: toAuthConfig(e, e.UROBOROS_PUBLIC_BASE_URL),
   };
 }
 
