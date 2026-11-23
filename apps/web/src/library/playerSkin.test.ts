@@ -5,17 +5,22 @@ import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const skinCss = readFileSync(require.resolve("@videojs/react/video/neutral-skin.css"), "utf8");
-/** The packaged skin's volume popover, in one of the package's two builds. */
-const volumePopover = (build: "dev" | "default") =>
+/** A file of the packaged skin, in one of the package's two builds. */
+const skinFile = (build: "dev" | "default", path: string) =>
   readFileSync(
     join(
       dirname(require.resolve("@videojs/react/video")),
       "../../..",
       build,
-      "internal/skins/neutral-video/components/menus/volume-popover.js",
+      "internal/skins",
+      path,
     ),
     "utf8",
   );
+const volumePopover = (build: "dev" | "default") =>
+  skinFile(build, "neutral-video/components/menus/volume-popover.js");
+const gestures = (build: "dev" | "default") =>
+  skinFile(build, "shared/skins/shared/video/behaviors/gestures.js");
 const ourCss = readFileSync(resolve(import.meta.dirname, "player.css"), "utf8");
 
 describe("player.css against the Neutral video skin", () => {
@@ -35,6 +40,17 @@ describe("patches/@videojs__react.patch", () => {
     "opens the volume slider as soon as the pointer reaches the mute button (%s build)",
     (build) => {
       expect(volumePopover(build)).toMatch(/openOnHover: true,\s*delay: 0,/);
+    },
+  );
+
+  it.each(["dev", "default"] as const)(
+    "seeks on a double tap at the sides by touch only, so a mouse double-click is fullscreen (%s build)",
+    (build) => {
+      for (const region of ["left", "right"]) {
+        expect(gestures(build)).toMatch(
+          new RegExp(`action: "seekStep",\\s*pointer: "touch",\\s*region: "${region}"`),
+        );
+      }
     },
   );
 });

@@ -91,6 +91,10 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
 - Shortcuts: Space and `k` play and pause, `j`/`l` seek 10 s, the arrows 5 s (`PlayerHotkeys`), `,`
   and `.` pause and step one frame, `m` mute, `f` fullscreen, `c` captions, `i`
   picture-in-picture, `0`-`9` jump, `<`/`>` speed.
+- Pointer gestures: on a phone, a tap shows or hides the controls and a double tap at either side
+  seeks 10 s (the centre's is fullscreen); with a mouse, a click plays and pauses and a double-click
+  anywhere is fullscreen, never a seek (the skin's side double taps are made touch-only by
+  `patches/@videojs__react.patch`).
 - The volume and mute are remembered in this browser; opening a video plays it.
 
 ## List row

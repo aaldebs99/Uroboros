@@ -29,8 +29,11 @@ allowBuilds:
 
 # Local patches to dependencies, keyed by name so every version gets them and an upgrade the patch
 # no longer applies to fails the install instead of silently dropping it.
-# - @videojs/react: the Neutral video skin opens its volume slider 200 ms after the pointer reaches
-#   the mute button; Uroboros opens it at once (both builds, dist/dev and dist/default). The skin
-#   has no prop or CSS setting for it. apps/web/src/library/playerSkin.test.ts checks it applied.
+# - @videojs/react, two changes to the Neutral video skin, in both builds (dist/dev and
+#   dist/default), neither of which has a prop or CSS setting
+#   (apps/web/src/library/playerSkin.test.ts checks both applied):
+#   - the volume slider opens as soon as the pointer reaches the mute button, not 200 ms later;
+#   - a double tap at the sides seeks 10 s by touch only, so on desktop a double-click anywhere is
+#     fullscreen (the centre's gesture then covers the whole player), as on YouTube.
 patchedDependencies:
   "@videojs/react": patches/@videojs__react.patch

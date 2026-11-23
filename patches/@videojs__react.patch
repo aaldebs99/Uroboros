@@ -11,6 +11,26 @@ index 02dfa37fc053a390bc94cc35d8d5e9bafd8cdcbf..27f1c8cc719a795f9d0fa6e98a509a0b
  			closeDelay: 100,
  			side,
  			...props,
+diff --git a/dist/default/internal/skins/shared/skins/shared/video/behaviors/gestures.js b/dist/default/internal/skins/shared/skins/shared/video/behaviors/gestures.js
+index 171d55b0f784a91f19e7e4ffe2816642da6dd71a..430859c9e8bbd6d21242a5e8f1d9d97998bbe163 100644
+--- a/dist/default/internal/skins/shared/skins/shared/video/behaviors/gestures.js
++++ b/dist/default/internal/skins/shared/skins/shared/video/behaviors/gestures.js
+@@ -33,6 +33,7 @@ function VideoGestures(t0) {
+ 				disabled,
+ 				type: "doubletap",
+ 				action: "seekStep",
++				pointer: "touch",
+ 				region: "left"
+ 			}),
+ 			/* @__PURE__ */ jsx(Gesture, {
+@@ -45,6 +46,7 @@ function VideoGestures(t0) {
+ 				disabled,
+ 				type: "doubletap",
+ 				action: "seekStep",
++				pointer: "touch",
+ 				region: "right"
+ 			})
+ 		] });
 diff --git a/dist/dev/internal/skins/neutral-video/components/menus/volume-popover.js b/dist/dev/internal/skins/neutral-video/components/menus/volume-popover.js
 index cf103ec4b511eaaf5bf99386a48c3c5f4db60981..89b99266d6a0a14daeb654028ed90f047967aee8 100644
 --- a/dist/dev/internal/skins/neutral-video/components/menus/volume-popover.js
@@ -24,3 +44,23 @@ index cf103ec4b511eaaf5bf99386a48c3c5f4db60981..89b99266d6a0a14daeb654028ed90f04
  			closeDelay: 100,
  			side,
  			...props,
+diff --git a/dist/dev/internal/skins/shared/skins/shared/video/behaviors/gestures.js b/dist/dev/internal/skins/shared/skins/shared/video/behaviors/gestures.js
+index cbb482da7db1f59a70f7f5cb7ccc6f81cfa91220..3f2b3491975c7c323069cf84a911a4f8bbdd8f56 100644
+--- a/dist/dev/internal/skins/shared/skins/shared/video/behaviors/gestures.js
++++ b/dist/dev/internal/skins/shared/skins/shared/video/behaviors/gestures.js
+@@ -33,6 +33,7 @@ function VideoGestures(t0) {
+ 				disabled,
+ 				type: "doubletap",
+ 				action: "seekStep",
++				pointer: "touch",
+ 				region: "left"
+ 			}),
+ 			/* @__PURE__ */ jsx(Gesture, {
+@@ -45,6 +46,7 @@ function VideoGestures(t0) {
+ 				disabled,
+ 				type: "doubletap",
+ 				action: "seekStep",
++				pointer: "touch",
+ 				region: "right"
+ 			})
+ 		] });
