@@ -712,6 +712,17 @@
         ],
         "type": "object"
       },
+      "KeptBody": {
+        "properties": {
+          "kept": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kept"
+        ],
+        "type": "object"
+      },
       "LibraryEntry": {
         "properties": {
           "addedAt": {
@@ -3318,6 +3329,50 @@
           }
         },
         "summary": "Save the file: streamed with range support, or a redirect to a presigned URL",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/kept": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeptBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Saved"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "summary": "Keep the entry (retention never removes it) or stop keeping it",
         "tags": [
           "library"
         ]

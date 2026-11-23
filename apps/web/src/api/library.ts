@@ -117,5 +117,9 @@ export const reportProgress = (id: string, position: number, duration: number) =
 export const setWatched = (id: string, watched: boolean) =>
   putNoContent(`/api/library/${encodeURIComponent(id)}/watched`, { watched });
 
+/** Keep an entry from a subscription: retention never removes it. */
+export const setKept = (id: string, kept: boolean) =>
+  putNoContent(`/api/library/${encodeURIComponent(id)}/kept`, { kept });
+
 export const setTags = (id: string, tags: string[]) =>
   putJson(`/api/library/${encodeURIComponent(id)}/tags`, TagsBody, { tags });

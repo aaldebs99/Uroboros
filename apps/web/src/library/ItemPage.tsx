@@ -9,6 +9,7 @@ import {
   itemKey,
   reportProgress,
   setTags,
+  setKept,
   setWatched,
   useItem,
   useRemoveEntry,
@@ -151,6 +152,27 @@ export function ItemPage({ entryId }: { entryId: string }) {
               />
               Watched
             </label>
+            {it.subscription === null ? null : (
+              <label
+                className="flex items-center gap-2 text-sm"
+                title="Retention never removes this video"
+              >
+                <Switch
+                  aria-label="Keep"
+                  aria-describedby="keep-help"
+                  checked={it.kept}
+                  onCheckedChange={(kept) => {
+                    setKept(entryId, kept)
+                      .then(() => client.invalidateQueries({ queryKey: itemKey(entryId) }))
+                      .catch(fail);
+                  }}
+                />
+                Keep
+                <span id="keep-help" className="sr-only">
+                  Retention never removes this video
+                </span>
+              </label>
+            )}
             <Button variant="secondary" asChild>
               <a href={`/api/library/${entryId}/file`} download>
                 <Download aria-hidden /> Save

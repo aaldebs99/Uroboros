@@ -110,6 +110,31 @@ describe("ItemPage", () => {
   });
 });
 
+describe("ItemPage Keep", () => {
+  it("toggles Keep on an entry from a subscription", async () => {
+    const fromSub = {
+      ...item,
+      subscription: { id: "0190a3f2-7c1e-7000-8000-0000000000aa", title: "Blender" },
+    };
+    const calls = fakeApi({
+      [`GET /api/library/${ID}`]: () => Response.json(fromSub),
+      [`PUT /api/library/${ID}/kept`]: () => new Response(null, { status: 204 }),
+    });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await userEvent.click(await screen.findByRole("switch", { name: "Keep" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.path.endsWith("/kept"))?.body).toEqual({ kept: true });
+    });
+  });
+
+  it("shows no Keep for an entry no subscription brought", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await screen.findByRole("switch", { name: "Watched" });
+    expect(screen.queryByRole("switch", { name: "Keep" })).not.toBeInTheDocument();
+  });
+});
+
 describe("ItemPage suggestions", () => {
   it("suggests the rest of the library beside the player, without the video playing", async () => {
     const other = { ...item, id: "0190a3f2-7c1e-7000-8000-0000000000d1", title: "Sintel" };

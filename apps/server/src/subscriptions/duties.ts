@@ -4,6 +4,7 @@ import type { Database } from "../db/schema.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { periodicDuty } from "../shared/periodic.ts";
 import { scheduleCheck, type CheckJob } from "./queue.ts";
+import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
 
 export const RESYNC_EVERY_MS = 300_000;
 
@@ -42,7 +43,7 @@ export async function resyncSchedulers(
   return { added, removed };
 }
 
-/** The leader's automation duties: keep schedules in step (retention and the reaper join it). */
+/** The leader's automation duties: keep schedules in step and apply retention hourly. */
 export function automationDuties(ctx: DownloadContext) {
   const resync = periodicDuty(
     "scheduler re-sync",
@@ -50,7 +51,16 @@ export function automationDuties(ctx: DownloadContext) {
     () => resyncSchedulers(ctx.db, ctx.queues.automation),
     ctx.logger,
   );
+  const retention = periodicDuty(
+    "retention",
+    RETENTION_EVERY_MS,
+    async () => {
+      const removed = await applyRetention(ctx.db);
+      if (removed > 0) ctx.logger.info({ removed }, "retention removed library entries");
+    },
+    ctx.logger,
+  );
   return async (signal: AbortSignal): Promise<void> => {
-    await Promise.all([resync(signal)]);
+    await Promise.all([resync(signal), retention(signal)]);
   };
 }

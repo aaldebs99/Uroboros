@@ -1,5 +1,12 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { ApiErrorBody, LibraryItem, ProgressBody, TagsBody, WatchedBody } from "@uroboros/contract";
+import {
+  ApiErrorBody,
+  KeptBody,
+  LibraryItem,
+  ProgressBody,
+  TagsBody,
+  WatchedBody,
+} from "@uroboros/contract";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
@@ -80,6 +87,15 @@ const watchedRoute = createRoute({
   responses: { 204: { description: "Saved" }, 404: error("No such entry") },
 });
 
+const keptRoute = createRoute({
+  method: "put",
+  path: "/api/library/{id}/kept",
+  tags: ["library"],
+  summary: "Keep the entry (retention never removes it) or stop keeping it",
+  request: { params: z.object({ id }), ...body(KeptBody) },
+  responses: { 204: { description: "Saved" }, 404: error("No such entry") },
+});
+
 const tagsRoute = createRoute({
   method: "put",
   path: "/api/library/{id}/tags",
@@ -139,6 +155,16 @@ export function registerItemRoutes(
       { id: entry.media_id, duration: entry.duration },
       c.req.valid("json").watched,
     );
+    return c.body(null, 204);
+  });
+
+  app.openapi(keptRoute, async (c) => {
+    const entry = await ownEntry(db, currentPrincipal(c).userId, c.req.valid("param").id);
+    await db
+      .updateTable("library_entries")
+      .set({ kept: c.req.valid("json").kept })
+      .where("id", "=", entry.id)
+      .execute();
     return c.body(null, 204);
   });
 

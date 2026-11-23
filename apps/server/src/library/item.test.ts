@@ -183,6 +183,40 @@ describe("library item", () => {
     expect((await item()).progress?.watched).toBe(true);
   });
 
+  it("stamps watched_at once and clears it on unwatch", async () => {
+    const watchedAt = async () => {
+      const row = await testDb.db
+        .selectFrom("watch_progress")
+        .innerJoin("library_entries as e", "e.media_id", "watch_progress.media_id")
+        .select("watch_progress.watched_at")
+        .where("e.id", "=", entryId)
+        .where("watch_progress.user_id", "=", alice.userId)
+        .executeTakeFirstOrThrow();
+      return row.watched_at;
+    };
+    await put(alice, `/api/library/${entryId}/watched`, { watched: false });
+    expect(await watchedAt()).toBeNull();
+    await put(alice, `/api/library/${entryId}/progress`, { position: 95, duration: 100 });
+    const first = await watchedAt();
+    expect(first).not.toBeNull();
+    await put(alice, `/api/library/${entryId}/progress`, { position: 99, duration: 100 });
+    await put(alice, `/api/library/${entryId}/watched`, { watched: true });
+    expect(await watchedAt()).toEqual(first);
+    await put(alice, `/api/library/${entryId}/watched`, { watched: false });
+    expect(await watchedAt()).toBeNull();
+    await put(alice, `/api/library/${entryId}/watched`, { watched: true });
+    expect(await watchedAt()).not.toBeNull();
+  });
+
+  it("sets and clears kept (204)", async () => {
+    expect((await item()).kept).toBe(false);
+    expect((await put(alice, `/api/library/${entryId}/kept`, { kept: true })).status).toBe(204);
+    expect((await item()).kept).toBe(true);
+    await put(alice, `/api/library/${entryId}/kept`, { kept: false });
+    expect((await item()).kept).toBe(false);
+    expect((await put(bob, `/api/library/${entryId}/kept`, { kept: true })).status).toBe(404);
+  });
+
   it("replaces and normalizes tags", async () => {
     const res = await put(alice, `/api/library/${entryId}/tags`, {
       tags: ["Music", " live ", "music"],
