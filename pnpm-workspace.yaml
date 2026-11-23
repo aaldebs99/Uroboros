@@ -26,3 +26,11 @@ allowBuilds:
   # swagger-ui-dist depends on @scarf/scarf, whose install script reports the download to a
   # telemetry service. The api serves swagger-ui-dist's static files and never runs scarf.
   "@scarf/scarf": false
+
+# Local patches to dependencies, keyed by name so every version gets them and an upgrade the patch
+# no longer applies to fails the install instead of silently dropping it.
+# - @videojs/react: the Neutral video skin opens its volume slider 200 ms after the pointer reaches
+#   the mute button; Uroboros opens it at once (both builds, dist/dev and dist/default). The skin
+#   has no prop or CSS setting for it. apps/web/src/library/playerSkin.test.ts checks it applied.
+patchedDependencies:
+  '@videojs/react': patches/@videojs__react.patch

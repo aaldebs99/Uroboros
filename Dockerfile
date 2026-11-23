@@ -36,6 +36,8 @@ RUN npm install --global --ignore-scripts --no-fund --no-audit "pnpm@${PNPM_VERS
 # and the install-script policy (`allowBuilds`); --frozen-lockfile installs exactly what
 # pnpm-lock.yaml records and never resolves a version.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# The local dependency patches pnpm-workspace.yaml names (patchedDependencies).
+COPY patches patches
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY packages/contract/package.json packages/contract/
