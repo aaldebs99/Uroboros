@@ -1,5 +1,6 @@
 import type { DownloadErrorKind } from "@uroboros/contract";
 import { toDownloadError } from "../downloads/errors.ts";
+import { recordPlaylistItems } from "../downloads/sources.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
 import { filterAll } from "./decisions.ts";
 import { freeLease, releaseLease, renewLease, takeLease } from "./lease.ts";
@@ -137,6 +138,16 @@ async function decideAll(
   return { decisions: [...existing, ...filtered], backfill };
 }
 
+/**
+ * A followed playlist is one of its follower's YouTube playlists (docs/sharing.md): each check
+ * records it with the listing's order. Channels are not recorded.
+ */
+async function recordFollowed(deps: WorkerDeps, sub: SubscriptionRow, merged: Candidate[]) {
+  if (sub.kind !== "playlist") return;
+  const ref = { extractor: sub.extractor, sourceId: sub.source_id, title: sub.title, url: sub.url };
+  await deps.db.transaction().execute((tx) => recordPlaylistItems(tx, sub.user_id, ref, merged));
+}
+
 /** Runs one check; "stale" when the filters changed while it ran (it then recorded nothing). */
 async function runCheck(
   deps: WorkerDeps,
@@ -144,6 +155,7 @@ async function runCheck(
   signal?: AbortSignal,
 ): Promise<"done" | "stale"> {
   const { merged, warning } = await listAll(deps, sub, signal);
+  await recordFollowed(deps, sub, merged);
   const known = await recorded(deps, sub, merged);
   const now = new Date();
   const fresh = merged.filter((c) => isFresh(known.get(keyOf(c)), now));

@@ -107,6 +107,42 @@ async function remaining(ids: string[]): Promise<string[]> {
 }
 
 describe("retention", () => {
+  it("a video in one of its owner's playlists is spared like Keep", async () => {
+    const u = await signedIn(t.db, { username: "r-listed" });
+    const sub = await rule(u.userId, { keep_last: 1, delete_watched_after_days: 1 });
+    const listed = await entry(u.userId, {
+      subscriptionId: sub,
+      uploadDate: "20250101",
+      watchedDaysAgo: 30,
+    });
+    const newest = await entry(u.userId, { subscriptionId: sub, uploadDate: "20260301" });
+    const older = await entry(u.userId, { subscriptionId: sub, uploadDate: "20260201" });
+    const list = await t.db
+      .insertInto("playlists")
+      .values({ user_id: u.userId, name: "Favourites" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await t.db
+      .insertInto("playlist_items")
+      .values({ playlist_id: list.id, user_id: u.userId, entry_id: listed, position: 0 })
+      .execute();
+    await applyRetention(t.db);
+    expect(await remaining([listed, newest, older])).toEqual([listed, newest]);
+  });
+
+  it("a video shared on its own is spared", async () => {
+    const u = await signedIn(t.db, { username: "r-shared" });
+    const sub = await rule(u.userId, { delete_watched_after_days: 1 });
+    const shared = await entry(u.userId, { subscriptionId: sub, watchedDaysAgo: 30 });
+    const plain = await entry(u.userId, { subscriptionId: sub, watchedDaysAgo: 30 });
+    await t.db
+      .insertInto("shares")
+      .values({ owner_id: u.userId, entry_id: shared, mode: "link", code: `c-${shared}` })
+      .execute();
+    await applyRetention(t.db);
+    expect(await remaining([shared, plain])).toEqual([shared]);
+  });
+
   it("keeps the newest N by upload date", async () => {
     const u = await signedIn(t.db, { username: "r-keep" });
     const sub = await rule(u.userId, { keep_last: 2 });
