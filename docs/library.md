@@ -56,7 +56,7 @@ Per entry and person: lower-cased, trimmed, 1–32 characters, at most 20 (`PUT
 
 ## Subtitles and chapters
 
-The worker saves subtitles with every download: `--write-subs --sub-langs <UROBOROS_SUBTITLE_LANGS>
+Every download saves subtitles: `--write-subs --sub-langs <UROBOROS_SUBTITLE_LANGS>
 --convert-subs vtt` (default `en.*`; empty saves none), plus automatic captions with
 `UROBOROS_AUTO_SUBTITLES=true`. Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
 on S3, `<title>.<lang>.vtt` in the folder layout) and recorded in `subtitles`. Chapters come from

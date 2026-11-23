@@ -162,9 +162,8 @@ come with the events.
 
 The operator's part is an https `UROBOROS_PUBLIC_BASE_URL`, and optionally a fixed VAPID pair (any
 Web Push key generator, for example `pnpm dlx web-push@4.0.0 generate-vapid-keys`) in
-`UROBOROS_VAPID_PUBLIC_KEY` and `UROBOROS_VAPID_PRIVATE_KEY`. In the Helm chart these are
-`publicBaseUrl`, `push.subject`, `push.vapid.publicKey` with `push.vapid.existingSecret` (the private
-key from an existing Secret), `push.allowedHosts` and `push.maxDevices`.
+`UROBOROS_VAPID_PUBLIC_KEY` and `UROBOROS_VAPID_PRIVATE_KEY`; compose passes them through from the
+shell.
 
 On an iPhone (iOS 16.4 or later): open Uroboros in Safari, tap Share, then Add to Home Screen, and
 open it from its icon; a Safari tab cannot subscribe, and neither can Chrome or Firefox on iOS. In

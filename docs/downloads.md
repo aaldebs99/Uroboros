@@ -1,14 +1,15 @@
 # Downloads and storage
 
-How a pasted link becomes a stored file in someone's library. The api never runs yt-dlp; the
-workers do.
+How a pasted link becomes a stored file in someone's library. Every replica serves HTTP and also
+consumes the probe and download queues; yt-dlp runs only in those job consumers, never in a
+request handler.
 
 ## Flow
 
 1. `POST /api/downloads {url, profileId?}` records a `download_requests` row (`probing`) and adds
    `probe|<requestId>` to the `probe` queue. Without `profileId` the default format profile is
    used.
-2. A worker probes the link with `--flat-playlist` (`src/worker/probe.ts`):
+2. A replica's probe consumer probes the link with `--flat-playlist` (`src/worker/probe.ts`):
    - a **video** upserts its `media` row, creates one `downloads` row and dispatches it; the
      request becomes `queued`;
    - a **playlist** becomes `choosing`, with one preview group, every entry ticked;
@@ -36,7 +37,8 @@ workers do.
 7. **Failures**: `rate_limited`, `network`, `timed_out`, `unknown` and `storage` retry up to 3
    attempts with exponential backoff (the downloads stay `running`, `attempts` counts); every other
    kind, or the last attempt, marks them `failed` with a server message and the redacted stderr
-   tail. A stalled job (a dead worker) runs again; storage keys are deterministic and the rendition
+   tail. A stalled job (a replica that died mid-job) runs again; one cut by a
+   replica's shutdown goes back to the queue without spending an attempt; storage keys are deterministic and the rendition
    and library inserts are idempotent, so a rerun never duplicates anything.
 
 A job can also vanish while downloads still wait on it: past BullMQ's stall limit, or when a cancel
@@ -50,13 +52,13 @@ instead of finishing quietly.
 
 Cancelling marks that person's download `cancelled`. Only when no other active download waits on
 the fetch key is the fetch stopped: a waiting job is removed, a running one gets a message on
-`<prefix>:downloads:cancel`, and the worker running it aborts (yt-dlp's process group is killed and
+`<prefix>:downloads:cancel`, and the replica running it aborts (yt-dlp's process group is killed and
 its partial files removed). Retrying a failed or cancelled download queues it again from scratch.
 Members act on their own downloads; admins on anyone's.
 
 ## Live progress
 
-The worker publishes progress (at most twice a second per fetch, plus every phase change:
+The replica running a fetch publishes progress (at most twice a second per fetch, plus every phase change:
 downloading, merging, postprocessing, storing) and state changes on `<prefix>:downloads:events`,
 and keeps the latest progress in `<prefix>:progress:<fetchKey>` for a minute. Every api replica
 subscribes once (`src/downloads/sse.ts`); `GET /api/downloads/events` streams `DownloadEvent`s for
@@ -67,7 +69,7 @@ refetching the list when the stream drops.
 
 Admin-defined yt-dlp presets (`format_profiles`): a format selector, a container to merge into, or
 audio-only with an audio format, and extra arguments from the wrapper's allowlist (checked by the
-api with `@uroboros/ytdlp/flags` when saved, and again by the worker). `revision` hashes the
+server with `@uroboros/ytdlp/flags` when saved, and again when the job runs). `revision` hashes the
 file-shaping arguments, and renditions are keyed by it, so editing a profile makes new downloads
 fetch a fresh file instead of reusing one made with the old arguments; files already in libraries
 stay. Exactly one profile is the default. A profile in use cannot be deleted. Seeded: "Best up to
@@ -80,7 +82,7 @@ stay. Exactly one profile is the default. A profile in use cannot be deleted. Se
 - **s3**: any S3-compatible service (RustFS locally and in tests, never MinIO), opaque keys:
   `media/<mediaId>/<profileId>-<revision>.<ext>`, `media/<mediaId>/thumbnail.jpg`,
   `media/<mediaId>/info.json`. The bucket must exist (compose's `rustfs-init` creates it).
-- **filesystem**: organized folders on a volume the api and the workers share, from
+- **filesystem**: organized folders on a volume the replicas share, from
   `UROBOROS_STORAGE_LAYOUT` (default
   `{channel}/{upload_date} {title} [{id}]/{title} [{profile}].{ext}`), with the thumbnail and
   `.info.json` beside the media file. Tokens: `channel`, `uploader`, `title`, `id`, `extractor`,
@@ -102,9 +104,9 @@ subscriptions and retention) deletes unreferenced renditions.
 
 ## JavaScript challenges
 
-YouTube serves some formats only after a JavaScript challenge. The worker image installs yt-dlp's
+YouTube serves some formats only after a JavaScript challenge. The image installs yt-dlp's
 `[default]` extras, which include the yt-dlp-ejs solver scripts, and every probe and download runs
-with `--js-runtimes node:<the worker's own node>`, so the solver runs on the Node 24 already in the
+with `--js-runtimes node:<the server's own node>`, so the solver runs on the Node 24 already in the
 image (no Deno needed).
 
 ## Not yet

@@ -13,7 +13,7 @@ import { downloadRows, toDownloads } from "./serialize.ts";
 
 const PING_MS = 25_000;
 
-/** One Valkey subscription per api replica, fanned out to every open stream. */
+/** One Valkey subscription per replica, fanned out to every open stream. */
 export interface EventHub {
   /** Settles once the subscription is in place (ioredis renews it after a reconnect). */
   ready: Promise<void>;

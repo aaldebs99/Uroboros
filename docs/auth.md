@@ -41,8 +41,7 @@ minutes, then 429. Each attempt is counted before the password is checked, in on
 a burst of parallel guesses cannot all slip past the check; a good sign-in takes its attempt back
 off and clears the username's count. The client IP is the last `X-Forwarded-For` entry (the one
 the proxy in front added; entries to its left came from the client) only when
-`UROBOROS_TRUST_PROXY` is true (the chart and compose set it, since they sit behind an ingress or
-Caddy). A disabled account answers 403, only after the right password.
+`UROBOROS_TRUST_PROXY` is true (compose sets it, since the replicas sit behind Caddy). A disabled account answers 403, only after the right password.
 
 **OIDC** uses `openid-client` (Djinn hand-rolled its client in Rust). Discovery runs in the
 background with 1–60 s backoff; until it succeeds the sign-in button is disabled and says the

@@ -1,7 +1,7 @@
 # @uroboros/ytdlp
 
-The typed wrapper the workers use to run yt-dlp and ffprobe. Only workers import it: the api never
-spawns either program. The one exception is the subpath `@uroboros/ytdlp/flags`, the pure argument
+The typed wrapper the server's job consumers use to run yt-dlp and ffprobe. Request handlers never
+spawn either program. The one exception is the subpath `@uroboros/ytdlp/flags`, the pure argument
 allowlist (`normalizeExtraArgs`), which the api uses to check a format profile's extra arguments
 when an admin saves it. `@uroboros/ytdlp/testing` exports the fake binary's helpers for other
 packages' tests. yt-dlp is the only downloader, with no setting and no fallback.
@@ -12,9 +12,9 @@ packages' tests. yt-dlp is the only downloader, with no setting and no fallback.
 | `download` | Downloads into an absolute `workDir` with a format selector and output template, reports `ProgressEvent`s through `onProgress`, and resolves with each final file and its parsed `.info.json`. |
 | `ffprobe`  | A file's container, duration and typed streams.                                                                                                                                                |
 
-Every call takes `binary` (the worker passes `YTDLP_PATH`; this package reads no environment
+Every call takes `binary` (the server passes `YTDLP_PATH`; this package reads no environment
 itself), `jsRuntime` (an absolute path to Node, passed as `--js-runtimes node:<path>` so yt-dlp
-solves sites' JavaScript challenges with the yt-dlp-ejs scripts; the worker passes its own Node), `extraArgs`, `cookiesFile`, `timeoutMs`, `signal`, `env`, `killGraceMs` and
+solves sites' JavaScript challenges with the yt-dlp-ejs scripts; the server passes its own Node), `extraArgs`, `cookiesFile`, `timeoutMs`, `signal`, `env`, `killGraceMs` and
 `stderrTailLines`. Every failure is a `YtDlpError` with a closed `kind` (`YTDLP_ERROR_KINDS`) and
 `stderrTail`, the last stderr lines with signed URLs, cookies and credentials redacted.
 

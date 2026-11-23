@@ -1,14 +1,14 @@
 import { DownloadProgress } from "@uroboros/contract";
 import type { Redis } from "ioredis";
 
-/** What workers and api replicas tell each other about downloads, on one Valkey channel. */
+/** What replicas tell each other about downloads, on one Valkey channel. */
 export type InternalEvent =
   | { kind: "state"; downloadId: string; userId: string }
   | { kind: "progress"; fetchKey: string; progress: DownloadProgress }
   | { kind: "removed"; downloadId: string; userId: string };
 
 export const eventsChannel = (prefix: string): string => `${prefix}:downloads:events`;
-/** `{ fetchKey }`: the worker running that fetch aborts it. */
+/** `{ fetchKey }`: the replica running that fetch aborts it. */
 export const cancelChannel = (prefix: string): string => `${prefix}:downloads:cancel`;
 export const progressKey = (prefix: string, key: string): string => `${prefix}:progress:${key}`;
 

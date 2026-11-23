@@ -36,7 +36,7 @@ export function lockKey(namespace: string, resource: string): bigint {
 }
 
 /**
- * The general leader: one api replica holds it at a time and runs the sweeper (expired sessions
+ * The general leader: one replica holds it at a time and runs the sweeper (expired sessions
  * and pending sign-ins). BullMQ's job schedulers already run each repeatable job exactly once, so
  * scheduling never needs it; it is for singleton work (the media reaper to come, say).
  */
