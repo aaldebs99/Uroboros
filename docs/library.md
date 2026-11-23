@@ -1,7 +1,8 @@
 # Library
 
 What each person can do with what they downloaded: search, browse, watch, and pick up where they
-left off. Downloads and storage are in [downloads.md](downloads.md).
+left off. Downloads and storage are in [downloads.md](downloads.md); playlists, sharing and
+public links in [sharing.md](sharing.md).
 
 ## Search, filters and paging
 
@@ -11,10 +12,12 @@ always of the caller's own entries (`src/library/query.ts`):
 - `q`: full-text search over title, channel and description. `media.search` is a generated
   `tsvector` with the `simple` configuration (no stemming, any language) and a GIN index, queried
   with `websearch_to_tsquery`, so quotes, `OR` and `-word` work and odd input never errors.
-- `channel` (a channel key), `tag`, `watched` (`true`/`false`) and `source` (a playlist id, which
-  must be one the caller queued; otherwise 404).
+- `channel` (a channel key), `tag`, `watched` (`true`/`false`), `source` (a YouTube playlist the
+  caller has) and `playlist` (one of the caller's manual playlists); another person's playlist is
+  404, and `source` with `playlist` is 400.
 - `sort`: `added` (newest first; the default), `uploaded`, `title`, `duration`, `relevance` (the
-  default with `q`) or `position` (playlist order; the default with `source`, and only with it).
+  default with `q`) or `position` (playlist order; the default with `source` or `playlist`, and
+  only with one).
 - `cursor`: keyset paging on the sort key and the entry id, so entries added while someone pages
   never cause duplicates or gaps. A cursor this server didn't make is 400.
 
@@ -26,16 +29,18 @@ A channel is the extractor plus the site's channel id, or the channel's name whe
 id; its key is that, base64url-encoded (`src/library/channelKey.ts`). Videos with neither belong to
 no channel. `GET /api/library/channels` lists the caller's channels, most entries first.
 
-Queueing a **playlist** from a preview records it (`sources`, shared by extractor and id), that this
-person queued it (`user_sources`), and its entries in order (`source_items`, joined to media by
-extractor and video id, since an entry has no media row until it is fetched). A playlist shows only
-to the people who queued it; channel tabs are not recorded. `GET /api/library/sources` lists the
-caller's playlists that hold at least one of their entries.
+Queueing a **playlist** from a preview, or following one with a subscription, records it
+(`sources`, shared by extractor and id), that this person has it (`user_sources`), and its entries
+in order (`source_items`, joined to media by extractor and video id, since an entry has no media
+row until it is fetched). A YouTube playlist shows only to the people who have it; channel tabs are
+not recorded. People also make playlists of their own; `GET /api/playlists` lists both kinds
+([sharing.md](sharing.md)).
 
 ## The item page
 
-`GET /api/library/{id}` gives an entry with its description, chapters, subtitles, playlists and
-stream URL. `GET /api/library/{id}/stream` serves the file inline with range support (or redirects
+`GET /api/library/{id}` gives an entry with its description, chapters, subtitles, playlists (its
+YouTube ones as `sources`, the person's own as `playlists`) and stream URL, for the caller's own
+entry or one shared with them (`sharedBy` names its owner then; [sharing.md](sharing.md)). `GET /api/library/{id}/stream` serves the file inline with range support (or redirects
 to a presigned URL when `UROBOROS_S3_PUBLIC_URL` is set; the CSP's `media-src` allows that origin),
 and `GET /api/library/{id}/subtitles/{subId}` serves a WebVTT file. The web app plays it with
 Video.js 10 (`@videojs/react`, the Neutral video skin in the app's accent): subtitles are `<track>`s
@@ -56,7 +61,8 @@ where the person left off.
 ## Keep and retention
 
 An entry a subscription brought carries it (`subscription`), and that subscription's retention may
-remove it; **Keep** (`PUT /api/library/{id}/kept`) exempts it ([automation.md](automation.md)).
+remove it; **Keep** (`PUT /api/library/{id}/kept`), being in one of the person's playlists, or
+being shared on its own exempts it ([automation.md](automation.md)).
 Removing an entry, by hand or by retention, deletes the row; the reaper frees the file a day after
 its last entry goes.
 

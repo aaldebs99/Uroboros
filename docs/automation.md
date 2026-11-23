@@ -40,7 +40,9 @@ start per two seconds. A check (`src/subscriptions/check.ts`):
    and probes. A second check at the same time returns at once.
 2. Lists each followed feed flat, capped at `UROBOROS_MAX_PLAYLIST_ENTRIES` from the top (a channel
    tab lists newest first, so the cap keeps the newest). A playlist that reaches the cap sets the
-   subscription's warning: only its first N entries are followed.
+   subscription's warning: only its first N entries are followed. A playlist subscription also
+   records the playlist as one of its owner's YouTube playlists, with the listed positions
+   ([sharing.md](sharing.md)), so it shows under Playlists and can be shared.
 3. Skips videos with a final outcome in `subscription_items`, the seen set. `waiting` ones come
    back, except those held by the wait, which are left alone until their time.
 4. Primes each feed on its own first check. On the subscription's very first check the backfill
@@ -131,7 +133,9 @@ brought, in that person's library:
   first counted as watched (unwatching clears it).
 
 An entry marked **Keep** (`PUT /api/library/{id}/kept`; a switch on the item page of an entry from
-a subscription) neither counts toward N nor goes. Removing means deleting the library entry (its
+a subscription) neither counts toward N nor goes, and neither does one in one of its owner's
+playlists or shared on its own ([sharing.md](sharing.md)); one reached only through a shared
+YouTube playlist still counts. Removing means deleting the library entry (its
 tags go with it); the video stays in the seen set, so it is not downloaded again, and its file is
 the reaper's.
 

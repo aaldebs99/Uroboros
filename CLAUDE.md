@@ -130,7 +130,10 @@ lock (`lockKey("DOWN", userId)`); the fetch stores the file through `MediaStore`
 transaction. Progress and state go over one Valkey channel to `GET /api/downloads/events` (SSE) on
 every replica; every replica also consumes the queues. The library (`docs/library.md`)
 searches with Postgres full-text (`media.search`, `websearch_to_tsquery`), pages with keyset
-cursors, and keeps per-person tags, watch progress and queued playlists. Tests start RustFS too
+cursors, and keeps per-person tags, watch progress and queued playlists. Playlists of two kinds, sharing with
+people or by a public link (`/api/public/s/{code}`, outside the guard, each route checking its
+code), and the download and share notifications are in `docs/sharing.md`; every route that serves
+an entry asks `visibleEntry` (`src/sharing/access.ts`). Tests start RustFS too
 (`test/testS3.ts` gives a fresh bucket); job tests drive `@uroboros/ytdlp/testing`'s fake
 binary, whose scenarios can answer per URL (`variants`). No test touches the network.
 
