@@ -329,14 +329,17 @@ run = "pnpm -F @uroboros/web dev"
 
 [tasks.icons]
 description = "Regenerate the PWA icons in apps/web/public from assets/logos/uroboros-transparent.svg; commit the result"
-# The asset is the source of truth: it is copied to public/uroboros.svg (the favicon), and the
-# generator writes its PNGs and favicon.ico beside that copy, as apps/web/pwa-assets.config.ts
-# says. Pinned and run through dlx rather than installed: the generator pulls in sharp, a native
-# module, for a handful of files that change only when the logo does. Run from the repo root so
-# pnpm-workspace.yaml's minimumReleaseAge soak applies to what dlx resolves.
+# The assets are the source of truth: the transparent mark is copied to public/uroboros.svg (the
+# favicon), the logo on its tile to public/uroboros-tile.svg (the brand in the shell), and the
+# generator writes its PNGs and favicon.ico beside the favicon copy, as
+# apps/web/pwa-assets.config.ts says. Pinned and run through dlx rather than installed: the
+# generator pulls in sharp, a native module, for a handful of files that change only when the logo
+# does. Run from the repo root so pnpm-workspace.yaml's minimumReleaseAge soak applies to what dlx
+# resolves.
 run = """
 set -eu
 cp assets/logos/uroboros-transparent.svg apps/web/public/uroboros.svg
+cp assets/logos/uroboros.svg apps/web/public/uroboros-tile.svg
 pnpm dlx @vite-pwa/assets-generator@2.0.0 --root apps/web
 """
 
