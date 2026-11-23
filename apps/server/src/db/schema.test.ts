@@ -138,3 +138,118 @@ describe("schema: users and auth", () => {
     ).toBe("23505");
   });
 });
+
+describe("schema: downloads, media and profiles", () => {
+  const profiles = (db = t.db) =>
+    db.selectFrom("format_profiles").select(["id", "name", "is_default"]).orderBy("name").execute();
+
+  async function media(videoId = randomUUID()): Promise<string> {
+    const row = await t.db
+      .insertInto("media")
+      .values({ extractor: "youtube", video_id: videoId, title: "t" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+
+  async function defaultProfile(): Promise<{ id: string; revision: string }> {
+    return t.db
+      .selectFrom("format_profiles")
+      .select(["id", "revision"])
+      .where("is_default", "=", true)
+      .executeTakeFirstOrThrow();
+  }
+
+  const rendition = (mediaId: string, p: { id: string; revision: string }) =>
+    t.db
+      .insertInto("renditions")
+      .values({
+        media_id: mediaId,
+        profile_id: p.id,
+        profile_revision: p.revision,
+        storage_key: `k/${randomUUID()}`,
+        size_bytes: 1,
+      })
+      .returning("id");
+
+  const download = (userId: string, p: { id: string; revision: string }, fetchKey: string) =>
+    t.db.insertInto("downloads").values({
+      user_id: userId,
+      profile_id: p.id,
+      profile_revision: p.revision,
+      args: JSON.stringify({}),
+      extractor: "youtube",
+      video_id: "v",
+      url: "https://example.org/v",
+      fetch_key: fetchKey,
+    });
+
+  it("seeds the three profiles with the 1080p one as default", async () => {
+    expect(await profiles()).toEqual([
+      { id: expect.any(String) as string, name: "Audio only (Opus)", is_default: false },
+      { id: expect.any(String) as string, name: "Best available", is_default: false },
+      { id: expect.any(String) as string, name: "Best up to 1080p (MP4)", is_default: true },
+    ]);
+  });
+
+  it("allows one default format profile", async () => {
+    expect(
+      await errCode(
+        t.db
+          .insertInto("format_profiles")
+          .values({ name: "x", format: "b", revision: "r", is_default: true })
+          .execute(),
+      ),
+    ).toBe("23505");
+  });
+
+  it("refuses a second rendition for the same media, profile and revision", async () => {
+    const m = await media();
+    const p = await defaultProfile();
+    await rendition(m, p).execute();
+    expect(await errCode(rendition(m, p).execute())).toBe("23505");
+    expect(await errCode(rendition(m, { ...p, revision: "other" }).execute())).toBeUndefined();
+  });
+
+  it("refuses a second active download of the same fetch key for one user but allows it once done", async () => {
+    const u = await localUser("dl");
+    const p = await defaultProfile();
+    await download(u, p, "fetch:a").execute();
+    expect(await errCode(download(u, p, "fetch:a").execute())).toBe("23505");
+    await t.db.updateTable("downloads").set({ state: "done" }).where("user_id", "=", u).execute();
+    expect(await errCode(download(u, p, "fetch:a").execute())).toBeUndefined();
+  });
+
+  it("refuses deleting a profile a rendition uses", async () => {
+    const p = await defaultProfile();
+    await rendition(await media(), p).execute();
+    expect(await errCode(t.db.deleteFrom("format_profiles").where("id", "=", p.id).execute())).toBe(
+      "23001",
+    ); // restrict_violation
+  });
+
+  it("deletes a user's downloads, requests and library entries with the user", async () => {
+    const u = await localUser("gone");
+    const p = await defaultProfile();
+    const m = await media();
+    const r = await rendition(m, p).executeTakeFirstOrThrow();
+    await t.db
+      .insertInto("library_entries")
+      .values({ user_id: u, media_id: m, rendition_id: r.id })
+      .execute();
+    await t.db
+      .insertInto("download_requests")
+      .values({ user_id: u, url: "https://example.org/p", profile_id: p.id })
+      .execute();
+    await download(u, p, "fetch:b").execute();
+    await t.db.deleteFrom("users").where("id", "=", u).execute();
+    for (const table of ["library_entries", "download_requests", "downloads"] as const) {
+      const { n } = await t.db
+        .selectFrom(table)
+        .select((eb) => eb.fn.countAll<string>().as("n"))
+        .where("user_id", "=", u)
+        .executeTakeFirstOrThrow();
+      expect([table, n]).toEqual([table, "0"]);
+    }
+  });
+});

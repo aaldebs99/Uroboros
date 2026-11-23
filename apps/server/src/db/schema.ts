@@ -89,6 +89,116 @@ export interface PushDeviceTombstonesTable {
 }
 
 /** Kysely table map: one entry per table the migrations create. */
+type Created = ColumnType<Date, Date | string | undefined, never>;
+type Defaulted<T> = ColumnType<T, T | undefined, T>;
+/** A JSONB column: read parsed, written as JSON text. */
+type Json<T> = ColumnType<T, string, string>;
+
+/** `format_profiles`: an admin-defined yt-dlp preset (docs/downloads.md). */
+export interface FormatProfilesTable {
+  id: Generated<string>;
+  name: string;
+  format: string;
+  merge_format: string | null;
+  audio_only: Defaulted<boolean>;
+  audio_format: string | null;
+  extra_args: Defaulted<string[]>;
+  is_default: Defaulted<boolean>;
+  revision: string;
+  created_at: Created;
+  updated_at: Defaulted<Date | string>;
+}
+
+/** `media`: one video, by extractor and id, shared by every user. */
+export interface MediaTable {
+  id: Generated<string>;
+  extractor: string;
+  video_id: string;
+  title: string | null;
+  channel: string | null;
+  channel_id: string | null;
+  uploader: string | null;
+  upload_date: string | null;
+  duration: number | null;
+  description: string | null;
+  webpage_url: string | null;
+  thumbnail_key: string | null;
+  info_key: string | null;
+  created_at: Created;
+  updated_at: Defaulted<Date | string>;
+}
+
+/** `renditions`: one stored file per media, profile and profile revision. */
+export interface RenditionsTable {
+  id: Generated<string>;
+  media_id: string;
+  profile_id: string;
+  profile_revision: string;
+  storage_key: string;
+  /** BIGINT: pg returns it as a string. */
+  size_bytes: ColumnType<string, number | string, number | string>;
+  container: string | null;
+  video_codec: string | null;
+  audio_codec: string | null;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+  created_at: Created;
+}
+
+/** `library_entries`: a user's view onto a rendition. */
+export interface LibraryEntriesTable {
+  id: Generated<string>;
+  user_id: string;
+  media_id: string;
+  rendition_id: string;
+  added_at: Created;
+}
+
+export type RequestStateValue = "probing" | "choosing" | "queued" | "failed";
+export type DownloadStateValue = "queued" | "running" | "done" | "failed" | "cancelled";
+
+/** `download_requests`: a pasted link, probed, then previewed when it is a playlist or channel. */
+export interface DownloadRequestsTable {
+  id: Generated<string>;
+  user_id: string;
+  url: string;
+  profile_id: string;
+  state: Defaulted<RequestStateValue>;
+  kind: "video" | "playlist" | "channel" | null;
+  title: string | null;
+  entries: ColumnType<unknown, string | undefined, string>;
+  error_kind: string | null;
+  error_message: string | null;
+  created_at: Created;
+  expires_at: Defaulted<Date | string>;
+}
+
+/** `downloads`: one video a user asked for, waiting on a shared fetch. */
+export interface DownloadsTable {
+  id: Generated<string>;
+  user_id: string;
+  request_id: string | null;
+  profile_id: string;
+  profile_revision: string;
+  args: Json<unknown>;
+  extractor: string;
+  video_id: string;
+  url: string;
+  title: string | null;
+  fetch_key: string;
+  state: Defaulted<DownloadStateValue>;
+  dispatched_at: Timestamp | null;
+  rendition_id: string | null;
+  error_kind: string | null;
+  error_message: string | null;
+  stderr_tail: Defaulted<string[]>;
+  attempts: Defaulted<number>;
+  created_at: Created;
+  started_at: Timestamp | null;
+  finished_at: Timestamp | null;
+}
+
 export interface Database {
   push_devices: PushDevicesTable;
   vapid_keys: VapidKeysTable;
@@ -98,4 +208,10 @@ export interface Database {
   oidc_grants: OidcGrantsTable;
   api_tokens: ApiTokensTable;
   push_device_tombstones: PushDeviceTombstonesTable;
+  format_profiles: FormatProfilesTable;
+  media: MediaTable;
+  renditions: RenditionsTable;
+  library_entries: LibraryEntriesTable;
+  download_requests: DownloadRequestsTable;
+  downloads: DownloadsTable;
 }

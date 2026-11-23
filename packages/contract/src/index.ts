@@ -29,3 +29,22 @@ export {
   SessionView,
   Username,
 } from "./auth.ts";
+export {
+  DOWNLOAD_ERROR_KINDS,
+  Download,
+  DownloadErrorKind,
+  DownloadEvent,
+  DownloadProgress,
+  DownloadRequest,
+  DownloadState,
+  FormatProfile,
+  FormatProfilePatch,
+  LibraryEntry,
+  NewDownloadBody,
+  NewFormatProfileBody,
+  PreviewEntry,
+  PreviewGroup,
+  QueueSelectionBody,
+  QueueSelectionResult,
+  RequestState,
+} from "./downloads.ts";

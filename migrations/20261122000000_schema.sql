@@ -119,3 +119,130 @@ CREATE TABLE vapid_keys (
   private_key TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Downloads and storage (docs/downloads.md). A format profile is an admin-defined yt-dlp preset;
+-- `revision` hashes the arguments that shape the file, so editing a profile makes new downloads
+-- fetch a fresh rendition instead of reusing one made with the old arguments.
+CREATE TABLE format_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE CHECK (char_length(btrim(name)) BETWEEN 1 AND 64),
+  format TEXT NOT NULL CHECK (char_length(format) BETWEEN 1 AND 512),
+  merge_format TEXT,
+  audio_only BOOLEAN NOT NULL DEFAULT false,
+  audio_format TEXT,
+  extra_args TEXT[] NOT NULL DEFAULT '{}',
+  is_default BOOLEAN NOT NULL DEFAULT false,
+  revision TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (audio_only = (audio_format IS NOT NULL))
+);
+CREATE UNIQUE INDEX format_profiles_one_default ON format_profiles ((true)) WHERE is_default;
+
+-- Revisions are profileRevision() of each row's arguments (apps/server/src/downloads/profiles.ts;
+-- its test pins these literals).
+INSERT INTO format_profiles (name, format, merge_format, audio_only, audio_format, is_default, revision)
+VALUES
+  ('Best up to 1080p (MP4)',
+   'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba/b[height<=1080]',
+   'mp4', false, NULL, true, '88438c868e27'),
+  ('Best available', 'bv*+ba/b', NULL, false, NULL, false, '9dbd9d2454da'),
+  ('Audio only (Opus)', 'ba/b', NULL, true, 'opus', false, '52c4824db249');
+
+-- One row per extractor and video id, shared by every user.
+CREATE TABLE media (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  extractor TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  title TEXT,
+  channel TEXT,
+  channel_id TEXT,
+  uploader TEXT,
+  upload_date TEXT,
+  duration DOUBLE PRECISION,
+  description TEXT,
+  webpage_url TEXT,
+  thumbnail_key TEXT,
+  info_key TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (extractor, video_id)
+);
+
+-- One stored file per media, profile and profile revision.
+CREATE TABLE renditions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  media_id UUID NOT NULL REFERENCES media ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE RESTRICT,
+  profile_revision TEXT NOT NULL,
+  storage_key TEXT NOT NULL,
+  size_bytes BIGINT NOT NULL,
+  container TEXT,
+  video_codec TEXT,
+  audio_codec TEXT,
+  width INTEGER,
+  height INTEGER,
+  duration DOUBLE PRECISION,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (media_id, profile_id, profile_revision)
+);
+
+-- A user's library: entries pointing at shared renditions. Removing one deletes the row only.
+CREATE TABLE library_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  media_id UUID NOT NULL REFERENCES media ON DELETE CASCADE,
+  rendition_id UUID NOT NULL REFERENCES renditions ON DELETE CASCADE,
+  added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, rendition_id)
+);
+CREATE INDEX library_entries_user_idx ON library_entries (user_id, added_at DESC);
+
+-- A pasted link: probed by a worker, then (playlists and channels) previewed in `entries`.
+CREATE TABLE download_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE CASCADE,
+  state TEXT NOT NULL DEFAULT 'probing' CHECK (state IN ('probing', 'choosing', 'queued', 'failed')),
+  kind TEXT CHECK (kind IN ('video', 'playlist', 'channel')),
+  title TEXT,
+  entries JSONB NOT NULL DEFAULT '[]',
+  error_kind TEXT,
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + interval '1 day'
+);
+CREATE INDEX download_requests_expiry_idx ON download_requests (expires_at) WHERE state = 'choosing';
+
+-- One video a user asked for. `fetch_key` names the shared fetch (extractor, video, profile,
+-- revision); `args` snapshots the profile when queued. It counts against the user's limit while
+-- active and dispatched.
+CREATE TABLE downloads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  request_id UUID REFERENCES download_requests ON DELETE SET NULL,
+  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE RESTRICT,
+  profile_revision TEXT NOT NULL,
+  args JSONB NOT NULL,
+  extractor TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  url TEXT NOT NULL,
+  title TEXT,
+  fetch_key TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'queued'
+    CHECK (state IN ('queued', 'running', 'done', 'failed', 'cancelled')),
+  dispatched_at TIMESTAMPTZ,
+  rendition_id UUID REFERENCES renditions ON DELETE SET NULL,
+  error_kind TEXT,
+  error_message TEXT,
+  stderr_tail TEXT[] NOT NULL DEFAULT '{}',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  started_at TIMESTAMPTZ,
+  finished_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX downloads_one_active ON downloads (user_id, fetch_key)
+  WHERE state IN ('queued', 'running');
+CREATE INDEX downloads_user_idx ON downloads (user_id, created_at DESC);
+CREATE INDEX downloads_fetch_idx ON downloads (fetch_key) WHERE state IN ('queued', 'running');
