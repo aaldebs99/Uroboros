@@ -7,6 +7,8 @@ import type { Logger } from "pino";
 import type { AuthConfig } from "../auth/config.ts";
 import { authGuard, type ResolveToken } from "../auth/guard.ts";
 import { createLimiter } from "../auth/limiter.ts";
+import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
+import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
 import type { Database } from "../db/schema.ts";
 import { disabledPush, type PushService } from "../push/service.ts";
@@ -44,6 +46,8 @@ export interface AuthDeps {
   settings?: AuthConfig;
   /** Valkey key prefix for the failed sign-in counters. */
   limiterPrefix?: string;
+  /** The OIDC provider when `settings.oidc` is set. */
+  oidc?: OidcProvider;
 }
 
 const DEFAULT_AUTH_SETTINGS: AuthConfig = {
@@ -54,6 +58,23 @@ const DEFAULT_AUTH_SETTINGS: AuthConfig = {
 };
 
 const noTokens: ResolveToken = () => Promise.resolve(null);
+
+/** Stands in when OIDC is not configured: never ready, so its routes answer "unavailable". */
+const noOidcProvider: OidcProvider = {
+  settings: {
+    issuer: "",
+    clientId: "",
+    clientSecret: "",
+    displayName: "",
+    adminGroups: [],
+    groupsClaim: "groups",
+    syncIntervalSecs: 0,
+    redirectUrl: "",
+  },
+  ready: () => false,
+  configuration: () => null,
+  start: () => undefined,
+};
 
 /** What a replica serves before its database is attached: nothing here touches Postgres. */
 function servedWhileStarting(path: string): boolean {
@@ -79,6 +100,33 @@ export interface AppOptions {
   webDist: string | null;
   /** The largest request body `/api/*` accepts. Default 64 KiB. */
   bodyLimitBytes?: number;
+}
+
+function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void {
+  const settings = deps.auth?.settings ?? DEFAULT_AUTH_SETTINGS;
+  const secureCookies = deps.auth?.secureCookies ?? false;
+  const provider = deps.auth?.oidc;
+  const oidc = settings.oidc;
+  registerSessionRoutes(app, {
+    db: deps.db,
+    settings,
+    limiter: createLimiter(deps.valkey, deps.auth?.limiterPrefix ?? "uroboros"),
+    secureCookies,
+    oidcMethod: () =>
+      oidc === null ? null : { displayName: oidc.displayName, ready: provider?.ready() ?? false },
+    endSessionUrl: (userId) =>
+      provider === undefined || oidc === null
+        ? Promise.resolve(null)
+        : oidcEndSessionUrl(deps.db, provider, new URL(oidc.redirectUrl).origin, userId),
+  });
+  // Registered even without OIDC (answering "unavailable"), so the API document lists them.
+  registerOidcRoutes(app, {
+    db: deps.db,
+    provider: provider ?? noOidcProvider,
+    settings,
+    secureCookies,
+    logger,
+  });
 }
 
 export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
@@ -132,14 +180,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     return c.json(await checkHealth(deps.db, deps.valkey), 200);
   });
   app.openapi(infoRoute, (c) => c.json({ name: "uroboros" as const, version: deps.version }, 200));
-  registerSessionRoutes(app, {
-    db: deps.db,
-    settings: deps.auth?.settings ?? DEFAULT_AUTH_SETTINGS,
-    limiter: createLimiter(deps.valkey, deps.auth?.limiterPrefix ?? "uroboros"),
-    secureCookies: deps.auth?.secureCookies ?? false,
-    oidcMethod: () => null,
-    endSessionUrl: () => Promise.resolve(null),
-  });
+  registerAuthRoutes(app, deps, logger);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

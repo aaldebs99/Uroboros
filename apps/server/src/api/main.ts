@@ -17,6 +17,7 @@ import { idleDuty, LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/lead
 import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
+import { createOidcProvider } from "../auth/oidc/provider.ts";
 import { createApp } from "./app.ts";
 import { CLEANUP_MS, drain, settlesWithin } from "./drain.ts";
 
@@ -88,6 +89,8 @@ export async function startApi(
   const db = createDb(config.databaseUrl, logger);
   const valkey = createValkey(config.valkeyUrl, "api", logger);
   const push = createPushService(config.push, db, logger);
+  const oidc =
+    config.auth.oidc === null ? undefined : createOidcProvider(config.auth.oidc, { logger });
   let attached = false;
   const app = createApp(
     {
@@ -100,6 +103,7 @@ export async function startApi(
       auth: {
         secureCookies: config.push.publicBaseUrl?.startsWith("https://") ?? false,
         settings: config.auth,
+        ...(oidc === undefined ? {} : { oidc }),
       },
     },
     { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
@@ -111,6 +115,8 @@ export async function startApi(
   logger.info({ host: config.bind.host, port }, "api listening");
 
   const stop = new AbortController();
+  // Discovery retries in the background; until it succeeds the sign-in button says so.
+  oidc?.start(stop.signal);
   const leader = new LeaderStatus();
   let leading: Promise<void> = Promise.resolve();
   const attaching = (async () => {
