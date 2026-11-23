@@ -4,10 +4,10 @@ import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { browserKeys, PushStub } from "../../test/pushStub.ts";
+import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createPushService, type PushSettings } from "../push/service.ts";
 import { createApp } from "./app.ts";
-import { LOCAL_PRINCIPAL_ID } from "./principal.ts";
 
 const logger = pino({ level: "silent" });
 const noValkey = {} as Redis;
@@ -15,20 +15,11 @@ const keys = browserKeys();
 
 let testDb: TestDb;
 let stub: PushStub;
+let session: SignedIn;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  // Until Task 3 swaps the placeholder principal for the session's user, the routes act as this id.
-  await testDb.db
-    .insertInto("users")
-    .values({
-      id: LOCAL_PRINCIPAL_ID,
-      username: "local",
-      password_hash: "x",
-      display_name: "Local",
-      role: "admin",
-    })
-    .execute();
+  session = await signedIn(testDb.db, { username: "pushy" });
   stub = await PushStub.start();
 });
 afterAll(async () => {
@@ -52,9 +43,9 @@ const settings = (over: Partial<PushSettings> = {}): PushSettings => ({
 
 function app(over: Partial<PushSettings> = {}): OpenAPIHono {
   const push = createPushService(settings(over), testDb.db, logger);
-  return createApp(
-    { db: testDb.db, valkey: noValkey, version: "0", logger, push },
-    { webDist: null },
+  return asUser(
+    createApp({ db: testDb.db, valkey: noValkey, version: "0", logger, push }, { webDist: null }),
+    session,
   );
 }
 
@@ -104,7 +95,7 @@ describe("GET /api/me/push", () => {
 });
 
 describe("POST /api/me/push/devices", () => {
-  it("registers a device owned by the local principal and lists it", async () => {
+  it("registers a device owned by the signed-in user and lists it", async () => {
     const a = app();
     const device = await register(a, "one");
     expect(device).toMatchObject({
@@ -113,7 +104,7 @@ describe("POST /api/me/push/devices", () => {
       failedAt: null,
     });
     const row = await testDb.db.selectFrom("push_devices").selectAll().executeTakeFirstOrThrow();
-    expect(row.user_id).toBe(LOCAL_PRINCIPAL_ID);
+    expect(row.user_id).toBe(session.userId);
     const view = PushView.parse(await (await a.request("/api/me/push")).json());
     expect(view.devices).toEqual([device]);
   });

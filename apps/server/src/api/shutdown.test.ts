@@ -45,7 +45,7 @@ function slowRoute() {
     release,
     entered: inside,
     configure: (app: OpenAPIHono) => {
-      app.get("/api/test/slow", async (c) => {
+      app.get("/test/slow", async (c) => {
         entered();
         await gate;
         return c.text("done");
@@ -59,7 +59,7 @@ describe("api shutdown", () => {
     const slow = slowRoute();
     const api = await ready(config(10_000), { configure: slow.configure });
     const base = `http://127.0.0.1:${String(api.port)}`;
-    const inFlight = fetch(`${base}/api/test/slow`);
+    const inFlight = fetch(`${base}/test/slow`);
     await slow.entered;
 
     const closed = api.close();
@@ -75,7 +75,7 @@ describe("api shutdown", () => {
   it("cuts a request that outlasts the grace period and reports the failed drain", async () => {
     const slow = slowRoute();
     const api = await ready(config(300), { configure: slow.configure });
-    const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/api/test/slow`);
+    const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/test/slow`);
     await slow.entered;
 
     const start = Date.now();
@@ -88,7 +88,7 @@ describe("api shutdown", () => {
   it("resolves the exit code 1 when SIGTERM's drain times out, 0 when it drains", async () => {
     const stuck = slowRoute();
     const api = await ready(config(300), { configure: stuck.configure });
-    const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/api/test/slow`).catch(() => "cut");
+    const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/test/slow`).catch(() => "cut");
     await stuck.entered;
     const code = runUntilSignal(api, logger);
     process.emit("SIGTERM");
@@ -108,7 +108,7 @@ describe("api shutdown", () => {
     await vi.waitFor(() => {
       expect(api.leader.leading).toBe(true);
     });
-    const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/api/test/slow`);
+    const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/test/slow`);
     await slow.entered;
     const closed = api.close();
     await vi.waitFor(() => {
@@ -130,7 +130,7 @@ describe("bounded cleanup", () => {
       });
       const api = await ready(apiConfig(proxy.url, { shutdownGraceMs: 300 }), {
         configure: (app, db) => {
-          app.get("/api/test/query", async (c) => {
+          app.get("/test/query", async (c) => {
             // Opens the pool's connection first, so the next query runs on an established one.
             await sql`SELECT 1`.execute(db);
             enter();
@@ -139,9 +139,7 @@ describe("bounded cleanup", () => {
           });
         },
       });
-      const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/api/test/query`).catch(
-        () => "cut",
-      );
+      const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/test/query`).catch(() => "cut");
       await entered;
       // The query now waits on a server that will never answer: its pool client stays checked
       // out until the pool's 30 s query timeout.

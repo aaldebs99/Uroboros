@@ -8,6 +8,7 @@ import { ApiErrorBody } from "@uroboros/contract";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
+import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { TestValkey } from "../../test/testValkey.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
@@ -21,10 +22,12 @@ const CLOSED = "127.0.0.1:1";
 
 let testDb: TestDb;
 let valkey: Redis;
+let session: SignedIn;
 const extra: { close(): unknown }[] = [];
 
 beforeAll(async () => {
   testDb = await TestDb.create();
+  session = await signedIn(testDb.db, { username: "tester" });
   valkey = createValkey(TestValkey.url(), "api", logger);
   await waitReady(valkey, 5000);
 });
@@ -162,8 +165,15 @@ describe("info", () => {
 });
 
 describe("errors", () => {
-  it("renders unknown api paths as a typed 404", async () => {
+  it("renders unknown api paths as a typed 401 before sign-in, never HTML", async () => {
     const res = await app().request("/api/nope");
+    expect(res.status).toBe(401);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(ApiErrorBody.parse(await res.json()).code).toBe("unauthorized");
+  });
+
+  it("renders unknown api paths as a typed 404 once signed in", async () => {
+    const res = await asUser(app(), session).request("/api/nope");
     expect(res.status).toBe(404);
     expect(res.headers.get("content-type")).toContain("application/json");
     expect(ApiErrorBody.parse(await res.json()).code).toBe("not_found");
@@ -174,7 +184,7 @@ describe("errors", () => {
     a.get("/api/boom", () => {
       throw new Error("secret");
     });
-    const res = await a.request("/api/boom");
+    const res = await asUser(a, session).request("/api/boom");
     const text = await res.text();
     expect(res.status).toBe(500);
     expect(ApiErrorBody.parse(JSON.parse(text)).code).toBe("internal");
@@ -297,7 +307,7 @@ describe("spa", () => {
   });
 
   it("keeps the json 404 under /api", async () => {
-    const res = await app({}, dist).request("/api/nope");
+    const res = await asUser(app({}, dist), session).request("/api/nope");
     expect(res.status).toBe(404);
     expect(ApiErrorBody.parse(await res.json()).code).toBe("not_found");
   });

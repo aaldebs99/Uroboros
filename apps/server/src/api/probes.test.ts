@@ -3,6 +3,7 @@ import { Liveness, Readiness } from "@uroboros/contract";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { asUser, signedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { TestValkey } from "../../test/testValkey.ts";
 import { createDb } from "../db/kysely.ts";
@@ -80,6 +81,7 @@ describe("readiness", () => {
       expect((await s.app.request(path)).status, path).toBe(200);
     }
     s.attach();
-    expect((await s.app.request("/api/me/push")).status).toBe(200);
+    const user = await signedIn(testDb.db, { username: "prober" });
+    expect((await asUser(s.app, user).request("/api/me/push")).status).toBe(200);
   });
 });

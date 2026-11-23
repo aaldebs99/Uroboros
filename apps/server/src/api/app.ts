@@ -4,6 +4,7 @@ import type { Kysely } from "kysely";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
 import type { Logger } from "pino";
+import { authGuard, type ResolveToken } from "../auth/guard.ts";
 import type { Database } from "../db/schema.ts";
 import { disabledPush, type PushService } from "../push/service.ts";
 import { registerDocs } from "./docs.ts";
@@ -27,7 +28,18 @@ export interface Deps {
    * and every route that needs the database 503 `unavailable`. Defaults to always.
    */
   attached?: () => boolean;
+  /** Sign-in wiring; defaults suit `gen` and tests that only hit public routes. */
+  auth?: AuthDeps;
 }
+
+export interface AuthDeps {
+  /** Mark cookies `Secure` (the public base URL is https). */
+  secureCookies: boolean;
+  /** API-token lookup (personal tokens); defaults to "no tokens". */
+  resolveToken?: ResolveToken;
+}
+
+const noTokens: ResolveToken = () => Promise.resolve(null);
 
 /** What a replica serves before its database is attached: nothing here touches Postgres. */
 function servedWhileStarting(path: string): boolean {
@@ -89,6 +101,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     }
     return errorResponse(c, "unavailable", "the server is starting");
   });
+  app.use("/api/*", authGuard({ db: deps.db, resolveToken: deps.auth?.resolveToken ?? noTokens }));
 
   app.onError(errorHandler(logger));
   app.notFound(async (c) => {

@@ -6,6 +6,7 @@ import type { Redis } from "ioredis";
 import { HTTPException } from "hono/http-exception";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "./app.ts";
 
@@ -14,9 +15,11 @@ const valkey = { ping: () => Promise.resolve("PONG") } as unknown as Redis;
 
 let testDb: TestDb;
 let dist: string;
+let session: SignedIn;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
+  session = await signedIn(testDb.db, { username: "sec" });
   dist = await mkdtemp(join(tmpdir(), "uroboros-web-"));
   await writeFile(join(dist, "index.html"), "<!doctype html><title>x</title>");
 });
@@ -27,9 +30,12 @@ afterAll(async () => {
 });
 
 const app = (bodyLimitBytes?: number) =>
-  createApp(
-    { db: testDb.db, valkey, version: "t", logger },
-    { webDist: dist, ...(bodyLimitBytes === undefined ? {} : { bodyLimitBytes }) },
+  asUser(
+    createApp(
+      { db: testDb.db, valkey, version: "t", logger },
+      { webDist: dist, ...(bodyLimitBytes === undefined ? {} : { bodyLimitBytes }) },
+    ),
+    session,
   );
 
 /** The directives of a Content-Security-Policy header, by name. */

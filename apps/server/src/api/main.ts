@@ -89,7 +89,15 @@ export async function startApi(
   const push = createPushService(config.push, db, logger);
   let attached = false;
   const app = createApp(
-    { db, valkey, version: pkg.version, logger, push, attached: () => attached },
+    {
+      db,
+      valkey,
+      version: pkg.version,
+      logger,
+      push,
+      attached: () => attached,
+      auth: { secureCookies: config.push.publicBaseUrl?.startsWith("https://") ?? false },
+    },
     { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
   );
   opts.configure?.(app, db);
