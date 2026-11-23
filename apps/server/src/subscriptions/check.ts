@@ -1,17 +1,16 @@
 import type { DownloadErrorKind } from "@uroboros/contract";
 import { toDownloadError } from "../downloads/errors.ts";
-import type { FeedJson } from "../db/schema.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
-import { filterAll, type Known } from "./decisions.ts";
+import { filterAll } from "./decisions.ts";
 import { freeLease, releaseLease, renewLease, takeLease } from "./lease.ts";
-import { listFeed, type Candidate } from "./listing.ts";
+import { candidateKey, listFeed, type Candidate } from "./listing.ts";
 import { enqueueNotice, FAILING_AFTER, failingNotice, newVideosNotice } from "./notices.ts";
 import { PatternTimeout } from "./patterns.ts";
-import type { CheckJob } from "./queue.ts";
+import { checkNow, type CheckJob } from "./queue.ts";
 import { recordAndQueue, type Decision } from "./record.ts";
 import type { SubscriptionRow } from "./store.ts";
 
-const keyOf = (c: { extractor: string; videoId: string }) => `${c.extractor}|${c.videoId}`;
+const keyOf = candidateKey;
 
 /** What a failed check records. */
 export function checkFailure(err: unknown): { kind: DownloadErrorKind; message: string } {
@@ -43,12 +42,23 @@ async function listAll(deps: WorkerDeps, sub: SubscriptionRow, signal?: AbortSig
   return { merged, warning };
 }
 
+interface Recorded {
+  outcome: string;
+  seen_at: Date | string;
+  due_at: Date | string | null;
+  backfill: boolean;
+}
+
 /** The items already recorded for these videos: final ones are skipped, waiting ones revisited. */
-async function recorded(deps: WorkerDeps, sub: SubscriptionRow, merged: Candidate[]) {
-  if (merged.length === 0) return new Map<string, { outcome: string; seen_at: Date | string }>();
+async function recorded(
+  deps: WorkerDeps,
+  sub: SubscriptionRow,
+  merged: Candidate[],
+): Promise<Map<string, Recorded>> {
+  if (merged.length === 0) return new Map();
   const rows = await deps.db
     .selectFrom("subscription_items")
-    .select(["extractor", "video_id", "outcome", "seen_at"])
+    .select(["extractor", "video_id", "outcome", "seen_at", "due_at", "backfill"])
     .where("subscription_id", "=", sub.id)
     .where(
       "video_id",
@@ -57,6 +67,13 @@ async function recorded(deps: WorkerDeps, sub: SubscriptionRow, merged: Candidat
     )
     .execute();
   return new Map(rows.map((r) => [`${r.extractor}|${r.video_id}`, r]));
+}
+
+/** Unseen, or waiting and due again: an item held by the wait is left alone until `due_at`. */
+function isFresh(k: Recorded | undefined, now: Date): boolean {
+  if (k === undefined) return true;
+  if (k.outcome !== "waiting") return false;
+  return k.due_at === null || new Date(k.due_at) <= now;
 }
 
 /**
@@ -79,52 +96,67 @@ function backfilled(c: Candidate, backfill: SubscriptionRow["backfill"], count: 
   return false;
 }
 
-/** Decides each new video: the backfill first, then the filters (`decisions.ts`). */
+/**
+ * Decides each new video: the backfill first, then the filters (`decisions.ts`). Returns the
+ * decisions and which of them belong to the backfill (decided on a feed's first check, or held
+ * back then), whenever they are finally queued.
+ */
 async function decideAll(
   deps: WorkerDeps,
   sub: SubscriptionRow,
   fresh: Candidate[],
-  first: ReturnType<typeof firstCheckFeeds>,
-  known: ReadonlyMap<string, Known>,
+  known: ReadonlyMap<string, Recorded>,
   signal?: AbortSignal,
-): Promise<Decision[]> {
+): Promise<{ decisions: Decision[]; backfill: Set<string> }> {
+  const first = firstCheckFeeds(sub);
   const existing: Decision[] = [];
   const passing: Candidate[] = [];
+  const backfill = new Set<string>();
   for (const c of fresh) {
-    if (first.feeds.has(c.feed) && !backfilled(c, first.backfill, sub.backfill_count)) {
-      existing.push({ c, outcome: "existing" });
-    } else {
-      passing.push(c);
+    if (first.feeds.has(c.feed)) {
+      if (!backfilled(c, first.backfill, sub.backfill_count)) {
+        existing.push({ c, outcome: "existing" });
+        continue;
+      }
+      backfill.add(keyOf(c));
+    } else if (known.get(keyOf(c))?.backfill === true) {
+      backfill.add(keyOf(c));
     }
+    passing.push(c);
   }
-  return [...existing, ...(await filterAll(deps, sub, passing, known, keyOf, signal))];
+  const seen = new Map([...known].map(([k, r]) => [k, { seenAt: new Date(r.seen_at) }] as const));
+  const filtered = await filterAll(
+    deps,
+    sub,
+    passing,
+    seen,
+    keyOf,
+    (c) => backfill.has(keyOf(c)),
+    signal,
+  );
+  return { decisions: [...existing, ...filtered], backfill };
 }
 
+/** Runs one check; "stale" when the filters changed while it ran (it then recorded nothing). */
 async function runCheck(
   deps: WorkerDeps,
   sub: SubscriptionRow,
   signal?: AbortSignal,
-): Promise<FeedJson[]> {
+): Promise<"done" | "stale"> {
   const { merged, warning } = await listAll(deps, sub, signal);
   const known = await recorded(deps, sub, merged);
-  const fresh = merged.filter((c) => {
-    const k = known.get(keyOf(c));
-    return k === undefined || k.outcome === "waiting";
-  });
-  const first = firstCheckFeeds(sub);
-  const waiting = new Map(
-    [...known].map(([k, r]) => [k, { seenAt: new Date(r.seen_at) }] as const),
-  );
-  const decisions = await decideAll(deps, sub, fresh, first, waiting, signal);
-  const { queuedNew } = await recordAndQueue(deps, sub, decisions, first.feeds);
-  if (sub.notify && queuedNew.length > 0) {
-    const titles = queuedNew.map((c) => c.title ?? c.videoId);
+  const now = new Date();
+  const fresh = merged.filter((c) => isFresh(known.get(keyOf(c)), now));
+  const { decisions, backfill } = await decideAll(deps, sub, fresh, known, signal);
+  const result = await recordAndQueue(deps, sub, decisions, backfill);
+  if (result === "stale") return "stale";
+  if (sub.notify && result.queuedNew.length > 0) {
+    const titles = result.queuedNew.map((c) => c.title ?? c.videoId);
     await enqueueNotice(deps.queues.notify, sub.user_id, newVideosNotice(sub, titles), "normal");
   }
-  const now = new Date().toISOString();
-  const feeds = sub.feeds.map((f) => ({ ...f, primedAt: f.primedAt ?? now }));
-  await releaseLease(deps.db, sub.id, { ok: true, feeds, warning });
-  return feeds;
+  const primedUrls = sub.feeds.filter((f) => (f.primedAt ?? null) === null).map((f) => f.url);
+  await releaseLease(deps.db, sub.id, { ok: true, primedUrls, warning });
+  return "done";
 }
 
 /**
@@ -136,7 +168,11 @@ export function checkProcessor(deps: WorkerDeps, signal?: AbortSignal) {
     const sub = await takeLease(deps.db, job.data.subscriptionId);
     if (sub === undefined) return;
     try {
-      await runCheck(deps, sub, signal);
+      if ((await runCheck(deps, sub, signal)) === "stale") {
+        // Decided under filters the person has since changed: check again under the new ones.
+        await freeLease(deps.db, sub.id);
+        await checkNow(deps.queues.automation, sub.id);
+      }
     } catch (err) {
       if (signal?.aborted === true) {
         await freeLease(deps.db, sub.id);

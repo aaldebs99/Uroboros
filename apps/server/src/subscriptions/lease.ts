@@ -1,6 +1,6 @@
 import type { DownloadErrorKind } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
-import type { Database, FeedJson } from "../db/schema.ts";
+import type { Database } from "../db/schema.ts";
 import type { SubscriptionRow } from "./store.ts";
 
 /** How long a check may hold its subscription before another may take it (renewed as it goes). */
@@ -49,8 +49,23 @@ export async function freeLease(db: Kysely<Database>, id: string): Promise<void>
 }
 
 export type CheckOutcome =
-  | { ok: true; feeds: FeedJson[]; warning: string | null }
+  /** `primedUrls`: the feeds this check primed (a feed edited in meanwhile keeps its edit). */
+  | { ok: true; primedUrls: string[]; warning: string | null }
   | { ok: false; kind: DownloadErrorKind; message: string };
+
+/**
+ * Sets `primedAt` on the row's own feeds whose URL the check primed and that are still unprimed,
+ * leaving every other feed as the row has it now: an edit made while the check ran survives.
+ */
+function primeFeeds(urls: string[]) {
+  const now = new Date().toISOString();
+  return sql<string>`(
+    SELECT coalesce(jsonb_agg(
+      CASE WHEN f->>'url' = ANY(${urls}::text[]) AND coalesce(f->>'primedAt', '') = ''
+        THEN f || jsonb_build_object('primedAt', ${now}::text) ELSE f END
+      ORDER BY ord), '[]'::jsonb)
+    FROM jsonb_array_elements(subscriptions.feeds) WITH ORDINALITY AS x(f, ord))`;
+}
 
 /** Ends the check: records how it went and frees the lease. Returns the failures in a row. */
 export async function releaseLease(
@@ -68,7 +83,7 @@ export async function releaseLease(
             last_error_kind: null,
             last_error_message: null,
             failures: 0,
-            feeds: JSON.stringify(outcome.feeds),
+            feeds: primeFeeds(outcome.primedUrls),
             warning: outcome.warning,
           }
         : {

@@ -272,7 +272,10 @@ describe("subscription checks", () => {
       steps: [{ stdout: video("any", "20261115") }],
       variants: [{ whenArg: videos, steps: [{ stdout: listing(videos, vids("b", 55)) }] }],
     });
-    expect(await items(id)).toHaveLength(50);
+    const recorded = await items(id);
+    expect(recorded.filter((i) => i.outcome === "queued")).toHaveLength(50);
+    // The rest wait, still the backfill, for the next check's probes.
+    expect(recorded.filter((i) => i.outcome === "waiting")).toHaveLength(5);
   }, 60_000);
 
   it("records nothing for a check cut by shutdown", async () => {

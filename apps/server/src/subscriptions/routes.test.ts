@@ -167,7 +167,7 @@ describe("subscriptions", () => {
     ]);
   });
 
-  it("forgets filtered items when filters change", async () => {
+  it("reconsiders filtered items when filters change", async () => {
     const sub = await created(alice);
     for (const [videoId, outcome] of [
       ["a", "filtered"],
@@ -189,7 +189,7 @@ describe("subscriptions", () => {
     await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, {
       filters: { minDuration: 60 },
     });
-    expect(await outcomes(sub.id)).toEqual(["queued"]);
+    expect(await outcomes(sub.id)).toEqual(["waiting", "queued"]);
   });
 
   it("unsubscribing cancels undispatched downloads and keeps entries", async () => {

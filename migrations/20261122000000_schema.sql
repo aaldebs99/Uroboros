@@ -240,6 +240,8 @@ CREATE TABLE subscriptions (
   lease_until TIMESTAMPTZ,
   -- Why the last check was incomplete (a playlist past the entry cap), or null.
   warning TEXT,
+  -- When the filters last changed: a check that started before it records nothing.
+  filters_changed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, extractor, source_id)
@@ -331,6 +333,9 @@ CREATE TABLE subscription_items (
   reason TEXT,
   due_at TIMESTAMPTZ,
   download_id UUID REFERENCES downloads ON DELETE SET NULL,
+  -- Part of the backfill (decided on its feed's first check, or held back then): queued at
+  -- priority 1, with no notification, whenever it is finally decided.
+  backfill BOOLEAN NOT NULL DEFAULT false,
   PRIMARY KEY (subscription_id, extractor, video_id)
 );
 CREATE INDEX subscription_items_recent_idx ON subscription_items (subscription_id, seen_at DESC);

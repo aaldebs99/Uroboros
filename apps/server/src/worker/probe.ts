@@ -134,7 +134,9 @@ function sourceOf(info: PlaylistInfo, channel: boolean, groups: PreviewGroup[]) 
     .flatMap((g) => g.entries)
     .at(0)
     ?.extractor.toLowerCase();
-  return { source_extractor: videos ?? listing, source_id: info.id };
+  // A channel's main URL lists under its handle (`@name`); the channel id is what its tabs and
+  // videos carry, so a root and a /videos subscription are the same source.
+  return { source_extractor: videos ?? listing, source_id: info.channelId ?? info.id };
 }
 
 async function preview(

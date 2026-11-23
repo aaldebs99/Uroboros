@@ -203,6 +203,7 @@ export interface SubscriptionsTable {
   failures: Defaulted<number>;
   lease_until: Timestamp | null;
   warning: string | null;
+  filters_changed_at: Defaulted<Date | string>;
   created_at: Created;
   updated_at: Defaulted<Date | string>;
 }
@@ -221,6 +222,7 @@ export interface SubscriptionItemsTable {
   reason: string | null;
   due_at: Timestamp | null;
   download_id: string | null;
+  backfill: Defaulted<boolean>;
 }
 
 /** `storage_trash`: keys whose rows are gone and whose files are still to delete. */

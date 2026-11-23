@@ -1,6 +1,6 @@
 {
   "_type": "playlist",
-  "id": "UCSMOQeBJ2RAnuFungnQOxLg",
+  "id": "@BlenderOfficial",
   "channel_id": "UCSMOQeBJ2RAnuFungnQOxLg",
   "channel": "Blender",
   "uploader": "Blender",
@@ -31,5 +31,6 @@
       "url": "https://www.youtube.com/@BlenderOfficial/streams",
       "title": "Blender - Live"
     }
-  ]
+  ],
+  "uploader_id": "@BlenderOfficial"
 }

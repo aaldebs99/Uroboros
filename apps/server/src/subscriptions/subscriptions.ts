@@ -143,7 +143,9 @@ async function changes(
       : { feeds: JSON.stringify(pickFeeds(current.tabs, patch.feeds, current.feeds)) }),
     ...(patch.profileId === undefined ? {} : { profile_id: patch.profileId }),
     ...(patch.intervalMinutes === undefined ? {} : { interval_minutes: patch.intervalMinutes }),
-    ...(patch.filters === undefined ? {} : await filterColumns(ctx, patch.filters)),
+    ...(patch.filters === undefined
+      ? {}
+      : { ...(await filterColumns(ctx, patch.filters)), filters_changed_at: new Date() }),
     ...(patch.delayHours === undefined ? {} : { delay_hours: patch.delayHours }),
     ...(patch.retention === undefined
       ? {}
@@ -158,8 +160,9 @@ async function changes(
 }
 
 /**
- * Edits a subscription. New filters forget what the old ones held back, so the next check
- * reconsiders those videos; the schedule follows the interval and `enabled`.
+ * Edits a subscription. New filters send what the old ones held back back to `waiting`, as
+ * backfill, so the next check reconsiders those videos (behind pasted links, with no notice), and
+ * a check running meanwhile records nothing; the schedule follows the interval and `enabled`.
  */
 export async function updateSubscription(
   ctx: DownloadContext,
@@ -172,7 +175,8 @@ export async function updateSubscription(
   const row = await ctx.db.transaction().execute(async (tx) => {
     if (patch.filters !== undefined) {
       await tx
-        .deleteFrom("subscription_items")
+        .updateTable("subscription_items")
+        .set({ outcome: "waiting", reason: "filters changed", due_at: null, backfill: true })
         .where("subscription_id", "=", id)
         .where("outcome", "=", "filtered")
         .execute();

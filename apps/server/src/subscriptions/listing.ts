@@ -21,6 +21,10 @@ export interface Candidate {
   mediaType: string | null;
 }
 
+/** A video's identity across feeds and checks: `extractor|videoId`. */
+export const candidateKey = (c: { extractor: string; videoId: string }): string =>
+  `${c.extractor}|${c.videoId}`;
+
 function yyyymmdd(timestamp: number | null): string | null {
   if (timestamp === null) return null;
   return new Date(timestamp * 1000).toISOString().slice(0, 10).replaceAll("-", "");

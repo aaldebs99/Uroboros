@@ -1,6 +1,6 @@
 /** Test helpers for subscription checks: a flat listing as yt-dlp prints it, and rows. */
-import type { Kysely } from "kysely";
-import type { Database } from "../src/db/schema.ts";
+import type { Insertable, Kysely } from "kysely";
+import type { Database, SubscriptionsTable } from "../src/db/schema.ts";
 
 export interface ListedVideo {
   id: string;
@@ -51,6 +51,8 @@ export async function insertSubscription(
     notify?: boolean;
     intervalMinutes?: number;
     backfill?: "none" | "newest" | "all";
+    /** Any other columns (filters, wait, kind). */
+    columns?: Partial<Insertable<SubscriptionsTable>>;
   },
 ): Promise<string> {
   const row = await db
@@ -69,6 +71,7 @@ export async function insertSubscription(
       enabled: values.enabled ?? true,
       notify: values.notify ?? true,
       backfill: values.backfill ?? "none",
+      ...values.columns,
     })
     .returning("id")
     .executeTakeFirstOrThrow();
