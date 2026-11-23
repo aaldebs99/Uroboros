@@ -131,6 +131,8 @@ CREATE TABLE format_profiles (
   audio_only BOOLEAN NOT NULL DEFAULT false,
   audio_format TEXT,
   extra_args TEXT[] NOT NULL DEFAULT '{}',
+  -- SponsorBlock categories cut from the file (docs/automation.md); hashed into the revision.
+  sponsorblock_remove TEXT[] NOT NULL DEFAULT '{}',
   is_default BOOLEAN NOT NULL DEFAULT false,
   revision TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -189,21 +191,72 @@ CREATE TABLE renditions (
   width INTEGER,
   height INTEGER,
   duration DOUBLE PRECISION,
+  -- Set by the reaper when no entry references it; cleared when one does again.
+  orphaned_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (media_id, profile_id, profile_revision),
   -- Two renditions never share a file.
   UNIQUE (storage_key)
 );
 
+-- Automation (docs/automation.md): a person following a channel's tabs or a playlist. Each is
+-- checked on its own BullMQ job scheduler; `feeds` are the listings followed (`[{name, url,
+-- primedAt}]`, each primed by its own first check) and `tabs` every tab the preview offered.
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('channel', 'playlist')),
+  extractor TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  title TEXT,
+  url TEXT NOT NULL,
+  feeds JSONB NOT NULL,
+  tabs JSONB NOT NULL,
+  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE RESTRICT,
+  interval_minutes INTEGER NOT NULL CHECK (interval_minutes BETWEEN 1 AND 10080),
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  notify BOOLEAN NOT NULL DEFAULT true,
+  title_include TEXT,
+  title_exclude TEXT,
+  min_duration_s INTEGER CHECK (min_duration_s >= 0),
+  max_duration_s INTEGER CHECK (max_duration_s >= 0),
+  uploaded_after DATE,
+  exclude_shorts BOOLEAN NOT NULL DEFAULT false,
+  exclude_live BOOLEAN NOT NULL DEFAULT false,
+  delay_hours INTEGER NOT NULL DEFAULT 0 CHECK (delay_hours BETWEEN 0 AND 168),
+  backfill TEXT NOT NULL CHECK (backfill IN ('none', 'newest', 'all')),
+  backfill_count INTEGER CHECK (backfill_count > 0),
+  keep_last INTEGER CHECK (keep_last > 0),
+  delete_watched_after_days INTEGER CHECK (delete_watched_after_days > 0),
+  last_checked_at TIMESTAMPTZ,
+  last_error_kind TEXT,
+  last_error_message TEXT,
+  failures INTEGER NOT NULL DEFAULT 0,
+  -- A check holds this while it runs, so two never run at once.
+  lease_until TIMESTAMPTZ,
+  -- Why the last check was incomplete (a playlist past the entry cap), or null.
+  warning TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, extractor, source_id)
+);
+
 -- A user's library: entries pointing at shared renditions. Removing one deletes the row only.
+-- Restrict, not cascade: the reaper deleting a rendition that just gained an entry must fail, never
+-- take the entry with it. `subscription_id` is the subscription that brought it (retention's
+-- scope); `kept` exempts it from retention.
 CREATE TABLE library_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
   media_id UUID NOT NULL REFERENCES media ON DELETE CASCADE,
-  rendition_id UUID NOT NULL REFERENCES renditions ON DELETE CASCADE,
+  rendition_id UUID NOT NULL REFERENCES renditions ON DELETE RESTRICT,
+  subscription_id UUID REFERENCES subscriptions ON DELETE SET NULL,
+  kept BOOLEAN NOT NULL DEFAULT false,
   added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, rendition_id)
 );
+CREATE INDEX library_entries_subscription_idx ON library_entries (subscription_id)
+  WHERE subscription_id IS NOT NULL;
 CREATE INDEX library_entries_user_idx ON library_entries (user_id, added_at DESC);
 
 -- A pasted link: probed by a worker, then (playlists and channels) previewed in `entries`.
@@ -249,6 +302,9 @@ CREATE TABLE downloads (
   error_message TEXT,
   stderr_tail TEXT[] NOT NULL DEFAULT '{}',
   attempts INTEGER NOT NULL DEFAULT 0,
+  -- 0 first: pasted links and new uploads; 1 behind them: a subscription's backfill.
+  priority SMALLINT NOT NULL DEFAULT 0 CHECK (priority IN (0, 1)),
+  subscription_id UUID REFERENCES subscriptions ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   started_at TIMESTAMPTZ,
   finished_at TIMESTAMPTZ
@@ -257,6 +313,23 @@ CREATE UNIQUE INDEX downloads_one_active ON downloads (user_id, fetch_key)
   WHERE state IN ('queued', 'running');
 CREATE INDEX downloads_user_idx ON downloads (user_id, created_at DESC);
 CREATE INDEX downloads_fetch_idx ON downloads (fetch_key) WHERE state IN ('queued', 'running');
+
+-- What a subscription has seen: an entry with a final outcome is never reconsidered (so a video
+-- retention removed is not fetched again); `waiting` ones (upcoming, or held for the delay) are.
+CREATE TABLE subscription_items (
+  subscription_id UUID NOT NULL REFERENCES subscriptions ON DELETE CASCADE,
+  extractor TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  title TEXT,
+  url TEXT NOT NULL,
+  seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  outcome TEXT NOT NULL CHECK (outcome IN ('queued', 'filtered', 'existing', 'waiting')),
+  reason TEXT,
+  due_at TIMESTAMPTZ,
+  download_id UUID REFERENCES downloads ON DELETE SET NULL,
+  PRIMARY KEY (subscription_id, extractor, video_id)
+);
+CREATE INDEX subscription_items_recent_idx ON subscription_items (subscription_id, seen_at DESC);
 
 -- Library (docs/library.md). A media's subtitle files, captured at download time.
 CREATE TABLE subtitles (
@@ -314,6 +387,14 @@ CREATE TABLE watch_progress (
   position_s DOUBLE PRECISION NOT NULL CHECK (position_s >= 0),
   duration_s DOUBLE PRECISION NOT NULL CHECK (duration_s > 0),
   watched BOOLEAN NOT NULL DEFAULT false,
+  -- When it first counted as watched (retention's "watched X days ago"); null while unwatched.
+  watched_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, media_id)
+);
+
+-- Storage keys whose rows are gone and whose files the reaper still has to delete.
+CREATE TABLE storage_trash (
+  key TEXT PRIMARY KEY,
+  added_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

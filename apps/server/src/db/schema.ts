@@ -103,6 +103,7 @@ export interface FormatProfilesTable {
   audio_only: Defaulted<boolean>;
   audio_format: string | null;
   extra_args: Defaulted<string[]>;
+  sponsorblock_remove: Defaulted<string[]>;
   is_default: Defaulted<boolean>;
   revision: string;
   created_at: Created;
@@ -146,6 +147,7 @@ export interface RenditionsTable {
   width: number | null;
   height: number | null;
   duration: number | null;
+  orphaned_at: Timestamp | null;
   created_at: Created;
 }
 
@@ -155,6 +157,75 @@ export interface LibraryEntriesTable {
   user_id: string;
   media_id: string;
   rendition_id: string;
+  subscription_id: string | null;
+  kept: Defaulted<boolean>;
+  added_at: Created;
+}
+
+/** One listing a subscription follows; `primedAt` is set by that feed's first check. */
+export interface FeedJson {
+  name: string;
+  url: string;
+  primedAt?: string | null;
+}
+
+/** `subscriptions`: a person following a channel's tabs or a playlist (docs/automation.md). */
+export interface SubscriptionsTable {
+  id: Generated<string>;
+  user_id: string;
+  kind: "channel" | "playlist";
+  extractor: string;
+  source_id: string;
+  title: string | null;
+  url: string;
+  feeds: Json<FeedJson[]>;
+  tabs: Json<FeedJson[]>;
+  profile_id: string;
+  interval_minutes: number;
+  enabled: Defaulted<boolean>;
+  notify: Defaulted<boolean>;
+  title_include: string | null;
+  title_exclude: string | null;
+  min_duration_s: number | null;
+  max_duration_s: number | null;
+  /** DATE: pg returns it as a Date at local midnight; write "YYYY-MM-DD". */
+  uploaded_after: ColumnType<Date | null, string | null | undefined, string | null>;
+  exclude_shorts: Defaulted<boolean>;
+  exclude_live: Defaulted<boolean>;
+  delay_hours: Defaulted<number>;
+  backfill: "none" | "newest" | "all";
+  backfill_count: number | null;
+  keep_last: number | null;
+  delete_watched_after_days: number | null;
+  last_checked_at: Timestamp | null;
+  last_error_kind: string | null;
+  last_error_message: string | null;
+  failures: Defaulted<number>;
+  lease_until: Timestamp | null;
+  warning: string | null;
+  created_at: Created;
+  updated_at: Defaulted<Date | string>;
+}
+
+export type ItemOutcomeValue = "queued" | "filtered" | "existing" | "waiting";
+
+/** `subscription_items`: what a subscription has seen, and what became of it. */
+export interface SubscriptionItemsTable {
+  subscription_id: string;
+  extractor: string;
+  video_id: string;
+  title: string | null;
+  url: string;
+  seen_at: Defaulted<Date | string>;
+  outcome: ItemOutcomeValue;
+  reason: string | null;
+  due_at: Timestamp | null;
+  download_id: string | null;
+}
+
+/** `storage_trash`: keys whose rows are gone and whose files are still to delete. */
+export interface StorageTrashTable {
+  key: string;
   added_at: Created;
 }
 
@@ -199,6 +270,8 @@ export interface DownloadsTable {
   error_message: string | null;
   stderr_tail: Defaulted<string[]>;
   attempts: Defaulted<number>;
+  priority: Defaulted<number>;
+  subscription_id: string | null;
   created_at: Created;
   started_at: Timestamp | null;
   finished_at: Timestamp | null;
@@ -249,6 +322,7 @@ export interface WatchProgressTable {
   position_s: number;
   duration_s: number;
   watched: Defaulted<boolean>;
+  watched_at: Timestamp | null;
   updated_at: Defaulted<Date | string>;
 }
 
@@ -273,4 +347,7 @@ export interface Database {
   source_items: SourceItemsTable;
   entry_tags: EntryTagsTable;
   watch_progress: WatchProgressTable;
+  subscriptions: SubscriptionsTable;
+  subscription_items: SubscriptionItemsTable;
+  storage_trash: StorageTrashTable;
 }
