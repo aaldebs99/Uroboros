@@ -35,12 +35,12 @@ A list of sections in the page colour, below the top bar, not a separate coloure
   current item filled.
 - The navigation list stays in `nav.ts`.
 
-## Create menu and the download dialog
+## Create and the download dialog
 
-- **"+ Create"** opens a Radix dropdown (the [menu](actions-and-forms.md#menus) recipe).
-- It lists only real actions. Today that is just **Download a link** (`Download` icon).
-  Subscriptions and playlist imports get items when they exist.
-- **Download a link** opens the [dialog](feedback-and-containers.md#dialogs) (`rounded-[12px]`) with:
+- **"+ Create"** opens the **Download a link** dialog directly: with one thing to create, a menu in
+  between is a wasted click. It becomes a Radix dropdown (the [menu](actions-and-forms.md#menus)
+  recipe) listing only real actions once there is a second one.
+- The dialog (`rounded-[12px]`, the [dialog](feedback-and-containers.md#dialogs) recipe) holds:
   - the title "Download a link";
   - the [outlined field](actions-and-forms.md#text-fields) "Link", autofocused;
   - the format `<select>`, with the default profile first ("Default (…)") from `useProfiles`;

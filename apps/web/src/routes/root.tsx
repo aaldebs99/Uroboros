@@ -1,6 +1,6 @@
 import type { Me } from "@uroboros/contract";
 import { Outlet, useNavigate } from "@tanstack/react-router";
-import { Download, Menu, Plus, Search } from "lucide-react";
+import { Menu, Plus, Search } from "lucide-react";
 import { useState } from "react";
 
 import { Brand } from "@/components/Brand";
@@ -9,7 +9,6 @@ import { SearchBar } from "@/components/SearchBar";
 import { SidebarNav } from "@/components/SidebarNav";
 import { TabBar } from "@/components/TabBar";
 import { Button } from "@/components/ui/button";
-import { ResponsiveMenu } from "@/components/ui/responsive-menu";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthGate } from "@/auth/AuthGate";
 import { UserMenu } from "@/auth/UserMenu";
@@ -83,18 +82,16 @@ function Shell({ me }: { me: Me }) {
           >
             <Search className="size-5" />
           </Button>
-          <span className="hidden md:block">
-            <ResponsiveMenu
-              title="Create"
-              actions={[{ label: "Download a link", icon: Download, onSelect: openDownload }]}
-              trigger={
-                <Button variant="icon" className="h-9 rounded-full pr-4 pl-3" aria-label="Create">
-                  <Plus className="size-5" />
-                  Create
-                </Button>
-              }
-            />
-          </span>
+          {/* Downloading a link is the one thing to create, so Create opens its dialog directly;
+              it becomes a menu once there is more than one. */}
+          <Button
+            variant="icon"
+            className="hidden h-9 rounded-full pr-4 pl-3 md:inline-flex"
+            onClick={openDownload}
+          >
+            <Plus className="size-5" aria-hidden />
+            Create
+          </Button>
           <UserMenu
             me={me}
             onOpenSettings={() => {

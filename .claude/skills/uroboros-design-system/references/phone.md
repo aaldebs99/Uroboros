@@ -42,8 +42,9 @@ A sheet of action rows that slides up from the bottom:
 
 ## Download a link
 
-The **"+"** opens the Create menu as a bottom sheet (above). **Download a link** opens the same
-centred [dialog](feedback-and-containers.md#dialogs) as on desktop, inset 24px from the sides.
+The **"+"** opens the same centred **Download a link** [dialog](feedback-and-containers.md#dialogs)
+as desktop's Create, inset 24px from the sides. Once there is more than one thing to create, it
+opens them as a bottom sheet (above) instead.
 
 ## Rules
 

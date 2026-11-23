@@ -79,8 +79,9 @@ function setup(routes: Record<string, Handler> = {}) {
 async function openLine() {
   const [create] = await screen.findAllByRole("button", { name: "Create" });
   if (create === undefined) throw new Error("no Create button");
+  // Create opens the dialog straight away: there is no menu in between.
   await userEvent.click(create);
-  await userEvent.click(await screen.findByRole("button", { name: "Download a link" }));
+  expect(screen.queryByRole("button", { name: "Download a link" })).not.toBeInTheDocument();
   return screen.findByRole("textbox", { name: "Link" });
 }
 

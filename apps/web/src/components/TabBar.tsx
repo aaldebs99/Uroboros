@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { Download, Library, Plus, Rss, UserRound, type LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ResponsiveMenu } from "@/components/ui/responsive-menu";
 
 type Tab = {
   to: "/" | "/downloads" | "/subscriptions" | "/account";
@@ -33,7 +32,7 @@ function TabLink({ tab }: { tab: Tab }) {
   );
 }
 
-/** Phones' bottom tabs: Library, Downloads, a centred "+" (the Create menu), Subscriptions, You. */
+/** Phones' bottom tabs: Library, Downloads, a centred "+" (Download a link), Subscriptions, You. */
 export function TabBar({ onDownload }: { onDownload: () => void }) {
   return (
     <nav
@@ -44,20 +43,15 @@ export function TabBar({ onDownload }: { onDownload: () => void }) {
         <TabLink key={tab.to} tab={tab} />
       ))}
       <div className="flex flex-1 items-center justify-center">
-        <ResponsiveMenu
-          title="Create"
-          actions={[{ label: "Download a link", icon: Download, onSelect: onDownload }]}
-          trigger={
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Create"
-              className="rounded-full border-[1.5px] border-foreground"
-            >
-              <Plus className="size-[22px]" />
-            </Button>
-          }
-        />
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Create"
+          className="rounded-full border-[1.5px] border-foreground"
+          onClick={onDownload}
+        >
+          <Plus className="size-[22px]" aria-hidden />
+        </Button>
       </div>
       {RIGHT.map((tab) => (
         <TabLink key={tab.to} tab={tab} />

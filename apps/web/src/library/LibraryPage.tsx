@@ -5,6 +5,7 @@ import type { LibraryFilters } from "@/api/library";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 
 import { Chip, ChipRow, FilterChip } from "./Chips";
 import { LibraryGrid } from "./LibraryGrid";
@@ -78,7 +79,8 @@ export function LibraryPage({
       </ChipRow>
       <label className="flex items-center gap-2 self-start text-sm text-muted-foreground">
         Sort
-        <select
+        <Select
+          compact
           aria-label="Sort"
           value={filters.sort ?? ""}
           onChange={(e) => {
@@ -89,7 +91,6 @@ export function LibraryPage({
                 : { ...filters, sort: sort as NonNullable<LibraryFilters["sort"]> },
             );
           }}
-          className="h-9 rounded-[10px] border border-foreground/22 bg-card px-3 text-sm text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
         >
           {(filters.q === undefined
             ? SORTS
@@ -99,7 +100,7 @@ export function LibraryPage({
               {s.label}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <LibraryGrid
         filters={filters}

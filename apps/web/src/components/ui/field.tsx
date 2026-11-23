@@ -138,6 +138,7 @@ function SelectField({
     <div className={cn("grid gap-1", className)}>
       <div className="relative">
         <select
+          data-slot="select-field"
           id={fieldId}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}

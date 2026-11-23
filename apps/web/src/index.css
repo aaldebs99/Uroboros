@@ -125,6 +125,72 @@
   background-image: radial-gradient(60rem 28rem at 85% -10%, var(--glow-top), transparent 70%);
 }
 
+/*
+ * Native selects (the `Select` and `SelectField` components, `data-slot`): the open list in the
+ * design system's menu style where the browser lets CSS draw it (customizable select,
+ * `appearance: base-select`), and the theme's colours on the OS list elsewhere. The element stays
+ * a real <select>, so its keyboard behaviour and form semantics are the browser's own.
+ */
+select[data-slot] option {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+}
+
+@supports (appearance: base-select) {
+  select[data-slot],
+  select[data-slot]::picker(select) {
+    appearance: base-select;
+  }
+
+  /* The value sits where a native select puts it: centred in the box below any padding. */
+  select[data-slot] {
+    align-items: center;
+  }
+
+  /* The component draws its own chevron. */
+  select[data-slot]::picker-icon {
+    display: none;
+  }
+
+  select[data-slot]::picker(select) {
+    margin-block: 6px;
+    padding-block: 8px;
+    min-width: anchor-size(width);
+    /* A hairline too: the list often opens over a dialog of the same colour. */
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: var(--elev-menu);
+  }
+
+  select[data-slot] option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
+    line-height: 20px;
+    cursor: default;
+    outline: none;
+  }
+
+  select[data-slot] option:is(:hover, :focus-visible) {
+    background-color: var(--raised);
+  }
+
+  select[data-slot] option:checked {
+    background-color: var(--accent);
+    color: var(--primary);
+  }
+
+  /* The check of the chosen option, at the trailing edge. */
+  select[data-slot] option::checkmark {
+    order: 1;
+    margin-inline-start: auto;
+  }
+}
+
 /* The toast's timer line: shrinks over the toast's duration, pausing whenever Sonner pauses. */
 @keyframes toast-timer {
   from {
