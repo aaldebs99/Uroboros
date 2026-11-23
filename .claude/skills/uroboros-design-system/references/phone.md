@@ -1,0 +1,53 @@
+# Phone (below `md`, 48rem)
+
+YouTube mobile. Today `root.tsx` opens a `Sheet` drawer from a menu button; the target has **no
+drawer**.
+
+## Getting around
+
+- **Top bar:** slim, about 48px, on `bg-background`. It holds the brand (tile and wordmark at
+  16px), a ghost search button, and the 28px avatar (the account menu). There's no menu button.
+- **Filter chips** sit under the top bar on pages that have them, scrolling sideways.
+- **Bottom tab bar:**
+  - 58px plus `env(safe-area-inset-bottom)`, `bg-background` with a hairline `border-t`, fixed to
+    the bottom.
+  - Five slots: **Library**, **Downloads**, a centred **"+"**, **Subscriptions** and **You**.
+  - The "+" is a 40px circle with a 1.5px `border-foreground` and a 22px `Plus`.
+  - Each tab is a 22px icon over a 10px label, with targets at least 44px wide.
+  - The current tab is `text-foreground` with `aria-current="page"`; the others are muted.
+- **You** (YouTube's word for the Account destination, `/account`) leads to the account page, which also lists Settings and, for admins, the Admin pages
+  (Users, Format profiles).
+- Leave room for the tab bar at the bottom of the scroll area (`pb-[calc(58px+env(safe-area-inset-bottom))]`).
+
+## Library feed
+
+YouTube's feed:
+
+- Thumbnails run **edge to edge**, full width with no corners.
+- Under each: `px-3 pt-2.5`, a 36px avatar, the two-line title at 14/500, muted meta and a ghost
+  ⋮.
+- Items are 14px apart.
+
+## Menus: the ⋮ bottom sheet
+
+YouTube's:
+
+- On phones, ⋮ and other action menus open a bottom sheet instead of a dropdown.
+- Inset 8px from the edges, `bg-popover rounded-2xl`, with a grab handle (36×4, `bg-border`)
+  and `bg-scrim` behind.
+- Rows are 48px, `gap-4 px-5`, each with a 22px icon. The destructive row is `text-destructive`.
+- It closes on scrim tap, Escape, or a downward swipe.
+- Build it from the existing radix `Dialog` or `Sheet` with `side="bottom"`. Keep one component
+  that renders a dropdown at `md` and up and a sheet below it.
+
+## Download a link
+
+The **"+"** opens the Create menu as a bottom sheet (above). **Download a link** opens the same
+centred [dialog](feedback-and-containers.md#dialogs) as on desktop, inset 24px from the sides.
+
+## Rules
+
+- Nothing widens a 375px page. Rows wrap, and flex children holding text get `min-w-0`.
+- Touch targets are at least 44px, and nothing is hover-only: actions revealed on hover stay
+  visible under `(hover: none)`.
+- Tables become stacked blocks, and settings rows stack.

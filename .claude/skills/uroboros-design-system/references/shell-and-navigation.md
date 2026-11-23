@@ -1,0 +1,96 @@
+# Shell and navigation
+
+Today the shell is `routes/root.tsx` (a full-width bar over a fixed navy `SidebarNav`, and a
+`Sheet` drawer on phones), with `components/QuickDownload.tsx` (a "+" popover), `auth/UserMenu.tsx`
+and `components/ThemeToggle.tsx`. The target below replaces their look; the behaviour stays:
+`AuthGate`, `usePushSync`, `isAdmin`, the routes, and the quick download's submit logic.
+
+## Top bar (md and up)
+
+YouTube's. A `bg-background` bar, 56px tall, with no border, holding from left to right:
+
+1. A ghost icon button with `Menu`, which toggles the guide between full and mini.
+2. The brand: `Brand` (the tile and "Uroboros" in Roboto 700, 18px).
+3. The [search](actions-and-forms.md#search), centred and up to about 640px wide.
+4. **"+ Create"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500.
+5. The account avatar, a 32px circle, which opens the [account menu](#account-menu).
+
+The bell slot stays empty until an in-app notification list exists. There's no separate theme
+button: the theme lives in the account menu.
+
+## Guide (side navigation)
+
+YouTube's guide, below the top bar:
+
+- It is 240px wide on `bg-background`, not a separate navy panel.
+- Rows are `h-10 rounded-[10px] px-3 gap-6`, with a 20px icon and a 14px label.
+- The current row is `bg-raised font-medium` with `aria-current="page"`; hover is `bg-raised/60`.
+- Groups are split by a hairline rule (`border-t border-border mx-1 my-2`), with headings at
+  12/500 muted (`px-3 pt-3.5 pb-1.5`).
+- Groups today: the primary group (Library, Downloads, Subscriptions, Settings), then **Admin**
+  for admins (Users, Format profiles).
+- When subscriptions exist, a **Subscriptions** group lists channels with 24px round avatars.
+- **Mini mode** (from the menu button) is a 72px rail: the icon above a 10px label, with the
+  current item filled.
+- The navigation list stays in `nav.ts`.
+
+## Create menu and the download dialog
+
+- **"+ Create"** opens a Radix dropdown (the [menu](actions-and-forms.md#menus) recipe).
+- It lists only real actions. Today that is just **Download a link** (`Download` icon).
+  Subscriptions and playlist imports get items when they exist.
+- **Download a link** opens the [dialog](feedback-and-containers.md#dialogs) (`rounded-[12px]`) with:
+  - the title "Download a link";
+  - the [outlined field](actions-and-forms.md#text-fields) "Link", autofocused;
+  - the format `<select>`, with the default profile first ("Default (…)") from `useProfiles`;
+  - footer buttons: quiet **Cancel**, then primary **Download**. This dialog keeps a primary
+    button.
+- Submitting keeps today's `QuickDownload` logic:
+  - `choosing` navigates to `/downloads?request=<id>`;
+  - `probing` or `queued` closes the dialog and shows a toast with a View action;
+  - `failed` and API errors show inline and keep the dialog open.
+
+## Account menu
+
+YouTube's, a Radix dropdown from the avatar:
+
+1. **Header:** a 40px avatar (the initial on `bg-raised` until avatars exist), the display name
+   at 500, `@username` muted (the email when there's no username, or nothing), and a "Manage your
+   account" link to `/account`.
+2. **Settings**, with an 18px icon. The header's link is the way to the account page, so there's
+   no separate Account item.
+3. **Appearance: Device theme ›**, a submenu with Light, Dark and Device (check on the current
+   one). It drives `lib/theme.ts`.
+4. **Sign out**. Keep its push cleanup (`forgetThisDevice()` before `signOut`).
+
+Rules split the sections.
+
+## Filter chips and tabs
+
+YouTube's.
+
+```tsx
+<div role="toolbar" aria-label="Filter" className="flex gap-2 overflow-x-auto">
+  <button
+    aria-pressed
+    className="h-8 rounded-full bg-foreground px-3 text-[13px] font-medium text-background"
+  >
+    All
+  </button>
+  <button aria-pressed={false} className="h-8 rounded-full bg-raised px-3 text-[13px] font-medium">
+    Music
+  </button>
+</div>
+```
+
+- **Chips:** 32px pills on `bg-raised`, with the selected chip inverted (`bg-foreground
+  text-background`). A row of chips scrolls sideways on phones, never wraps the page wider.
+- **Tabs:** text at 500, muted; the current tab is `text-foreground` with a 2px `border-foreground`
+  underline over a hairline (`border-b border-border`). Use `role="tablist"` only for real
+  tabpanels; links between routes stay links with `aria-current`.
+
+## Page header
+
+B: the title (24/700) with a muted description under it, the page's main action at the trailing
+edge (wrapping under the title when narrow), and a hairline rule under the header (`pb-3.5
+border-b border-border`). A page holding a single list doesn't repeat the list's own heading.
