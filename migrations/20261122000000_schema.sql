@@ -142,14 +142,18 @@ CREATE TABLE format_profiles (
 CREATE UNIQUE INDEX format_profiles_one_default ON format_profiles ((true)) WHERE is_default;
 
 -- Revisions are profileRevision() of each row's arguments (apps/server/src/downloads/profiles.ts;
--- its test pins these literals).
-INSERT INTO format_profiles (name, format, merge_format, audio_only, audio_format, is_default, revision)
+-- its test pins these literals). "Best available" is the default, and every seeded profile cuts
+-- SponsorBlock's sponsor, self-promotion and interaction-reminder segments.
+INSERT INTO format_profiles
+  (name, format, merge_format, audio_only, audio_format, sponsorblock_remove, is_default, revision)
 VALUES
   ('Best up to 1080p (MP4)',
    'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba/b[height<=1080]',
-   'mp4', false, NULL, true, '88438c868e27'),
-  ('Best available', 'bv*+ba/b', NULL, false, NULL, false, '9dbd9d2454da'),
-  ('Audio only (Opus)', 'ba/b', NULL, true, 'opus', false, '52c4824db249');
+   'mp4', false, NULL, '{interaction,selfpromo,sponsor}', false, '51218d6e714b'),
+  ('Best available', 'bv*+ba/b', NULL, false, NULL, '{interaction,selfpromo,sponsor}', true,
+   '425e43de8e2a'),
+  ('Audio only (Opus)', 'ba/b', NULL, true, 'opus', '{interaction,selfpromo,sponsor}', false,
+   '10ef9f0d7ccc');
 
 -- One row per extractor and video id, shared by every user.
 CREATE TABLE media (

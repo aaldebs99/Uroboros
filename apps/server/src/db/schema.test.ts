@@ -184,12 +184,22 @@ describe("schema: downloads, media and profiles", () => {
       fetch_key: fetchKey,
     });
 
-  it("seeds the three profiles with the 1080p one as default", async () => {
+  it("seeds the three profiles with Best available as default", async () => {
     expect(await profiles()).toEqual([
       { id: expect.any(String) as string, name: "Audio only (Opus)", is_default: false },
-      { id: expect.any(String) as string, name: "Best available", is_default: false },
-      { id: expect.any(String) as string, name: "Best up to 1080p (MP4)", is_default: true },
+      { id: expect.any(String) as string, name: "Best available", is_default: true },
+      { id: expect.any(String) as string, name: "Best up to 1080p (MP4)", is_default: false },
     ]);
+  });
+
+  it("seeds every profile cutting sponsors, self-promotion and interaction reminders", async () => {
+    const rows = await t.db
+      .selectFrom("format_profiles")
+      .select(["name", "sponsorblock_remove"])
+      .execute();
+    for (const row of rows) {
+      expect(row.sponsorblock_remove, row.name).toEqual(["interaction", "selfpromo", "sponsor"]);
+    }
   });
 
   it("allows one default format profile", async () => {

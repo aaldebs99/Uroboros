@@ -92,7 +92,8 @@ under the new filters; `existing` and `queued` items stay as they are.
 Removing segments changes the file, so it lives in the format profile, which already says what
 shapes a file: an admin ticks categories (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`,
 `filler`, `interaction`, `music_offtopic`) in the profile editor, and downloads with that profile
-run `--sponsorblock-remove=<categories>`. The categories join the profile's revision only when
+run `--sponsorblock-remove=<categories>`. The seeded profiles, and a new one in the editor until the
+admin changes it, cut `sponsor`, `selfpromo` and `interaction`. The categories join the profile's revision only when
 there are any (so profiles without them kept their revisions), and the same cut file is shared by
 everyone using the profile.
 

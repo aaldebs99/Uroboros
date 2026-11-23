@@ -65,7 +65,7 @@ describe("library", () => {
         title: "Big Buck Bunny",
         channel: "Blender",
         uploadDate: "2008-05-20",
-        profileName: "Best up to 1080p (MP4)",
+        profileName: "Best available",
         sizeBytes: 1234,
         container: "mp4",
       }),

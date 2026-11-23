@@ -19,7 +19,7 @@ let store: MediaStore;
 let alice: SignedIn;
 let bob: SignedIn;
 let entryId: string;
-const KEY = "Blender/2008-05-20 Big Buck Bunny [bbb]/Big Buck Bunny [Best up to 1080p (MP4)].mp4";
+const KEY = "Blender/2008-05-20 Big Buck Bunny [bbb]/Big Buck Bunny [Best available].mp4";
 
 beforeAll(async () => {
   testDb = await TestDb.create();
@@ -87,7 +87,7 @@ describe("GET /api/library/{id}/file", () => {
     expect(res.headers.get("content-type")).toBe("video/mp4");
     expect(res.headers.get("accept-ranges")).toBe("bytes");
     expect(res.headers.get("content-disposition")).toBe(
-      `attachment; filename*=UTF-8''${encodeURIComponent("Big Buck Bunny [Best up to 1080p (MP4)].mp4")}`,
+      `attachment; filename*=UTF-8''${encodeURIComponent("Big Buck Bunny [Best available].mp4")}`,
     );
   });
 

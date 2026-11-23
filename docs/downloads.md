@@ -72,8 +72,9 @@ audio-only with an audio format, and extra arguments from the wrapper's allowlis
 server with `@uroboros/ytdlp/flags` when saved, and again when the job runs). `revision` hashes the
 file-shaping arguments, and renditions are keyed by it, so editing a profile makes new downloads
 fetch a fresh file instead of reusing one made with the old arguments; files already in libraries
-stay. Exactly one profile is the default. A profile in use cannot be deleted. Seeded: "Best up to
-1080p (MP4)" (default), "Best available", "Audio only (Opus)".
+stay. Exactly one profile is the default. A profile in use cannot be deleted. Seeded: "Best available"
+(default), "Best up to 1080p (MP4)", "Audio only (Opus)", each cutting SponsorBlock's `sponsor`,
+`selfpromo` and `interaction` segments (docs/automation.md).
 
 ## Storage
 

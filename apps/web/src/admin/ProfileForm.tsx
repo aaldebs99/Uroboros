@@ -29,6 +29,9 @@ const SPONSORBLOCK_LABELS: Record<SponsorBlockCategory, string> = {
   music_offtopic: "Non-music section",
 };
 
+/** What a new profile cuts until the admin changes it: the same as the seeded profiles. */
+const NEW_PROFILE_CUTS: readonly SponsorBlockCategory[] = ["sponsor", "selfpromo", "interaction"];
+
 /** The SponsorBlock categories a profile cuts, as checkboxes. */
 function SponsorBlockFields({
   value,
@@ -83,7 +86,7 @@ export function ProfileForm({
   const [audioFormat, setAudioFormat] = useState(initial?.audioFormat ?? "opus");
   const [extra, setExtra] = useState(initial?.extraArgs.join(" ") ?? "");
   const [cut, setCut] = useState<Set<SponsorBlockCategory>>(
-    () => new Set(initial?.sponsorblockRemove ?? []),
+    () => new Set(initial?.sponsorblockRemove ?? NEW_PROFILE_CUTS),
   );
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

@@ -77,7 +77,7 @@ describe("ProfilesPage", () => {
     });
   });
 
-  it("ticks SponsorBlock categories into the saved body", async () => {
+  it("starts a new profile cutting sponsors, self-promotion and interaction reminders", async () => {
     const calls = fakeApi({
       "GET /api/format-profiles": () => Response.json(seeds),
       "POST /api/admin/format-profiles": () =>
@@ -88,14 +88,23 @@ describe("ProfilesPage", () => {
     await userEvent.type(screen.getByLabelText("Name"), "No sponsors");
     await userEvent.type(screen.getByLabelText("Format selector"), "b");
     const cut = screen.getByRole("group", { name: "Remove SponsorBlock segments" });
-    await userEvent.click(within(cut).getByLabelText("Sponsor"));
-    await userEvent.click(within(cut).getByLabelText("Self-promotion"));
+    for (const label of ["Sponsor", "Self-promotion", "Interaction reminder"]) {
+      expect(within(cut).getByLabelText(label)).toBeChecked();
+    }
+    expect(within(cut).getByLabelText("Intro")).not.toBeChecked();
+    // Unticking one and ticking another lands in the saved body.
+    await userEvent.click(within(cut).getByLabelText("Interaction reminder"));
+    await userEvent.click(within(cut).getByLabelText("Intro"));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => {
       const body = calls.filter((c) => c.method === "POST").at(-1)?.body as {
         sponsorblockRemove?: string[];
       };
-      expect([...(body.sponsorblockRemove ?? [])].sort()).toEqual(["selfpromo", "sponsor"]);
+      expect([...(body.sponsorblockRemove ?? [])].sort()).toEqual([
+        "intro",
+        "selfpromo",
+        "sponsor",
+      ]);
     });
   });
 

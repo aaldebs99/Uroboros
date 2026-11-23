@@ -114,7 +114,7 @@ describe("fetch", () => {
       .orderBy("created_at", "desc")
       .executeTakeFirstOrThrow();
     expect(r).toMatchObject({ video_codec: "h264", width: 320, height: 240, container: "mp4" });
-    expect(r.storage_key).toMatch(/\[Best up to 1080p \(MP4\)\]\.mp4$/);
+    expect(r.storage_key).toMatch(/\[Best available\]\.mp4$/);
     const stored = await readdir(join(h.root, r.storage_key, ".."));
     expect(stored.sort()).toEqual(
       expect.arrayContaining([r.storage_key.split("/").at(-1), "clip.jpg", "clip.info.json"]),

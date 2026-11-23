@@ -128,7 +128,7 @@ describe("format profiles", () => {
     expect(res.status).toBe(200);
     const defaults = (await list()).filter((x) => x.isDefault);
     expect(defaults.map((x) => x.id)).toEqual([p.id]);
-    const seed = (await list()).find((x) => x.name === "Best up to 1080p (MP4)");
+    const seed = (await list()).find((x) => x.name === "Best available");
     await send(admin, "PATCH", `/api/admin/format-profiles/${seed?.id ?? ""}`, { isDefault: true });
   });
 
