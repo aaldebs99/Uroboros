@@ -110,6 +110,16 @@ it as a template; each test clones it into its own database, so tests never shar
 `UROBOROS_TEST_DATABASE_URL`, `UROBOROS_TEST_VALKEY_URL` and `UROBOROS_TEST_S3_URL` (RustFS with the dev keys) to use servers you provide instead,
 which is what CI does.
 
+## Downloads and storage
+
+Paste a video, playlist or channel link on the Downloads page (or the top bar's quick add) and pick
+a format profile. A playlist or channel opens a preview (a channel grouped by tab, Shorts and Live
+unticked) where you untick what you don't want. Each video is fetched once per profile, however
+many people ask for it, and lands in everyone's Library, where it can be saved. Media is stored in
+an S3-compatible bucket (RustFS locally) or in organized folders on a shared volume
+(`UROBOROS_STORAGE=filesystem`, layout in `UROBOROS_STORAGE_LAYOUT`). Admins manage the format
+profiles under Admin › Format profiles. `docs/downloads.md` has the design.
+
 ## Installable app and push notifications
 
 The UI is an installable web app: a static manifest, icons, and a service worker (vite-plugin-pwa,

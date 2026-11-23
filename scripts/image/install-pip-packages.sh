@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs the worker's Python packages into a venv, so nothing touches the system Python.
-# yt-dlp is the only downloader, and the only package.
+# yt-dlp (with its [default] extras) is the only downloader.
 set -euo pipefail
 
 REQUIREMENTS="${1:?Usage: install-pip-packages.sh <requirements.txt> [<venv-dir>]}"

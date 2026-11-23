@@ -155,6 +155,7 @@ fi
 # The database is empty: the api applies the migrations itself before it reports ready.
 docker run -d --name "${API}" --network "${NETWORK}" \
     -e DATABASE_URL="${DATABASE_URL}" -e VALKEY_URL="${VALKEY_URL}" \
+    -e UROBOROS_STORAGE=filesystem -e UROBOROS_STORAGE_ROOT=/tmp/media \
     "${API_IMAGE}" > /dev/null
 if wait_for 60 ready_ok; then
     pass "api readiness is {\"status\":\"ok\",\"failing\":[]}"
@@ -230,6 +231,8 @@ check "no youtube-dl or youtube-dlc on PATH" docker run --rm --entrypoint sh "${
     '! command -v youtube-dl && ! command -v youtube-dlc'
 
 docker run -d --name "${WORKER}" --network "${NETWORK}" -e VALKEY_URL="${VALKEY_URL}" \
+    -e DATABASE_URL="${DATABASE_URL}" \
+    -e UROBOROS_STORAGE=filesystem -e UROBOROS_STORAGE_ROOT=/tmp/media \
     "${WORKER_IMAGE}" > /dev/null
 if wait_for 60 worker_started; then
     pass "worker process started"

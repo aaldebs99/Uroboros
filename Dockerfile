@@ -38,12 +38,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY packages/contract/package.json packages/contract/
+COPY packages/ytdlp/package.json packages/ytdlp/
 COPY tools/ratchet/package.json tools/ratchet/
 RUN --mount=type=cache,target=/pnpm-store,sharing=locked \
     pnpm config set store-dir /pnpm-store && \
     pnpm install --frozen-lockfile --filter "@uroboros/server..." --filter "@uroboros/web..."
 COPY tsconfig.base.json ./
 COPY packages/contract packages/contract
+COPY packages/ytdlp packages/ytdlp
 COPY apps/server apps/server
 COPY apps/web apps/web
 RUN pnpm -F @uroboros/server build && pnpm -F @uroboros/web build
@@ -52,7 +54,8 @@ RUN pnpm -F @uroboros/server build && pnpm -F @uroboros/web build
 # /usr/share/licenses/uroboros/ with Uroboros' own licence.
 COPY LICENSE licenses/LICENSE
 RUN pnpm licenses list --json --prod \
-      --filter @uroboros/server --filter @uroboros/web --filter @uroboros/contract > /tmp/licenses.json && \
+      --filter @uroboros/server --filter @uroboros/web --filter @uroboros/contract \
+      --filter @uroboros/ytdlp > /tmp/licenses.json && \
     node apps/server/src/bin/notices.ts /tmp/licenses.json licenses/THIRD_PARTY_NOTICES.txt
 COPY migrations migrations
 
