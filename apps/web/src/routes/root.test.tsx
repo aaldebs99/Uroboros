@@ -7,7 +7,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAppRouter } from "../router";
 import { stubApi } from "../test/render";
 
-async function renderAt(path: string) {
+/** Renders the app at `path`, once the shell is up: its side navigation, or `ready`. */
+async function renderAt(
+  path: string,
+  ready = () => screen.findByRole("navigation", { name: "Primary" }),
+) {
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -15,7 +19,8 @@ async function renderAt(path: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await screen.findByRole("navigation", { name: "Primary" });
+  await ready();
+  return router;
 }
 
 beforeEach(() => {
@@ -142,6 +147,36 @@ describe("app shell", () => {
 
     expect(screen.getByRole("button", { name: "Expand navigation" })).toBeInTheDocument();
     expect(localStorage.getItem("uroboros-nav-mini")).toBe("1");
+  });
+
+  it("puts the navigation in a drawer on a watch page, which any navigation closes", async () => {
+    const router = await renderAt("/library/0190a3f2-7c1e-7000-8000-000000000200", () =>
+      screen.findByRole("button", { name: "Open navigation" }),
+    );
+    expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation" });
+    await userEvent.click(within(drawer).getByRole("link", { name: "Downloads" }));
+
+    // Downloads has the side navigation again, and no drawer.
+    expect(await screen.findByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // Back on the watch page, the drawer stays closed until asked for.
+    router.history.back();
+    await screen.findByRole("button", { name: "Open navigation" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes the watch page's drawer with its own menu button", async () => {
+    await renderAt("/library/0190a3f2-7c1e-7000-8000-000000000200", () =>
+      screen.findByRole("button", { name: "Open navigation" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close navigation" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open navigation" })).toHaveFocus();
   });
 
   it("shows the Admin section only to admins", async () => {

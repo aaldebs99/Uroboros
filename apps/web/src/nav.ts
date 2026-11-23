@@ -50,6 +50,20 @@ export function inLibrary(pathname: string): boolean {
   return pathname === "/" || pathname.startsWith("/library/");
 }
 
+/**
+ * Whether `pathname` is a video's watch page (`/library/$entryId`), where the side navigation
+ * steps aside for the player, as on YouTube.
+ */
+export function isWatchPage(pathname: string): boolean {
+  const parts = pathname.split("/").filter(Boolean);
+  return (
+    parts.length === 2 &&
+    parts[0] === "library" &&
+    parts[1] !== "channels" &&
+    parts[1] !== "playlists"
+  );
+}
+
 /** Shown to admins only, under an "Admin" heading. */
 export const ADMIN_ITEMS: readonly NavItem[] = [
   {
