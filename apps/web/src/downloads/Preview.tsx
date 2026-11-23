@@ -1,19 +1,69 @@
-import type { DownloadRequest, PreviewGroup } from "@uroboros/contract";
+import type { DownloadRequest, PreviewEntry, PreviewGroup } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader, X } from "lucide-react";
+import { Film, Loader, X } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { errorText } from "@/api/client";
 import { queueSelection, useRequest } from "@/api/downloads";
+import { RequestBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { notify } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 
 import { DOWNLOAD_ERROR_TEXT } from "./errorText";
 import { formatDuration } from "./format";
 
 function initiallyTicked(groups: PreviewGroup[]): Set<string> {
   return new Set(groups.filter((g) => g.ticked).flatMap((g) => g.entries.map((e) => e.id)));
+}
+
+/** One entry: the whole row is the checkbox's label. Unticked rows fade. */
+function EntryRow({
+  entry,
+  on,
+  toggle,
+}: {
+  entry: PreviewEntry;
+  on: boolean;
+  toggle: (on: boolean) => void;
+}) {
+  return (
+    <li>
+      <label
+        className={cn(
+          "flex cursor-pointer items-center gap-3 rounded-[10px] px-2 py-2 hover:bg-raised",
+          !on && "opacity-55",
+        )}
+      >
+        <Checkbox
+          aria-label={entry.title ?? entry.id}
+          checked={on}
+          onChange={(ev) => {
+            toggle(ev.target.checked);
+          }}
+        />
+        <span className="relative grid aspect-video w-[120px] shrink-0 place-items-center overflow-hidden rounded-[8px] bg-raised">
+          {entry.thumbnailUrl === null ? (
+            <Film className="size-5 text-muted-foreground" aria-hidden />
+          ) : (
+            <img
+              src={entry.thumbnailUrl}
+              alt=""
+              loading="lazy"
+              className="size-full object-cover"
+            />
+          )}
+        </span>
+        <span className="grid min-w-0 flex-1">
+          <span className="line-clamp-2 font-medium">{entry.title ?? entry.id}</span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {[entry.uploader, formatDuration(entry.duration)].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+      </label>
+    </li>
+  );
 }
 
 function GroupList({
@@ -29,9 +79,8 @@ function GroupList({
   const all = ids.length > 0 && ids.every((id) => ticked.has(id));
   return (
     <fieldset className="grid gap-1">
-      <legend className="flex items-center gap-2 py-1 text-sm font-medium">
-        <input
-          type="checkbox"
+      <legend className="flex items-center gap-3 px-2 py-1.5 font-medium">
+        <Checkbox
           aria-label={`All ${group.name}`}
           checked={all}
           onChange={(e) => {
@@ -41,26 +90,20 @@ function GroupList({
         {group.name} <span className="text-muted-foreground">({String(ids.length)})</span>
       </legend>
       {group.truncated ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="px-2 text-xs text-muted-foreground">
           Only the first {String(ids.length)} are listed.
         </p>
       ) : null}
-      <ul className="grid max-h-80 gap-1 overflow-y-auto">
+      <ul className="grid max-h-96 overflow-y-auto">
         {group.entries.map((e) => (
-          <li key={e.id} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              aria-label={e.title ?? e.id}
-              checked={ticked.has(e.id)}
-              onChange={(ev) => {
-                toggle([e.id], ev.target.checked);
-              }}
-            />
-            <span className="flex-1 truncate">{e.title ?? e.id}</span>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {formatDuration(e.duration)}
-            </span>
-          </li>
+          <EntryRow
+            key={e.id}
+            entry={e}
+            on={ticked.has(e.id)}
+            toggle={(on) => {
+              toggle([e.id], on);
+            }}
+          />
         ))}
       </ul>
     </fieldset>
@@ -87,49 +130,76 @@ function Picker({ req, onDone }: { req: DownloadRequest; onDone: () => void }) {
     try {
       const chosen = everyId.filter((id) => ticked.has(id));
       const result = await queueSelection(req.id, chosen);
-      toast.success(
+      notify.success(
         `Queued ${String(result.queued)}${result.skipped > 0 ? `, skipped ${String(result.skipped)} you already have` : ""}.`,
       );
       await client.invalidateQueries({ queryKey: ["api", "downloads"] });
       onDone();
     } catch (err) {
-      toast.error(errorText(err));
+      notify.error(errorText(err));
     } finally {
       setBusy(false);
     }
   };
   const count = everyId.filter((id) => ticked.has(id)).length;
+  const allOn = count === everyId.length;
   return (
-    <div className="grid gap-4">
-      <div className="flex gap-2">
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="mr-auto text-muted-foreground">
+          {String(count)} of {String(everyId.length)} selected
+        </p>
         <Button
-          variant="outline"
-          size="sm"
+          variant="quiet"
+          size="compact"
           onClick={() => {
-            setTicked(new Set(everyId));
+            setTicked(allOn ? new Set() : new Set(everyId));
           }}
         >
-          Select all
+          {allOn ? "Select none" : "Select all"}
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setTicked(new Set());
-          }}
-        >
-          Select none
+        {allOn ? null : (
+          <Button
+            variant="quiet"
+            size="compact"
+            onClick={() => {
+              setTicked(new Set());
+            }}
+          >
+            Select none
+          </Button>
+        )}
+        <Button size="compact" disabled={count === 0 || busy} onClick={() => void queue()}>
+          {busy ? <Loader className="animate-spin" aria-hidden /> : null}
+          Queue {String(count)} videos
         </Button>
       </div>
       {req.groups.map((g) => (
         <GroupList key={g.name} group={g} ticked={ticked} toggle={toggle} />
       ))}
-      <Button disabled={count === 0 || busy} onClick={() => void queue()}>
-        {busy ? <Loader className="animate-spin" aria-hidden /> : null}
-        Queue {String(count)} videos
-      </Button>
     </div>
   );
+}
+
+function PanelBody({
+  req,
+  data,
+}: {
+  req: ReturnType<typeof useRequest>;
+  data: DownloadRequest | undefined;
+}) {
+  if (req.isError) return <p className="text-destructive">{errorText(req.error)}</p>;
+  if (data === undefined || data.state === "probing") {
+    return (
+      <p className="flex items-center gap-2 text-muted-foreground">
+        <Loader className="size-4 animate-spin" aria-hidden /> Looking at the link…
+      </p>
+    );
+  }
+  if (data.state === "failed") {
+    return <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[data.errorKind ?? "unknown"]}</p>;
+  }
+  return null;
 }
 
 /** A pasted link: probing, then the preview of a playlist or channel, or why it failed. */
@@ -138,30 +208,21 @@ export function RequestPanel({ id, onDone }: { id: string; onDone: () => void })
   const data = req.data;
   if (data?.state === "queued") return null;
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <CardTitle className="truncate">
+    <div className="grid gap-3 rounded-2xl bg-card p-4 shadow-card">
+      <div className="flex items-center gap-3">
+        <p className="min-w-0 flex-1 truncate text-base font-bold">
           {data?.title ?? data?.url ?? "Looking at the link"}
-        </CardTitle>
-        <Button variant="ghost" size="sm" aria-label="Close" onClick={onDone}>
-          <X aria-hidden />
+        </p>
+        {data === undefined ? null : <RequestBadge state={data.state} />}
+        <Button variant="ghost" size="icon" aria-label="Close" onClick={onDone}>
+          <X className="size-5" aria-hidden />
         </Button>
-      </CardHeader>
-      <CardContent>
-        {req.isError ? (
-          <p className="text-sm text-destructive">{errorText(req.error)}</p>
-        ) : data === undefined || data.state === "probing" ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader className="size-4 animate-spin" aria-hidden /> Looking at the link…
-          </p>
-        ) : data.state === "failed" ? (
-          <p className="text-sm text-destructive">
-            {DOWNLOAD_ERROR_TEXT[data.errorKind ?? "unknown"]}
-          </p>
-        ) : (
-          <Picker req={data} onDone={onDone} />
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      {data?.state === "choosing" ? (
+        <Picker req={data} onDone={onDone} />
+      ) : (
+        <PanelBody req={req} data={data} />
+      )}
+    </div>
   );
 }

@@ -76,8 +76,11 @@ function setup(routes: Record<string, Handler> = {}) {
 }
 
 async function openLine() {
-  await userEvent.click(await screen.findByRole("button", { name: "Quick download" }));
-  return screen.findByRole("textbox", { name: "Link to download" });
+  const [create] = await screen.findAllByRole("button", { name: "Create" });
+  if (create === undefined) throw new Error("no Create button");
+  await userEvent.click(create);
+  await userEvent.click(await screen.findByRole("button", { name: "Download a link" }));
+  return screen.findByRole("textbox", { name: "Link" });
 }
 
 const posts = (calls: ReturnType<typeof fakeApi>) =>
@@ -87,7 +90,7 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe("QuickDownload", () => {
+describe("DownloadDialog", () => {
   it("opens a focused paste line with the profiles, default first", async () => {
     setup();
     const input = await openLine();
@@ -119,7 +122,7 @@ describe("QuickDownload", () => {
     expect(posts(calls).map((call) => call.body)).toEqual([
       { url: URL_TO_PASTE, profileId: AUDIO },
     ]);
-    expect(screen.queryByRole("textbox", { name: "Link to download" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Link" })).not.toBeInTheDocument();
 
     // A plain click: sonner's pointerdown handler calls setPointerCapture, which jsdom lacks.
     fireEvent.click(screen.getByRole("button", { name: "View" }));
@@ -156,10 +159,7 @@ describe("QuickDownload", () => {
     await userEvent.type(await openLine(), "file:///etc/passwd{Enter}");
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Paste an http or https link.");
-    expect(screen.getByRole("textbox", { name: "Link to download" })).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
+    expect(screen.getByRole("textbox", { name: "Link" })).toHaveAttribute("aria-invalid", "true");
     expect(posts(calls)).toEqual([]);
   });
 
@@ -174,7 +174,7 @@ describe("QuickDownload", () => {
     await userEvent.type(await openLine(), `${URL_TO_PASTE}{Enter}`);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("That URL is not allowed.");
-    expect(screen.getByRole("textbox", { name: "Link to download" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Link" })).toBeInTheDocument();
   });
 
   it("shows a request that failed outright", async () => {

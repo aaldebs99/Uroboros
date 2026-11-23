@@ -1,5 +1,4 @@
-import "@fontsource-variable/bricolage-grotesque";
-import "@fontsource-variable/geist";
+import "@fontsource-variable/roboto";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";

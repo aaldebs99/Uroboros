@@ -12,7 +12,7 @@ export function HealthBadge() {
 
   if (readiness.isPending) {
     return (
-      <Badge variant="outline" role="status" className="text-muted-foreground">
+      <Badge tone="muted" role="status">
         <Loader className="animate-spin" aria-hidden />
         <span>Checking</span>
       </Badge>
@@ -20,7 +20,7 @@ export function HealthBadge() {
   }
   if (readiness.isError) {
     return (
-      <Badge variant="destructive" role="status">
+      <Badge tone="destructive" role="status">
         <WifiOff aria-hidden />
         <span>Unreachable</span>
       </Badge>
@@ -30,21 +30,21 @@ export function HealthBadge() {
   switch (status) {
     case "ok":
       return (
-        <Badge variant="success" role="status">
+        <Badge tone="success" role="status">
           <CircleCheck aria-hidden />
           <span>Healthy</span>
         </Badge>
       );
     case "starting":
       return (
-        <Badge variant="outline" role="status" className="text-muted-foreground">
+        <Badge tone="muted" role="status">
           <Loader className="animate-spin" aria-hidden />
           <span>Starting</span>
         </Badge>
       );
     case "degraded":
       return (
-        <Badge variant="warning" role="status">
+        <Badge tone="warning" role="status">
           <TriangleAlert aria-hidden />
           <span>Degraded</span>
           {failing.map((name) => (

@@ -5,9 +5,7 @@ import { signInLocal, useAuthMethods } from "@/api/auth";
 import { ApiError, errorText } from "@/api/client";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 
 import { saveReturnTo, safePath, takeReturnTo } from "./returnTo";
 
@@ -61,31 +59,27 @@ function LocalForm({ onSignedIn }: { onSignedIn: () => void }) {
   };
   return (
     <form className="space-y-4" onSubmit={(event) => void submit(event)}>
-      <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
-        <Input
-          id="username"
-          autoComplete="username"
-          required
-          value={username}
-          onChange={(e) => {
-            setUsername(e.target.value);
-          }}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-          }}
-        />
-      </div>
+      <Field
+        label="Username"
+        id="username"
+        autoComplete="username"
+        required
+        value={username}
+        onChange={(e) => {
+          setUsername(e.target.value);
+        }}
+      />
+      <Field
+        label="Password"
+        id="password"
+        type="password"
+        autoComplete="current-password"
+        required
+        value={password}
+        onChange={(e) => {
+          setPassword(e.target.value);
+        }}
+      />
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -103,7 +97,7 @@ function ProviderButton({ displayName, ready }: { displayName: string; ready: bo
   if (!ready) {
     return (
       <div className="space-y-2">
-        <Button variant="outline" className="w-full" disabled>
+        <Button variant="secondary" className="w-full" disabled>
           Continue with {displayName}
         </Button>
         <p className="text-xs text-muted-foreground">
@@ -114,7 +108,7 @@ function ProviderButton({ displayName, ready }: { displayName: string; ready: bo
   }
   const returnTo = safePath(takeReturnTo());
   return (
-    <Button variant="outline" className="w-full" asChild>
+    <Button variant="secondary" className="w-full" asChild>
       <a
         href={`/api/auth/oidc/login?returnTo=${encodeURIComponent(returnTo)}`}
         onClick={() => {
@@ -133,17 +127,15 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   const oidc = methods.data?.oidc ?? null;
   return (
     <div className="page-glow flex min-h-dvh items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-4">
+      <div className="grid w-full max-w-sm gap-6 rounded-2xl bg-card p-6 shadow-card">
+        <div className="grid gap-4">
           <Brand />
-          <div className="space-y-1">
-            <CardTitle>
-              <h1>Sign in to Uroboros</h1>
-            </CardTitle>
-            <CardDescription>Your downloads, library and subscriptions.</CardDescription>
+          <div className="grid gap-1">
+            <h1 className="text-2xl/[1.15] font-bold">Sign in to Uroboros</h1>
+            <p className="text-muted-foreground">Your downloads, library and subscriptions.</p>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        </div>
+        <div className="space-y-4">
           {methods.isPending ? (
             <Loader className="mx-auto animate-spin" aria-label="Loading" />
           ) : methods.isError ? (
@@ -162,8 +154,8 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
               {oidc ? <ProviderButton displayName={oidc.displayName} ready={oidc.ready} /> : null}
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

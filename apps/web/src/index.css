@@ -4,83 +4,91 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Palette drawn from the Uroboros mark: deep navy (#0b1d33), electric blue (#3b82f6 / #60a5fa) and
- * ice white (#f0f8ff). The sidebar stays navy in both themes, like the logo's own tile; the
- * content area flips between a cool paper white and an ink-navy.
+ * Palette drawn from the Uroboros mark: navy (#0b1d33, #050e1c, #143a66), electric blue
+ * (#3b82f6, #60a5fa) and ice (#cfe8ff, #f0f8ff). The design system skill
+ * (.claude/skills/uroboros-design-system/references/foundations.md) holds the hex sources.
  */
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.985 0.006 245);
-  --foreground: oklch(0.21 0.045 258);
+  --background: oklch(0.981 0.005 258.3);
+  --foreground: oklch(0.249 0.052 261.3);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.045 258);
+  --card-foreground: oklch(0.249 0.052 261.3);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.045 258);
-  --primary: oklch(0.55 0.21 262);
-  --primary-foreground: oklch(0.985 0.01 240);
-  --secondary: oklch(0.955 0.015 250);
-  --secondary-foreground: oklch(0.28 0.06 258);
-  --muted: oklch(0.955 0.012 250);
-  --muted-foreground: oklch(0.5 0.035 255);
-  --accent: oklch(0.94 0.03 250);
-  --accent-foreground: oklch(0.28 0.08 260);
-  --destructive: oklch(0.55 0.22 27);
-  --success: oklch(0.52 0.14 160);
-  --warning: oklch(0.58 0.14 70);
-  --border: oklch(0.91 0.015 250);
-  --input: oklch(0.91 0.015 250);
-  --ring: oklch(0.62 0.19 262);
-  --sidebar: oklch(0.19 0.045 257);
-  --sidebar-foreground: oklch(0.93 0.02 240);
-  --sidebar-primary: oklch(0.72 0.15 250);
-  --sidebar-primary-foreground: oklch(0.19 0.045 257);
-  --sidebar-accent: oklch(0.27 0.06 257);
-  --sidebar-accent-foreground: oklch(0.97 0.01 240);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.72 0.15 250);
+  --popover-foreground: oklch(0.249 0.052 261.3);
+  --raised: oklch(0.962 0.011 256.7);
+  --primary: oklch(0.57 0.195 261.6);
+  --primary-foreground: oklch(1 0 0);
+  --primary-strong: oklch(0.497 0.181 262.5);
+  --secondary: oklch(0.962 0.011 256.7);
+  --secondary-foreground: oklch(0.249 0.052 261.3);
+  --muted: oklch(0.962 0.011 256.7);
+  --muted-foreground: oklch(0.523 0.041 257.4);
+  --accent: oklch(0.95 0.024 262.1);
+  --accent-foreground: oklch(0.57 0.195 261.6);
+  --destructive: oklch(0.578 0.188 25.3);
+  --success: oklch(0.578 0.116 166.3);
+  --warning: oklch(0.626 0.125 70.4);
+  --border: oklch(0.929 0.016 257.2);
+  --input: oklch(0.929 0.016 257.2);
+  --ring: oklch(0.57 0.195 261.6);
+  --overlay: oklch(0.163 0.033 257 / 85%);
+  --overlay-foreground: oklch(0.975 0.013 244.3);
+  --scrim: oklch(0 0 0 / 55%);
+  --elev-card: 0 1px 2px oklch(0.228 0.049 254.6 / 6%), 0 8px 24px oklch(0.228 0.049 254.6 / 6%);
+  --elev-menu: 0 12px 32px oklch(0.228 0.049 254.6 / 16%);
+  --elev-glow: 0 0 18px color-mix(in oklch, var(--primary) 45%, transparent);
+  --glow-top: oklch(0.952 0.023 258.4);
 }
 
 .dark {
-  --background: oklch(0.15 0.03 257);
-  --foreground: oklch(0.95 0.015 240);
-  --card: oklch(0.2 0.04 257);
-  --card-foreground: oklch(0.95 0.015 240);
-  --popover: oklch(0.22 0.045 257);
-  --popover-foreground: oklch(0.95 0.015 240);
-  --primary: oklch(0.72 0.15 250);
-  --primary-foreground: oklch(0.17 0.04 257);
-  --secondary: oklch(0.27 0.05 257);
-  --secondary-foreground: oklch(0.95 0.015 240);
-  --muted: oklch(0.25 0.04 257);
-  --muted-foreground: oklch(0.72 0.03 250);
-  --accent: oklch(0.29 0.06 257);
-  --accent-foreground: oklch(0.97 0.01 240);
-  --destructive: oklch(0.7 0.19 22);
-  --success: oklch(0.78 0.15 160);
-  --warning: oklch(0.82 0.14 80);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.62 0.17 258);
-  --sidebar: oklch(0.12 0.03 257);
-  --sidebar-accent: oklch(0.23 0.055 257);
+  --background: oklch(0.196 0.038 260.5);
+  --foreground: oklch(0.966 0.016 262.8);
+  --card: oklch(0.245 0.054 260.7);
+  --card-foreground: oklch(0.966 0.016 262.8);
+  --popover: oklch(0.245 0.054 260.7);
+  --popover-foreground: oklch(0.966 0.016 262.8);
+  --raised: oklch(0.287 0.064 260.2);
+  --primary: oklch(0.727 0.143 257.1);
+  --primary-foreground: oklch(0.196 0.038 260.5);
+  --primary-strong: oklch(0.623 0.188 259.8);
+  --secondary: oklch(0.287 0.064 260.2);
+  --secondary-foreground: oklch(0.966 0.016 262.8);
+  --muted: oklch(0.287 0.064 260.2);
+  --muted-foreground: oklch(0.741 0.049 261.3);
+  --accent: oklch(0.327 0.086 261.1);
+  --accent-foreground: oklch(0.727 0.143 257.1);
+  --destructive: oklch(0.761 0.142 20.9);
+  --success: oklch(0.819 0.141 162.2);
+  --warning: oklch(0.851 0.122 81.9);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 9%);
+  --ring: oklch(0.727 0.143 257.1);
+  --elev-card: 0 0 0 1px oklch(1 0 0 / 5%), 0 8px 24px oklch(0 0 0 / 35%);
+  --elev-menu: 0 16px 40px oklch(0 0 0 / 55%);
+  --glow-top: oklch(0.314 0.085 259.7);
 }
 
 @theme inline {
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Bricolage Grotesque Variable", "Geist Variable", ui-sans-serif, sans-serif;
+  --font-sans: "Roboto Variable", Roboto, ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --shadow-card: var(--elev-card);
+  --shadow-menu: var(--elev-menu);
+  --shadow-glow: var(--elev-glow);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+  --color-raised: var(--raised);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-strong: var(--primary-strong);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -93,14 +101,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  --color-overlay: var(--overlay);
+  --color-overlay-foreground: var(--overlay-foreground);
+  --color-scrim: var(--scrim);
 }
 
 @layer base {
@@ -113,23 +116,59 @@
     @apply min-h-dvh;
   }
   body {
-    @apply bg-background font-sans text-foreground antialiased;
-  }
-  h1,
-  h2,
-  h3 {
-    @apply font-display tracking-tight;
+    @apply bg-background font-sans text-sm/5 text-foreground antialiased;
   }
 }
 
-/* A faint blue bloom behind the page, echoing the logo's glow. */
+/* A faint blue bloom from the top right, echoing the logo's glow. */
 .page-glow {
-  background-image:
-    radial-gradient(60rem 28rem at 85% -10%, oklch(0.62 0.19 262 / 0.1), transparent 70%),
-    radial-gradient(40rem 24rem at 0% 110%, oklch(0.62 0.19 262 / 0.06), transparent 70%);
+  background-image: radial-gradient(60rem 28rem at 85% -10%, var(--glow-top), transparent 70%);
 }
-.dark .page-glow {
-  background-image:
-    radial-gradient(60rem 28rem at 85% -10%, oklch(0.62 0.19 262 / 0.18), transparent 70%),
-    radial-gradient(40rem 24rem at 0% 110%, oklch(0.62 0.19 262 / 0.1), transparent 70%);
+
+/* The toast's timer line: shrinks over the toast's duration, pausing whenever Sonner pauses. */
+@keyframes toast-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.toast-timer {
+  animation-name: toast-timer;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+[data-sonner-toaster]:hover .toast-timer,
+[data-expanded="true"] .toast-timer {
+  animation-play-state: paused;
+}
+
+/* Loading placeholders: a soft sweep across bg-raised shapes. */
+@keyframes shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+.shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklch, var(--foreground) 6%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-timer {
+    display: none;
+  }
+  .shimmer {
+    animation: none;
+  }
 }

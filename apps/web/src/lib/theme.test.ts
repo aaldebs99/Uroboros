@@ -3,7 +3,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { readStoredTheme, resolveTheme, STORAGE_KEY, storeTheme, type Theme } from "./theme";
+import {
+  clearStoredTheme,
+  readStoredTheme,
+  resolveTheme,
+  STORAGE_KEY,
+  storeTheme,
+  type Theme,
+} from "./theme";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -89,5 +96,13 @@ describe("public/theme-init.js, the pre-paint script", () => {
     expect(() => {
       runInThisContext(script);
     }).not.toThrow();
+  });
+});
+
+describe("clearStoredTheme", () => {
+  it("forgets the choice so the device decides", () => {
+    storeTheme("dark");
+    clearStoredTheme();
+    expect(readStoredTheme()).toBeNull();
   });
 });

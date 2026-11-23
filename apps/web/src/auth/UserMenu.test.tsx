@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
-import { renderWithQuery } from "@/test/render";
+import { renderInRouter } from "@/test/render";
 
 import { UserMenu } from "./UserMenu";
 
@@ -23,7 +23,7 @@ describe("UserMenu", () => {
       vi.fn(() => Promise.resolve(Response.json({ endSessionUrl: "https://sso.example/end" }))),
     );
     const navigate = vi.fn();
-    renderWithQuery(<UserMenu me={me} navigate={navigate} />);
+    await renderInRouter(<UserMenu me={me} navigate={navigate} />);
     await userEvent.click(screen.getByRole("button", { name: "Account menu for Alice" }));
     expect(await screen.findByText("Admin")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
@@ -38,7 +38,7 @@ describe("UserMenu", () => {
       vi.fn(() => Promise.resolve(Response.json({ endSessionUrl: null }))),
     );
     const navigate = vi.fn();
-    renderWithQuery(
+    await renderInRouter(
       <UserMenu me={{ ...me, method: "local", role: "member" }} navigate={navigate} />,
     );
     await userEvent.click(screen.getByRole("button", { name: "Account menu for Alice" }));
@@ -59,7 +59,7 @@ describe("UserMenu", () => {
       "POST /api/auth/logout": () => Response.json({ endSessionUrl: null }),
     });
     const navigate = vi.fn();
-    renderWithQuery(<UserMenu me={{ ...me, method: "local" }} navigate={navigate} />);
+    await renderInRouter(<UserMenu me={{ ...me, method: "local" }} navigate={navigate} />);
     await userEvent.click(screen.getByRole("button", { name: "Account menu for Alice" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Sign out" }));
     await waitFor(() => {

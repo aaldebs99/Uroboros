@@ -1,12 +1,11 @@
 import { MIN_PASSWORD_CHARS } from "@uroboros/contract";
 import { useState, type SubmitEvent } from "react";
-import { toast } from "sonner";
 
 import { useChangePassword } from "@/api/account";
 import { ApiError, errorText } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
+import { notify } from "@/components/ui/sonner";
 
 /** Change a local account's password; the server signs out the other sessions. */
 export function PasswordForm() {
@@ -27,7 +26,7 @@ export function PasswordForm() {
         onSuccess: () => {
           setCurrent("");
           setNext("");
-          toast.success("Password changed. Your other browsers were signed out.");
+          notify.success("Password changed. Your other browsers were signed out.");
         },
         onError: (error) => {
           setProblem(
@@ -41,32 +40,28 @@ export function PasswordForm() {
   };
   return (
     <form className="grid max-w-sm gap-4" onSubmit={submit}>
-      <div className="grid gap-2">
-        <Label htmlFor="current-password">Current password</Label>
-        <Input
-          id="current-password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={current}
-          onChange={(e) => {
-            setCurrent(e.target.value);
-          }}
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="new-password">New password</Label>
-        <Input
-          id="new-password"
-          type="password"
-          autoComplete="new-password"
-          required
-          value={next}
-          onChange={(e) => {
-            setNext(e.target.value);
-          }}
-        />
-      </div>
+      <Field
+        label="Current password"
+        id="current-password"
+        type="password"
+        autoComplete="current-password"
+        required
+        value={current}
+        onChange={(e) => {
+          setCurrent(e.target.value);
+        }}
+      />
+      <Field
+        label="New password"
+        id="new-password"
+        type="password"
+        autoComplete="new-password"
+        required
+        value={next}
+        onChange={(e) => {
+          setNext(e.target.value);
+        }}
+      />
       {problem ? (
         <p role="alert" className="text-sm text-destructive">
           {problem}

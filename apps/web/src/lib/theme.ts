@@ -28,6 +28,15 @@ export function storeTheme(theme: Theme): void {
   }
 }
 
+/** Forgets the saved choice, so the device's setting decides again. */
+export function clearStoredTheme(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Blocked storage held no choice to forget.
+  }
+}
+
 export function resolveTheme(stored: Theme | null, systemDark: boolean): Theme {
   return stored ?? (systemDark ? "dark" : "light");
 }
@@ -64,15 +73,36 @@ export function initTheme(): void {
   applyTheme(currentTheme());
 }
 
+function changed(): void {
+  applyTheme(currentTheme());
+  listeners.forEach((notify) => {
+    notify();
+  });
+}
+
+/** What the person picked in Appearance: a theme, or "system" to follow the device. */
+export type ThemeChoice = Theme | "system";
+
+export function useThemeChoice(): { choice: ThemeChoice; choose: (choice: ThemeChoice) => void } {
+  const choice = useSyncExternalStore(
+    subscribe,
+    () => readStoredTheme() ?? "system",
+    () => "system" as const,
+  );
+  const choose = useCallback((next: ThemeChoice) => {
+    if (next === "system") clearStoredTheme();
+    else storeTheme(next);
+    changed();
+  }, []);
+  return { choice, choose };
+}
+
 export function useTheme(): { theme: Theme; toggle: () => void } {
   const theme = useSyncExternalStore(subscribe, currentTheme, () => "light" as const);
   const toggle = useCallback(() => {
     const next: Theme = currentTheme() === "dark" ? "light" : "dark";
     storeTheme(next);
-    applyTheme(next);
-    listeners.forEach((notify) => {
-      notify();
-    });
+    changed();
   }, []);
   return { theme, toggle };
 }

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
 import { renderWithQuery } from "@/test/render";
@@ -107,7 +107,6 @@ describe("AdminUsersPage", () => {
   });
 
   it("deletes a user after confirming, and syncs with Authentik", async () => {
-    vi.stubGlobal("confirm", () => true);
     const calls = api({
       "DELETE /api/admin/users/0190a3f2-7c1e-7000-8000-000000000003": () =>
         new Response(null, { status: 204 }),
@@ -116,6 +115,7 @@ describe("AdminUsersPage", () => {
     });
     renderWithQuery(<AdminUsersPage me={admin} />);
     await userEvent.click(within(await rowOf("Tv")).getByRole("button", { name: "Delete Tv" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Delete" }));
     await userEvent.click(screen.getByRole("button", { name: "Sync with Authentik" }));
     expect(await screen.findByText("A sync is already running.")).toBeInTheDocument();
     expect(calls.some((c) => c.method === "DELETE")).toBe(true);

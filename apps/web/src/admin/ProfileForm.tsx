@@ -3,8 +3,15 @@ import { useState, type SubmitEvent } from "react";
 
 import { errorText } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field } from "@/components/ui/field";
 
 /** Splits "--a b\n--c" into arguments on whitespace. */
 const splitArgs = (text: string): string[] => text.split(/\s+/).filter((t) => t !== "");
@@ -52,21 +59,21 @@ export function ProfileForm({
     value: string,
     set: (v: string) => void,
     hint?: string,
+    mono = false,
   ) => (
-    <div className="grid gap-1">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        value={value}
-        onChange={(e) => {
-          set(e.target.value);
-        }}
-      />
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
+    <Field
+      id={id}
+      label={label}
+      value={value}
+      mono={mono}
+      help={hint}
+      onChange={(e) => {
+        set(e.target.value);
+      }}
+    />
   );
   return (
-    <form className="grid gap-3 rounded-lg border p-4" onSubmit={(e) => void submit(e)}>
+    <form className="grid gap-3.5" onSubmit={(e) => void submit(e)}>
       {field("profile-name", "Name", name, setName)}
       {field(
         "profile-format",
@@ -74,10 +81,10 @@ export function ProfileForm({
         format,
         setFormat,
         "yt-dlp's -f, e.g. bv*[height<=720]+ba/b",
+        true,
       )}
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
+      <label className="flex min-h-8 items-center gap-3">
+        <Checkbox
           checked={audioOnly}
           onChange={(e) => {
             setAudioOnly(e.target.checked);
@@ -100,20 +107,53 @@ export function ProfileForm({
         extra,
         setExtra,
         "From the allowlist, e.g. --embed-chapters",
+        true,
       )}
       {problem ? (
         <p role="alert" className="text-sm text-destructive">
           {problem}
         </p>
       ) : null}
-      <div className="flex gap-2">
+      <DialogFooter>
+        <Button type="button" variant="quiet" onClick={onCancel}>
+          Cancel
+        </Button>
         <Button type="submit" disabled={busy}>
           Save
         </Button>
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
+      </DialogFooter>
     </form>
+  );
+}
+
+/** The profile form in a dialog: adding when `initial` is missing, else editing it. */
+export function ProfileDialog({
+  open,
+  initial,
+  onSave,
+  onClose,
+}: {
+  open: boolean;
+  initial?: FormatProfile;
+  onSave: (body: NewFormatProfileBody) => Promise<unknown>;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DialogContent className="max-h-[calc(100dvh-3rem)] overflow-y-auto">
+        <DialogTitle>{initial ? `Edit ${initial.name}` : "Add profile"}</DialogTitle>
+        <DialogDescription>A yt-dlp preset people pick from when downloading.</DialogDescription>
+        <ProfileForm
+          {...(initial === undefined ? {} : { initial })}
+          onSave={onSave}
+          onCancel={onClose}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }

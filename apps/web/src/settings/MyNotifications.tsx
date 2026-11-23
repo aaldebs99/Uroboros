@@ -2,11 +2,12 @@ import type { PushDevice, PushTestOutcome, PushView } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { BellRing, Loader, Smartphone } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { errorText, queryKeys } from "@/api/client";
 import { registerDevice, useDeleteDevice, usePush, useTestPush } from "@/api/push";
 import { Button } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
+import { notify } from "@/components/ui/sonner";
 import { bodyOf, currentSubscription, deviceLabel, pushSupported, subscribe } from "@/push/browser";
 import { isInstalled, isIos } from "@/push/installed";
 import { markTurnedOffHere, storeDevice, storedDevice, turnedOffHere } from "@/push/stored";
@@ -49,9 +50,11 @@ function DeviceRow({ device, here }: { device: PushDevice; here: boolean }) {
     test.mutate(device.id, {
       onSuccess: ({ outcome }) => {
         const said = TEST_SAID[outcome];
-        (said.ok ? toast.success : toast.error)(`${device.label}: ${said.text}`);
+        (said.ok ? notify.success : notify.error)(`${device.label}: ${said.text}`);
       },
-      onError: (error) => toast.error(`${device.label}: ${errorText(error)}`),
+      onError: (error) => {
+        notify.error(`${device.label}: ${errorText(error)}`);
+      },
     });
   };
   const turnOff = () => {
@@ -59,23 +62,25 @@ function DeviceRow({ device, here }: { device: PushDevice; here: boolean }) {
       onSuccess: () => {
         if (here) storeDevice(null);
       },
-      onError: (error) => toast.error(`${device.label}: ${errorText(error)}`),
+      onError: (error) => {
+        notify.error(`${device.label}: ${errorText(error)}`);
+      },
     });
   };
   return (
     <li className="flex flex-wrap items-center gap-3 py-3">
-      <Smartphone className="size-4 text-muted-foreground" aria-hidden />
+      <Smartphone className="size-[18px] text-muted-foreground" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="font-medium break-words">
           {device.label}
           {here ? <span className="font-normal text-muted-foreground"> · this device</span> : null}
         </p>
-        <p className="text-sm text-muted-foreground">{lastHeard(device)}</p>
+        <p className="text-xs text-muted-foreground">{lastHeard(device)}</p>
       </div>
       <div className="flex gap-2">
         <Button
-          variant="outline"
-          size="sm"
+          variant="secondary"
+          size="compact"
           disabled={test.isPending}
           aria-label={`Send test to ${device.label}`}
           onClick={sendTest}
@@ -83,8 +88,8 @@ function DeviceRow({ device, here }: { device: PushDevice; here: boolean }) {
           {test.isPending ? "Sending…" : "Send test"}
         </Button>
         <Button
-          variant="ghost"
-          size="sm"
+          variant="destructive"
+          size="compact"
           disabled={remove.isPending}
           aria-label={`Turn off ${device.label}`}
           onClick={turnOff}
@@ -105,7 +110,7 @@ function TurnOn({ publicKey, label }: { publicKey: string; label: string }) {
     try {
       const subscription = (await currentSubscription()) ?? (await subscribe(publicKey));
       if (!subscription) {
-        toast.info("Notifications weren't allowed, so nothing changed.");
+        notify.info("Notifications weren't allowed, so nothing changed.");
         return;
       }
       const device = await registerDevice(bodyOf(subscription, deviceLabel()));
@@ -113,7 +118,7 @@ function TurnOn({ publicKey, label }: { publicKey: string; label: string }) {
       markTurnedOffHere(false);
       await client.invalidateQueries({ queryKey: queryKeys.myPush });
     } catch (error) {
-      toast.error(`Could not turn on notifications: ${errorText(error)}`);
+      notify.error(`Could not turn on notifications: ${errorText(error)}`);
     } finally {
       setBusy(false);
     }
@@ -132,7 +137,7 @@ function TurnOn({ publicKey, label }: { publicKey: string; label: string }) {
 function Notifications({ view }: { view: PushView }) {
   if (!view.enabled || view.publicKey === null) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground">
         Notifications are off on this server. An operator turns them on by giving Uroboros its
         public https address (UROBOROS_PUBLIC_BASE_URL).
       </p>
@@ -144,9 +149,13 @@ function Notifications({ view }: { view: PushView }) {
   const offElsewhere = !hereOn && turnedOffHere();
   return (
     <div className="space-y-4">
-      {blocked ? <p className="text-sm">{blocked}</p> : null}
+      {blocked ? (
+        <Notice tone="warning" title="Notifications can't turn on here">
+          {blocked}
+        </Notice>
+      ) : null}
       {offElsewhere && !blocked ? (
-        <p className="text-sm text-muted-foreground">Turned off from another device.</p>
+        <p className="text-muted-foreground">Turned off from another device.</p>
       ) : null}
       {!hereOn && !blocked ? (
         <TurnOn
@@ -155,7 +164,10 @@ function Notifications({ view }: { view: PushView }) {
         />
       ) : null}
       {view.devices.length > 0 ? (
-        <ul aria-label="Devices with notifications" className="divide-y border-y">
+        <ul
+          aria-label="Devices with notifications"
+          className="divide-y divide-border border-y border-border"
+        >
           {view.devices.map((device) => (
             <DeviceRow key={device.id} device={device} here={device.id === stored?.id} />
           ))}
@@ -185,7 +197,7 @@ export function MyNotifications() {
     return (
       <div className="flex items-center gap-3 text-sm">
         <p>Could not load your notification settings.</p>
-        <Button variant="outline" size="sm" onClick={() => void push.refetch()}>
+        <Button variant="secondary" size="compact" onClick={() => void push.refetch()}>
           Retry
         </Button>
       </div>

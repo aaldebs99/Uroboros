@@ -1,9 +1,9 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
-import { renderWithQuery } from "@/test/render";
+import { renderInRouter } from "@/test/render";
 
 import { AuthGate } from "@/auth/AuthGate";
 
@@ -40,7 +40,7 @@ function api(over: Parameters<typeof fakeApi>[0] = {}) {
 describe("AccountPage", () => {
   it("shows the profile, and no password form for an SSO user", async () => {
     api();
-    renderWithQuery(<AccountPage me={{ ...local, method: "oidc" }} />);
+    await renderInRouter(<AccountPage me={{ ...local, method: "oidc" }} />);
     expect(await screen.findByText("alice@example.org")).toBeInTheDocument();
     expect(screen.getByText("Signed in with Authentik")).toBeInTheDocument();
     expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
@@ -55,7 +55,7 @@ describe("AccountPage", () => {
           { status: 403 },
         ),
     });
-    renderWithQuery(<AuthGate>{(me) => <AccountPage me={me} />}</AuthGate>);
+    await renderInRouter(<AuthGate>{(me) => <AccountPage me={me} />}</AuthGate>);
     await userEvent.type(await screen.findByLabelText("Current password"), "not my password");
     await userEvent.type(screen.getByLabelText("New password"), "a much longer password");
     await userEvent.click(screen.getByRole("button", { name: "Change password" }));
@@ -65,7 +65,7 @@ describe("AccountPage", () => {
 
   it("changes the password, refusing a short new one", async () => {
     const calls = api({ "POST /api/me/password": () => new Response(null, { status: 204 }) });
-    renderWithQuery(<AccountPage me={local} />);
+    await renderInRouter(<AccountPage me={local} />);
     await userEvent.type(await screen.findByLabelText("Current password"), "old password!");
     await userEvent.type(screen.getByLabelText("New password"), "short");
     await userEvent.click(screen.getByRole("button", { name: "Change password" }));
@@ -83,7 +83,7 @@ describe("AccountPage", () => {
       "DELETE /api/me/sessions/bbbbbbbbbbbbbbbb": () => new Response(null, { status: 204 }),
       "DELETE /api/me/sessions": () => new Response(null, { status: 204 }),
     });
-    renderWithQuery(<AccountPage me={local} />);
+    await renderInRouter(<AccountPage me={local} />);
     const list = await screen.findByRole("list", { name: "Signed-in browsers" });
     expect(within(list).getByText("This browser")).toBeInTheDocument();
     await userEvent.click(within(list).getByRole("button", { name: "Sign out Phone" }));
@@ -104,7 +104,7 @@ describe("AccountPage", () => {
       lastUsedAt: null,
     };
     api({ "POST /api/me/tokens": () => Response.json({ token, secret: "f".repeat(64) }) });
-    renderWithQuery(<AccountPage me={local} />);
+    await renderInRouter(<AccountPage me={local} />);
     await userEvent.type(await screen.findByLabelText("Token name"), "cron");
     await userEvent.click(screen.getByRole("button", { name: "Create token" }));
     expect(await screen.findByText("f".repeat(64))).toBeInTheDocument();
@@ -112,7 +112,6 @@ describe("AccountPage", () => {
   });
 
   it("revokes a token after confirming", async () => {
-    vi.stubGlobal("confirm", () => true);
     const token = {
       id: "0190a3f2-7c1e-7000-8000-0000000000aa",
       name: "cron",
@@ -124,8 +123,9 @@ describe("AccountPage", () => {
       "DELETE /api/me/tokens/0190a3f2-7c1e-7000-8000-0000000000aa": () =>
         new Response(null, { status: 204 }),
     });
-    renderWithQuery(<AccountPage me={local} />);
+    await renderInRouter(<AccountPage me={local} />);
     await userEvent.click(await screen.findByRole("button", { name: "Revoke cron" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Revoke" }));
     await waitFor(() => {
       expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/api/me/tokens/"))).toBe(
         true,

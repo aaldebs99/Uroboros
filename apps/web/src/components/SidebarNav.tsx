@@ -1,58 +1,66 @@
 import { Link } from "@tanstack/react-router";
 
 import { useInfo } from "@/api/client";
+import { cn } from "@/lib/utils";
 import { ADMIN_ITEMS, NAV_ITEMS, type NavItem } from "@/nav";
 
-type SidebarNavProps = {
-  label: string;
-  /** Shows the Admin section. */
-  isAdmin?: boolean;
-  /** Called after a link is followed, so the mobile sheet can close itself. */
-  onNavigate?: () => void;
-};
-
 /**
- * Primary navigation and the server version, below the top bar. Navy in both themes, like the
- * logo tile.
+ * The side navigation below the top bar, on the page colour. Full (240px rows) or mini (a 72px
+ * rail with the label under the icon), switched by the top bar's menu button.
  */
-export function SidebarNav({ label, isAdmin = false, onNavigate }: SidebarNavProps) {
+export function SidebarNav({
+  isAdmin = false,
+  mini = false,
+}: {
+  isAdmin?: boolean;
+  mini?: boolean;
+}) {
   const info = useInfo();
   return (
-    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <nav aria-label={label} className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pt-5">
+    <div className="flex h-full flex-col">
+      <nav
+        aria-label="Primary"
+        className={cn("flex flex-1 flex-col overflow-y-auto pt-2", mini ? "px-1" : "px-3")}
+      >
         {NAV_ITEMS.map((item) => (
-          <NavLink key={item.to} item={item} onNavigate={onNavigate} />
+          <NavLink key={item.to} item={item} mini={mini} />
         ))}
         {isAdmin ? (
           <>
-            <p className="mt-6 mb-1 px-3 text-xs font-medium tracking-wide text-sidebar-foreground/50 uppercase">
-              Admin
-            </p>
+            <div className={cn("my-2 border-t border-border", mini ? "mx-3" : "mx-1")} />
+            {mini ? null : (
+              <p className="px-3 pt-1.5 pb-1.5 text-xs font-medium text-muted-foreground">Admin</p>
+            )}
             {ADMIN_ITEMS.map((item) => (
-              <NavLink key={item.to} item={item} onNavigate={onNavigate} />
+              <NavLink key={item.to} item={item} mini={mini} />
             ))}
           </>
         ) : null}
       </nav>
-      <div className="border-t border-sidebar-border px-5 py-4 text-xs text-sidebar-foreground/50">
-        {info.data ? `${info.data.name} v${info.data.version}` : " "}
-      </div>
+      {mini ? null : (
+        <p className="px-6 py-4 text-xs text-muted-foreground">
+          {info.data ? `${info.data.name} v${info.data.version}` : " "}
+        </p>
+      )}
     </div>
   );
 }
 
-function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: (() => void) | undefined }) {
-  const { to, label: text, icon: Icon } = item;
+function NavLink({ item, mini }: { item: NavItem; mini: boolean }) {
+  const { to, label, icon: Icon } = item;
   return (
     <Link
       to={to}
-      activeOptions={{ exact: true }}
-      onClick={onNavigate}
-      className="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors outline-none hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[status=active]:bg-sidebar-accent data-[status=active]:text-sidebar-accent-foreground"
+      activeOptions={{ exact: to === "/" }}
+      className={cn(
+        "rounded-[10px] outline-none hover:bg-raised/60 focus-visible:ring-[3px] focus-visible:ring-ring/45 data-[status=active]:bg-raised data-[status=active]:font-medium",
+        mini
+          ? "flex flex-col items-center gap-1.5 px-1 pt-4 pb-3.5 text-[10px]"
+          : "flex h-10 items-center gap-6 px-3 text-sm",
+      )}
     >
-      <span className="absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-full bg-sidebar-primary opacity-0 shadow-[0_0_10px_var(--sidebar-primary)] group-data-[status=active]:opacity-100" />
-      <Icon className="size-[1.15rem] group-data-[status=active]:text-sidebar-primary" />
-      {text}
+      <Icon className="size-5 shrink-0" aria-hidden />
+      <span className={cn(mini && "max-w-full truncate")}>{label}</span>
     </Link>
   );
 }

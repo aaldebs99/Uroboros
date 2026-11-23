@@ -55,7 +55,8 @@ describe("app shell", () => {
   it("navigating to /subscriptions shows Coming soon", async () => {
     await renderAt("/settings");
 
-    await userEvent.click(screen.getByRole("link", { name: "Subscriptions" }));
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    await userEvent.click(within(nav).getByRole("link", { name: "Subscriptions" }));
 
     expect(await screen.findByRole("heading", { name: "Subscriptions" })).toBeInTheDocument();
     expect(screen.getByText("Coming soon")).toBeInTheDocument();
@@ -87,14 +88,36 @@ describe("app shell", () => {
     expect(await screen.findByText(/notifications are off on this server/i)).toBeInTheDocument();
   });
 
-  it("toggles dark mode and remembers it in localStorage", async () => {
+  it("picks a theme in the account menu's Appearance and remembers it", async () => {
     await renderAt("/");
 
-    await userEvent.click(screen.getByRole("button", { name: /switch to (dark|light) theme/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Account menu for Alice" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /Appearance/ }));
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Dark" }));
 
-    const stored = localStorage.getItem("uroboros-theme");
-    expect(["light", "dark"]).toContain(stored);
-    expect(document.documentElement.classList.contains("dark")).toBe(stored === "dark");
+    expect(localStorage.getItem("uroboros-theme")).toBe("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+
+  it("puts the bottom tabs on phones: Library, Downloads, Create, Subscriptions, You", async () => {
+    await renderAt("/");
+
+    const tabs = screen.getByRole("navigation", { name: "Tabs" });
+    expect(
+      within(tabs)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Library", "Downloads", "Subscriptions", "You"]);
+    expect(within(tabs).getByRole("button", { name: "Create" })).toBeInTheDocument();
+  });
+
+  it("collapses the side navigation to the mini rail and remembers it", async () => {
+    await renderAt("/");
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
+
+    expect(screen.getByRole("button", { name: "Expand navigation" })).toBeInTheDocument();
+    expect(localStorage.getItem("uroboros-nav-mini")).toBe("1");
   });
 
   it("shows the Admin section only to admins", async () => {

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
-import { renderWithQuery } from "@/test/render";
+import { renderInRouter } from "@/test/render";
 
 import { LibraryPage } from "./LibraryPage";
 
@@ -30,25 +30,29 @@ afterEach(() => {
 
 describe("LibraryPage", () => {
   it("lists entries with channel, profile, size and a save link", async () => {
-    fakeApi({ "GET /api/library": () => Response.json([entry]) });
-    renderWithQuery(<LibraryPage />);
+    fakeApi({ "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }) });
+    await renderInRouter(<LibraryPage />);
     expect(await screen.findByText("Big Buck Bunny")).toBeInTheDocument();
     expect(screen.getByText(/Blender/)).toBeInTheDocument();
     expect(screen.getByText(/Best up to 1080p \(MP4\)/)).toBeInTheDocument();
     expect(screen.getByText(/5\.0 MB/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Save" })).toHaveAttribute(
+    await userEvent.click(screen.getByRole("button", { name: "Actions for Big Buck Bunny" }));
+    expect(await screen.findByRole("link", { name: "Save" })).toHaveAttribute(
       "href",
       `/api/library/${entry.id}/file`,
     );
   });
 
   it("removes an entry after asking", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const calls = fakeApi({
-      "GET /api/library": () => Response.json([entry]),
+      "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }),
       [`DELETE /api/library/${entry.id}`]: () => new Response(null, { status: 204 }),
     });
-    renderWithQuery(<LibraryPage />);
+    await renderInRouter(<LibraryPage />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Actions for Big Buck Bunny" }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
     await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
     await waitFor(() => {
       expect(calls.some((c) => c.method === "DELETE")).toBe(true);
@@ -56,8 +60,8 @@ describe("LibraryPage", () => {
   });
 
   it("points an empty library at Downloads", async () => {
-    fakeApi({ "GET /api/library": () => Response.json([]) });
-    renderWithQuery(<LibraryPage />);
+    fakeApi({ "GET /api/library": () => Response.json({ entries: [], nextCursor: null }) });
+    await renderInRouter(<LibraryPage />);
     expect(await screen.findByText("Nothing here yet.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to Downloads" })).toHaveAttribute(
       "href",

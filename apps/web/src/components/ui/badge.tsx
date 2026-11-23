@@ -1,34 +1,33 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { Slot } from "radix-ui";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** An outlined pill: a 45% tone border, tone text, no fill and no dot. */
 const badgeVariants = cva(
-  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&>svg]:pointer-events-none [&>svg]:size-3",
+  "inline-flex h-[22px] w-fit shrink-0 items-center gap-1 rounded-full border border-current/45 px-2 text-[11.5px] font-medium whitespace-nowrap [&>svg]:size-3",
   {
     variants: {
-      variant: {
-        default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground",
-        destructive: "border-destructive/30 bg-destructive/10 text-destructive",
-        success: "border-success/30 bg-success/10 text-success",
-        warning: "border-warning/30 bg-warning/10 text-warning",
-        outline: "text-foreground",
+      tone: {
+        primary: "text-primary",
+        success: "text-success",
+        warning: "text-warning",
+        destructive: "text-destructive",
+        muted: "text-muted-foreground",
       },
     },
-    defaultVariants: { variant: "default" },
+    defaultVariants: { tone: "muted" },
   },
 );
 
-type BadgeProps = React.ComponentProps<"span"> &
-  VariantProps<typeof badgeVariants> & { asChild?: boolean };
+type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>;
 
-function Badge({ className, variant, asChild = false, ...props }: BadgeProps) {
-  const Comp = asChild ? Slot.Root : "span";
-  return (
-    <Comp data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />
-  );
+function Badge({
+  className,
+  tone,
+  ...props
+}: React.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
+  return <span data-slot="badge" className={cn(badgeVariants({ tone }), className)} {...props} />;
 }
 
-export { Badge, badgeVariants };
+export { Badge, badgeVariants, type BadgeTone };

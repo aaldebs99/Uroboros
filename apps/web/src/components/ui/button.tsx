@@ -4,28 +4,35 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Buttons from the design system (references/actions-and-forms.md). */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-[10px] text-sm font-medium whitespace-nowrap transition-[background-color,color,box-shadow,filter] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45 disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[18px]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-        secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+        /** The one main action in a region. */
+        primary: "bg-primary text-primary-foreground shadow-glow hover:brightness-110",
+        /** Other actions. */
+        secondary:
+          "border border-border bg-card text-foreground shadow-[0_1px_2px_oklch(0.228_0.049_254.6/6%)] hover:bg-raised",
+        /** Cancel, Select none, View all. */
+        quiet: "bg-transparent text-primary hover:bg-raised",
+        /** Remove, Delete, Cancel a download: a tonal fill, never solid red. */
+        destructive: "bg-destructive/13 text-destructive hover:bg-destructive/20",
+        /** Icon buttons in bars and ⋮: no fill until hovered. */
+        ghost: "text-foreground hover:bg-accent hover:text-primary",
+        /** A filled icon button. */
+        icon: "bg-raised text-foreground hover:bg-accent hover:text-primary",
+        /** A destructive icon button: stays danger on hover. */
+        ghostDestructive: "text-destructive hover:bg-destructive/13",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
+        default: "h-11 px-5",
+        compact: "h-9 px-3.5 text-[13px]",
+        icon: "size-10",
       },
     },
-    defaultVariants: { variant: "default", size: "default" },
+    defaultVariants: { variant: "primary", size: "default" },
   },
 );
 

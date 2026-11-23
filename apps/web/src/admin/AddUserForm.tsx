@@ -1,15 +1,90 @@
 import { MIN_PASSWORD_CHARS, type Role } from "@uroboros/contract";
 import { useState, type SubmitEvent } from "react";
-import { toast } from "sonner";
 
 import { useCreateUser } from "@/api/account";
 import { errorText } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, SelectField } from "@/components/ui/field";
+import { notify } from "@/components/ui/sonner";
 
-/** Create a local account (people without SSO: family, a TV). */
-export function AddUserForm({ onDone }: { onDone: () => void }) {
+function NewUserFields({
+  values,
+  set,
+}: {
+  values: { username: string; displayName: string; password: string; role: Role };
+  set: {
+    username: (v: string) => void;
+    displayName: (v: string) => void;
+    password: (v: string) => void;
+    role: (v: Role) => void;
+  };
+}) {
+  return (
+    <>
+      <Field
+        label="Username"
+        id="new-username"
+        required
+        autoComplete="off"
+        pattern="[A-Za-z0-9._\-]{1,64}"
+        value={values.username}
+        onChange={(e) => {
+          set.username(e.target.value);
+        }}
+      />
+      <Field
+        label="Display name"
+        id="new-display-name"
+        required
+        value={values.displayName}
+        onChange={(e) => {
+          set.displayName(e.target.value);
+        }}
+      />
+      <Field
+        label="Password"
+        id="new-password"
+        type="password"
+        required
+        autoComplete="new-password"
+        minLength={MIN_PASSWORD_CHARS}
+        help={`At least ${String(MIN_PASSWORD_CHARS)} characters.`}
+        value={values.password}
+        onChange={(e) => {
+          set.password(e.target.value);
+        }}
+      />
+      <SelectField
+        label="Role"
+        id="new-role"
+        value={values.role}
+        onChange={(e) => {
+          set.role(e.target.value === "admin" ? "admin" : "member");
+        }}
+      >
+        <option value="member">Member</option>
+        <option value="admin">Admin</option>
+      </SelectField>
+    </>
+  );
+}
+
+/** Create a local account (people without SSO: family, a TV), in a form dialog. */
+export function AddUserDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const create = useCreateUser();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -21,67 +96,46 @@ export function AddUserForm({ onDone }: { onDone: () => void }) {
       { username, displayName, password, role },
       {
         onSuccess: () => {
-          toast.success(`${displayName} can now sign in as ${username}.`);
-          onDone();
+          notify.success(`${displayName} can now sign in as ${username}.`);
+          setUsername("");
+          setDisplayName("");
+          setPassword("");
+          setRole("member");
+          onOpenChange(false);
         },
-        onError: (error) => toast.error(`Could not add the user: ${errorText(error)}`),
+        onError: (error) => {
+          notify.error(`Could not add the user: ${errorText(error)}`);
+        },
       },
     );
   };
-  const field = (
-    id: string,
-    label: string,
-    value: string,
-    set: (v: string) => void,
-    extra = {},
-  ) => (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        required
-        value={value}
-        onChange={(e) => {
-          set(e.target.value);
-        }}
-        {...extra}
-      />
-    </div>
-  );
   return (
-    <form className="grid gap-4 rounded-md border p-4 sm:grid-cols-2" onSubmit={submit}>
-      {field("new-username", "Username", username, setUsername, {
-        autoComplete: "off",
-        pattern: "[A-Za-z0-9._\\-]{1,64}",
-      })}
-      {field("new-display-name", "Display name", displayName, setDisplayName)}
-      {field("new-password", "Password", password, setPassword, {
-        type: "password",
-        autoComplete: "new-password",
-        minLength: MIN_PASSWORD_CHARS,
-      })}
-      <div className="grid gap-2">
-        <Label htmlFor="new-role">Role</Label>
-        <select
-          id="new-role"
-          className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-          value={role}
-          onChange={(e) => {
-            setRole(e.target.value === "admin" ? "admin" : "member");
-          }}
-        >
-          <option value="member">Member</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-      <div className="flex gap-2 sm:col-span-2">
-        <Button type="submit" disabled={create.isPending}>
-          Create user
-        </Button>
-        <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogTitle>Add user</DialogTitle>
+        <DialogDescription>A local account, for someone without single sign-on.</DialogDescription>
+        <form className="grid gap-3.5" onSubmit={submit}>
+          <NewUserFields
+            values={{ username, displayName, password, role }}
+            set={{
+              username: setUsername,
+              displayName: setDisplayName,
+              password: setPassword,
+              role: setRole,
+            }}
+          />
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="quiet">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="submit" disabled={create.isPending}>
+              Create user
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

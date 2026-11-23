@@ -1,22 +1,22 @@
-import { MIN_PASSWORD_CHARS, type AdminUser, type Me } from "@uroboros/contract";
-import { toast } from "sonner";
+import type { AdminUser, Me } from "@uroboros/contract";
 
-import { useDeleteUser, usePatchUser, useResetPassword } from "@/api/account";
+import { useDeleteUser, usePatchUser } from "@/api/account";
 import { errorText } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { notify } from "@/components/ui/sonner";
 
 const when = (iso: string | null) => (iso === null ? "never" : new Date(iso).toLocaleString());
 const fail = (what: string) => (error: unknown) => {
-  toast.error(`Could not ${what}: ${errorText(error)}`);
+  notify.error(`Could not ${what}: ${errorText(error)}`);
 };
 const roleName = (user: AdminUser) => (user.role === "admin" ? "Admin" : "Member");
 
 function RoleCell({ user }: { user: AdminUser }) {
-  if (user.method === "local") return <Badge variant="secondary">{roleName(user)}</Badge>;
+  if (user.method === "local") return <span>{roleName(user)}</span>;
   return (
     <span className="flex flex-col">
-      <Badge variant="secondary">{roleName(user)}</Badge>
+      <span>{roleName(user)}</span>
       <span className="text-xs text-muted-foreground">Set by Authentik groups</span>
     </span>
   );
@@ -24,11 +24,11 @@ function RoleCell({ user }: { user: AdminUser }) {
 
 function StateCell({ user }: { user: AdminUser }) {
   return (
-    <>
-      {user.disabled ? <Badge variant="destructive">Disabled</Badge> : null}
-      {user.revoked ? <Badge variant="warning">Revoked by Authentik</Badge> : null}
-      {user.isBootstrap ? <Badge variant="outline">Bootstrap</Badge> : null}
-    </>
+    <span className="flex flex-wrap gap-1.5">
+      {user.disabled ? <Badge tone="destructive">Disabled</Badge> : null}
+      {user.revoked ? <Badge tone="warning">Revoked by Authentik</Badge> : null}
+      {user.isBootstrap ? <Badge tone="muted">Bootstrap</Badge> : null}
+    </span>
   );
 }
 
@@ -44,38 +44,30 @@ function allowed(user: AdminUser, me: Me) {
   };
 }
 
-function Actions({ user, me }: { user: AdminUser; me: Me }) {
+type RowHandlers = {
+  /** Opens the reset-password dialog for this user. */
+  onResetPassword: (user: AdminUser) => void;
+  /** Asks before deleting; calls `remove` once confirmed. */
+  onAskDelete: (user: AdminUser, remove: () => void) => void;
+};
+
+function Actions({
+  user,
+  me,
+  onResetPassword,
+  onAskDelete,
+}: { user: AdminUser; me: Me } & RowHandlers) {
   const patch = usePatchUser();
-  const reset = useResetPassword();
   const remove = useDeleteUser();
   const may = allowed(user, me);
   const name = user.displayName;
   const toAdmin = user.role !== "admin";
-
-  const resetPassword = () => {
-    const password = window.prompt(
-      `New password for ${name} (${String(MIN_PASSWORD_CHARS)}+ characters)`,
-    );
-    if (password === null) return;
-    if (password.length < MIN_PASSWORD_CHARS) {
-      toast.error(`The password needs at least ${String(MIN_PASSWORD_CHARS)} characters.`);
-      return;
-    }
-    reset.mutate(
-      { id: user.id, password },
-      {
-        onSuccess: () => toast.success(`${name} was signed out everywhere.`),
-        onError: fail("reset the password"),
-      },
-    );
-  };
-
   return (
-    <>
+    <span className="flex flex-wrap justify-end gap-1">
       {may.changeRole ? (
         <Button
-          variant="ghost"
-          size="sm"
+          variant="quiet"
+          size="compact"
           aria-label={toAdmin ? `Make ${name} an admin` : `Make ${name} a member`}
           onClick={() => {
             patch.mutate(
@@ -89,18 +81,20 @@ function Actions({ user, me }: { user: AdminUser; me: Me }) {
       ) : null}
       {may.resetPassword ? (
         <Button
-          variant="ghost"
-          size="sm"
+          variant="quiet"
+          size="compact"
           aria-label={`Reset password for ${name}`}
-          onClick={resetPassword}
+          onClick={() => {
+            onResetPassword(user);
+          }}
         >
           Reset password
         </Button>
       ) : null}
       {may.disable ? (
         <Button
-          variant="ghost"
-          size="sm"
+          variant="quiet"
+          size="compact"
           aria-label={`${user.disabled ? "Enable" : "Disable"} ${name}`}
           onClick={() => {
             patch.mutate(
@@ -114,38 +108,42 @@ function Actions({ user, me }: { user: AdminUser; me: Me }) {
       ) : null}
       {may.remove ? (
         <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive"
+          variant="destructive"
+          size="compact"
           aria-label={`Delete ${name}`}
           onClick={() => {
-            if (window.confirm(`Delete ${name}? This cannot be undone.`)) {
+            onAskDelete(user, () => {
               remove.mutate(user.id, { onError: fail("delete the user") });
-            }
+            });
           }}
         >
           Delete
         </Button>
       ) : null}
-    </>
+    </span>
   );
 }
 
-/** One user in Admin › Users. */
-export function UserRow({ user, me }: { user: AdminUser; me: Me }) {
+const cell = "px-2.5 py-3.5 max-md:p-0";
+
+/** One user in Admin › Users: a table row from `md` up, a stacked block below. */
+export function UserRow({ user, me, ...handlers }: { user: AdminUser; me: Me } & RowHandlers) {
   return (
-    <tr className="border-b align-middle">
-      <td className="py-3 pr-3 font-medium">{user.displayName}</td>
-      <td className="py-3 pr-3 text-muted-foreground">{user.username ?? "SSO"}</td>
-      <td className="py-3 pr-3">
+    <tr className="border-t border-border align-middle hover:bg-raised max-md:grid max-md:gap-1.5 max-md:py-3.5">
+      <td className={`${cell} font-medium`}>{user.displayName}</td>
+      <td className={`${cell} text-muted-foreground`}>{user.username ?? "SSO"}</td>
+      <td className={cell}>
         <RoleCell user={user} />
       </td>
-      <td className="py-3 pr-3 text-xs text-muted-foreground">{when(user.lastLoginAt)}</td>
-      <td className="py-3 pr-3">
+      <td className={`${cell} text-xs text-muted-foreground`}>
+        <span className="md:hidden">Last sign-in: </span>
+        {when(user.lastLoginAt)}
+      </td>
+      <td className={cell}>
         <StateCell user={user} />
       </td>
-      <td className="py-3 text-right whitespace-nowrap">
-        <Actions user={user} me={me} />
+      <td className={`${cell} text-right max-md:text-left`}>
+        <Actions user={user} me={me} {...handlers} />
       </td>
     </tr>
   );

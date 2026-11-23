@@ -1,5 +1,11 @@
 import type { Me } from "@uroboros/contract";
-import { KeyRound, Lock, Monitor, UserRound } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ChevronRight, KeyRound, Lock, Monitor, UserRound } from "lucide-react";
+
+import { Avatar } from "@/components/Avatar";
+import { PageHeader } from "@/components/ui/page-header";
+import { SettingsRow } from "@/components/ui/settings-row";
+import { ADMIN_ITEMS, NAV_ITEMS, type NavItem } from "@/nav";
 
 import { PasswordForm } from "./PasswordForm";
 import { Section } from "./Section";
@@ -8,25 +14,57 @@ import { Tokens } from "./Tokens";
 
 const ROLE = { admin: "Admin", member: "Member" } as const satisfies Record<Me["role"], string>;
 
+/** On phones the "You" tab lands here, so it also leads to Settings and the Admin pages. */
+function PhoneLinks({ isAdmin }: { isAdmin: boolean }) {
+  const items: readonly NavItem[] = [
+    ...NAV_ITEMS.filter((item) => item.to === "/settings"),
+    ...(isAdmin ? ADMIN_ITEMS : []),
+  ];
+  return (
+    <ul aria-label="More" className="grid md:hidden">
+      {items.map(({ to, label, icon: Icon }) => (
+        <li key={to}>
+          <Link
+            to={to}
+            className="flex h-12 items-center gap-4 rounded-[10px] px-2 outline-none hover:bg-raised focus-visible:ring-[3px] focus-visible:ring-ring/45"
+          >
+            <Icon className="size-[22px] text-muted-foreground" aria-hidden />
+            <span className="flex-1">{label}</span>
+            <ChevronRight className="size-[18px] text-muted-foreground" aria-hidden />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The signed-in user's own account: profile, password, sessions and API tokens. */
 export function AccountPage({ me }: { me: Me }) {
   return (
     <section className="mx-auto grid w-full max-w-3xl gap-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Account</h1>
-        <p className="mt-1 text-muted-foreground">Who you are here, and where you are signed in.</p>
+      <PageHeader title="Account" description="Who you are here, and where you are signed in." />
+      <div className="flex items-center gap-4">
+        <Avatar name={me.displayName} className="size-16 text-2xl" />
+        <div className="grid min-w-0">
+          <p className="truncate text-base font-bold">{me.displayName}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {[me.email, ROLE[me.role]].filter(Boolean).join(" · ")}
+          </p>
+        </div>
       </div>
+      <PhoneLinks isAdmin={me.role === "admin"} />
       <Section icon={UserRound} title="Profile">
-        <dl className="grid grid-cols-[8rem_1fr] gap-y-2 text-sm">
-          <dt className="text-muted-foreground">Name</dt>
-          <dd>{me.displayName}</dd>
-          <dt className="text-muted-foreground">Email</dt>
-          <dd>{me.email ?? "—"}</dd>
-          <dt className="text-muted-foreground">Role</dt>
-          <dd>{ROLE[me.role]}</dd>
-          <dt className="text-muted-foreground">Sign-in</dt>
-          <dd>{me.method === "oidc" ? "Signed in with Authentik" : "Username and password"}</dd>
-        </dl>
+        <div>
+          <SettingsRow label="Name" description={me.displayName} />
+          <SettingsRow label="Email" description={me.email ?? "—"} />
+          <SettingsRow label="Role" description={ROLE[me.role]} />
+          <SettingsRow
+            label="Sign-in"
+            description={
+              me.method === "oidc" ? "Signed in with Authentik" : "Username and password"
+            }
+          />
+        </div>
       </Section>
       {me.method === "local" ? (
         <Section

@@ -1,47 +1,83 @@
 import type { Download, DownloadProgress } from "@uroboros/contract";
-import { RotateCcw, X } from "lucide-react";
+import { Film, RotateCcw, X } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { DownloadBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 
 import { DOWNLOAD_ERROR_TEXT } from "./errorText";
 import { formatBytes, formatDuration } from "./format";
 
-const STATE_LABEL = {
-  queued: "Waiting",
-  running: "Downloading",
-  done: "Done",
-  failed: "Failed",
-  cancelled: "Cancelled",
-} as const satisfies Record<Download["state"], string>;
+/** "12.4 MB/s · 38 s left", from whatever the progress knows. */
+function detailOf(progress: DownloadProgress | null): string {
+  if (progress === null) return "";
+  return [
+    progress.speed === null ? null : `${formatBytes(progress.speed)}/s`,
+    progress.eta === null ? null : `${formatDuration(progress.eta)} left`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
-const PHASE_LABEL = {
-  downloading: "Downloading",
-  merging: "Merging",
-  postprocessing: "Processing",
-  storing: "Storing",
-} as const satisfies Record<DownloadProgress["phase"], string>;
-
-function Progress({ progress }: { progress: DownloadProgress }) {
-  const percent = progress.percent === null ? null : Math.round(progress.percent);
+/** The badge, the detail and, only with a real fraction, the percentage and the glowing bar. */
+function StateLine({
+  download,
+  progress,
+  meta,
+}: {
+  download: Download;
+  progress: DownloadProgress | null;
+  meta: string;
+}) {
+  const running = download.state === "running" ? progress : null;
+  const percent = running?.percent == null ? null : Math.round(running.percent);
+  const detail = running === null ? meta : detailOf(running) || meta;
   return (
-    <div className="grid gap-1">
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-        <div
-          className="h-full bg-primary transition-[width]"
-          style={{ width: `${String(percent ?? 0)}%` }}
-        />
+    <div className="grid gap-1.5">
+      <div className="flex items-center gap-2.5">
+        <DownloadBadge state={download.state} progress={running} />
+        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground tabular-nums">
+          {detail}
+        </span>
+        {percent === null ? null : (
+          <span className="text-sm font-medium tabular-nums">{percent}%</span>
+        )}
       </div>
-      <p className="text-xs text-muted-foreground tabular-nums">
-        {PHASE_LABEL[progress.phase]}
-        {percent === null ? "" : ` · ${String(percent)}%`}
-        {progress.speed === null ? "" : ` · ${formatBytes(progress.speed)}/s`}
-        {progress.eta === null ? "" : ` · ${formatDuration(progress.eta)} left`}
-      </p>
+      {percent === null ? null : (
+        <div
+          role="progressbar"
+          aria-label={`${download.title ?? download.url} progress`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          className="h-2 overflow-hidden rounded-full bg-raised"
+        >
+          <div
+            className="h-full rounded-full bg-linear-to-r from-primary-strong to-primary shadow-[0_0_12px] shadow-primary/60 transition-[width]"
+            style={{ width: `${String(percent)}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
+function Failure({ download }: { download: Download }) {
+  return (
+    <div className="grid gap-1">
+      <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[download.errorKind ?? "unknown"]}</p>
+      {download.stderrTail.length > 0 ? (
+        <details>
+          <summary className="cursor-pointer text-xs text-muted-foreground">Details</summary>
+          <pre className="mt-1 max-h-48 overflow-auto rounded-[8px] bg-raised p-2 font-mono text-xs whitespace-pre-wrap">
+            {download.stderrTail.join("\n")}
+          </pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+/** One download in the queue: a thumbnail, the title, its state line and one action. */
 export function QueueRow({
   download,
   progress,
@@ -56,44 +92,29 @@ export function QueueRow({
   onRetry: () => void;
 }) {
   const active = download.state === "queued" || download.state === "running";
+  const retryable = download.state === "failed" || download.state === "cancelled";
   const live = progress ?? download.progress;
+  const title = download.title ?? download.url;
+  const meta = `${showOwner ? `${download.owner.displayName} · ` : ""}${download.extractor}`;
   return (
-    <li className="grid gap-2 rounded-lg border bg-card p-3">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{download.title ?? download.url}</p>
-          <p className="text-xs text-muted-foreground">
-            {showOwner ? `${download.owner.displayName} · ` : ""}
-            {download.extractor}
-          </p>
-        </div>
-        <Badge variant={download.state === "failed" ? "destructive" : "secondary"}>
-          {STATE_LABEL[download.state]}
-        </Badge>
-        {active ? (
-          <Button variant="ghost" size="sm" onClick={onCancel}>
-            <X aria-hidden /> Cancel
-          </Button>
-        ) : null}
-        {download.state === "failed" || download.state === "cancelled" ? (
-          <Button variant="ghost" size="sm" onClick={onRetry}>
-            <RotateCcw aria-hidden /> Retry
-          </Button>
-        ) : null}
+    <li className="flex gap-3 border-t border-border py-3.5 first:border-t-0 md:gap-4">
+      <span className="grid aspect-video w-24 shrink-0 place-items-center rounded-[8px] bg-raised md:w-[120px]">
+        <Film className="size-5 text-muted-foreground" aria-hidden />
+      </span>
+      <div className="grid min-w-0 flex-1 content-start gap-1.5">
+        <p className="truncate font-medium">{title}</p>
+        <StateLine download={download} progress={live} meta={meta} />
+        {download.state === "failed" ? <Failure download={download} /> : null}
       </div>
-      {download.state === "running" && live !== null ? <Progress progress={live} /> : null}
-      {download.state === "failed" ? (
-        <div className="grid gap-1 text-sm">
-          <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[download.errorKind ?? "unknown"]}</p>
-          {download.stderrTail.length > 0 ? (
-            <details>
-              <summary className="cursor-pointer text-xs text-muted-foreground">Details</summary>
-              <pre className="mt-1 max-h-48 overflow-auto rounded bg-muted p-2 text-xs whitespace-pre-wrap">
-                {download.stderrTail.join("\n")}
-              </pre>
-            </details>
-          ) : null}
-        </div>
+      {active ? (
+        <Button variant="ghostDestructive" size="icon" aria-label="Cancel" onClick={onCancel}>
+          <X className="size-5" />
+        </Button>
+      ) : null}
+      {retryable ? (
+        <Button variant="ghost" size="icon" aria-label="Retry" onClick={onRetry}>
+          <RotateCcw className="size-5" />
+        </Button>
       ) : null}
     </li>
   );
