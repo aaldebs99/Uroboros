@@ -6,16 +6,38 @@ import {
   type RouterHistory,
 } from "@tanstack/react-router";
 
-import { LibraryPage } from "./library/LibraryPage";
+import { ChannelsPage } from "./library/ChannelsPage";
+import { PlaylistsPage } from "./library/PlaylistsPage";
 import { SettingsPage, SubscriptionsPage } from "./routes";
 import { AccountRoute, AdminProfilesRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
+import { ChannelRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
 import { RootLayout } from "./routes/root";
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
 const routeTree = rootRoute.addChildren([
-  createRoute({ getParentRoute: () => rootRoute, path: "/", component: LibraryPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/", component: LibraryRoute }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/library/channels",
+    component: ChannelsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/library/channels/$channelKey",
+    component: ChannelRoute,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/library/playlists",
+    component: PlaylistsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/library/playlists/$sourceId",
+    component: PlaylistRoute,
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: "/downloads", component: DownloadsRoute }),
   createRoute({
     getParentRoute: () => rootRoute,
