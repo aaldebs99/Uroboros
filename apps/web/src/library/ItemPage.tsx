@@ -1,11 +1,12 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ListVideo } from "lucide-react";
+import { ListVideo, SearchX, Share2 } from "lucide-react";
 import { useState } from "react";
 
-import { errorText } from "@/api/client";
+import { ApiError, errorText } from "@/api/client";
 import { itemKey, reportProgress, setTags, useItem } from "@/api/library";
+import { EmptyState } from "@/components/ui/empty-state";
 import { notify } from "@/components/ui/sonner";
 import { formatDuration } from "@/downloads/format";
 
@@ -61,6 +62,25 @@ function Chapters({ item, onSeek }: { item: LibraryItem; onSeek: (time: number) 
   );
 }
 
+/**
+ * A watch page whose video cannot be shown: a share that ended (reached through a shared
+ * playlist, or last seen as shared) says so; anything else not found says it is not available.
+ */
+function Unavailable({ error, shared }: { error: unknown; shared: boolean }) {
+  if (!(error instanceof ApiError) || error.status !== 404) {
+    return <p className="text-destructive">{errorText(error)}</p>;
+  }
+  return shared ? (
+    <EmptyState icon={Share2} title="This is no longer shared with you">
+      Whoever shared it stopped, or removed the video.
+    </EmptyState>
+  ) : (
+    <EmptyState icon={SearchX} title="This video isn't available">
+      It may have been removed from your library, or is no longer shared with you.
+    </EmptyState>
+  );
+}
+
 /** The playlists this video is in: the person's own, then YouTube ones. */
 function InPlaylists({ item }: { item: LibraryItem }) {
   const all = [
@@ -101,7 +121,13 @@ export function ItemPage({ entryId, queue = null }: { entryId: string; queue?: P
   const reporter = useProgressReporter((position, duration) =>
     reportProgress(entryId, position, duration),
   );
-  if (item.isError) return <p className="text-destructive">{errorText(item.error)}</p>;
+  if (item.isError)
+    return (
+      <Unavailable
+        error={item.error}
+        shared={queue?.kind === "share" || item.data?.sharedBy != null}
+      />
+    );
   if (item.isPending)
     return <div aria-busy="true" className="aspect-video w-full rounded-[0.75rem] bg-raised" />;
   const it = item.data;

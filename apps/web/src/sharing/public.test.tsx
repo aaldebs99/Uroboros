@@ -135,6 +135,40 @@ describe("a public link", () => {
     expect(await screen.findByRole("heading", { name: "Film 2" })).toBeInTheDocument();
   });
 
+  it("a link turned off while watching shows the dead-link page", async () => {
+    fakeApi({
+      ...signedOut,
+      [`GET /api/public/s/${CODE}`]: () =>
+        Response.json({
+          kind: "playlist",
+          title: "Two films",
+          description: null,
+          allowDownload: false,
+          items: [listItem(1), listItem(2)],
+        }),
+      [`GET ${base(1)}`]: () => Response.json(item(1)),
+    });
+    await openLink();
+    await userEvent.click(await screen.findByRole("button", { name: /Film 2/ }));
+    expect(await screen.findByText("This link doesn't work any more")).toBeInTheDocument();
+  });
+
+  it("an empty playlist link says so", async () => {
+    fakeApi({
+      ...signedOut,
+      [`GET /api/public/s/${CODE}`]: () =>
+        Response.json({
+          kind: "playlist",
+          title: "Empty",
+          description: null,
+          allowDownload: false,
+          items: [],
+        }),
+    });
+    await openLink();
+    expect(await screen.findByText("Nothing in this playlist yet")).toBeInTheDocument();
+  });
+
   it("says a dead link doesn't work", async () => {
     fakeApi(signedOut);
     await openLink();

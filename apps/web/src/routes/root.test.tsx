@@ -26,7 +26,7 @@ async function renderAt(
 beforeEach(() => {
   stubApi({
     "/api/ready": () => Response.json({ status: "ok", failing: [] }),
-    "/api/info": () => Response.json({ name: "uroboros", version: "0.0.0" }),
+    "/api/info": () => Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
     "/api/me": () =>
       Response.json({
         id: "0190a3f2-7c1e-7000-8000-000000000001",

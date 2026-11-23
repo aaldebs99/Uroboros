@@ -158,9 +158,9 @@ describe("pool resilience", () => {
 });
 
 describe("info", () => {
-  it("returns name and version", async () => {
+  it("returns name and version, and no public address when none is set", async () => {
     const res = await app().request("/api/info");
-    expect(await res.json()).toEqual({ name: "uroboros", version: "1.2.3" });
+    expect(await res.json()).toEqual({ name: "uroboros", version: "1.2.3", publicBaseUrl: null });
   });
 });
 

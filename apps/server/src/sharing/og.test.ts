@@ -71,9 +71,33 @@ describe("link previews", () => {
     );
   });
 
+  it("dollar sequences in a title stay as they are", async () => {
+    const title = "Price $$ and $& and $` and $' too";
+    const { code } = await linked(title);
+    const page = await ogTags(t.db, code, "https://uro.example");
+    const html = fillIndex("<html><head><title>Uroboros</title></head><body>x</body></html>", page);
+    expect(html).toContain(`<title>Price $$ and $&amp; and $\` and $&#39; too · Uroboros</title>`);
+    expect(html).toContain(
+      `<meta property="og:title" content="Price $$ and $&amp; and $\` and $&#39; too">`,
+    );
+    expect(html.match(/<head>/g)).toHaveLength(1);
+  });
+
   it("a dead code gives only the robots tag", async () => {
     const page = await ogTags(t.db, "nosuchcode000000000000", "https://uro.example");
     expect(page).toEqual({ title: null, tags: '<meta name="robots" content="noindex">' });
+  });
+
+  it("the app tells the web app its public address, for links it copies", async () => {
+    const app = createApp(
+      { db: t.db, valkey: {} as Redis, version: "t", logger },
+      { webDist, publicBaseUrl: "https://uro.example" },
+    );
+    expect(await (await app.request("/api/info")).json()).toMatchObject({
+      publicBaseUrl: "https://uro.example",
+    });
+    const bare = createApp({ db: t.db, valkey: {} as Redis, version: "t", logger }, { webDist });
+    expect(await (await bare.request("/api/info")).json()).toMatchObject({ publicBaseUrl: null });
   });
 
   it("the app serves /s/<code> with the tags filled in", async () => {

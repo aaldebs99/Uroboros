@@ -58,12 +58,15 @@ export async function ogTags(db: Kysely<Database>, code: string, base: string): 
 
 /** `index.html` with a link page's tags before `</head>` and its title in `<title>`. */
 export function fillIndex(html: string, page: LinkPage): string {
+  // Replacer functions, never replacement strings: a title is the uploader's text, and `$&`,
+  // `` $` ``, `$'` or `$$` in a replacement string would expand into pieces of the page.
+  const { title } = page;
   const titled =
-    page.title === null
+    title === null
       ? html
       : html.replace(
           /<title>[^<]*<\/title>/,
-          `<title>${escapeHtml(page.title)} · Uroboros</title>`,
+          () => `<title>${escapeHtml(title)} · Uroboros</title>`,
         );
-  return titled.replace("</head>", `    ${page.tags}\n  </head>`);
+  return titled.replace("</head>", () => `    ${page.tags}\n  </head>`);
 }

@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { notify } from "@/components/ui/sonner";
 
 import { expiryText } from "./expiry";
-import { copyLink } from "./LinkSection";
+import { copyLink, useLinkBase } from "./LinkSection";
 import { ShareDialog } from "./ShareDialog";
 import { SharedTabs } from "./SharedTabs";
 
@@ -46,6 +46,7 @@ function ShareRow({ share }: { share: ShareState }) {
   const people = useShareAction(stopPeople);
   const link = useShareAction(stopLink);
   const who = peopleText(share);
+  const base = useLinkBase();
   const fail = (error: unknown) => {
     notify.error(errorText(error));
   };
@@ -71,7 +72,7 @@ function ShareRow({ share }: { share: ShareState }) {
         <Button
           variant="ghost"
           onClick={() => {
-            if (share.link !== null) copyLink(share.link.path);
+            if (share.link !== null) copyLink(`${base}${share.link.path}`);
           }}
         >
           <Copy aria-hidden /> Copy link

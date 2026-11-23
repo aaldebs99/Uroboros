@@ -20,5 +20,12 @@ export const Readiness = z
   .openapi("Readiness");
 export type Readiness = z.infer<typeof Readiness>;
 
-export const Info = z.object({ name: z.literal("uroboros"), version: z.string() }).openapi("Info");
+export const Info = z
+  .object({
+    name: z.literal("uroboros"),
+    version: z.string(),
+    /** `UROBOROS_PUBLIC_BASE_URL`, when set: the origin public links are copied with. */
+    publicBaseUrl: z.string().nullable(),
+  })
+  .openapi("Info");
 export type Info = z.infer<typeof Info>;

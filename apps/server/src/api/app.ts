@@ -215,7 +215,12 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     if (!attached()) return c.json({ status: "starting" as const, failing: [] }, 503);
     return c.json(await checkHealth(deps.db, deps.valkey), 200);
   });
-  app.openapi(infoRoute, (c) => c.json({ name: "uroboros" as const, version: deps.version }, 200));
+  const info = {
+    name: "uroboros" as const,
+    version: deps.version,
+    publicBaseUrl: opts.publicBaseUrl ?? null,
+  };
+  app.openapi(infoRoute, (c) => c.json(info, 200));
   registerAuthRoutes(app, deps, logger);
   registerProfileRoutes(app, deps.db);
   registerDownloadRoutes(app, deps.downloads);

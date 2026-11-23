@@ -770,13 +770,18 @@
             ],
             "type": "string"
           },
+          "publicBaseUrl": {
+            "nullable": true,
+            "type": "string"
+          },
           "version": {
             "type": "string"
           }
         },
         "required": [
           "name",
-          "version"
+          "version",
+          "publicBaseUrl"
         ],
         "type": "object"
       },

@@ -1,7 +1,7 @@
 import type { PublicLink, ShareKind } from "@uroboros/contract";
 import { Copy } from "lucide-react";
 
-import { errorText } from "@/api/client";
+import { errorText, useInfo } from "@/api/client";
 import { setLink, stopLink, useShareAction } from "@/api/sharing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,19 @@ import { Switch } from "@/components/ui/switch";
 
 import { ExpirySelect } from "./ExpirySelect";
 
-/** The link's full address on this app's origin. */
-export const linkUrl = (path: string) => `${window.location.origin}${path}`;
+/**
+ * Where public links point: the server's public address (`UROBOROS_PUBLIC_BASE_URL`) when it has
+ * one, so a person browsing on a LAN address still copies a link others can open; else this
+ * page's origin.
+ */
+export function useLinkBase(): string {
+  return useInfo().data?.publicBaseUrl ?? window.location.origin;
+}
 
 /** Copies a link and says so. */
-export function copyLink(path: string): void {
+export function copyLink(url: string): void {
   navigator.clipboard
-    .writeText(linkUrl(path))
+    .writeText(url)
     .then(() => {
       notify.success("Link copied.");
     })
@@ -41,6 +47,7 @@ export function LinkSection({
 }) {
   const set = useShareAction(setLink);
   const stop = useShareAction(stopLink);
+  const base = useLinkBase();
   const busy = set.isPending || stop.isPending;
   const fail = (error: unknown) => {
     notify.error(`Could not change the link: ${errorText(error)}`);
@@ -71,7 +78,7 @@ export function LinkSection({
             <input
               readOnly
               aria-label="Link address"
-              value={linkUrl(link.path)}
+              value={`${base}${link.path}`}
               className="h-10 min-w-0 flex-1 rounded-[0.5rem] border border-foreground/25 bg-transparent px-3 font-mono text-xs outline-none focus-visible:border-primary focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45"
               onFocus={(e) => {
                 e.target.select();
@@ -81,7 +88,7 @@ export function LinkSection({
               variant="secondary"
               aria-label="Copy link"
               onClick={() => {
-                copyLink(link.path);
+                copyLink(`${base}${link.path}`);
               }}
             >
               <Copy aria-hidden /> Copy

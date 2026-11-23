@@ -47,7 +47,8 @@ function request(overrides: Partial<DownloadRequest>): DownloadRequest {
 function setup(routes: Record<string, Handler> = {}) {
   const calls = fakeApi({
     "GET /api/ready": () => Response.json({ status: "ok", failing: [] }),
-    "GET /api/info": () => Response.json({ name: "uroboros", version: "0.0.0" }),
+    "GET /api/info": () =>
+      Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
     "GET /api/me": () =>
       Response.json({
         id: "0190a3f2-7c1e-7000-8000-000000000001",

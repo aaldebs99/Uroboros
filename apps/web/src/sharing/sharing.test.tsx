@@ -146,6 +146,23 @@ describe("the share dialog", () => {
   });
 });
 
+describe("the copied link", () => {
+  it("uses the server's public address when it has one", async () => {
+    fakeApi({
+      "GET /api/info": () =>
+        Response.json({ name: "uroboros", version: "0", publicBaseUrl: "https://uro.example" }),
+      [`GET /api/shares/entry/${ENTRY}`]: () => Response.json(state({ link: link() })),
+      "GET /api/directory": () => Response.json(directory),
+    });
+    await renderInRouter(
+      <ShareDialog kind="entry" id={ENTRY} title="Holiday" open onOpenChange={() => undefined} />,
+    );
+    expect(
+      await screen.findByDisplayValue("https://uro.example/s/AbCdEfGhIjKlMnOpQrStUv"),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("expiry choices", () => {
   it("a week is seven days later", () => {
     const now = new Date("2026-11-23T12:00:00.000Z");
@@ -255,6 +272,20 @@ describe("Shared", () => {
     fakeApi({});
     await renderInRouter(<SharedPlaylistPage shareId={SHARE} />);
     expect(await screen.findByText("This is no longer shared with you")).toBeInTheDocument();
+  });
+});
+
+describe("a watch page whose video is gone", () => {
+  it("a share that ended says so on the watch page", async () => {
+    fakeApi({});
+    await renderInRouter(<ItemPage entryId={ENTRY} queue={{ kind: "share", id: SHARE }} />);
+    expect(await screen.findByText("This is no longer shared with you")).toBeInTheDocument();
+  });
+
+  it("a video that is gone otherwise says it is not available", async () => {
+    fakeApi({});
+    await renderInRouter(<ItemPage entryId={ENTRY} />);
+    expect(await screen.findByText("This video isn't available")).toBeInTheDocument();
   });
 });
 

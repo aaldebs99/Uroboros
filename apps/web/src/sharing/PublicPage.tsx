@@ -96,6 +96,18 @@ function PlaylistList({
   );
 }
 
+/** A link that answers 404 (turned off, expired, or unknown, even mid-viewing) is dead. */
+function LinkFailed({ error }: { error: unknown }) {
+  if (error instanceof ApiError && error.status === 404) {
+    return (
+      <EmptyState icon={Link2Off} title="This link doesn't work any more">
+        Ask whoever sent it for a new one.
+      </EmptyState>
+    );
+  }
+  return <p className="text-destructive">{errorText(error)}</p>;
+}
+
 /**
  * A public link (`/s/<code>`, docs/sharing.md): the video, or a playlist played in order, with
  * chapters, subtitles and the compatible copy, for anyone and without signing in. It never says
@@ -107,17 +119,17 @@ export function PublicPage({ code }: { code: string }) {
   const items = share.data?.items ?? [];
   const currentId = picked ?? items[0]?.id ?? null;
   const item = usePublicItem(code, currentId);
-  if (share.isError) {
-    return share.error instanceof ApiError && share.error.status === 404 ? (
-      <EmptyState icon={Link2Off} title="This link doesn't work any more">
-        Ask whoever sent it for a new one.
-      </EmptyState>
-    ) : (
-      <p className="text-destructive">{errorText(share.error)}</p>
-    );
-  }
+  const failed = share.isError ? share.error : item.isError ? item.error : null;
+  if (failed !== null) return <LinkFailed error={failed} />;
   if (share.data === undefined)
     return <div aria-busy="true" className="aspect-video w-full rounded-[0.75rem] bg-raised" />;
+  if (items.length === 0) {
+    return (
+      <EmptyState icon={ListVideo} title="Nothing in this playlist yet">
+        Whoever shared it has not added any videos.
+      </EmptyState>
+    );
+  }
   const at = items.findIndex((i) => i.id === currentId);
   const next = items[at + 1];
   const playlist = share.data.kind === "playlist";

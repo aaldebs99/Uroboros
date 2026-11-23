@@ -37,11 +37,12 @@ afterEach(() => {
 
 describe("getJson success", () => {
   it("returns the body parsed by the schema", async () => {
-    respondWith(Response.json({ name: "uroboros", version: "1.2.3" }));
+    respondWith(Response.json({ name: "uroboros", version: "1.2.3", publicBaseUrl: null }));
 
     await expect(getJson("/api/info", Info)).resolves.toEqual({
       name: "uroboros",
       version: "1.2.3",
+      publicBaseUrl: null,
     });
   });
 
