@@ -133,7 +133,14 @@ export async function startApi(
       downloadEvents,
       store: createStore(config.storage),
     },
-    { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
+    {
+      webDist: config.webDist,
+      bodyLimitBytes: config.bodyLimitBytes,
+      mediaOrigins:
+        config.storage.kind === "s3" && config.storage.publicUrl !== null
+          ? [new URL(config.storage.publicUrl).origin]
+          : [],
+    },
   );
   opts.configure?.(app, db);
   const server = await listen(app, config.bind);

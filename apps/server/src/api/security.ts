@@ -10,20 +10,23 @@ export const DEFAULT_BODY_LIMIT_BYTES = 64 * 1024;
  * is the file `/theme-init.js`). Styles allow 'unsafe-inline' because sonner and Radix inject
  * `<style>` elements at runtime; Tailwind itself is one stylesheet from the origin.
  */
-const APP_CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  "font-src 'self'",
-  "connect-src 'self'",
-  "worker-src 'self'",
-  "manifest-src 'self'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join("; ");
+const appCsp = (mediaOrigins: readonly string[]) =>
+  [
+    // The player streams from the app, or follows a redirect to presigned S3 URLs.
+    `media-src ${["'self'", ...mediaOrigins].join(" ")}`,
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join("; ");
 
 /**
  * Swagger UI's policy: its scripts and stylesheet come from the origin (src/api/docs.ts), but it
@@ -47,7 +50,10 @@ const isDocs = (path: string) => path === "/api/docs" || path.startsWith("/api/d
  * Hono's secure headers, with X-Frame-Options DENY and a referrer that keeps the origin across
  * sites. HSTS is left to whatever terminates TLS: the api itself only ever speaks plain HTTP.
  */
-export function securityHeaders(): MiddlewareHandler[] {
+export function securityHeaders(
+  opts: { mediaOrigins?: readonly string[] } = {},
+): MiddlewareHandler[] {
+  const app = appCsp(opts.mediaOrigins ?? []);
   return [
     secureHeaders({
       xFrameOptions: "DENY",
@@ -56,7 +62,7 @@ export function securityHeaders(): MiddlewareHandler[] {
     }),
     async (c, next) => {
       await next();
-      c.res.headers.set("Content-Security-Policy", isDocs(c.req.path) ? DOCS_CSP : APP_CSP);
+      c.res.headers.set("Content-Security-Policy", isDocs(c.req.path) ? DOCS_CSP : app);
     },
   ];
 }

@@ -14,6 +14,7 @@ import { registerLibraryRoutes } from "../downloads/libraryRoutes.ts";
 import { registerProfileRoutes } from "../downloads/profileRoutes.ts";
 import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
+import { registerItemRoutes } from "../library/itemRoutes.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
@@ -115,6 +116,8 @@ export interface AppOptions {
   webDist: string | null;
   /** The largest request body `/api/*` accepts. Default 64 KiB. */
   bodyLimitBytes?: number;
+  /** Origins the player may load media from besides the app's own (the S3 public URL). */
+  mediaOrigins?: string[];
 }
 
 function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void {
@@ -176,7 +179,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     );
   });
 
-  app.use("*", ...securityHeaders());
+  app.use("*", ...securityHeaders({ mediaOrigins: opts.mediaOrigins ?? [] }));
   app.use("/api/*", apiBodyLimit(opts.bodyLimitBytes ?? DEFAULT_BODY_LIMIT_BYTES));
 
   app.use("/api/*", async (c: Context, next: Next) => {
@@ -211,6 +214,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerDownloadRoutes(app, deps.downloads);
   registerEventRoutes(app, deps.downloads, deps.downloadEvents);
   registerLibraryRoutes(app, deps.db, deps.store);
+  registerItemRoutes(app, deps.db, deps.store);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

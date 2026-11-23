@@ -220,6 +220,27 @@
         ],
         "type": "object"
       },
+      "Chapter": {
+        "properties": {
+          "end": {
+            "nullable": true,
+            "type": "number"
+          },
+          "start": {
+            "type": "number"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "title"
+        ],
+        "type": "object"
+      },
       "DependencyName": {
         "enum": [
           "database",
@@ -711,6 +732,69 @@
         ],
         "type": "object"
       },
+      "LibraryItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LibraryEntry"
+          },
+          {
+            "properties": {
+              "chapters": {
+                "items": {
+                  "$ref": "#/components/schemas/Chapter"
+                },
+                "type": "array"
+              },
+              "description": {
+                "nullable": true,
+                "type": "string"
+              },
+              "sources": {
+                "items": {
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "title": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "streamUrl": {
+                "type": "string"
+              },
+              "subtitles": {
+                "items": {
+                  "$ref": "#/components/schemas/SubtitleTrack"
+                },
+                "type": "array"
+              },
+              "webpageUrl": {
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": [
+              "description",
+              "chapters",
+              "subtitles",
+              "streamUrl",
+              "webpageUrl",
+              "sources"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "LibraryPage": {
         "properties": {
           "entries": {
@@ -1000,6 +1084,24 @@
         ],
         "type": "object"
       },
+      "ProgressBody": {
+        "properties": {
+          "duration": {
+            "exclusiveMinimum": true,
+            "minimum": 0,
+            "type": "number"
+          },
+          "position": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "position",
+          "duration"
+        ],
+        "type": "object"
+      },
       "PushDevice": {
         "properties": {
           "createdAt": {
@@ -1277,6 +1379,55 @@
         ],
         "type": "object"
       },
+      "SubtitleTrack": {
+        "properties": {
+          "automatic": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lang": {
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "lang",
+          "name",
+          "automatic",
+          "url"
+        ],
+        "type": "object"
+      },
+      "Tag": {
+        "maxLength": 32,
+        "minLength": 1,
+        "type": "string"
+      },
+      "TagsBody": {
+        "properties": {
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/Tag"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        "required": [
+          "tags"
+        ],
+        "type": "object"
+      },
       "Username": {
         "pattern": "^[a-z0-9._-]{1,64}$",
         "type": "string"
@@ -1297,6 +1448,17 @@
         "required": [
           "position",
           "duration",
+          "watched"
+        ],
+        "type": "object"
+      },
+      "WatchedBody": {
+        "properties": {
+          "watched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
           "watched"
         ],
         "type": "object"
@@ -2553,6 +2715,45 @@
         "tags": [
           "library"
         ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryItem"
+                }
+              }
+            },
+            "description": "The entry"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "summary": "One entry with its chapters, subtitles, playlists and stream URL",
+        "tags": [
+          "library"
+        ]
       }
     },
     "/api/library/{id}/file": {
@@ -2614,6 +2815,211 @@
         ]
       }
     },
+    "/api/library/{id}/progress": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Saved"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "summary": "Where the caller is in this video; watched past 90%",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/stream": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range"
+          },
+          "302": {
+            "description": "A presigned URL"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "summary": "The file inline, for the player (ranges; or a redirect to a presigned URL)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/subtitles/{subId}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "subId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/vtt": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The subtitles"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such subtitle"
+          }
+        },
+        "summary": "One of the entry's subtitle files (WebVTT)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/tags": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagsBody"
+                }
+              }
+            },
+            "description": "The tags, normalized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "summary": "Replace the entry's tags",
+        "tags": [
+          "library"
+        ]
+      }
+    },
     "/api/library/{id}/thumbnail": {
       "get": {
         "parameters": [
@@ -2651,6 +3057,50 @@
           }
         },
         "summary": "The entry's thumbnail",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/watched": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchedBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Saved"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "summary": "Mark watched or not (not also starts it over)",
         "tags": [
           "library"
         ]

@@ -58,7 +58,7 @@ function sortSpec(sort: LibrarySort, q: string | null): SortSpec {
   }
 }
 
-function base(db: Kysely<Database>, userId: string) {
+export function base(db: Kysely<Database>, userId: string) {
   return db
     .selectFrom("library_entries as e")
     .innerJoin("media as m", "m.id", "e.media_id")
@@ -160,32 +160,7 @@ export async function listLibraryPage(
     qb = qb.where(sql<boolean>`(${spec.expr}, e.id) ${op} (${spec.cast(c.key)}, ${c.id}::uuid)`);
   }
   const rows = await (qb as SelectQueryBuilder<Database, never, object>)
-    .select([
-      "e.id",
-      "e.media_id",
-      "e.added_at",
-      "m.title",
-      "m.video_id",
-      "m.extractor",
-      "m.channel",
-      "m.channel_id",
-      "m.uploader",
-      "m.upload_date",
-      "m.duration",
-      "m.thumbnail_key",
-      "r.size_bytes",
-      "r.container",
-      "p.name as profile_name",
-      "wp.position_s",
-      "wp.duration_s",
-      "wp.watched",
-      sql<
-        string[]
-      >`coalesce((SELECT array_agg(t.tag ORDER BY t.tag) FROM entry_tags t WHERE t.entry_id = e.id), '{}')`.as(
-        "tags",
-      ),
-      spec.expr.as("sort_key"),
-    ] as never)
+    .select([...ENTRY_COLUMNS, spec.expr.as("sort_key")] as never)
     .orderBy(sql`${spec.expr} ${sql.raw(spec.dir)}`)
     .orderBy(sql`e.id ${sql.raw(spec.dir)}`)
     .limit(LIBRARY_PAGE_SIZE + 1)
@@ -202,7 +177,34 @@ export async function listLibraryPage(
   };
 }
 
-interface EntryRow {
+/** The columns `toEntry` needs, on `base`'s aliases. */
+export const ENTRY_COLUMNS = [
+  "e.id",
+  "e.media_id",
+  "e.added_at",
+  "m.title",
+  "m.video_id",
+  "m.extractor",
+  "m.channel",
+  "m.channel_id",
+  "m.uploader",
+  "m.upload_date",
+  "m.duration",
+  "m.thumbnail_key",
+  "r.size_bytes",
+  "r.container",
+  "p.name as profile_name",
+  "wp.position_s",
+  "wp.duration_s",
+  "wp.watched",
+  sql<
+    string[]
+  >`coalesce((SELECT array_agg(t.tag ORDER BY t.tag) FROM entry_tags t WHERE t.entry_id = e.id), '{}')`.as(
+    "tags",
+  ),
+] as const;
+
+export interface EntryRow {
   id: string;
   media_id: string;
   added_at: Date;

@@ -144,7 +144,7 @@ export function parseRange(header: string | undefined, size: number): Range | "i
 const disposition = (filename: string) =>
   `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
 
-async function serve(
+export async function serve(
   c: Context,
   store: MediaStore,
   key: string,
@@ -173,7 +173,7 @@ async function serve(
   return c.body(opened.body, range === null ? 200 : 206, headers);
 }
 
-function needStore(store: MediaStore | undefined): MediaStore {
+export function needStore(store: MediaStore | undefined): MediaStore {
   if (store === undefined) throw new ApiError("unavailable", "storage is not available");
   return store;
 }
