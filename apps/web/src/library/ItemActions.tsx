@@ -1,11 +1,12 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Download, ExternalLink, ListPlus, Trash2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Download, ExternalLink, LibraryBig, ListPlus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { errorText } from "@/api/client";
 import { itemKey, setKept, setWatched, useRemoveEntry } from "@/api/library";
+import { addToLibrary } from "@/api/sharing";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
@@ -13,6 +14,7 @@ import { notify } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 import { formatDuration } from "@/downloads/format";
 
+import { ShareButton } from "../sharing/ShareDialog";
 import { AddToPlaylist } from "./AddToPlaylist";
 
 function ChannelLine({ item }: { item: LibraryItem }) {
@@ -103,13 +105,76 @@ function RemoveButton({ item }: { item: LibraryItem }) {
   );
 }
 
-/**
- * The row under a watch page's title: the channel, Watched, and the person's actions on their own
- * entry (Keep, Save, Save to playlist, Remove); `extra` adds more (Share).
- */
-export function ItemActions({ item, extra }: { item: LibraryItem; extra?: ReactNode }) {
+/** Add to my library, for a video someone shared: the person's own entry on the same file. */
+function AddToMine({ item }: { item: LibraryItem }) {
+  const navigate = useNavigate();
   const client = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      disabled={busy}
+      onClick={() => {
+        setBusy(true);
+        addToLibrary(item.id)
+          .then(async (mine) => {
+            notify.success("Added to your library.");
+            await client.invalidateQueries({ queryKey: ["api", "library"] });
+            await navigate({ to: "/library/$entryId", params: { entryId: mine.id } });
+          })
+          .catch((err: unknown) => {
+            notify.error(errorText(err));
+          })
+          .finally(() => {
+            setBusy(false);
+          });
+      }}
+    >
+      <LibraryBig aria-hidden /> Add to my library
+    </Button>
+  );
+}
+
+function SaveFile({ item }: { item: LibraryItem }) {
+  return (
+    <Button variant="secondary" asChild>
+      <a href={`/api/library/${item.id}/file`} download>
+        <Download aria-hidden /> Save
+      </a>
+    </Button>
+  );
+}
+
+/** The person's own actions on their entry: Keep, Save, Save to playlist, Share, Remove. */
+function OwnActions({ item }: { item: LibraryItem }) {
   const [saving, setSaving] = useState(false);
+  return (
+    <>
+      <KeepSwitch item={item} />
+      <SaveFile item={item} />
+      <Button
+        variant="secondary"
+        onClick={() => {
+          setSaving(true);
+        }}
+      >
+        <ListPlus aria-hidden /> Save to playlist
+      </Button>
+      <ShareButton kind="entry" id={item.id} title={item.title} />
+      <RemoveButton item={item} />
+      {saving ? (
+        <AddToPlaylist entryId={item.id} title={item.title} open onOpenChange={setSaving} />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * The row under a watch page's title: the channel, Watched, and the actions. On the person's own
+ * entry those are theirs (docs/library.md); on one shared with them (docs/sharing.md), who shared
+ * it, Save and Add to my library.
+ */
+export function ItemActions({ item }: { item: LibraryItem }) {
+  const client = useQueryClient();
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
       <ChannelLine item={item} />
@@ -127,22 +192,15 @@ export function ItemActions({ item, extra }: { item: LibraryItem; extra?: ReactN
         />
         Watched
       </label>
-      <KeepSwitch item={item} />
-      <Button variant="secondary" asChild>
-        <a href={`/api/library/${item.id}/file`} download>
-          <Download aria-hidden /> Save
-        </a>
-      </Button>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          setSaving(true);
-        }}
-      >
-        <ListPlus aria-hidden /> Save to playlist
-      </Button>
-      {extra}
-      <RemoveButton item={item} />
+      {item.sharedBy === null ? (
+        <OwnActions item={item} />
+      ) : (
+        <>
+          <span className="text-sm text-muted-foreground">Shared by {item.sharedBy}</span>
+          <SaveFile item={item} />
+          <AddToMine item={item} />
+        </>
+      )}
       {item.webpageUrl === null ? null : (
         <Button variant="ghost" asChild>
           <a href={item.webpageUrl} target="_blank" rel="noreferrer">
@@ -150,9 +208,6 @@ export function ItemActions({ item, extra }: { item: LibraryItem; extra?: ReactN
           </a>
         </Button>
       )}
-      {saving ? (
-        <AddToPlaylist entryId={item.id} title={item.title} open onOpenChange={setSaving} />
-      ) : null}
     </div>
   );
 }

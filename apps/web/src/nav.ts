@@ -3,6 +3,7 @@ import {
   Library,
   Rss,
   Settings,
+  Share2,
   SlidersHorizontal,
   Users,
   type LucideIcon,
@@ -13,6 +14,7 @@ export type NavItem = {
     | "/"
     | "/downloads"
     | "/subscriptions"
+    | "/shared"
     | "/settings"
     | "/admin/users"
     | "/admin/format-profiles";
@@ -34,6 +36,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Subscriptions",
     icon: Rss,
     blurb: "Channels and playlists, kept up to date.",
+  },
+  {
+    to: "/shared",
+    label: "Shared",
+    icon: Share2,
+    blurb: "Videos and playlists shared with you, and by you.",
   },
   { to: "/settings", label: "Settings", icon: Settings, blurb: "Tune Uroboros to your setup." },
 ];

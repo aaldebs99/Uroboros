@@ -5,6 +5,7 @@ import { ChannelPage } from "@/library/ChannelPage";
 import { ItemPage } from "@/library/ItemPage";
 import { LibraryPage } from "@/library/LibraryPage";
 import { PlaylistPage } from "@/library/PlaylistPage";
+import type { PlayQueue } from "@/library/UpNext";
 
 function filtersFrom(searchStr: string): LibraryFilters {
   const p = new URLSearchParams(searchStr);
@@ -63,13 +64,18 @@ export function PlaylistRoute() {
   );
 }
 
-/** A watch page; `?list=<playlist id>` plays that playlist in order from it. */
+/**
+ * A watch page; `?list=<playlist id>` plays one of the person's playlists in order from it, and
+ * `?share=<share id>` a playlist shared with them.
+ */
 export function ItemRoute() {
   const entryId = itemRoute.useParams({ select: (p: { entryId: string }) => p.entryId });
-  const list = itemRoute.useSearch({
-    select: (s: { list?: unknown }) => (typeof s.list === "string" ? s.list : null),
-  });
-  return (
-    <ItemPage entryId={entryId} queue={list === null ? null : { kind: "playlist", id: list }} />
-  );
+  const queue = itemRoute.useSearch({ select: queueOf });
+  return <ItemPage entryId={entryId} queue={queue} />;
+}
+
+function queueOf(s: { list?: unknown; share?: unknown }): PlayQueue | null {
+  if (typeof s.list === "string") return { kind: "playlist", id: s.list };
+  if (typeof s.share === "string") return { kind: "share", id: s.share };
+  return null;
 }

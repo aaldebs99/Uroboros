@@ -1,7 +1,7 @@
 import type { PlaylistDetail } from "@uroboros/contract";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Copy, ExternalLink, ListOrdered, Pencil, Play, SearchX, Trash2 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import { errorText } from "@/api/client";
 import { useLibraryPages } from "@/api/library";
@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { notify } from "@/components/ui/sonner";
 
+import { ShareButton } from "../sharing/ShareDialog";
 import { LibraryGrid } from "./LibraryGrid";
 import { PlaylistDialog } from "./PlaylistDialog";
 import { PlaylistEditor } from "./PlaylistEditor";
@@ -168,12 +169,10 @@ function PlaylistBody({ playlist, editing }: { playlist: PlaylistDetail; editing
 /** The header's actions: Play all, Share, and the kind's own. */
 function PlaylistActions({
   playlist,
-  share,
   editing,
   onEditing,
 }: {
   playlist: PlaylistDetail;
-  share: ReactNode;
   editing: boolean;
   onEditing: (on: boolean) => void;
 }) {
@@ -181,7 +180,11 @@ function PlaylistActions({
   return (
     <div className="flex flex-wrap gap-2">
       <PlayAll playlistId={playlist.id} first={pages.data?.pages[0]?.entries[0]?.id} />
-      {share}
+      <ShareButton
+        kind={playlist.kind === "manual" ? "playlist" : "youtube"}
+        id={playlist.id}
+        title={playlist.name}
+      />
       {playlist.kind === "manual" ? (
         <ManualActions playlist={playlist} editing={editing} onEditing={onEditing} />
       ) : (
@@ -195,10 +198,10 @@ const kindLabel = (p: PlaylistDetail) => (p.kind === "youtube" ? "From YouTube" 
 
 /**
  * One playlist, of either kind: its videos in order, Play all, and its own actions. A manual
- * playlist can be reordered, renamed and deleted; a YouTube one saved as a manual copy. `share`
- * is the Share button, when the page has one.
+ * playlist can be reordered, renamed and deleted; a YouTube one saved as a manual copy. Both
+ * can be shared (docs/sharing.md).
  */
-export function PlaylistPage({ playlistId, share }: { playlistId: string; share?: ReactNode }) {
+export function PlaylistPage({ playlistId }: { playlistId: string }) {
   const playlist = usePlaylist(playlistId);
   const [editing, setEditing] = useState(false);
   if (playlist.isError) return <p className="text-destructive">{errorText(playlist.error)}</p>;
@@ -211,7 +214,7 @@ export function PlaylistPage({ playlistId, share }: { playlistId: string; share?
         description={p === undefined ? undefined : `${kindLabel(p)} · ${String(p.count)} videos`}
         action={
           p === undefined ? undefined : (
-            <PlaylistActions playlist={p} share={share} editing={editing} onEditing={setEditing} />
+            <PlaylistActions playlist={p} editing={editing} onEditing={setEditing} />
           )
         }
       />

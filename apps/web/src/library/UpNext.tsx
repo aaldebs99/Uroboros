@@ -3,13 +3,17 @@ import { Link } from "@tanstack/react-router";
 
 import { useLibraryPages } from "@/api/library";
 import { playlistFilters, usePlaylist } from "@/api/playlists";
+import { useSharedDetail, useSharedPages } from "@/api/sharing";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { VideoThumbnail } from "./VideoTile";
 
-/** What the watch page plays in order: one of the person's playlists (`?list=`). */
-export type PlayQueue = { kind: "playlist"; id: string };
+/**
+ * What the watch page plays in order: one of the person's playlists (`?list=`), or a playlist
+ * someone shared with them (`?share=`).
+ */
+export type PlayQueue = { kind: "playlist"; id: string } | { kind: "share"; id: string };
 
 /** A queue's videos, its name, and the search that keeps a watch page in it. */
 export interface QueueView {
@@ -22,14 +26,19 @@ export interface QueueView {
 
 /** The queue's videos in order (loaded a page at a time), or null without a queue. */
 export function useQueue(queue: PlayQueue | null): QueueView | null {
-  const playlist = usePlaylist(queue?.id ?? null);
+  const own = queue?.kind === "playlist" ? queue.id : null;
+  const shared = queue?.kind === "share" ? queue.id : null;
+  const playlist = usePlaylist(own);
   const p = playlist.data;
-  const pages = useLibraryPages(p === undefined ? {} : playlistFilters(p), p !== undefined);
+  const ownPages = useLibraryPages(p === undefined ? {} : playlistFilters(p), p !== undefined);
+  const detail = useSharedDetail(shared);
+  const sharedPages = useSharedPages(shared);
   if (queue === null) return null;
+  const pages = queue.kind === "playlist" ? ownPages : sharedPages;
   return {
-    title: p?.name ?? "Playlist",
+    title: (queue.kind === "playlist" ? p?.name : detail.data?.title) ?? "Playlist",
     entries: pages.data?.pages.flatMap((page) => page.entries) ?? [],
-    search: { list: queue.id },
+    search: queue.kind === "playlist" ? { list: queue.id } : { share: queue.id },
     hasMore: pages.hasNextPage,
     loadMore: () => pages.fetchNextPage(),
   };

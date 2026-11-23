@@ -62,6 +62,7 @@ describe("app shell", () => {
       "Playlists",
       "Downloads",
       "Subscriptions",
+      "Shared",
       "Settings",
     ]);
   });

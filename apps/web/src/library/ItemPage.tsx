@@ -136,15 +136,17 @@ export function ItemPage({ entryId, queue = null }: { entryId: string; queue?: P
           {it.description === null || it.description.trim() === "" ? null : (
             <Description text={it.description} />
           )}
-          <TagEditor
-            tags={it.tags}
-            onChange={(tags) => {
-              setTags(entryId, tags)
-                .then(() => client.invalidateQueries({ queryKey: itemKey(entryId) }))
-                .then(refresh)
-                .catch(fail);
-            }}
-          />
+          {it.sharedBy !== null ? null : (
+            <TagEditor
+              tags={it.tags}
+              onChange={(tags) => {
+                setTags(entryId, tags)
+                  .then(() => client.invalidateQueries({ queryKey: itemKey(entryId) }))
+                  .then(refresh)
+                  .catch(fail);
+              }}
+            />
+          )}
           <InPlaylists item={it} />
           <Chapters
             item={it}
