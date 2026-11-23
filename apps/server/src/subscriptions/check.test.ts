@@ -1,0 +1,216 @@
+import type { Scenario } from "@uroboros/ytdlp/testing";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { signedIn, type SignedIn } from "../../test/auth.ts";
+import { seededDefault } from "../../test/downloads.ts";
+import { TestDb } from "../../test/testDb.ts";
+import { workerHarness } from "../../test/workerDeps.ts";
+import type { FeedJson } from "../db/schema.ts";
+import { checkProcessor } from "./check.ts";
+import { listing, sleep, type ListedVideo } from "../../test/listings.ts";
+import { takeLease } from "./lease.ts";
+
+let t: TestDb;
+let h: Awaited<ReturnType<typeof workerHarness>>;
+let profileId: string;
+
+beforeAll(async () => {
+  t = await TestDb.create();
+  h = await workerHarness(t.db, 1000);
+  profileId = (await seededDefault(t.db)).id;
+});
+afterAll(async () => {
+  await h.close();
+  await t.close();
+});
+
+const base = "https://www.youtube.com/@BlenderOfficial";
+const videos = `${base}/videos`;
+const streams = `${base}/streams`;
+
+let n = 0;
+const user = (): Promise<SignedIn> => signedIn(t.db, { username: `c${String(++n)}` });
+const vids = (prefix: string, count: number): ListedVideo[] =>
+  Array.from({ length: count }, (_, i) => ({ id: `${prefix}${String(i)}` }));
+
+async function subscription(
+  userId: string,
+  feeds: FeedJson[],
+  over: Partial<{
+    backfill: "none" | "newest" | "all";
+    backfill_count: number;
+    kind: "channel" | "playlist";
+  }> = {},
+) {
+  const row = await t.db
+    .insertInto("subscriptions")
+    .values({
+      user_id: userId,
+      kind: over.kind ?? "channel",
+      extractor: "youtube",
+      source_id: `UC${String(++n)}`,
+      title: "Blender",
+      url: base,
+      feeds: JSON.stringify(feeds),
+      tabs: JSON.stringify(feeds),
+      profile_id: profileId,
+      interval_minutes: 360,
+      backfill: over.backfill ?? "none",
+      backfill_count: over.backfill_count ?? null,
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  return row.id;
+}
+
+async function check(id: string, scenario: Scenario, maxPlaylistEntries = 1000) {
+  const deps = await h.deps(scenario);
+  await checkProcessor({ ...deps, limits: { ...deps.limits, maxPlaylistEntries } })({
+    data: { subscriptionId: id },
+  });
+}
+
+const items = (id: string) =>
+  t.db
+    .selectFrom("subscription_items")
+    .select(["video_id", "outcome"])
+    .where("subscription_id", "=", id)
+    .orderBy("video_id")
+    .execute();
+
+const downloads = (id: string) =>
+  t.db
+    .selectFrom("downloads")
+    .select(["video_id", "priority", "state"])
+    .where("subscription_id", "=", id)
+    .orderBy("video_id")
+    .execute();
+
+const row = (id: string) =>
+  t.db.selectFrom("subscriptions").selectAll().where("id", "=", id).executeTakeFirstOrThrow();
+
+describe("subscription checks", () => {
+  it("records everything as existing on a none backfill and queues nothing", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);
+    await check(id, { steps: [{ stdout: listing(videos, vids("n", 3)) }] });
+    expect((await items(id)).map((i) => i.outcome)).toEqual(["existing", "existing", "existing"]);
+    expect(await downloads(id)).toEqual([]);
+    const after = await row(id);
+    expect(after.feeds[0]?.primedAt).toBeTruthy();
+    expect(after.last_checked_at).not.toBeNull();
+    expect(after.lease_until).toBeNull();
+  });
+
+  it("queues the newest N of each tab on a newest backfill, at priority 1", async () => {
+    const u = await user();
+    const id = await subscription(
+      u.userId,
+      [
+        { name: "Videos", url: videos },
+        { name: "Live", url: streams },
+      ],
+      { backfill: "newest", backfill_count: 2 },
+    );
+    await check(id, {
+      steps: [],
+      variants: [
+        { whenArg: videos, steps: [{ stdout: listing(videos, vids("v", 3)) }] },
+        { whenArg: streams, steps: [{ stdout: listing(streams, vids("s", 3)) }] },
+      ],
+    });
+    expect(await downloads(id)).toEqual(
+      ["s0", "s1", "v0", "v1"].map((v) => ({ video_id: v, priority: 1, state: "queued" })),
+    );
+    expect(await items(id)).toEqual([
+      { video_id: "s0", outcome: "queued" },
+      { video_id: "s1", outcome: "queued" },
+      { video_id: "s2", outcome: "existing" },
+      { video_id: "v0", outcome: "queued" },
+      { video_id: "v1", outcome: "queued" },
+      { video_id: "v2", outcome: "existing" },
+    ]);
+  });
+
+  it("queues only unseen entries on a later check, at priority 0", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);
+    await check(id, { steps: [{ stdout: listing(videos, vids("l", 2)) }] });
+    await check(id, { steps: [{ stdout: listing(videos, [{ id: "lnew" }, ...vids("l", 2)]) }] });
+    expect(await downloads(id)).toEqual([{ video_id: "lnew", priority: 0, state: "queued" }]);
+  });
+
+  it("primes a tab added later with none", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }], {
+      backfill: "all",
+    });
+    const scenario = {
+      steps: [],
+      variants: [
+        { whenArg: videos, steps: [{ stdout: listing(videos, vids("a", 1)) }] },
+        { whenArg: streams, steps: [{ stdout: listing(streams, vids("b", 2)) }] },
+      ],
+    };
+    await check(id, scenario);
+    const primed = (await row(id)).feeds;
+    await t.db
+      .updateTable("subscriptions")
+      .set({ feeds: JSON.stringify([...primed, { name: "Live", url: streams, primedAt: null }]) })
+      .where("id", "=", id)
+      .execute();
+    await check(id, scenario);
+    expect((await downloads(id)).map((d) => d.video_id)).toEqual(["a0"]);
+    expect((await items(id)).filter((i) => i.video_id.startsWith("b"))).toEqual([
+      { video_id: "b0", outcome: "existing" },
+      { video_id: "b1", outcome: "existing" },
+    ]);
+  });
+
+  it("runs one of two concurrent checks", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);
+    const slow = { steps: [{ sleepMs: 400 }, { stdout: listing(videos, vids("x", 1)) }] };
+    const first = check(id, slow).then(() => "first");
+    await sleep(100);
+    const second = check(id, slow).then(() => "second");
+    expect(await Promise.race([first, second])).toBe("second");
+    await first;
+    expect(await items(id)).toEqual([{ video_id: "x0", outcome: "existing" }]);
+  });
+
+  it("skips a disabled owner", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);
+    await t.db
+      .updateTable("users")
+      .set({ disabled_at: new Date() })
+      .where("id", "=", u.userId)
+      .execute();
+    expect(await takeLease(t.db, id)).toBeUndefined();
+    await check(id, { steps: [{ stdout: listing(videos, vids("d", 1)) }] });
+    expect((await row(id)).last_checked_at).toBeNull();
+  });
+
+  it("records a failed listing and keeps the lease free", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);
+    await check(id, {
+      steps: [{ stderr: "ERROR: [youtube:tab] @gone: This channel does not exist.\n" }],
+      exitCode: 1,
+    });
+    const after = await row(id);
+    expect(after.last_error_kind).not.toBeNull();
+    expect(after.last_error_message).toBeTruthy();
+    expect(after.failures).toBe(1);
+    expect(after.lease_until).toBeNull();
+    expect(after.feeds[0]?.primedAt ?? null).toBeNull();
+  });
+
+  it("sets a warning when a playlist reaches the entry cap", async () => {
+    const u = await user();
+    const url = "https://www.youtube.com/playlist?list=PL1";
+    const id = await subscription(u.userId, [{ name: "Playlist", url }], { kind: "playlist" });
+    await check(id, { steps: [{ stdout: listing(url, vids("p", 3)) }] }, 3);
+    expect((await row(id)).warning).toMatch(/first 3/);
+  });
+});

@@ -25,7 +25,7 @@ afterAll(async () => {
   await testDb.close();
 });
 
-async function queue(userId: string, videoId: string): Promise<string> {
+async function queue(userId: string, videoId: string, priority: 0 | 1 = 0): Promise<string> {
   const profile = await seededDefault(testDb.db);
   const out = await testDb.db.transaction().execute((tx) =>
     queueDownload(tx, {
@@ -36,6 +36,7 @@ async function queue(userId: string, videoId: string): Promise<string> {
       url: `https://www.youtube.com/watch?v=${videoId}`,
       title: videoId,
       profile,
+      priority,
     }),
   );
   return out.downloadId ?? "";
@@ -67,6 +68,15 @@ describe("per-user dispatch", () => {
       .execute();
     expect(await dispatchFor(h.ctx, u.userId)).toBe(1);
     expect(await dispatched(u.userId)).toHaveLength(3);
+  });
+
+  it("dispatches pasted links before a backfill", async () => {
+    const u = await user();
+    const ctx = { ...h.ctx, limits: { ...h.ctx.limits, maxActivePerUser: 1 } };
+    await queue(u.userId, "backfill-1", 1);
+    const pasted = await queue(u.userId, "pasted-1", 0);
+    expect(await dispatchFor(ctx, u.userId)).toBe(1);
+    expect((await dispatched(u.userId)).map((d) => d.id)).toEqual([pasted]);
   });
 
   it("never over-dispatches when two settle at once", async () => {

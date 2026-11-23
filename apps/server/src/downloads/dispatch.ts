@@ -35,6 +35,10 @@ export interface QueueInput {
   url: string;
   title: string | null;
   profile: ProfileRow;
+  /** The subscription that found it; its library entry carries it (retention's scope). */
+  subscriptionId?: string | null;
+  /** 0 (the default) dispatches first; 1 waits behind: a subscription's backfill. */
+  priority?: 0 | 1;
 }
 
 export type QueueOutcome = "done" | "queued" | "skipped";
@@ -79,7 +83,12 @@ export async function queueDownload(
   if (stored !== undefined) {
     const entry = await tx
       .insertInto("library_entries")
-      .values({ user_id: input.userId, media_id: stored.media_id, rendition_id: stored.id })
+      .values({
+        user_id: input.userId,
+        media_id: stored.media_id,
+        rendition_id: stored.id,
+        subscription_id: input.subscriptionId ?? null,
+      })
       .onConflict((oc) => oc.columns(["user_id", "rendition_id"]).doNothing())
       .returning("id")
       .executeTakeFirst();
@@ -98,6 +107,8 @@ export async function queueDownload(
       url: input.url,
       title: input.title,
       fetch_key: key,
+      priority: input.priority ?? 0,
+      subscription_id: input.subscriptionId ?? null,
       ...(stored === undefined
         ? {}
         : { state: "done" as const, rendition_id: stored.id, finished_at: new Date() }),
@@ -141,7 +152,8 @@ export async function addFetchJob(ctx: DownloadContext, r: FetchRow): Promise<vo
 }
 
 /**
- * Dispatches a person's oldest waiting downloads until they have `maxActivePerUser` dispatched, under a
+ * Dispatches a person's waiting downloads (pasted links and new uploads before backfills, then
+ * oldest first) until they have `maxActivePerUser` dispatched, under a
  * per-user transaction lock so concurrent calls never over-dispatch. Each dispatch adds the fetch
  * job inside the transaction (a failed add rolls the dispatch back); BullMQ ignores a second add of
  * a live job id, so a shared fetch is fetched once. Returns how many were dispatched.
@@ -175,6 +187,7 @@ export async function dispatchFor(ctx: DownloadContext, userId: string): Promise
       .where("d.user_id", "=", userId)
       .where("d.state", "=", "queued")
       .where("d.dispatched_at", "is", null)
+      .orderBy("d.priority")
       .orderBy("d.created_at")
       .orderBy("d.id")
       .limit(free)

@@ -12,7 +12,8 @@ const PROBE_TIMEOUT_MS = 120_000;
 
 type Deps = WorkerDeps;
 
-function ytdlpOptions(deps: Deps) {
+/** yt-dlp's options for a flat probe with these deps (the subscription check lists with them). */
+export function ytdlpOptions(deps: Deps) {
   return {
     binary: deps.ytdlp.binary,
     ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),

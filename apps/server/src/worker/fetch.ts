@@ -123,12 +123,18 @@ async function settleDone(
       })
       .where("fetch_key", "=", data.fetchKey)
       .where("state", "in", ACTIVE)
-      .returning(["id", "user_id"])
+      .returning(["id", "user_id", "subscription_id"])
       .execute();
-    for (const userId of new Set(rows.map((r) => r.user_id))) {
+    // One active download per person and fetch key, so one entry each, carrying its subscription.
+    for (const r of rows) {
       await tx
         .insertInto("library_entries")
-        .values({ user_id: userId, media_id: rendition.media_id, rendition_id: rendition.id })
+        .values({
+          user_id: r.user_id,
+          media_id: rendition.media_id,
+          rendition_id: rendition.id,
+          subscription_id: r.subscription_id,
+        })
         .onConflict((oc) => oc.columns(["user_id", "rendition_id"]).doNothing())
         .execute();
     }
