@@ -845,6 +845,25 @@
               "playbackUrl": {
                 "type": "string"
               },
+              "playlists": {
+                "items": {
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
               "sources": {
                 "items": {
                   "properties": {
@@ -890,6 +909,7 @@
               "streamUrl",
               "webpageUrl",
               "sources",
+              "playlists",
               "videoCodec",
               "audioCodec",
               "playbackUrl"
@@ -1130,6 +1150,30 @@
         ],
         "type": "object"
       },
+      "NewPlaylistBody": {
+        "properties": {
+          "description": {
+            "maxLength": 5000,
+            "nullable": true,
+            "type": "string"
+          },
+          "entryIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "type": "array"
+          },
+          "name": {
+            "$ref": "#/components/schemas/PlaylistName"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "NewSubscriptionBody": {
         "properties": {
           "backfill": {
@@ -1230,6 +1274,117 @@
           "failed"
         ],
         "type": "string"
+      },
+      "PlaylistDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlaylistSummary"
+          },
+          {
+            "properties": {
+              "description": {
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": [
+              "description"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PlaylistItemsBody": {
+        "properties": {
+          "entryIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "type": "array"
+          }
+        },
+        "required": [
+          "entryIds"
+        ],
+        "type": "object"
+      },
+      "PlaylistKind": {
+        "enum": [
+          "manual",
+          "youtube"
+        ],
+        "type": "string"
+      },
+      "PlaylistMoveBody": {
+        "properties": {
+          "position": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "position"
+        ],
+        "type": "object"
+      },
+      "PlaylistName": {
+        "maxLength": 100,
+        "minLength": 1,
+        "type": "string"
+      },
+      "PlaylistPatch": {
+        "properties": {
+          "description": {
+            "maxLength": 5000,
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/PlaylistName"
+          }
+        },
+        "type": "object"
+      },
+      "PlaylistSummary": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "coverThumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PlaylistKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "count",
+          "coverThumbnailUrl",
+          "url",
+          "updatedAt"
+        ],
+        "type": "object"
       },
       "PreviewEntry": {
         "properties": {
@@ -3131,12 +3286,23 @@
             }
           },
           {
-            "description": "A playlist id",
+            "description": "A YouTube playlist's id",
             "in": "query",
             "name": "source",
             "required": false,
             "schema": {
-              "description": "A playlist id",
+              "description": "A YouTube playlist's id",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A manual playlist's id",
+            "in": "query",
+            "name": "playlist",
+            "required": false,
+            "schema": {
+              "description": "A manual playlist's id",
               "format": "uuid",
               "type": "string"
             }
@@ -3209,7 +3375,7 @@
                 }
               }
             },
-            "description": "A playlist the caller did not queue"
+            "description": "A playlist that is not the caller's"
           }
         },
         "summary": "A page of the caller's library: search, filters and sort (docs/library.md)",
@@ -4496,6 +4662,492 @@
         "summary": "Revoke one of the caller's API tokens",
         "tags": [
           "tokens"
+        ]
+      }
+    },
+    "/api/playlists": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlaylistSummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Playlists"
+          }
+        },
+        "summary": "The caller's playlists: manual ones first, then YouTube ones holding their videos",
+        "tags": [
+          "playlists"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewPlaylistBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetail"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An entry not theirs"
+          }
+        },
+        "summary": "Make a manual playlist, optionally with entries of the caller's library",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/playlists/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A YouTube playlist, which cannot be changed"
+          }
+        },
+        "summary": "Delete a manual playlist (its videos stay in the library)",
+        "tags": [
+          "playlists"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetail"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist"
+          }
+        },
+        "summary": "One of the caller's playlists, of either kind (its videos: GET /api/library?playlist= or ?source=)",
+        "tags": [
+          "playlists"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetail"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A YouTube playlist, which cannot be changed"
+          }
+        },
+        "summary": "Rename or describe a manual playlist",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/playlists/{id}/copy": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetail"
+                }
+              }
+            },
+            "description": "The new playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist"
+          }
+        },
+        "summary": "Save as my playlist: a manual copy of the caller's videos from a playlist, in its order",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/playlists/{id}/items": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistItemsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An entry not theirs, a duplicate, or more than the limit"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A YouTube playlist, which cannot be changed"
+          }
+        },
+        "summary": "Add entries at the end, skipping ones already in it",
+        "tags": [
+          "playlists"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistItemsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An entry not theirs, or a duplicate"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A YouTube playlist, which cannot be changed"
+          }
+        },
+        "summary": "Set the whole order; entries left out leave the playlist",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/playlists/{id}/items/{entryId}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist or entry in it"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A YouTube playlist, which cannot be changed"
+          }
+        },
+        "summary": "Take an entry out of a manual playlist",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/playlists/{id}/items/{entryId}/move": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistMoveBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist or entry in it"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A YouTube playlist, which cannot be changed"
+          }
+        },
+        "summary": "Move one entry to a position (0 is first; past the end is last)",
+        "tags": [
+          "playlists"
         ]
       }
     },

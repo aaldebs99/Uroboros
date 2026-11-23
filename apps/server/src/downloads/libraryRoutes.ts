@@ -43,7 +43,11 @@ const libraryQuery = z.object({
   source: z
     .uuid()
     .optional()
-    .openapi({ param: { name: "source", in: "query" }, description: "A playlist id" }),
+    .openapi({ param: { name: "source", in: "query" }, description: "A YouTube playlist's id" }),
+  playlist: z
+    .uuid()
+    .optional()
+    .openapi({ param: { name: "playlist", in: "query" }, description: "A manual playlist's id" }),
   tag: z
     .string()
     .max(64)
@@ -70,7 +74,7 @@ const listRoute = createRoute({
   responses: {
     200: json(LibraryPage, "A page"),
     400: error("A bad cursor, channel key, or a sort that needs another parameter"),
-    404: error("A playlist the caller did not queue"),
+    404: error("A playlist that is not the caller's"),
   },
 });
 

@@ -84,3 +84,13 @@ export {
   SubscriptionItemsPage,
   SubscriptionPatch,
 } from "./subscriptions.ts";
+export {
+  NewPlaylistBody,
+  PLAYLIST_MAX_ITEMS,
+  PlaylistDetail,
+  PlaylistItemsBody,
+  PlaylistKind,
+  PlaylistName,
+  PlaylistPatch,
+  PlaylistSummary,
+} from "./playlists.ts";

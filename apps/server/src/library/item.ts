@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { playlistsHolding } from "../playlists/listing.ts";
 import { base, ENTRY_COLUMNS, toEntry, type EntryRow } from "./query.ts";
 
 const Chapters = z.array(Chapter);
@@ -33,7 +34,7 @@ export async function getItem(
       })
     | undefined;
   if (row === undefined) throw new ApiError("not_found", "no such library entry");
-  const [subs, sources] = await Promise.all([
+  const [subs, sources, playlists] = await Promise.all([
     db
       .selectFrom("subtitles")
       .select(["id", "lang", "name", "automatic"])
@@ -51,6 +52,7 @@ export async function getItem(
       .where("si.video_id", "=", row.video_id)
       .select(["s.id", "s.title"])
       .execute(),
+    playlistsHolding(db, userId, entryId),
   ]);
   const chapters = Chapters.safeParse(row.chapters);
   return {
@@ -61,6 +63,7 @@ export async function getItem(
     streamUrl: `/api/library/${entryId}/stream`,
     webpageUrl: row.webpage_url,
     sources,
+    playlists,
     videoCodec: row.video_codec,
     audioCodec: row.audio_codec,
     playbackUrl: `/api/library/${entryId}/playback`,

@@ -45,8 +45,10 @@ export const LibraryItem = LibraryEntry.extend({
   /** Inline, range-capable; may redirect to a presigned URL. */
   streamUrl: z.string(),
   webpageUrl: z.string().nullable(),
-  /** The caller's playlists this video is in. */
+  /** The caller's YouTube playlists this video is in. */
   sources: z.array(z.object({ id: z.uuid(), title: z.string().nullable() })),
+  /** The caller's own (manual) playlists this video is in. */
+  playlists: z.array(z.object({ id: z.uuid(), name: z.string() })),
   /** ffprobe's codec names (with the entry's `container`): does this browser play the file? */
   videoCodec: z.string().nullable(),
   audioCodec: z.string().nullable(),

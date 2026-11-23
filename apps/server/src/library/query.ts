@@ -14,6 +14,8 @@ export interface LibraryFilters {
   q?: string | undefined;
   channel?: string | undefined;
   source?: string | undefined;
+  /** A manual playlist of the caller's. */
+  playlist?: string | undefined;
   tag?: string | undefined;
   watched?: boolean | undefined;
   sort?: LibrarySort | undefined;
@@ -56,7 +58,8 @@ function sortSpec(sort: LibrarySort, q: string | null): SortSpec {
         cast: (k) => sql`${k}::double precision`,
       };
     case "position":
-      return { expr: sql`si.position`, dir: "asc", cast: (k) => sql`${k}::integer` };
+      // `pos` is the playlist's join: `source_items` or `playlist_items`.
+      return { expr: sql`pos.position`, dir: "asc", cast: (k) => sql`${k}::integer` };
     case "relevance":
       return {
         expr: sql`ts_rank(m.search, ${queryOf(q ?? "")})::double precision`,
@@ -112,6 +115,20 @@ function filtered(qb: Base, f: LibraryFilters, q: string | null): Base {
   return out;
 }
 
+async function ownsPlaylist(
+  db: Kysely<Database>,
+  userId: string,
+  playlistId: string,
+): Promise<boolean> {
+  const row = await db
+    .selectFrom("playlists")
+    .select("id")
+    .where("user_id", "=", userId)
+    .where("id", "=", playlistId)
+    .executeTakeFirst();
+  return row !== undefined;
+}
+
 async function ownsSource(
   db: Kysely<Database>,
   userId: string,
@@ -132,12 +149,45 @@ const dashed = (date: string | null): string | null => {
 };
 
 function chooseSort(f: LibraryFilters, q: string | null): LibrarySort {
-  if (f.sort === "position" && f.source === undefined) {
-    throw new ApiError("bad_request", "sort=position needs a source");
+  const ordered = f.source !== undefined || f.playlist !== undefined;
+  if (f.source !== undefined && f.playlist !== undefined) {
+    throw new ApiError("bad_request", "source and playlist cannot be combined");
+  }
+  if (f.sort === "position" && !ordered) {
+    throw new ApiError("bad_request", "sort=position needs a source or a playlist");
   }
   if (f.sort === "relevance" && q === null)
     throw new ApiError("bad_request", "sort=relevance needs q");
-  return f.sort ?? (f.source !== undefined ? "position" : q !== null ? "relevance" : "added");
+  return f.sort ?? (ordered ? "position" : q !== null ? "relevance" : "added");
+}
+
+/** 404 unless the playlist filter names one of the caller's own. */
+async function checkPlaylists(db: Kysely<Database>, userId: string, f: LibraryFilters) {
+  if (f.source !== undefined && !(await ownsSource(db, userId, f.source))) {
+    throw new ApiError("not_found", "no such playlist");
+  }
+  if (f.playlist !== undefined && !(await ownsPlaylist(db, userId, f.playlist))) {
+    throw new ApiError("not_found", "no such playlist");
+  }
+}
+
+/** Joins the playlist the filter names as `pos`, keeping only its entries. */
+function inPlaylist(qb: Base, f: LibraryFilters): Base {
+  const { source, playlist } = f;
+  if (source !== undefined) {
+    return qb.innerJoin("source_items as pos", (j) =>
+      j
+        .on("pos.source_id", "=", source)
+        .onRef("pos.extractor", "=", "m.extractor")
+        .onRef("pos.video_id", "=", "m.video_id"),
+    );
+  }
+  if (playlist !== undefined) {
+    return qb.innerJoin("playlist_items as pos", (j) =>
+      j.on("pos.playlist_id", "=", playlist).onRef("pos.entry_id", "=", "e.id"),
+    );
+  }
+  return qb;
 }
 
 /** One page of the caller's library (docs/library.md). */
@@ -148,20 +198,9 @@ export async function listLibraryPage(
 ): Promise<LibraryPage> {
   const q = f.q?.trim() ? f.q.trim().slice(0, 500) : null;
   const sort = chooseSort(f, q);
-  if (f.source !== undefined && !(await ownsSource(db, userId, f.source))) {
-    throw new ApiError("not_found", "no such playlist");
-  }
+  await checkPlaylists(db, userId, f);
   const spec = sortSpec(sort, q);
-  let qb = filtered(base(db, userId), f, q);
-  if (f.source !== undefined) {
-    const sourceId = f.source;
-    qb = qb.innerJoin("source_items as si", (j) =>
-      j
-        .on("si.source_id", "=", sourceId)
-        .onRef("si.extractor", "=", "m.extractor")
-        .onRef("si.video_id", "=", "m.video_id"),
-    );
-  }
+  let qb = inPlaylist(filtered(base(db, userId), f, q), f);
   if (f.cursor !== undefined) {
     const c = decodeCursor(f.cursor);
     const op = spec.dir === "desc" ? sql`<` : sql`>`;

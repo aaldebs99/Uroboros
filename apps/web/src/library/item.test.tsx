@@ -68,6 +68,7 @@ const item = {
   playbackUrl: `/api/library/${ID}/playback`,
   webpageUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
   sources: [],
+  playlists: [],
 };
 
 afterEach(() => {
