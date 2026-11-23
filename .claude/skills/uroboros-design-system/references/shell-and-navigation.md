@@ -11,7 +11,7 @@ A bar in the page colour (`bg-background`), 56px tall, with no border or shadow,
 to right:
 
 1. A ghost icon button with `Menu`, which toggles the side navigation between full and mini (on a
-   watch page, it opens the navigation drawer).
+   watch page, and on phones, it opens the navigation drawer).
 2. The brand: `Brand` (the tile and "Uroboros" in Roboto 700, 18px).
 3. The [search](actions-and-forms.md#search), centred and up to about 640px wide.
 4. **"+ Create"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500.
@@ -37,7 +37,8 @@ A list of sections in the page colour, below the top bar, not a separate coloure
 - **On a watch page** (`/library/$entryId`, `isWatchPage` in `nav.ts`) the side navigation steps
   aside for the player, as on YouTube: the menu button opens it as a 240px drawer from the left
   over the scrim (`components/NavDrawer.tsx`), with its own menu button and brand where the top
-  bar's sit. Any navigation closes it, and closing it returns the focus to the menu button.
+  bar's sit. Any navigation closes it, and closing it returns the focus to the menu button. The
+  same drawer is the [phone](phone.md#getting-around) menu.
 - The navigation list stays in `nav.ts`.
 
 ## Page width
@@ -106,6 +107,9 @@ Filters are a row of pills; views are underlined text tabs.
 
 - **Chips:** 32px pills on `bg-raised`, with the selected chip inverted (`bg-foreground
   text-background`). A row of chips scrolls sideways on phones, never wraps the page wider.
+- **Sort** sits at the end of the chips' row, a compact `Select` after a muted "Sort" label (the
+  label hidden on phones, the select keeping `aria-label="Sort"`). The chips (`min-w-0`) scroll
+  beside it; the select doesn't shrink.
 - **Tabs:** text at 500, muted; the current tab is `text-foreground` with a 2px `border-foreground`
   underline over a hairline (`border-b border-border`). Use `role="tablist"` only for real
   tabpanels; links between routes stay links with `aria-current`.
@@ -115,3 +119,6 @@ Filters are a row of pills; views are underlined text tabs.
 B: the title (24/700) with a muted description under it, the page's main action at the trailing
 edge (wrapping under the title when narrow), and a hairline rule under the header (`pb-3.5
 border-b border-border`). A page holding a single list doesn't repeat the list's own heading.
+On phones a section's title, description and rule are hidden (the title stays for screen
+readers) and only the action shows; a page about one thing passes `titleOnPhone` to keep its
+title ([phone](phone.md#getting-around)).

@@ -35,6 +35,7 @@ export function NewSubscriptionPage({ requestId }: { requestId: string }) {
   return (
     <section className="grid w-full gap-6">
       <PageHeader
+        titleOnPhone
         title={`Subscribe to ${title}`}
         description="New videos download by themselves; these settings can change later."
       />

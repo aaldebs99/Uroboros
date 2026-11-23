@@ -75,6 +75,18 @@ describe("LibraryPage", () => {
     });
   });
 
+  it("puts the sort beside the filter chips, and sorting keeps the filters", async () => {
+    fakeApi({ "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }) });
+    const onFilters = vi.fn();
+    await renderInRouter(<LibraryPage filters={{ watched: false }} onFilters={onFilters} />);
+    const sort = await screen.findByRole("combobox", { name: "Sort" });
+    const chips = screen.getByRole("toolbar", { name: "Filter" });
+    expect(chips.parentElement).toContainElement(sort);
+
+    await userEvent.selectOptions(sort, "title");
+    expect(onFilters).toHaveBeenLastCalledWith({ watched: false, sort: "title" });
+  });
+
   it("points an empty library at Downloads", async () => {
     fakeApi({ "GET /api/library": () => Response.json({ entries: [], nextCursor: null }) });
     await renderInRouter(<LibraryPage />);

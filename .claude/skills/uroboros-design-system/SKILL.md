@@ -47,8 +47,9 @@ skill, this skill wins. The existing files are listed in each reference.
    is a Sonner toast. A condition the page keeps (cookies expiring) is a notice. Never show a
    fake percentage.
 8. **One breakpoint, `md` (48rem).** Above it: the top bar and the side navigation. Below it: the slim top
-   bar and the **bottom tab bar**, with no drawer. Nothing may widen a 375px page. Touch targets
-   are at least 44px.
+   bar, whose menu button opens the navigation as a drawer, and the **bottom tab bar**; a
+   section's page title is hidden. Nothing may widen a 375px page. Touch targets are at least
+   44px.
 9. **Show only real features.** No bell, Pause, watched bar, subscriber count or Create menu
    item until the feature behind it exists.
 10. **Pages use the whole page.** A page fills the main area from its left margin to its right:
@@ -85,7 +86,7 @@ dialogs and toasts, `rounded-2xl` (16px) cards and sheets, `rounded-[4px]` durat
 | A filled or dotted status badge (`bg-warning`, a coloured dot) | An outlined pill with tone text                                               |
 | A video in a bordered card with the title in a padded body     | A bare tile: thumbnail, then avatar, two-line title, meta, ⋮                  |
 | A dashed box for an empty list                                 | `EmptyState`: a 96px circle with a glyph, a title, a line, one action         |
-| A `Sheet` drawer for phone navigation                          | The bottom tab bar with the centred "+"                                       |
+| A section title ("Library") atop a phone page                  | `PageHeader` hides it on phones; the tabs and the menu say where you are      |
 | A label above an input                                         | The outlined field with the label inside the box                              |
 | Geist or Bricolage, body text at 16px, `font-display`          | Roboto 14/20 body; titles are Roboto 700                                      |
 | A 6px flat `bg-primary` progress bar                           | An 8px pill bar with an accent gradient and glow, plus `role="progressbar"`   |

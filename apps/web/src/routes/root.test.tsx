@@ -191,6 +191,18 @@ describe("app shell", () => {
     ).toEqual([]);
   });
 
+  it("opens the navigation as a drawer from the phone top bar's menu button", async () => {
+    await renderAt("/");
+
+    // From md up the same bar has the mini-rail toggle; the drawer's button is for phones.
+    expect(screen.getByRole("button", { name: "Collapse navigation" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+    const drawer = screen.getByRole("dialog", { name: "Navigation" });
+    await userEvent.click(within(drawer).getByRole("link", { name: "Downloads" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("closes the watch page's drawer with its own menu button", async () => {
     await renderAt("/library/0190a3f2-7c1e-7000-8000-000000000200", () =>
       screen.findByRole("button", { name: "Open navigation" }),

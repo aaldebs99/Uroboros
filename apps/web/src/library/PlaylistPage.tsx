@@ -12,6 +12,7 @@ export function PlaylistPage({ sourceId }: { sourceId: string }) {
   return (
     <section className="grid w-full gap-6">
       <PageHeader
+        titleOnPhone
         title={source?.title ?? "Playlist"}
         description={
           source === undefined ? undefined : `${String(source.count)} videos in your library`

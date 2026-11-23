@@ -44,64 +44,67 @@ export function LibraryPage({
     <section className="grid w-full gap-6">
       <PageHeader title="Library" />
       <ViewTabs />
-      <ChipRow>
-        {WATCHED.map((w) => (
-          <Chip
-            key={w.label}
-            pressed={filters.watched === w.value}
-            onClick={() => {
+      {/* The sort sits at the end of the chips' row; on phones the chips scroll beside it. */}
+      <div className="flex items-center gap-3">
+        <ChipRow>
+          {WATCHED.map((w) => (
+            <Chip
+              key={w.label}
+              pressed={filters.watched === w.value}
+              onClick={() => {
+                onFilters(
+                  w.value === undefined
+                    ? without(filters, "watched")
+                    : { ...filters, watched: w.value },
+                );
+              }}
+            >
+              {w.label}
+            </Chip>
+          ))}
+          {filters.q === undefined ? null : (
+            <FilterChip
+              label={`“${filters.q}”`}
+              onRemove={() => {
+                onFilters(without(filters, "q"));
+              }}
+            />
+          )}
+          {filters.tag === undefined ? null : (
+            <FilterChip
+              label={filters.tag}
+              onRemove={() => {
+                onFilters(without(filters, "tag"));
+              }}
+            />
+          )}
+        </ChipRow>
+        <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+          <span className="max-md:sr-only">Sort</span>
+          <Select
+            compact
+            aria-label="Sort"
+            value={filters.sort ?? ""}
+            onChange={(e) => {
+              const sort = e.target.value;
               onFilters(
-                w.value === undefined
-                  ? without(filters, "watched")
-                  : { ...filters, watched: w.value },
+                sort === ""
+                  ? without(filters, "sort")
+                  : { ...filters, sort: sort as NonNullable<LibraryFilters["sort"]> },
               );
             }}
           >
-            {w.label}
-          </Chip>
-        ))}
-        {filters.q === undefined ? null : (
-          <FilterChip
-            label={`“${filters.q}”`}
-            onRemove={() => {
-              onFilters(without(filters, "q"));
-            }}
-          />
-        )}
-        {filters.tag === undefined ? null : (
-          <FilterChip
-            label={filters.tag}
-            onRemove={() => {
-              onFilters(without(filters, "tag"));
-            }}
-          />
-        )}
-      </ChipRow>
-      <label className="flex items-center gap-2 self-start text-sm text-muted-foreground">
-        Sort
-        <Select
-          compact
-          aria-label="Sort"
-          value={filters.sort ?? ""}
-          onChange={(e) => {
-            const sort = e.target.value;
-            onFilters(
-              sort === ""
-                ? without(filters, "sort")
-                : { ...filters, sort: sort as NonNullable<LibraryFilters["sort"]> },
-            );
-          }}
-        >
-          {(filters.q === undefined
-            ? SORTS
-            : [{ value: "", label: "Best match" }, ...SORTS.slice(1)]
-          ).map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </Select>
-      </label>
+            {(filters.q === undefined
+              ? SORTS
+              : [{ value: "", label: "Best match" }, ...SORTS.slice(1)]
+            ).map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+      </div>
       <LibraryGrid
         filters={filters}
         empty={

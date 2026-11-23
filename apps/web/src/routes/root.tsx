@@ -27,8 +27,9 @@ export function RootLayout() {
 /**
  * The app shell, on the page colour throughout. From `md` up: a 56px top bar (menu, brand,
  * search, "+ Create", avatar) over the side navigation, full or mini; a watch page gives the
- * navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar and
- * the bottom tabs. It also mends this browser's push subscription once per launch.
+ * navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar (menu,
+ * brand, search, avatar), the menu opening the navigation as a drawer, and the bottom tabs. It
+ * also mends this browser's push subscription once per launch.
  */
 function Shell({ me }: { me: Me }) {
   const [mini, setMini] = useState(readMini);
@@ -63,9 +64,14 @@ function Shell({ me }: { me: Me }) {
       ) : null}
       <header className="fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-2 bg-background px-3 md:h-14 md:gap-4 md:px-4">
         <div className="flex shrink-0 items-center gap-2 md:w-52">
-          {watching ? (
-            <NavDrawer open={drawer} onOpenChange={setDrawer} isAdmin={isAdmin} />
-          ) : (
+          {/* The menu: the drawer's button on phones, and on a watch page at every size. */}
+          <NavDrawer
+            open={drawer}
+            onOpenChange={setDrawer}
+            isAdmin={isAdmin}
+            triggerClassName={watching ? undefined : "md:hidden"}
+          />
+          {watching ? null : (
             <Button
               variant="ghost"
               size="icon"

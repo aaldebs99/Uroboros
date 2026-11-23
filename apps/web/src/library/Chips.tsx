@@ -42,9 +42,10 @@ export function FilterChip({ label, onRemove }: { label: string; onRemove: () =>
   );
 }
 
+/** The chips, scrolling sideways when they don't fit (`min-w-0` lets a flex row shrink it). */
 export function ChipRow({ children }: { children: ReactNode }) {
   return (
-    <div role="toolbar" aria-label="Filter" className="flex gap-2 overflow-x-auto">
+    <div role="toolbar" aria-label="Filter" className="flex min-w-0 gap-2 overflow-x-auto">
       {children}
     </div>
   );

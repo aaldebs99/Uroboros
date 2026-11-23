@@ -1,13 +1,21 @@
 # Phone (below `md`, 48rem)
 
-A slim top bar and bottom tabs. Today `root.tsx` opens a `Sheet` drawer from a menu button; the target has **no
-drawer**.
+A slim top bar with a menu button, and bottom tabs.
 
 ## Getting around
 
-- **Top bar:** slim, about 48px, on `bg-background`. It holds the brand (tile and wordmark at
-  16px), a ghost search button, and the 28px avatar (the account menu). There's no menu button.
-- **Filter chips** sit under the top bar on pages that have them, scrolling sideways.
+- **Top bar:** slim, about 48px, on `bg-background`. It holds a ghost menu button at the left,
+  the brand (tile and wordmark at 16px), a ghost search button, and the 28px avatar (the account
+  menu).
+- **The menu button** opens the side navigation as a 240px drawer from the left
+  (`components/NavDrawer.tsx`, over the scrim), with its own menu button and brand where the top
+  bar's sit. It holds everything the side navigation does on desktop (the library's views,
+  Settings, the Admin pages); any navigation closes it.
+- **No section titles:** a section page starts with its content. `PageHeader` hides a section's
+  title and description on phones (screen readers still get them) and shows only its action. A
+  page about one thing (a playlist, a subscription) keeps its title: pass `titleOnPhone`.
+- **Filter chips** sit under the top bar on pages that have them, scrolling sideways, with the
+  page's sort select at the end of the same row (its "Sort" label hidden on phones).
 - **Bottom tab bar:**
   - 58px plus `env(safe-area-inset-bottom)`, `bg-background` with a hairline `border-t`, fixed to
     the bottom.
