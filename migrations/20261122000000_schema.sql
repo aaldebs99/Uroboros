@@ -259,7 +259,9 @@ CREATE TABLE library_entries (
   subscription_id UUID REFERENCES subscriptions ON DELETE SET NULL,
   kept BOOLEAN NOT NULL DEFAULT false,
   added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, rendition_id)
+  UNIQUE (user_id, rendition_id),
+  -- The target of the composite keys that keep a playlist's items and shares their owner's.
+  UNIQUE (id, user_id)
 );
 CREATE INDEX library_entries_subscription_idx ON library_entries (subscription_id)
   WHERE subscription_id IS NOT NULL;
@@ -281,7 +283,10 @@ CREATE TABLE download_requests (
   source_extractor TEXT,
   source_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + interval '1 day'
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + interval '1 day',
+  -- When its Ready or Failed notification went out; cleared when a download of it is queued
+  -- again, so the next time nothing is pending it notifies once more (docs/sharing.md).
+  noticed_at TIMESTAMPTZ
 );
 CREATE INDEX download_requests_expiry_idx ON download_requests (expires_at) WHERE state = 'choosing';
 
@@ -400,6 +405,79 @@ CREATE TABLE watch_progress (
   watched_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, media_id)
+);
+
+-- Playlists and sharing (docs/sharing.md). A manual playlist holds its owner's entries in order;
+-- the composite keys make an item or a share of someone else's entry impossible.
+CREATE TABLE playlists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (name = btrim(name) AND char_length(name) BETWEEN 1 AND 100),
+  description TEXT CHECK (char_length(description) <= 5000),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (id, user_id)
+);
+CREATE INDEX playlists_user_idx ON playlists (user_id, updated_at DESC);
+
+CREATE TABLE playlist_items (
+  playlist_id UUID NOT NULL,
+  user_id UUID NOT NULL,
+  entry_id UUID NOT NULL,
+  position INTEGER NOT NULL CHECK (position >= 0),
+  added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (playlist_id, entry_id),
+  FOREIGN KEY (playlist_id, user_id) REFERENCES playlists (id, user_id) ON DELETE CASCADE,
+  FOREIGN KEY (entry_id, user_id) REFERENCES library_entries (id, user_id) ON DELETE CASCADE
+);
+CREATE INDEX playlist_items_entry_idx ON playlist_items (entry_id);
+
+-- A share of one thing (an entry, a manual playlist, or a YouTube playlist the owner has), either
+-- with people (`share_people`) or as a public link (`code`, 128 random bits in base64url). Each
+-- thing has at most one of each mode per owner.
+CREATE TABLE shares (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  entry_id UUID,
+  playlist_id UUID,
+  source_id UUID,
+  mode TEXT NOT NULL CHECK (mode IN ('people', 'link')),
+  code TEXT UNIQUE,
+  allow_download BOOLEAN NOT NULL DEFAULT false,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (num_nonnulls(entry_id, playlist_id, source_id) = 1),
+  CHECK ((mode = 'link') = (code IS NOT NULL)),
+  CHECK (mode = 'link' OR NOT allow_download),
+  FOREIGN KEY (entry_id, owner_id) REFERENCES library_entries (id, user_id) ON DELETE CASCADE,
+  FOREIGN KEY (playlist_id, owner_id) REFERENCES playlists (id, user_id) ON DELETE CASCADE,
+  FOREIGN KEY (owner_id, source_id) REFERENCES user_sources (user_id, source_id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX shares_entry_key ON shares (mode, entry_id) WHERE entry_id IS NOT NULL;
+CREATE UNIQUE INDEX shares_playlist_key ON shares (mode, playlist_id) WHERE playlist_id IS NOT NULL;
+CREATE UNIQUE INDEX shares_source_key ON shares (owner_id, mode, source_id)
+  WHERE source_id IS NOT NULL;
+CREATE INDEX shares_owner_idx ON shares (owner_id, updated_at DESC);
+
+-- Who a people-share reaches: a user, or everyone whose `users.groups` holds the group name.
+CREATE TABLE share_people (
+  share_id UUID NOT NULL REFERENCES shares ON DELETE CASCADE,
+  user_id UUID REFERENCES users ON DELETE CASCADE,
+  group_name TEXT CHECK (char_length(group_name) BETWEEN 1 AND 256),
+  CHECK (num_nonnulls(user_id, group_name) = 1)
+);
+CREATE UNIQUE INDEX share_people_user_key ON share_people (share_id, user_id)
+  WHERE user_id IS NOT NULL;
+CREATE UNIQUE INDEX share_people_group_key ON share_people (share_id, group_name)
+  WHERE group_name IS NOT NULL;
+CREATE INDEX share_people_user_idx ON share_people (user_id) WHERE user_id IS NOT NULL;
+
+-- Which kinds of push notification a person wants; no row means all of them.
+CREATE TABLE notification_prefs (
+  user_id UUID PRIMARY KEY REFERENCES users ON DELETE CASCADE,
+  downloads BOOLEAN NOT NULL DEFAULT true,
+  shares BOOLEAN NOT NULL DEFAULT true
 );
 
 -- Transcoding (docs/transcoding.md): a compatible HLS copy of a rendition, made on demand for

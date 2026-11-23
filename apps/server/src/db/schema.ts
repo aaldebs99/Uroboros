@@ -275,6 +275,7 @@ export interface DownloadRequestsTable {
   source_id: string | null;
   created_at: Created;
   expires_at: Defaulted<Date | string>;
+  noticed_at: Timestamp | null;
 }
 
 /** `downloads`: one video a user asked for, waiting on a shared fetch. */
@@ -353,6 +354,53 @@ export interface WatchProgressTable {
   updated_at: Defaulted<Date | string>;
 }
 
+/** `playlists`: a person's hand-made playlist (docs/sharing.md). */
+export interface PlaylistsTable {
+  id: Generated<string>;
+  user_id: string;
+  name: string;
+  description: string | null;
+  created_at: Created;
+  updated_at: Defaulted<Date | string>;
+}
+
+export interface PlaylistItemsTable {
+  playlist_id: string;
+  user_id: string;
+  entry_id: string;
+  position: number;
+  added_at: Created;
+}
+
+export type ShareMode = "people" | "link";
+
+/** `shares`: one thing shared with people or by a public link. */
+export interface SharesTable {
+  id: Generated<string>;
+  owner_id: string;
+  entry_id: string | null;
+  playlist_id: string | null;
+  source_id: string | null;
+  mode: ShareMode;
+  code: string | null;
+  allow_download: Defaulted<boolean>;
+  expires_at: Timestamp | null;
+  created_at: Created;
+  updated_at: Defaulted<Date | string>;
+}
+
+export interface SharePeopleTable {
+  share_id: string;
+  user_id: string | null;
+  group_name: string | null;
+}
+
+export interface NotificationPrefsTable {
+  user_id: string;
+  downloads: Defaulted<boolean>;
+  shares: Defaulted<boolean>;
+}
+
 export interface Database {
   push_devices: PushDevicesTable;
   vapid_keys: VapidKeysTable;
@@ -378,4 +426,9 @@ export interface Database {
   subscription_items: SubscriptionItemsTable;
   storage_trash: StorageTrashTable;
   transcodes: TranscodesTable;
+  playlists: PlaylistsTable;
+  playlist_items: PlaylistItemsTable;
+  shares: SharesTable;
+  share_people: SharePeopleTable;
+  notification_prefs: NotificationPrefsTable;
 }
