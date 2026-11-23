@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { readVolume, storeVolume } from "@/lib/playerPrefs";
@@ -187,15 +188,23 @@ describe("Player keyboard", () => {
     vi.restoreAllMocks();
   });
 
-  /** Renders the player at `at` seconds of a 100 s video, and a way to press a key on it. */
-  async function playerAt(at: number) {
+  /**
+   * Renders the player at `at` seconds of a 100 s video, beside `page` (the rest of the watch page),
+   * and a way to press a key on it.
+   */
+  async function playerAt(at: number, page: ReactNode = null) {
     const restore = withMetadata();
     const duration = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "duration");
     Object.defineProperty(HTMLMediaElement.prototype, "duration", {
       configurable: true,
       get: () => 100,
     });
-    const { container } = render(<Player {...base} autoPlay={false} />);
+    const { container } = render(
+      <>
+        <Player {...base} autoPlay={false} />
+        {page}
+      </>,
+    );
     const video = container.querySelector("video") as HTMLVideoElement;
     const skin = container.querySelector<HTMLElement>("[data-theme='neutral']");
     if (skin === null) throw new Error("no skin container");
@@ -204,8 +213,9 @@ describe("Player keyboard", () => {
     fireEvent(video, new Event("timeupdate"));
     // The hotkeys register once the container has attached.
     await new Promise((r) => setTimeout(r, 0));
-    const press = (key: string) => {
-      fireEvent.keyDown(skin, { key });
+    /** A key pressed on `on`: the player unless said otherwise. */
+    const press = (key: string, on: Element = skin) => {
+      fireEvent.keyDown(on, { key });
       fireEvent(video, new Event("timeupdate"));
     };
     const cleanup = () => {
@@ -251,6 +261,45 @@ describe("Player keyboard", () => {
       press(",");
       press(",");
       expect(video.currentTime).toBeCloseTo(10 - 1 / 30, 5);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("works page-wide: a key pressed with the focus elsewhere on the page reaches the player", async () => {
+    const { video, press, cleanup } = await playerAt(50, <p>The description</p>);
+    try {
+      press("l", document.body);
+      expect(video.currentTime).toBe(60);
+      press("ArrowLeft", screen.getByText("The description"));
+      expect(video.currentTime).toBe(55);
+      press(".", document.body);
+      expect(video.currentTime).toBeCloseTo(55 + 1 / 30, 5);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("leaves keys typed in a field, and keys pressed in a dialog, to them", async () => {
+    const { video, press, cleanup } = await playerAt(
+      50,
+      <>
+        <input aria-label="Add a tag" />
+        <div role="dialog">
+          <button type="button">Remove</button>
+        </div>
+      </>,
+    );
+    try {
+      press("l", screen.getByLabelText("Add a tag"));
+      expect(video.currentTime).toBe(50);
+      const inDialog = screen.getByRole("button", { name: "Remove" });
+      act(() => {
+        inDialog.focus();
+      });
+      press("l", inDialog);
+      press("ArrowRight", inDialog);
+      expect(video.currentTime).toBe(50);
     } finally {
       cleanup();
     }

@@ -91,6 +91,10 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
 - Shortcuts: Space and `k` play and pause, `j`/`l` seek 10 s, the arrows 5 s (`PlayerHotkeys`), `,`
   and `.` pause and step one frame, `m` mute, `f` fullscreen, `c` captions, `i`
   picture-in-picture, `0`-`9` jump, `<`/`>` speed.
+- The shortcuts work page-wide on a page with a player (the watch page, a public share), as on
+  YouTube: a click on the description or a suggestion doesn't take them away (`PlayerHotkeys` binds
+  each on the document too). Typing in a field, Space or Enter on a button or link, and any key
+  while the focus is in a dialog, the nav drawer or a menu stay theirs.
 - Pointer gestures: on a phone, a tap shows or hides the controls and a double tap at either side
   seeks 10 s (the centre's is fullscreen); with a mouse, a click plays and pauses and a double-click
   anywhere is fullscreen, never a seek (the skin's side double taps are made touch-only by
