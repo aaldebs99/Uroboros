@@ -73,8 +73,8 @@ answers 200 and `GET /api/ready` 503 `starting`; routes that need the database a
 `unavailable`. A migration error exits 1, never ready. `mise run migrate` is the manual tool and
 fails fast. There is no opt-out, and nothing else may run migrations. One replica leads at a time:
 `leadAndRun` over `PgLeaderLock` (a session-level `pg_try_advisory_lock` on a dedicated
-`<app>:leader` connection, pinged every 10 s). The general leader (`URO_LEAD`) has no duties yet;
-put singleton work there, never in a BullMQ scheduler's place (those already run once). Every
+`<app>:leader` connection, pinged every 10 s). The general leader (`URO_LEAD`) runs the sweeper
+(expired sessions and pending sign-ins); put singleton work there, never in a BullMQ scheduler's place (those already run once). Every
 advisory lock key lives in `src/shared/lockKeys.ts`: a role is 8 ASCII bytes, a per-resource lock
 `lockKey(namespace4, resource)`. Shutdown gives up leadership while it drains, bounds the close of
 cut connections and the cleanup at 2 s each, and exits 1 on its own 2 s past that budget.
@@ -134,8 +134,7 @@ pinned `swagger-ui-dist` from the bundle rather than a CDN. `/api/*` refuses bod
 Sending lives in `apps/server/src/push/` (payload builder, allowlist, sender, `Pusher`), so the
 worker's `notify` queue can reuse it; a feature that notifies enqueues there rather than sending
 from a request. No test may reach a real push service: use `apps/server/test/pushStub.ts`. Devices
-belong to `currentPrincipal(c)` (`apps/server/src/api/principal.ts`), a fixed local principal
-until Users and SSO replace it. The api reads `UROBOROS_PUBLIC_BASE_URL` (push is on only when it is
+belong to the signed-in user, `currentPrincipal(c)` (`apps/server/src/api/principal.ts`). The api reads `UROBOROS_PUBLIC_BASE_URL` (push is on only when it is
 https), `UROBOROS_PUSH_SUBJECT`, `UROBOROS_VAPID_PUBLIC_KEY` with `UROBOROS_VAPID_PRIVATE_KEY`
 (both or neither; without them the first replica generates a pair into `vapid_keys`),
 `UROBOROS_PUSH_ALLOWED_HOSTS` and `UROBOROS_PUSH_MAX_DEVICES` (10). A new variable goes into

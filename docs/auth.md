@@ -33,9 +33,12 @@ are fine. This is how a fresh install gets its first admin.
 
 **Local**: `POST /api/auth/local/login {username, password}` answers 204 with the cookies. A wrong
 password and an unknown username answer the same 401, in about the same time (an unknown name is
-verified against a dummy hash). Failed attempts are counted in **Valkey**, so the limit holds across
+verified against a dummy hash). Attempts are counted in **Valkey**, so the limit holds across
 replicas (Djinn counts per process): 5 failures per username and 30 per client IP within 15
-minutes, then 429. The client IP is the first `X-Forwarded-For` hop only when
+minutes, then 429. Each attempt is counted before the password is checked, in one transaction, so
+a burst of parallel guesses cannot all slip past the check; a good sign-in takes its attempt back
+off and clears the username's count. The client IP is the last `X-Forwarded-For` entry (the one
+the proxy in front added; entries to its left came from the client) only when
 `UROBOROS_TRUST_PROXY` is true (the chart and compose set it, since they sit behind an ingress or
 Caddy). A disabled account answers 403, only after the right password.
 
@@ -90,7 +93,12 @@ the refresh token of each user whose claims are older than `UROBOROS_OIDC_SYNC_I
 (900) and rewrites their groups, role, name and email. A refused grant (`invalid_grant`) demotes the
 user to member, clears their groups, deletes the grant and sets `revoked_at`, which stops their
 sessions and tokens; their next real sign-in clears it. An unreachable provider changes nothing.
-Admins can force a pass from Admin › Users (409 while one runs).
+A rotated refresh token is stored as soon as it is redeemed, and every write is guarded on the
+token the pass redeemed still being the stored one, so a sign-in that lands mid-pass is never
+revoked by its old token's refusal. A sign-in that brings no refresh token drops the stored one.
+One user's failure is logged and the pass moves on, oldest claims first. Admins can force a pass
+from Admin › Users, which refreshes every SSO user, due or not, even with the background sync off
+(409 while one runs).
 
 ## Out of scope
 

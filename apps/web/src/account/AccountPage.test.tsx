@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { fakeApi } from "@/test/fakeApi";
 import { renderWithQuery } from "@/test/render";
 
+import { AuthGate } from "@/auth/AuthGate";
+
 import { AccountPage } from "./AccountPage";
 
 const local = {
@@ -42,6 +44,23 @@ describe("AccountPage", () => {
     expect(await screen.findByText("alice@example.org")).toBeInTheDocument();
     expect(screen.getByText("Signed in with Authentik")).toBeInTheDocument();
     expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
+  });
+
+  it("says the current password is wrong without signing the user out", async () => {
+    api({
+      "GET /api/me": () => Response.json(local),
+      "POST /api/me/password": () =>
+        Response.json(
+          { code: "forbidden", message: "the current password is wrong" },
+          { status: 403 },
+        ),
+    });
+    renderWithQuery(<AuthGate>{(me) => <AccountPage me={me} />}</AuthGate>);
+    await userEvent.type(await screen.findByLabelText("Current password"), "not my password");
+    await userEvent.type(screen.getByLabelText("New password"), "a much longer password");
+    await userEvent.click(screen.getByRole("button", { name: "Change password" }));
+    expect(await screen.findByText("The current password is wrong.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Sign in to Uroboros" })).not.toBeInTheDocument();
   });
 
   it("changes the password, refusing a short new one", async () => {

@@ -81,10 +81,14 @@ export interface SessionRoutesContext {
   endSessionUrl: (userId: string) => Promise<string | null>;
 }
 
-/** The client address for the per-IP limit: `X-Forwarded-For`'s first hop only behind a trusted proxy. */
+/**
+ * The client address for the per-IP limit. Behind a trusted proxy it is `X-Forwarded-For`'s last
+ * entry, the one that proxy added: entries to its left came from the client, and a proxy that
+ * appends rather than replaces passes them through unchecked.
+ */
 function clientIp(c: Context, trustProxy: boolean): string {
   if (trustProxy) {
-    const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+    const forwarded = c.req.header("x-forwarded-for")?.split(",").at(-1)?.trim();
     if (forwarded !== undefined && forwarded !== "") return forwarded;
   }
   try {
@@ -104,7 +108,7 @@ async function signIn(
     { kind: "user", value: username },
     { kind: "ip", value: clientIp(c, ctx.settings.trustProxy) },
   ];
-  if (await ctx.limiter.blocked(keys)) {
+  if (await ctx.limiter.attempt(keys)) {
     throw new ApiError("too_many_requests", "too many failed sign-ins; try again in a few minutes");
   }
   const user = await ctx.db
@@ -115,11 +119,10 @@ async function signIn(
     .executeTakeFirst();
   const ok = await verifyPassword(user?.password_hash ?? DUMMY_HASH, body.password);
   if (user === undefined || !ok) {
-    await ctx.limiter.fail(keys);
     throw new ApiError("unauthorized", "wrong username or password");
   }
   if (user.disabled_at !== null) throw new ApiError("forbidden", "this account is disabled");
-  await ctx.limiter.reset(keys.slice(0, 1));
+  await ctx.limiter.succeeded(keys);
   return user.id;
 }
 

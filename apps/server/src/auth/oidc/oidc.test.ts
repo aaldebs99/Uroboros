@@ -167,6 +167,25 @@ describe("OIDC sign-in", () => {
     expect(rows).toEqual([{ display_name: "Mo B", role: "admin" }]);
   });
 
+  it("forgets the stored grant when a sign-in brings no refresh token", async () => {
+    await signIn({ sub: "u-norefresh" });
+    const grants = () =>
+      testDb.db
+        .selectFrom("oidc_grants as g")
+        .innerJoin("users as u", "u.id", "g.user_id")
+        .select("g.refresh_token")
+        .where("u.oidc_subject", "=", "u-norefresh")
+        .execute();
+    expect(await grants()).toHaveLength(1);
+    idp.issueRefreshOnSignIn(false);
+    try {
+      expect((await signIn({ sub: "u-norefresh" })).status).toBe(303);
+    } finally {
+      idp.issueRefreshOnSignIn(true);
+    }
+    expect(await grants()).toEqual([]);
+  });
+
   it("refuses a replayed state", async () => {
     const b = await begin();
     const code = idp.authorize(b.location, { sub: "u-replay" });
@@ -237,13 +256,18 @@ describe("OIDC sign-in", () => {
     expect(row.last_login_at).toBeNull();
   });
 
-  it.each(["//evil.example/x", "https://evil.example/", "/\\evil.example", "settings"])(
-    "returns to / instead of the unsafe path %s",
-    async (returnTo) => {
-      const res = await signIn({ sub: "u-ret" }, returnTo);
-      expect(res.headers.get("location")).toBe("/");
-    },
-  );
+  it.each([
+    "//evil.example/x",
+    "https://evil.example/",
+    "/\\evil.example",
+    "settings",
+    "/\t/evil.example/x",
+    "/\n/evil.example",
+    "/ /evil.example",
+  ])("returns to / instead of the unsafe path %s", async (returnTo) => {
+    const res = await signIn({ sub: "u-ret" }, returnTo);
+    expect(res.headers.get("location")).toBe("/");
+  });
 
   it("lists OIDC as ready and gives SSO users the provider's end-session URL on sign-out", async () => {
     expect(AuthMethods.parse(await (await app.request("/api/auth/methods")).json()).oidc).toEqual({

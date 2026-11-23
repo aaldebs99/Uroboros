@@ -119,12 +119,17 @@ was added, last reached and last failed. A user may have `UROBOROS_PUSH_MAX_DEVI
 one more is a 422 (`unprocessable`) until one is turned off. The label is trimmed and cut to 64
 characters, and an empty one becomes "This device".
 
-There are no users yet, so every device belongs to one fixed local principal, returned by
-`currentPrincipal(c)` in `apps/server/src/api/principal.ts`, the one place that answers who a
-request acts for. `user_id` has no foreign key for that reason. The Users and SSO step replaces the
-function, adds the foreign key in a new migration and moves the rows to a real user. Once API
-tokens exist, the `/api/me/push` routes must refuse them, so a leaked token cannot point a person's
-notifications at another endpoint.
+Every device belongs to the signed-in user (`currentPrincipal(c)` in
+`apps/server/src/api/principal.ts`); `user_id` references `users` and goes with the account. API
+tokens are refused on `/api/me/push*`, so a leaked token cannot point a person's notifications at
+another endpoint. Registration takes a per-user transaction lock (`lockKey("PUSH", userId)`), so
+parallel registrations cannot pass the cap. An endpoint another user already registered is a 409,
+never a takeover. Turning a device off from another browser leaves a tombstone
+(`push_device_tombstones`), which `GET /api/me/push/devices/status?endpoint=` reports as
+`turnedOffElsewhere`, so that browser's next launch shows "Turned off from another device" instead
+of quietly registering itself again; registering clears it. Signing out drops this browser's device
+and unsubscribes it first (`apps/web/src/push/leave.ts`), so a shared browser neither keeps pushing
+to the person who left nor blocks the next one.
 
 The routes are `GET /api/me/push` (`PushView`: `enabled`, `publicKey`, `devices`, `maxDevices`),
 `POST /api/me/push/devices` (`PushSubscriptionBody`, answering the `PushDevice`),

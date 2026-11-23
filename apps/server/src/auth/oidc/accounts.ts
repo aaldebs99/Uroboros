@@ -81,3 +81,8 @@ export async function saveGrant(
     )
     .execute();
 }
+
+/** Drops the stored refresh token (a sign-in that brought none). */
+export async function forgetGrant(db: Kysely<Database>, userId: string): Promise<void> {
+  await db.deleteFrom("oidc_grants").where("user_id", "=", userId).execute();
+}

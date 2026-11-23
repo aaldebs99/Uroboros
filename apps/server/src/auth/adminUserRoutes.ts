@@ -152,7 +152,7 @@ export function registerAdminUserRoutes(app: OpenAPIHono, ctx: AdminUserRoutesCo
 
   app.openapi(syncRoute, async (c) => {
     requireAdmin(currentPrincipal(c));
-    const outcome = await runSyncPass(ctx);
+    const outcome = await runSyncPass(ctx, { force: true });
     if (outcome === "busy") throw new ApiError("conflict", "a sync pass is already running");
     return c.body(null, 204);
   });

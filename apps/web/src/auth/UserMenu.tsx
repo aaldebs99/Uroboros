@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { forgetThisDevice } from "@/push/leave";
 
 const ROLE_LABEL = { admin: "Admin", member: "Member" } as const satisfies Record<
   Me["role"],
@@ -36,6 +37,7 @@ export function UserMenu({
 }) {
   const leave = async () => {
     try {
+      await forgetThisDevice();
       const { endSessionUrl } = await signOut();
       navigate(endSessionUrl ?? "/");
     } catch (error) {

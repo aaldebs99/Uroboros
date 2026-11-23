@@ -12,7 +12,7 @@ import { PgLeaderLock } from "../shared/leader.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { runSyncPass, type SyncDeps } from "./claimsSync.ts";
 import type { OidcConfig } from "./config.ts";
-import { upsertOidcUser } from "./oidc/accounts.ts";
+import { saveGrant, upsertOidcUser } from "./oidc/accounts.ts";
 import { createOidcProvider, type OidcProvider } from "./oidc/provider.ts";
 import { createSession, resolveSession, sweepExpired } from "./sessions.ts";
 
@@ -66,10 +66,13 @@ afterAll(async () => {
 beforeEach(() => {
   idp.refuseRefresh(false);
   idp.down(false);
+  idp.refreshIdToken(true);
+  idp.userinfoFails(null);
+  idp.onRefresh(null);
 });
 
 /** An SSO user whose claims are stale and who holds a working refresh token. */
-async function staleUser(sub: string, groups: string[] = []): Promise<string> {
+async function staleUser(sub: string, groups: string[] = [], ageMs = 3_600_000): Promise<string> {
   const { id } = await upsertOidcUser(testDb.db, {
     issuer: idp.issuer,
     subject: sub,
@@ -80,7 +83,7 @@ async function staleUser(sub: string, groups: string[] = []): Promise<string> {
   });
   await testDb.db
     .updateTable("users")
-    .set({ claims_synced_at: new Date(Date.now() - 3_600_000) })
+    .set({ claims_synced_at: new Date(Date.now() - ageMs) })
     .where("id", "=", id)
     .execute();
   await testDb.db
@@ -183,6 +186,66 @@ describe("claims sync", () => {
     }
   });
 
+  it("falls back to userinfo when a refresh carries no ID token", async () => {
+    const sub = `s-${randomUUID()}`;
+    const id = await staleUser(sub);
+    idp.setGroups(sub, ["authentik Admins"]);
+    idp.refreshIdToken(false);
+    expect(await runSyncPass(deps())).toBe("done");
+    expect((await user(id)).role).toBe("admin");
+  });
+
+  it("keeps the rotated refresh token when the claims update fails, so the next pass works", async () => {
+    const sub = `s-${randomUUID()}`;
+    const id = await staleUser(sub);
+    const before = await grantOf(id);
+    idp.refreshIdToken(false);
+    idp.userinfoFails(sub);
+    expect(await runSyncPass(deps())).toBe("done");
+    expect(await grantOf(id)).not.toBe(before);
+    idp.userinfoFails(null);
+    idp.setGroups(sub, ["authentik Admins"]);
+    expect(await runSyncPass(deps())).toBe("done");
+    const row = await user(id);
+    expect(row.revoked_at).toBeNull();
+    expect(row.role).toBe("admin");
+  });
+
+  it("carries on with the next user when one user's refresh fails", async () => {
+    const broken = `s-${randomUUID()}`;
+    await staleUser(broken, [], 7_200_000);
+    const fine = `s-${randomUUID()}`;
+    const id = await staleUser(fine);
+    idp.refreshIdToken(false);
+    idp.userinfoFails(broken);
+    idp.setGroups(fine, ["authentik Admins"]);
+    expect(await runSyncPass(deps())).toBe("done");
+    expect((await user(id)).role).toBe("admin");
+  });
+
+  it("refreshes users whose claims are fresh when forced", async () => {
+    const sub = `s-${randomUUID()}`;
+    const id = await staleUser(sub, [], 0);
+    idp.setGroups(sub, ["authentik Admins"]);
+    await runSyncPass(deps());
+    expect((await user(id)).role).toBe("member");
+    expect(await runSyncPass(deps(), { force: true })).toBe("done");
+    expect((await user(id)).role).toBe("admin");
+  });
+
+  it("does not revoke a user who signed in again while their old token was refused", async () => {
+    const sub = `s-${randomUUID()}`;
+    const id = await staleUser(sub);
+    const fresh = idp.issueRefresh({ sub });
+    idp.onRefresh(async () => {
+      await saveGrant(testDb.db, id, fresh);
+    });
+    idp.refuseRefresh(true);
+    expect(await runSyncPass(deps())).toBe("done");
+    expect((await user(id)).revoked_at).toBeNull();
+    expect(await grantOf(id)).toBe(fresh);
+  });
+
   it("recomputes roles from stored groups when the admin groups change, without the provider", async () => {
     const id = await staleUser(`s-${randomUUID()}`, ["media admins"]);
     await testDb.db
@@ -249,6 +312,21 @@ describe("POST /api/admin/users/oidc-sync", () => {
       await holder?.release();
     }
     expect((await post(member)).status).toBe(403);
+  });
+
+  it("refreshes every SSO user, even one whose claims are fresh", async () => {
+    const admin = await signedIn(testDb.db, {
+      username: `adm${randomUUID().slice(0, 8)}`,
+      role: "admin",
+    });
+    const sub = `s-${randomUUID()}`;
+    const id = await staleUser(sub, [], 0);
+    idp.setGroups(sub, ["authentik Admins"]);
+    const res = await asUser(app(), admin).request("/api/admin/users/oidc-sync", {
+      method: "POST",
+    });
+    expect(res.status).toBe(204);
+    expect((await user(id)).role).toBe("admin");
   });
 });
 

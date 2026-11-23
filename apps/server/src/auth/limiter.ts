@@ -11,29 +11,36 @@ export interface FailureKey {
 }
 
 /**
- * Failed sign-in counters in Valkey, so every replica shares them (Djinn's are per process).
- * `blocked` is true once any key reached its limit inside the window.
+ * Sign-in attempt counters in Valkey, so every replica shares them (Djinn's are per process).
+ * `attempt` counts first and checks after, in one transaction, so a burst of parallel guesses
+ * cannot all pass the check before any of them is counted; `succeeded` takes a good sign-in back
+ * off the counters.
  */
 export function createLimiter(valkey: Redis, prefix: string) {
   const redisKey = (k: FailureKey) => `${prefix}:signin-fail:${k.kind}:${k.value}`;
   const limit = (k: FailureKey) =>
     k.kind === "user" ? MAX_FAILURES_PER_USER : MAX_FAILURES_PER_IP;
   return {
-    async blocked(keys: FailureKey[]): Promise<boolean> {
-      if (keys.length === 0) return false;
-      const counts = await valkey.mget(...keys.map(redisKey));
-      return keys.some((k, i) => Number(counts[i] ?? 0) >= limit(k));
-    },
-    async fail(keys: FailureKey[]): Promise<void> {
+    /** Counts one attempt against every key; true when any key is now over its limit. */
+    async attempt(keys: FailureKey[]): Promise<boolean> {
       const multi = valkey.multi();
       for (const k of keys) {
         multi.incr(redisKey(k));
         multi.expire(redisKey(k), FAILURE_WINDOW_SECONDS, "NX");
       }
-      await multi.exec();
+      const results = (await multi.exec()) ?? [];
+      const failed = results.find(([err]) => err !== null);
+      if (failed?.[0]) throw failed[0];
+      return keys.some((k, i) => Number(results[i * 2]?.[1] ?? 0) > limit(k));
     },
-    async reset(keys: FailureKey[]): Promise<void> {
-      if (keys.length > 0) await valkey.del(...keys.map(redisKey));
+    /** A good sign-in: clears the username's count and takes this attempt off the others. */
+    async succeeded(keys: FailureKey[]): Promise<void> {
+      const multi = valkey.multi();
+      for (const k of keys) {
+        if (k.kind === "user") multi.del(redisKey(k));
+        else multi.decr(redisKey(k));
+      }
+      await multi.exec();
     },
   };
 }

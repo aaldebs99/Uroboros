@@ -23,7 +23,7 @@ const passwordRoute = createRoute({
   },
   responses: {
     204: { description: "Changed" },
-    401: error("The current password is wrong"),
+    403: error("The current password is wrong (403, not 401: the session itself is fine)"),
     409: error("An SSO account has no password here"),
   },
 });
@@ -73,7 +73,7 @@ export function registerAccountRoutes(app: OpenAPIHono, db: Kysely<Database>): v
       throw new ApiError("conflict", "an SSO account changes its password at the provider");
     }
     if (!(await verifyPassword(row.password_hash, body.currentPassword))) {
-      throw new ApiError("unauthorized", "the current password is wrong");
+      throw new ApiError("forbidden", "the current password is wrong");
     }
     await db
       .updateTable("users")

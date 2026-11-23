@@ -1108,7 +1108,7 @@
           "204": {
             "description": "Changed"
           },
-          "401": {
+          "403": {
             "content": {
               "application/json": {
                 "schema": {
@@ -1116,7 +1116,7 @@
                 }
               }
             },
-            "description": "The current password is wrong"
+            "description": "The current password is wrong (403, not 401: the session itself is fine)"
           },
           "409": {
             "content": {

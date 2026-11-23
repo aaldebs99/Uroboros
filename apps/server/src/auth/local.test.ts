@@ -163,6 +163,36 @@ describe("local sign-in", () => {
     expect(await locked.json()).toMatchObject({ code: "too_many_requests" });
   });
 
+  it("lets at most 5 guesses through when they arrive at once", async () => {
+    const a = app();
+    const results = await Promise.all(
+      Array.from({ length: 12 }, async () => login(a, "alice", "wrong password!")),
+    );
+    expect(results.filter((r) => r.status === 401).length).toBeLessThanOrEqual(5);
+    expect(results.filter((r) => r.status === 429).length).toBeGreaterThanOrEqual(7);
+  });
+
+  it("does not count a successful sign-in against the client IP", async () => {
+    const a = app({ trustProxy: true });
+    const from = { "x-forwarded-for": "203.0.113.20" };
+    for (let i = 0; i < 31; i++) {
+      expect((await login(a, "alice", PASSWORD, from)).status).toBe(204);
+    }
+  });
+
+  it("keys the per-IP limit on the hop the trusted proxy added, not the client's own entry", async () => {
+    const trusted = app({ trustProxy: true });
+    for (let i = 0; i < 30; i++) {
+      await login(trusted, `nobody${String(i)}`, "x", {
+        "x-forwarded-for": `198.51.100.${String(i)}, 203.0.113.30`,
+      });
+    }
+    const res = await login(trusted, "alice", PASSWORD, {
+      "x-forwarded-for": "192.0.2.99, 203.0.113.30",
+    });
+    expect(res.status).toBe(429);
+  });
+
   it("counts failures per client IP only when the proxy is trusted", async () => {
     const trusted = app({ trustProxy: true });
     for (let i = 0; i < 30; i++) {

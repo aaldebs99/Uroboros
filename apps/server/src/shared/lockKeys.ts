@@ -36,9 +36,9 @@ export function lockKey(namespace: string, resource: string): bigint {
 }
 
 /**
- * The general leader: one api replica holds it at a time. It has no duties yet. BullMQ's job
- * schedulers already run each repeatable job exactly once, so scheduling never needs it; it is
- * for singleton work to come (the media reaper, say).
+ * The general leader: one api replica holds it at a time and runs the sweeper (expired sessions
+ * and pending sign-ins). BullMQ's job schedulers already run each repeatable job exactly once, so
+ * scheduling never needs it; it is for singleton work (the media reaper to come, say).
  */
 export const URO_LEAD = roleKey("URO_LEAD");
 

@@ -31,7 +31,7 @@ export function PasswordForm() {
         },
         onError: (error) => {
           setProblem(
-            error instanceof ApiError && error.status === 401
+            error instanceof ApiError && error.status === 403
               ? "The current password is wrong."
               : errorText(error),
           );

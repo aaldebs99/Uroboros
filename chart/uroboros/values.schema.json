@@ -550,8 +550,9 @@
               "minLength": 1
             },
             "syncIntervalSecs": {
+              "description": "0 turns the background sync off; otherwise at least 60",
               "type": "integer",
-              "minimum": 0
+              "anyOf": [{ "const": 0 }, { "minimum": 60 }]
             }
           }
         }

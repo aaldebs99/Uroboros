@@ -46,6 +46,14 @@ export interface TestIdp {
   /** Whether discovery is served (false: the provider is unreachable at start). */
   discoverable(on: boolean): void;
   refreshCount(): number;
+  /** Whether a refresh answer carries an ID token (default true; false sends the client to userinfo). */
+  refreshIdToken(on: boolean): void;
+  /** Make the userinfo endpoint fail for this subject (null: fail for nobody). */
+  userinfoFails(sub: string | null): void;
+  /** Runs before each refresh is answered (null removes it), e.g. to sign the user in meanwhile. */
+  onRefresh(hook: (() => Promise<void>) | null): void;
+  /** Whether a sign-in's token answer carries a refresh token (default true). */
+  issueRefreshOnSignIn(on: boolean): void;
   close(): Promise<void>;
 }
 
@@ -157,6 +165,16 @@ export async function startIdp(): Promise<TestIdp> {
   let discover = true;
   let refreshes = 0;
   let issuer = "";
+  let withIdToken = true;
+  let failingUserinfo: string | null = null;
+  let refreshHook: (() => Promise<void>) | null = null;
+  let signInRefresh = true;
+  const access = new Map<string, Person>();
+  const accessToken = (person: Person) => {
+    const at = b64url(randomBytes(16));
+    access.set(at, person);
+    return at;
+  };
 
   async function idToken(person: Person, nonce: string | undefined): Promise<string> {
     const claims = {
@@ -182,6 +200,29 @@ export async function startIdp(): Promise<TestIdp> {
       .sign(forgery === "signature" ? otherKey : privateKey);
   }
 
+  async function refreshGrant(form: URLSearchParams, res: ServerResponse): Promise<void> {
+    refreshes++;
+    if (refreshHook !== null) await refreshHook();
+    const person = refresh.get(form.get("refresh_token") ?? "");
+    if (refuse || person === undefined) {
+      send(res, 400, { error: "invalid_grant" });
+      return;
+    }
+    refresh.delete(form.get("refresh_token") ?? "");
+    const next = b64url(randomBytes(16));
+    refresh.set(next, person);
+    {
+      send(res, 200, {
+        access_token: accessToken(person),
+        token_type: "Bearer",
+        expires_in: 300,
+        refresh_token: next,
+        ...(withIdToken ? { id_token: await idToken(person, undefined) } : {}),
+      });
+      return;
+    }
+  }
+
   async function token(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (isDown) {
       send(res, 503, { error: "temporarily_unavailable" });
@@ -195,25 +236,8 @@ export async function startIdp(): Promise<TestIdp> {
     }
     const form = await readBody(req);
     if (form.get("grant_type") === "refresh_token") {
-      refreshes++;
-      const person = refresh.get(form.get("refresh_token") ?? "");
-      if (refuse || person === undefined) {
-        send(res, 400, { error: "invalid_grant" });
-        return;
-      }
-      refresh.delete(form.get("refresh_token") ?? "");
-      const next = b64url(randomBytes(16));
-      refresh.set(next, person);
-      {
-        send(res, 200, {
-          access_token: "at",
-          token_type: "Bearer",
-          expires_in: 300,
-          refresh_token: next,
-          id_token: await idToken(person, undefined),
-        });
-        return;
-      }
+      await refreshGrant(form, res);
+      return;
     }
     const pending = codes.get(form.get("code") ?? "");
     codes.delete(form.get("code") ?? "");
@@ -230,13 +254,31 @@ export async function startIdp(): Promise<TestIdp> {
       }
     }
     const rt = b64url(randomBytes(16));
-    refresh.set(rt, pending.person);
+    if (signInRefresh) refresh.set(rt, pending.person);
     send(res, 200, {
-      access_token: "at",
+      access_token: accessToken(pending.person),
       token_type: "Bearer",
       expires_in: 300,
-      refresh_token: rt,
+      ...(signInRefresh ? { refresh_token: rt } : {}),
       id_token: await idToken(pending.person, pending.nonce),
+    });
+  }
+
+  function userinfo(req: IncomingMessage, res: ServerResponse): void {
+    const person = access.get((req.headers.authorization ?? "").replace(/^Bearer /, ""));
+    if (person === undefined) {
+      send(res, 401, { error: "invalid_token" });
+      return;
+    }
+    if (person.sub === failingUserinfo) {
+      send(res, 500, { error: "server_error" });
+      return;
+    }
+    send(res, 200, {
+      sub: person.sub,
+      name: person.name,
+      email: person.email,
+      groups: groups.get(person.sub) ?? person.groups ?? [],
     });
   }
 
@@ -253,6 +295,7 @@ export async function startIdp(): Promise<TestIdp> {
           issuer,
           authorization_endpoint: `${issuer}/authorize`,
           token_endpoint: `${issuer}/token`,
+          userinfo_endpoint: `${issuer}/userinfo`,
           jwks_uri: `${issuer}/jwks`,
           end_session_endpoint: `${issuer}/end-session`,
           response_types_supported: ["code"],
@@ -263,6 +306,10 @@ export async function startIdp(): Promise<TestIdp> {
         });
         return;
       }
+    }
+    if (path === "/userinfo") {
+      userinfo(req, res);
+      return;
     }
     if (path === "/jwks") {
       send(res, 200, { keys: [jwk] });
@@ -314,6 +361,18 @@ export async function startIdp(): Promise<TestIdp> {
       discover = on;
     },
     refreshCount: () => refreshes,
+    refreshIdToken: (on) => {
+      withIdToken = on;
+    },
+    userinfoFails: (sub) => {
+      failingUserinfo = sub;
+    },
+    onRefresh: (hook) => {
+      refreshHook = hook;
+    },
+    issueRefreshOnSignIn: (on) => {
+      signInRefresh = on;
+    },
     close: () =>
       new Promise((resolve) => {
         server.closeAllConnections();

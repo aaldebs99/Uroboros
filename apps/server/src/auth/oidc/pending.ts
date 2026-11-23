@@ -48,15 +48,36 @@ export async function takePending(
   return { nonce: row.nonce, verifier: row.pkce_verifier, returnTo: row.return_to };
 }
 
-/** A same-origin path to return to after sign-in; anything else is `/`. */
+const BASE = "http://uroboros.invalid";
+
+/** Whitespace, or a C0 control character or DEL. */
+function hasSpaceOrControl(value: string): boolean {
+  if (/\s/u.test(value)) return true;
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return false;
+}
+
+/**
+ * A same-origin path to return to after sign-in; anything else is `/`. Browsers drop tabs and
+ * newlines while parsing a URL (`/\t/evil` becomes `//evil`), so whitespace and control characters
+ * are refused outright, and what is left must still resolve to this origin.
+ */
 export function safeReturnTo(value: string | undefined): string {
   if (
     value === undefined ||
     !value.startsWith("/") ||
     value.startsWith("//") ||
-    value.includes("\\")
+    value.includes("\\") ||
+    hasSpaceOrControl(value)
   ) {
     return "/";
   }
-  return value;
+  try {
+    return new URL(value, BASE).origin === BASE ? value : "/";
+  } catch {
+    return "/";
+  }
 }

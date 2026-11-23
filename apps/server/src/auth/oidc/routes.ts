@@ -9,7 +9,7 @@ import type { AuthConfig } from "../config.ts";
 import { setAuthCookies } from "../cookies.ts";
 import { newSecret } from "../secrets.ts";
 import { createSession } from "../sessions.ts";
-import { groupsFrom, roleFor, saveGrant, upsertOidcUser } from "./accounts.ts";
+import { forgetGrant, groupsFrom, roleFor, saveGrant, upsertOidcUser } from "./accounts.ts";
 import { PENDING_TTL_SECONDS, safeReturnTo, savePending, takePending } from "./pending.ts";
 import type { OidcProvider } from "./provider.ts";
 
@@ -85,7 +85,10 @@ async function finish(
     role: roleFor(groups, ctx.provider.settings.adminGroups),
   });
   if (user.disabled) return { error: "disabled" };
-  if (tokens.refresh_token !== undefined) await saveGrant(ctx.db, user.id, tokens.refresh_token);
+  // No refresh token this time: an older one must not linger, or the sync would redeem a token the
+  // provider may already have dropped and revoke a user who just signed in.
+  if (tokens.refresh_token === undefined) await forgetGrant(ctx.db, user.id);
+  else await saveGrant(ctx.db, user.id, tokens.refresh_token);
   return { userId: user.id };
 }
 

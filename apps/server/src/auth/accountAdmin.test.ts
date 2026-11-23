@@ -78,7 +78,9 @@ describe("POST /api/me/password", () => {
       currentPassword: "nope",
       newPassword: NEW,
     });
-    expect(res.status).toBe(401);
+    // 403, not 401: the session is fine, and a 401 sends the web app back to sign-in
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "forbidden" });
   });
 
   it("changes it and signs out the other sessions, keeping this one", async () => {
