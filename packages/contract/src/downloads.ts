@@ -38,6 +38,21 @@ const Id = z.uuid();
 const ProfileName = z.string().trim().min(1).max(64);
 const Word = z.string().regex(/^[a-z0-9]{1,16}$/);
 
+/** SponsorBlock segment categories a profile can cut (yt-dlp's names; `poi_highlight` is a point). */
+export const SPONSORBLOCK_CATEGORIES = [
+  "sponsor",
+  "intro",
+  "outro",
+  "selfpromo",
+  "preview",
+  "filler",
+  "interaction",
+  "music_offtopic",
+] as const;
+export const SponsorBlockCategory = z.enum(SPONSORBLOCK_CATEGORIES).openapi("SponsorBlockCategory");
+export type SponsorBlockCategory = z.infer<typeof SponsorBlockCategory>;
+const Categories = z.array(SponsorBlockCategory).max(SPONSORBLOCK_CATEGORIES.length * 2);
+
 /** An admin-defined yt-dlp preset. `revision` changes whenever the file-shaping arguments do. */
 export const FormatProfile = z
   .object({
@@ -48,6 +63,8 @@ export const FormatProfile = z
     audioOnly: z.boolean(),
     audioFormat: z.string().nullable(),
     extraArgs: z.array(z.string()),
+    /** Segments cut from the file when it is downloaded. */
+    sponsorblockRemove: z.array(SponsorBlockCategory),
     isDefault: z.boolean(),
     revision: z.string(),
   })
@@ -62,6 +79,7 @@ export const NewFormatProfileBody = z
     audioOnly: z.boolean().default(false),
     audioFormat: Word.nullable().default(null),
     extraArgs: z.array(z.string().max(512)).max(64).default([]),
+    sponsorblockRemove: Categories.default([]),
   })
   .openapi("NewFormatProfileBody");
 export type NewFormatProfileBody = z.infer<typeof NewFormatProfileBody>;
@@ -74,6 +92,7 @@ export const FormatProfilePatch = z
     audioOnly: z.boolean().optional(),
     audioFormat: Word.nullable().optional(),
     extraArgs: z.array(z.string().max(512)).max(64).optional(),
+    sponsorblockRemove: Categories.optional(),
     /** Makes this the default; the old default stops being one. */
     isDefault: z.literal(true).optional(),
   })

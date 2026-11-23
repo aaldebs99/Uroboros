@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { FormatProfile } from "@uroboros/contract";
+import { SponsorBlockCategory, type FormatProfile } from "@uroboros/contract";
 import type { Kysely, Selectable } from "kysely";
 import type { Database, FormatProfilesTable } from "../db/schema.ts";
 
@@ -10,6 +10,11 @@ export interface ProfileArgs {
   audioOnly: boolean;
   audioFormat: string | null;
   extraArgs: string[];
+  /**
+   * SponsorBlock categories cut from the file, sorted. Optional: downloads queued before profiles
+   * had categories snapshotted none.
+   */
+  sponsorblockRemove?: string[];
 }
 
 /**
@@ -18,12 +23,15 @@ export interface ProfileArgs {
  * schema file are this function's output (the test pins them).
  */
 export function profileRevision(args: ProfileArgs): string {
+  const cut = [...(args.sponsorblockRemove ?? [])].sort();
+  // Only when non-empty, so profiles without categories keep the revisions they had.
   const canonical = JSON.stringify({
     format: args.format,
     mergeFormat: args.mergeFormat,
     audioOnly: args.audioOnly,
     audioFormat: args.audioFormat,
     extraArgs: args.extraArgs,
+    ...(cut.length === 0 ? {} : { sponsorblockRemove: cut }),
   });
   return createHash("sha256").update(canonical).digest("hex").slice(0, 12);
 }
@@ -36,9 +44,16 @@ export function ytdlpArgsFor(args: ProfileArgs): { format: string; extraArgs: st
       : args.mergeFormat === null
         ? []
         : [`--merge-output-format=${args.mergeFormat}`];
+  const cut = [...(args.sponsorblockRemove ?? [])].sort();
   return {
     format: args.format,
-    extraArgs: [...shape, "--write-thumbnail", "--convert-thumbnails=jpg", ...args.extraArgs],
+    extraArgs: [
+      ...shape,
+      "--write-thumbnail",
+      "--convert-thumbnails=jpg",
+      ...(cut.length === 0 ? [] : [`--sponsorblock-remove=${cut.join(",")}`]),
+      ...args.extraArgs,
+    ],
   };
 }
 
@@ -51,14 +66,19 @@ export function argsOf(row: ProfileRow): ProfileArgs {
     audioOnly: row.audio_only,
     audioFormat: row.audio_format,
     extraArgs: row.extra_args,
+    sponsorblockRemove: row.sponsorblock_remove,
   };
 }
+
+const isCategory = (c: string): c is SponsorBlockCategory =>
+  SponsorBlockCategory.safeParse(c).success;
 
 export function toProfile(row: ProfileRow): FormatProfile {
   return {
     id: row.id,
     name: row.name,
     ...argsOf(row),
+    sponsorblockRemove: row.sponsorblock_remove.filter(isCategory),
     isDefault: row.is_default,
     revision: row.revision,
   };

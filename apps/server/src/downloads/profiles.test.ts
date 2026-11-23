@@ -93,6 +93,33 @@ describe("format profiles", () => {
     expect(reformatted.revision).not.toBe(p.revision);
   });
 
+  it("changes the revision when SponsorBlock categories are added, not when they are reordered", async () => {
+    const p = FormatProfile.parse(await (await create()).json());
+    expect(p.sponsorblockRemove).toEqual([]);
+    const cut = FormatProfile.parse(
+      await (
+        await send(admin, "PATCH", `/api/admin/format-profiles/${p.id}`, {
+          sponsorblockRemove: ["sponsor", "intro", "sponsor"],
+        })
+      ).json(),
+    );
+    expect(cut.sponsorblockRemove).toEqual(["intro", "sponsor"]);
+    expect(cut.revision).not.toBe(p.revision);
+    const reordered = FormatProfile.parse(
+      await (
+        await send(admin, "PATCH", `/api/admin/format-profiles/${p.id}`, {
+          sponsorblockRemove: ["intro", "sponsor"],
+        })
+      ).json(),
+    );
+    expect(reordered.revision).toBe(cut.revision);
+    expect(reordered.revision).toBe(profileRevision(reordered));
+  });
+
+  it("refuses an unknown SponsorBlock category (400)", async () => {
+    expect((await create({ sponsorblockRemove: ["poi_highlight"] })).status).toBe(400);
+  });
+
   it("keeps exactly one default", async () => {
     const p = FormatProfile.parse(await (await create()).json());
     const res = await send(admin, "PATCH", `/api/admin/format-profiles/${p.id}`, {
@@ -171,5 +198,20 @@ describe("ytdlpArgsFor", () => {
       "--convert-thumbnails=jpg",
       "--embed-chapters",
     ]);
+  });
+
+  it("passes --sponsorblock-remove to yt-dlp", () => {
+    const base = { format: "b", mergeFormat: null, audioOnly: false, audioFormat: null };
+    expect(
+      ytdlpArgsFor({ ...base, extraArgs: [], sponsorblockRemove: ["sponsor", "intro"] }).extraArgs,
+    ).toContain("--sponsorblock-remove=intro,sponsor");
+    expect(ytdlpArgsFor({ ...base, extraArgs: [], sponsorblockRemove: [] }).extraArgs).toEqual([
+      "--write-thumbnail",
+      "--convert-thumbnails=jpg",
+    ]);
+    // A download queued before profiles had categories snapshotted none.
+    expect(ytdlpArgsFor({ ...base, extraArgs: [] }).extraArgs.join(" ")).not.toMatch(
+      /sponsorblock/,
+    );
   });
 });

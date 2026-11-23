@@ -23,6 +23,7 @@ const p = (id: string, name: string, isDefault = false) => ({
   audioOnly: false,
   audioFormat: null,
   extraArgs: [],
+  sponsorblockRemove: [],
   isDefault,
   revision: "r",
 });
@@ -73,6 +74,28 @@ describe("ProfilesPage", () => {
         format: "worst",
         extraArgs: [],
       });
+    });
+  });
+
+  it("ticks SponsorBlock categories into the saved body", async () => {
+    const calls = fakeApi({
+      "GET /api/format-profiles": () => Response.json(seeds),
+      "POST /api/admin/format-profiles": () =>
+        Response.json(p("05", "No sponsors"), { status: 201 }),
+    });
+    renderWithQuery(<ProfilesPage me={admin} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Add profile" }));
+    await userEvent.type(screen.getByLabelText("Name"), "No sponsors");
+    await userEvent.type(screen.getByLabelText("Format selector"), "b");
+    const cut = screen.getByRole("group", { name: "Remove SponsorBlock segments" });
+    await userEvent.click(within(cut).getByLabelText("Sponsor"));
+    await userEvent.click(within(cut).getByLabelText("Self-promotion"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      const body = calls.filter((c) => c.method === "POST").at(-1)?.body as {
+        sponsorblockRemove?: string[];
+      };
+      expect([...(body.sponsorblockRemove ?? [])].sort()).toEqual(["selfpromo", "sponsor"]);
     });
   });
 

@@ -47,6 +47,8 @@ export {
   QueueSelectionBody,
   QueueSelectionResult,
   RequestState,
+  SPONSORBLOCK_CATEGORIES,
+  SponsorBlockCategory,
   WatchProgress,
 } from "./downloads.ts";
 export {

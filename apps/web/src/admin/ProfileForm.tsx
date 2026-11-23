@@ -1,4 +1,9 @@
-import type { FormatProfile, NewFormatProfileBody } from "@uroboros/contract";
+import {
+  SPONSORBLOCK_CATEGORIES,
+  type FormatProfile,
+  type NewFormatProfileBody,
+  type SponsorBlockCategory,
+} from "@uroboros/contract";
 import { useState, type SubmitEvent } from "react";
 
 import { errorText } from "@/api/client";
@@ -12,6 +17,51 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
+
+const SPONSORBLOCK_LABELS: Record<SponsorBlockCategory, string> = {
+  sponsor: "Sponsor",
+  intro: "Intro",
+  outro: "Outro",
+  selfpromo: "Self-promotion",
+  preview: "Preview",
+  filler: "Filler",
+  interaction: "Interaction reminder",
+  music_offtopic: "Non-music section",
+};
+
+/** The SponsorBlock categories a profile cuts, as checkboxes. */
+function SponsorBlockFields({
+  value,
+  onChange,
+}: {
+  value: ReadonlySet<SponsorBlockCategory>;
+  onChange: (next: Set<SponsorBlockCategory>) => void;
+}) {
+  return (
+    <fieldset className="grid gap-1" aria-describedby="profile-sponsorblock-help">
+      <legend className="mb-1 font-medium">Remove SponsorBlock segments</legend>
+      <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
+        {SPONSORBLOCK_CATEGORIES.map((c) => (
+          <label key={c} className="flex min-h-11 items-center gap-3">
+            <Checkbox
+              checked={value.has(c)}
+              onChange={(e) => {
+                const next = new Set(value);
+                if (e.target.checked) next.add(c);
+                else next.delete(c);
+                onChange(next);
+              }}
+            />
+            {SPONSORBLOCK_LABELS[c]}
+          </label>
+        ))}
+      </div>
+      <p id="profile-sponsorblock-help" className="text-sm text-muted-foreground">
+        Cut from the file when it is downloaded. Segments submitted later are not cut.
+      </p>
+    </fieldset>
+  );
+}
 
 /** Splits "--a b\n--c" into arguments on whitespace. */
 const splitArgs = (text: string): string[] => text.split(/\s+/).filter((t) => t !== "");
@@ -32,6 +82,9 @@ export function ProfileForm({
   const [audioOnly, setAudioOnly] = useState(initial?.audioOnly ?? false);
   const [audioFormat, setAudioFormat] = useState(initial?.audioFormat ?? "opus");
   const [extra, setExtra] = useState(initial?.extraArgs.join(" ") ?? "");
+  const [cut, setCut] = useState<Set<SponsorBlockCategory>>(
+    () => new Set(initial?.sponsorblockRemove ?? []),
+  );
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
@@ -46,6 +99,7 @@ export function ProfileForm({
         audioOnly,
         audioFormat: audioOnly ? audioFormat.trim() : null,
         extraArgs: splitArgs(extra),
+        sponsorblockRemove: SPONSORBLOCK_CATEGORIES.filter((c) => cut.has(c)),
       });
     } catch (err) {
       setProblem(errorText(err));
@@ -109,6 +163,7 @@ export function ProfileForm({
         "From the allowlist, e.g. --embed-chapters",
         true,
       )}
+      <SponsorBlockFields value={cut} onChange={setCut} />
       {problem ? (
         <p role="alert" className="text-sm text-destructive">
           {problem}

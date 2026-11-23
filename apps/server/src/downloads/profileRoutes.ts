@@ -86,7 +86,11 @@ function checked(args: ProfileArgs): ProfileArgs {
     throw new ApiError("bad_request", "an audio-only profile needs an audio format, and only it");
   }
   try {
-    return { ...args, extraArgs: normalizeExtraArgs(args.extraArgs) };
+    return {
+      ...args,
+      extraArgs: normalizeExtraArgs(args.extraArgs),
+      sponsorblockRemove: [...new Set(args.sponsorblockRemove ?? [])].sort(),
+    };
   } catch (err) {
     throw new ApiError("bad_request", err instanceof Error ? err.message : String(err));
   }
@@ -122,6 +126,7 @@ export function registerProfileRoutes(app: OpenAPIHono, db: Kysely<Database>): v
       audioOnly: b.audioOnly,
       audioFormat: b.audioFormat,
       extraArgs: b.extraArgs,
+      sponsorblockRemove: b.sponsorblockRemove,
     });
     const row = await db
       .insertInto("format_profiles")
@@ -132,6 +137,7 @@ export function registerProfileRoutes(app: OpenAPIHono, db: Kysely<Database>): v
         audio_only: args.audioOnly,
         audio_format: args.audioFormat,
         extra_args: args.extraArgs,
+        sponsorblock_remove: args.sponsorblockRemove ?? [],
         revision: profileRevision(args),
       })
       .returningAll()
@@ -153,6 +159,7 @@ export function registerProfileRoutes(app: OpenAPIHono, db: Kysely<Database>): v
       audioOnly: patch.audioOnly ?? old.audioOnly,
       audioFormat: patch.audioFormat === undefined ? old.audioFormat : patch.audioFormat,
       extraArgs: patch.extraArgs ?? old.extraArgs,
+      sponsorblockRemove: patch.sponsorblockRemove ?? old.sponsorblockRemove ?? [],
     });
     const row = await db
       .transaction()
@@ -174,6 +181,7 @@ export function registerProfileRoutes(app: OpenAPIHono, db: Kysely<Database>): v
             audio_only: args.audioOnly,
             audio_format: args.audioFormat,
             extra_args: args.extraArgs,
+            sponsorblock_remove: args.sponsorblockRemove ?? [],
             revision: profileRevision(args),
             updated_at: new Date(),
             ...(patch.isDefault === true ? { is_default: true } : {}),
