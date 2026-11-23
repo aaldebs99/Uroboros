@@ -13,7 +13,7 @@ import { AccountRoute, AdminProfilesRoute, AdminUsersRoute } from "./routes/acco
 import { DownloadsRoute } from "./routes/downloads";
 import { ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
 import { RootLayout } from "./routes/root";
-import { SubscriptionRoute } from "./routes/subscriptions";
+import { NewSubscriptionRoute, SubscriptionRoute } from "./routes/subscriptions";
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -46,6 +46,11 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/subscriptions",
     component: SubscriptionsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/subscriptions/new",
+    component: NewSubscriptionRoute,
   }),
   createRoute({
     getParentRoute: () => rootRoute,

@@ -1,6 +1,7 @@
 import type { DownloadRequest, PreviewEntry, PreviewGroup } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { Film, Loader, X } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Film, Loader, Rss, X } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -169,6 +170,7 @@ function Picker({ req, onDone }: { req: DownloadRequest; onDone: () => void }) {
             Select none
           </Button>
         )}
+        <SubscribeLink requestId={req.id} />
         <Button size="compact" disabled={count === 0 || busy} onClick={() => void queue()}>
           {busy ? <Loader className="animate-spin" aria-hidden /> : null}
           Queue {String(count)} videos
@@ -178,6 +180,25 @@ function Picker({ req, onDone }: { req: DownloadRequest; onDone: () => void }) {
         <GroupList key={g.name} group={g} ticked={ticked} toggle={toggle} />
       ))}
     </div>
+  );
+}
+
+/** Subscribe to the previewed channel or playlist instead of (or as well as) queueing entries. */
+function SubscribeLink({ requestId }: { requestId: string }) {
+  const navigate = useNavigate();
+  const href = `/subscriptions/new?request=${encodeURIComponent(requestId)}`;
+  return (
+    <Button variant="secondary" size="compact" asChild>
+      <a
+        href={href}
+        onClick={(e) => {
+          e.preventDefault();
+          void navigate({ href });
+        }}
+      >
+        <Rss aria-hidden /> Subscribe
+      </a>
+    </Button>
   );
 }
 

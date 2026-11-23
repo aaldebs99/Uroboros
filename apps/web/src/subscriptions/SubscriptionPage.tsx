@@ -1,41 +1,21 @@
 import type { Subscription } from "@uroboros/contract";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Pause, Play, RefreshCw } from "lucide-react";
 
 import { errorText } from "@/api/client";
-import { useSubscription } from "@/api/subscriptions";
+import { subscriptionKeys, updateSubscription, useSubscription } from "@/api/subscriptions";
 import { SubscriptionBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
-import { SettingsGroup, SettingsRow } from "@/components/ui/settings-row";
+import { notify } from "@/components/ui/sonner";
 
 import { ActivityList } from "./ActivityList";
-import { intervalLabel, scheduleLabel, sourceLabel } from "./format";
+import { scheduleLabel, sourceLabel } from "./format";
+import { fromSubscription, toPatch } from "./formValues";
+import { SubscriptionForm } from "./SubscriptionForm";
 import { useSubscriptionActions } from "./SubscriptionsPage";
-
-function filtersSummary(f: Subscription["filters"]): string {
-  const parts = [
-    f.titleInclude === null ? null : `title matches ${f.titleInclude}`,
-    f.titleExclude === null ? null : `title does not match ${f.titleExclude}`,
-    f.minDuration === null ? null : `at least ${String(f.minDuration)} s`,
-    f.maxDuration === null ? null : `at most ${String(f.maxDuration)} s`,
-    f.uploadedAfter === null ? null : `uploaded on or after ${f.uploadedAfter}`,
-    f.excludeShorts ? "no Shorts" : null,
-    f.excludeLive ? "no live streams" : null,
-  ].filter((p): p is string => p !== null);
-  return parts.length === 0 ? "Everything new" : parts.join("; ");
-}
-
-function retentionSummary(r: Subscription["retention"]): string {
-  const parts = [
-    r.keepLast === null ? null : `keep the newest ${String(r.keepLast)}`,
-    r.deleteWatchedAfterDays === null
-      ? null
-      : `remove ${String(r.deleteWatchedAfterDays)} days after watching`,
-  ].filter((p): p is string => p !== null);
-  return parts.length === 0 ? "Keep everything" : parts.join("; ");
-}
 
 function Header({ sub }: { sub: Subscription }) {
   const actions = useSubscriptionActions();
@@ -88,16 +68,33 @@ function Header({ sub }: { sub: Subscription }) {
   );
 }
 
-/** Read-only settings; the edit form replaces this in the next step. */
+/** The settings form; saving sends only what changed. */
 function Settings({ sub }: { sub: Subscription }) {
+  const client = useQueryClient();
+  const initial = fromSubscription(sub);
   return (
-    <SettingsGroup title="Settings">
-      <SettingsRow label="What" description={sourceLabel(sub)} />
-      <SettingsRow label="Format" description={sub.profileName} />
-      <SettingsRow label="Checks" description={intervalLabel(sub.intervalMinutes)} />
-      <SettingsRow label="Filters" description={filtersSummary(sub.filters)} />
-      <SettingsRow label="Retention" description={retentionSummary(sub.retention)} />
-    </SettingsGroup>
+    <SubscriptionForm
+      key={sub.id}
+      initial={initial}
+      kind={sub.kind}
+      tabs={sub.tabs.map((t) => t.name)}
+      isNew={false}
+      submitLabel="Save changes"
+      onSubmit={async (values) => {
+        const patch = toPatch(values, initial);
+        if (Object.keys(patch).length === 0) {
+          notify.success("Nothing to change.");
+          return;
+        }
+        try {
+          await updateSubscription(sub.id, patch);
+          await client.invalidateQueries({ queryKey: subscriptionKeys.all });
+          notify.success("Saved.");
+        } catch (err) {
+          notify.error(errorText(err));
+        }
+      }}
+    />
   );
 }
 

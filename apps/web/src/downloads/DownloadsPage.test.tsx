@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
-import { renderWithQuery } from "@/test/render";
+import { renderInRouter, renderWithQuery } from "@/test/render";
 
 import { DownloadsPage } from "./DownloadsPage";
 
@@ -134,7 +134,7 @@ describe("DownloadsPage", () => {
       [`POST /api/downloads/requests/${choosingRequest.id}/queue`]: () =>
         Response.json({ queued: 2, skipped: 0 }),
     });
-    renderWithQuery(<DownloadsPage me={member} requestId={choosingRequest.id} />);
+    await renderInRouter(<DownloadsPage me={member} requestId={choosingRequest.id} />);
     expect(await screen.findByRole("checkbox", { name: "Video v1" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Video s1" })).not.toBeChecked();
     await userEvent.click(screen.getByRole("button", { name: "Queue 2 videos" }));
@@ -145,11 +145,22 @@ describe("DownloadsPage", () => {
     });
   });
 
+  it("offers Subscribe for a channel preview", async () => {
+    api({
+      [`GET /api/downloads/requests/${choosingRequest.id}`]: () => Response.json(choosingRequest),
+    });
+    await renderInRouter(<DownloadsPage me={member} requestId={choosingRequest.id} />);
+    expect(await screen.findByRole("link", { name: /Subscribe/ })).toHaveAttribute(
+      "href",
+      `/subscriptions/new?request=${choosingRequest.id}`,
+    );
+  });
+
   it("disables queueing when nothing is ticked", async () => {
     api({
       [`GET /api/downloads/requests/${choosingRequest.id}`]: () => Response.json(choosingRequest),
     });
-    renderWithQuery(<DownloadsPage me={member} requestId={choosingRequest.id} />);
+    await renderInRouter(<DownloadsPage me={member} requestId={choosingRequest.id} />);
     await userEvent.click(await screen.findByRole("button", { name: "Select none" }));
     expect(screen.getByRole("button", { name: /Queue 0 videos/ })).toBeDisabled();
   });
