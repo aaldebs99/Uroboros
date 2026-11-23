@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { Player } from "./Player";
@@ -57,5 +57,46 @@ describe("Player", () => {
     } finally {
       if (desc) Object.defineProperty(HTMLMediaElement.prototype, "readyState", desc);
     }
+  });
+
+  it("wraps the video in Video.js controls, branded with the app's accent", () => {
+    const { container } = render(
+      <Player
+        src="/v"
+        title="t"
+        start={0}
+        seek={null}
+        chapters={[]}
+        subtitles={[]}
+        onTime={noop}
+        onPause={noop}
+        onEnded={noop}
+      />,
+    );
+    expect(screen.getAllByRole("button", { name: /play/i }).length).toBeGreaterThan(0);
+    const skin = container.querySelector<HTMLElement>("[style*='--media-accent-color']");
+    expect(skin?.style.getPropertyValue("--media-accent-color")).toBe("var(--primary)");
+  });
+
+  it("takes chapters for the timeline without trouble", () => {
+    const chapters = [
+      { start: 0, end: 15, title: "Intro" },
+      { start: 15, end: null, title: null },
+    ];
+    expect(() =>
+      render(
+        <Player
+          src="/v"
+          title="t"
+          start={0}
+          seek={null}
+          chapters={chapters}
+          subtitles={[]}
+          onTime={noop}
+          onPause={noop}
+          onEnded={noop}
+        />,
+      ),
+    ).not.toThrow();
   });
 });

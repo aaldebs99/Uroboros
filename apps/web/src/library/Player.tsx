@@ -1,5 +1,9 @@
+import "@videojs/react/video/neutral-skin.css";
+
 import type { Chapter, SubtitleTrack } from "@uroboros/contract";
-import { useEffect, useRef } from "react";
+import { useCreateTextTrack } from "@videojs/react";
+import { NeutralVideoSkin, Video, VideoPlayer } from "@videojs/react/video";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 
 export interface PlayerProps {
   src: string;
@@ -8,7 +12,7 @@ export interface PlayerProps {
   start: number;
   /** A seek request; a new object seeks again even to the same time. */
   seek: { time: number } | null;
-  /** Shown as the page's chapter list; the browser's timeline has no markers. */
+  /** Drawn on the timeline; the page also lists them. */
   chapters: Chapter[];
   subtitles: SubtitleTrack[];
   onTime: (position: number, duration: number) => void;
@@ -16,9 +20,39 @@ export interface PlayerProps {
   onEnded: (position: number, duration: number) => void;
 }
 
+/** The design system's tokens on the skin's styling hooks (docs: "Customize skins"). */
+const brand = {
+  "--media-accent-color": "var(--primary)",
+  "--media-accent-text-color": "var(--primary-foreground)",
+  "--media-border-radius": "12px",
+  "--media-font-family": "inherit",
+  "--media-object-fit": "contain",
+  "--media-controls-before-start": "visible",
+  aspectRatio: "16 / 9",
+  width: "100%",
+} as CSSProperties;
+
+/** The chapters as a text track: the skin's time slider draws them. */
+function ChapterTrack({ chapters }: { chapters: Chapter[] }) {
+  // Stable across renders: a new track object each render would re-add the track in a loop.
+  const track = useMemo(
+    () => ({
+      kind: "chapters" as const,
+      cues: chapters.map((c, i) => ({
+        startTime: c.start,
+        ...(c.end === null ? {} : { endTime: c.end }),
+        text: c.title ?? `Chapter ${String(i + 1)}`,
+      })),
+    }),
+    [chapters],
+  );
+  useCreateTextTrack(track);
+  return null;
+}
+
 /**
- * The browser's own player: native controls (keyboard, fullscreen, picture-in-picture), subtitles
- * as `<track>`s in its captions menu, and seeks from the page's chapter list.
+ * Video.js 10 (the Neutral video skin, in the app's accent): keyboard and touch controls, a
+ * captions menu for the subtitle tracks, chapters on the timeline, resume and seek.
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
@@ -51,34 +85,37 @@ export function Player(p: PlayerProps) {
   const at = (v: HTMLVideoElement) =>
     [v.currentTime, Number.isFinite(v.duration) ? v.duration : 0] as const;
   return (
-    <video
-      ref={video}
-      src={p.src}
-      title={p.title}
-      controls
-      playsInline
-      preload="metadata"
-      className="aspect-video w-full rounded-[12px] bg-black"
-      onTimeUpdate={(e) => {
-        p.onTime(...at(e.currentTarget));
-      }}
-      onPause={(e) => {
-        p.onPause(...at(e.currentTarget));
-      }}
-      onEnded={(e) => {
-        p.onEnded(...at(e.currentTarget));
-      }}
-    >
-      {p.subtitles.map((s, i) => (
-        <track
-          key={s.id}
-          src={s.url}
-          kind="subtitles"
-          srcLang={s.lang}
-          label={s.name ?? `${s.lang}${s.automatic ? " (auto)" : ""}`}
-          default={i === 0}
-        />
-      ))}
-    </video>
+    <VideoPlayer>
+      {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
+      <NeutralVideoSkin style={brand} className="overflow-hidden rounded-[12px] bg-black">
+        <Video
+          ref={video}
+          src={p.src}
+          title={p.title}
+          playsInline
+          preload="metadata"
+          onTimeUpdate={(e) => {
+            p.onTime(...at(e.currentTarget));
+          }}
+          onPause={(e) => {
+            p.onPause(...at(e.currentTarget));
+          }}
+          onEnded={(e) => {
+            p.onEnded(...at(e.currentTarget));
+          }}
+        >
+          {p.subtitles.map((s, i) => (
+            <track
+              key={s.id}
+              src={s.url}
+              kind="subtitles"
+              srcLang={s.lang}
+              label={s.name ?? `${s.lang}${s.automatic ? " (auto)" : ""}`}
+              default={i === 0}
+            />
+          ))}
+        </Video>
+      </NeutralVideoSkin>
+    </VideoPlayer>
   );
 }
