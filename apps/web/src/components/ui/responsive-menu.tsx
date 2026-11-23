@@ -25,7 +25,7 @@ const sheetRow =
   "flex h-12 w-full items-center gap-4 px-5 text-left text-sm outline-none hover:bg-raised focus-visible:bg-raised";
 
 /**
- * An action menu: a dropdown from `md` up, and below it a bottom sheet with 48px rows.
+ * An action menu: a dropdown from `md` up, and below it a bottom sheet with 3rem rows.
  * `trigger` must be a single element that accepts a ref (a `Button`).
  */
 export function ResponsiveMenu({
@@ -95,7 +95,7 @@ export function ResponsiveMenu({
                     pick(onSelect)();
                   }}
                 >
-                  <Icon className="size-[22px]" aria-hidden />
+                  <Icon className="size-5.5" aria-hidden />
                   {label}
                 </button>
               ) : (
@@ -107,7 +107,7 @@ export function ResponsiveMenu({
                     setOpen(false);
                   }}
                 >
-                  <Icon className="size-[22px]" aria-hidden />
+                  <Icon className="size-5.5" aria-hidden />
                   {label}
                 </a>
               )}

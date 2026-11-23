@@ -25,7 +25,7 @@ export function RootLayout() {
 }
 
 /**
- * The app shell, on the page colour throughout. From `md` up: a 56px top bar (menu, brand,
+ * The app shell, on the page colour throughout. From `md` up: a 56-pixel (3.5rem) top bar (menu, brand,
  * search, "+ Create", avatar) over the side navigation, full or mini; a watch page gives the
  * navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar (menu,
  * brand, search, avatar), the menu opening the navigation as a drawer, and the bottom tabs. It
@@ -53,8 +53,8 @@ function Shell({ me }: { me: Me }) {
   return (
     <div
       className={cn(
-        "page-glow min-h-dvh pt-12 pb-[calc(58px+env(safe-area-inset-bottom))] md:pt-14 md:pb-0",
-        watching ? null : mini ? "md:pl-[72px]" : "md:pl-60",
+        "page-glow min-h-dvh pt-12 pb-[calc(3.625rem+env(safe-area-inset-bottom))] md:pt-14 md:pb-0",
+        watching ? null : mini ? "md:pl-18" : "md:pl-60",
       )}
     >
       {searching ? (
@@ -126,13 +126,13 @@ function Shell({ me }: { me: Me }) {
         <aside
           className={cn(
             "fixed top-14 bottom-0 left-0 z-20 hidden bg-background md:block",
-            mini ? "w-[72px]" : "w-60",
+            mini ? "w-18" : "w-60",
           )}
         >
           <SidebarNav isAdmin={isAdmin} mini={mini} />
         </aside>
       )}
-      {/* A watch page keeps YouTube's narrower 24px margins, giving the player the room. */}
+      {/* A watch page keeps YouTube's narrower 1.5rem margins, giving the player the room. */}
       <main className={cn("px-4 py-6", watching ? "md:p-6" : "md:px-8 md:py-8")}>
         <Outlet />
       </main>

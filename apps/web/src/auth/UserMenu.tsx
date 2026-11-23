@@ -1,6 +1,6 @@
 import type { Me } from "@uroboros/contract";
 import { Link } from "@tanstack/react-router";
-import { LogOut, Moon, Settings } from "lucide-react";
+import { ALargeSmall, LogOut, Moon, Settings } from "lucide-react";
 
 import { signOut } from "@/api/auth";
 import { errorText } from "@/api/client";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { notify } from "@/components/ui/sonner";
 import { type ThemeChoice, useThemeChoice } from "@/lib/theme";
+import { isUiScale, UI_SCALE_STEPS, type UiScale, useUiScale } from "@/lib/uiScale";
 import { forgetThisDevice } from "@/push/leave";
 
 const ROLE_LABEL = { admin: "Admin", member: "Member" } as const satisfies Record<
@@ -36,7 +37,12 @@ function isThemeChoice(value: string): value is ThemeChoice {
   return value in THEME_LABEL;
 }
 
-/** The avatar's account menu: who is signed in, Settings, Appearance and Sign out. */
+/** "110%" for 1.1. */
+function percent(scale: UiScale): string {
+  return `${String(Math.round(scale * 100))}%`;
+}
+
+/** The avatar's account menu: who is signed in, Settings, Appearance, Size and Sign out. */
 export function UserMenu({
   me,
   onOpenSettings = () => undefined,
@@ -51,6 +57,7 @@ export function UserMenu({
   navigate?: (url: string) => void;
 }) {
   const { choice, choose } = useThemeChoice();
+  const size = useUiScale();
   const leave = async () => {
     try {
       await forgetThisDevice();
@@ -66,7 +73,7 @@ export function UserMenu({
         <button
           type="button"
           aria-label={`Account menu for ${me.displayName}`}
-          className="grid size-10 place-items-center rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+          className="grid size-10 place-items-center rounded-full outline-none focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45"
         >
           <Avatar name={me.displayName} className="size-8 md:size-8" />
         </button>
@@ -81,7 +88,7 @@ export function UserMenu({
             </p>
             <Link
               to="/account"
-              className="mt-1 text-[13px] text-primary no-underline outline-none hover:underline focus-visible:underline"
+              className="mt-1 text-[0.8125rem] text-primary no-underline outline-none hover:underline focus-visible:underline"
             >
               Manage your account
             </Link>
@@ -107,6 +114,27 @@ export function UserMenu({
               <DropdownMenuRadioItem value="system">Device theme</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <ALargeSmall aria-hidden />
+            Size: {percent(size.scale)}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            <DropdownMenuRadioGroup
+              value={String(size.scale)}
+              onValueChange={(value) => {
+                const next = Number(value);
+                if (isUiScale(next)) size.choose(next);
+              }}
+            >
+              {UI_SCALE_STEPS.map((step) => (
+                <DropdownMenuRadioItem key={step} value={String(step)}>
+                  {percent(step)}
+                </DropdownMenuRadioItem>
+              ))}
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>

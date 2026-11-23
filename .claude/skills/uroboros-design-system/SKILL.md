@@ -57,6 +57,14 @@ skill, this skill wins. The existing files are listed in each reference.
     `mx-auto max-w-*` column that leaves empty bands either side. A block that reads badly
     stretched (a form, a settings column, a paragraph) caps its own width and stays at the left
     margin. Details in [shell-and-navigation](references/shell-and-navigation.md#page-width).
+11. **Sizes are rem, never pixels.** One knob sizes the whole UI: the root font size, 100% of the
+    reader's browser size on desktop and 110% on phones, times `--ui-scale` (the account menu's
+    Size). The pixel figures in this skill are design pixels at a 16px rem: write a Tailwind
+    spacing step when there is one (`w-42` for 168, `size-4.5` for 18) and `px ÷ 16` rem
+    otherwise (`rounded-[0.75rem]`, `text-[0.8125rem]`). Only 1px hairlines stay pixels.
+    `ratchet:pixels` fails any other `px` under `apps/web/src`; a value that truly must be device
+    pixels carries `px-allow: <why>` on its line. Details in
+    [foundations](references/foundations.md#scale).
 
 ## Where each primitive is
 
@@ -74,9 +82,10 @@ Read the reference for the family you are touching before you write classes.
 ## Corners are explicit
 
 `index.css` maps `rounded-lg` and `rounded-xl` to its `--radius` scale, so the recipes use exact
-values: `rounded-[10px]` controls, `rounded-[8px]` fields, `rounded-[12px]` thumbnails, menus,
-dialogs and toasts, `rounded-2xl` (16px) cards and sheets, `rounded-[4px]` duration badges, and
-`rounded-full` pills. Write those, not a bare `rounded-lg` or `rounded-xl`.
+values, in rem: `rounded-[0.625rem]` (10) controls, `rounded-[0.5rem]` (8) fields,
+`rounded-[0.75rem]` (12) thumbnails, menus, dialogs and toasts, `rounded-2xl` (16) cards and
+sheets, `rounded-[0.25rem]` (4) duration badges, and `rounded-full` pills. Write those, not a bare
+`rounded-lg` or `rounded-xl`.
 
 ## Common mistakes
 
@@ -93,4 +102,5 @@ dialogs and toasts, `rounded-2xl` (16px) cards and sheets, `rounded-[4px]` durat
 | `bg-black/75` on a duration badge                              | `bg-overlay text-overlay-foreground`                                          |
 | A navy sidebar (`bg-sidebar`)                                  | Side navigation on the canvas colour, with the current row filled `bg-raised` |
 | A Pause button, a bell or a subscriber count                   | Only when the feature exists                                                  |
+| A pixel size (`w-[168px]`, `rounded-[12px]`, `text-[13px]`)    | A spacing step or rem: `w-42`, `rounded-[0.75rem]`, `text-[0.8125rem]`        |
 | A page centred in `mx-auto max-w-4xl` with empty bands beside  | The page at full width; a form or settings column capped and left-aligned     |

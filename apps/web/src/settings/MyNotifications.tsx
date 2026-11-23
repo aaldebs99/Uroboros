@@ -69,7 +69,7 @@ function DeviceRow({ device, here }: { device: PushDevice; here: boolean }) {
   };
   return (
     <li className="flex flex-wrap items-center gap-3 py-3">
-      <Smartphone className="size-[18px] text-muted-foreground" aria-hidden />
+      <Smartphone className="size-4.5 text-muted-foreground" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="font-medium break-words">
           {device.label}

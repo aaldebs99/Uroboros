@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /** An outlined pill: a 45% tone border, tone text, no fill and no dot. */
 const badgeVariants = cva(
-  "inline-flex h-[22px] w-fit shrink-0 items-center gap-1 rounded-full border border-current/45 px-2 text-[11.5px] font-medium whitespace-nowrap [&>svg]:size-3",
+  "inline-flex h-5.5 w-fit shrink-0 items-center gap-1 rounded-full border border-current/45 px-2 text-[0.71875rem] font-medium whitespace-nowrap [&>svg]:size-3",
   {
     variants: {
       tone: {

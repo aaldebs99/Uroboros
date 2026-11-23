@@ -42,7 +42,10 @@ export interface PlayerProps {
 const brand = {
   "--media-accent-color": "var(--primary)",
   "--media-accent-text-color": "var(--primary-foreground)",
-  "--media-border-radius": "12px",
+  "--media-border-radius": "0.75rem",
+  // The skin sizes its controls, icons and text from this unit (16px by default); in rem they
+  // follow the UI's scale like everything else.
+  "--media-scale-unit": "1rem",
   "--media-font-family": "inherit",
   "--media-object-fit": "contain",
   "--media-controls-before-start": "visible",
@@ -127,7 +130,7 @@ export function Player(p: PlayerProps) {
       {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
       <NeutralVideoSkin
         style={brand}
-        className="uro-player overflow-hidden rounded-[12px] bg-black"
+        className="uro-player overflow-hidden rounded-[0.75rem] bg-black"
       >
         <Media
           ref={video}

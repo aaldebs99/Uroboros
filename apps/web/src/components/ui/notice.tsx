@@ -32,9 +32,9 @@ export function Notice({
   return (
     <div
       role={tone === "destructive" ? "alert" : "status"}
-      className={cn("flex gap-3 rounded-[12px] border px-3.5 py-3", box, className)}
+      className={cn("flex gap-3 rounded-[0.75rem] border px-3.5 py-3", box, className)}
     >
-      <Glyph className={cn("mt-0.5 size-[18px] shrink-0", icon)} aria-hidden />
+      <Glyph className={cn("mt-0.5 size-4.5 shrink-0", icon)} aria-hidden />
       <div className="grid min-w-0 gap-0.5">
         <p className="font-medium">{title}</p>
         {children === undefined ? null : (

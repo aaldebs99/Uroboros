@@ -33,7 +33,7 @@ export function VideoThumbnail({ entry, className }: { entry: LibraryEntry; clas
         <img src={entry.thumbnailUrl} alt="" loading="lazy" className="size-full object-cover" />
       )}
       {entry.duration === null ? null : (
-        <span className="absolute right-1.5 bottom-1.5 rounded-[4px] bg-overlay px-1 py-0.5 text-xs font-medium text-overlay-foreground tabular-nums">
+        <span className="absolute right-1.5 bottom-1.5 rounded-[0.25rem] bg-overlay px-1 py-0.5 text-xs font-medium text-overlay-foreground tabular-nums">
           {formatDuration(entry.duration)}
         </span>
       )}
@@ -71,7 +71,7 @@ export function EntryTile({
         aria-hidden
         className="block max-md:-mx-4"
       >
-        <VideoThumbnail entry={entry} className="md:rounded-[12px]" />
+        <VideoThumbnail entry={entry} className="md:rounded-[0.75rem]" />
       </Link>
       <div className="flex gap-3">
         <Avatar name={entry.channel} />
@@ -79,7 +79,7 @@ export function EntryTile({
           <Link
             to="/library/$entryId"
             params={{ entryId: entry.id }}
-            className="line-clamp-2 font-medium hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none md:text-[15px]/[21px]"
+            className="line-clamp-2 font-medium hover:underline focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none md:text-[0.9375rem]/[1.3125rem]"
           >
             {entry.title}
           </Link>

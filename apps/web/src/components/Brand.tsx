@@ -8,7 +8,7 @@ export function Brand() {
       <img
         src="/uroboros-tile.svg"
         alt=""
-        className="size-7 rounded-[18.5%] shadow-[0_0_14px_oklch(0.62_0.19_262/0.35)] md:size-8"
+        className="size-7 rounded-[18.5%] shadow-[0_0_0.875rem_oklch(0.62_0.19_262/0.35)] md:size-8"
       />
       <span className="text-base font-bold md:text-lg">Uroboros</span>
     </div>

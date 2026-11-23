@@ -4,6 +4,18 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
+ * The UI's one size knob. Every size is rem (ratchet:pixels refuses hard-coded pixels; 1px
+ * hairlines are the exception), so the root font size scales the whole UI: 100% of the reader's
+ * own browser size on desktop, 110% on phones (below md; a media query's rem is the browser's
+ * default, so 48rem stays the same 768px as Tailwind's md), times --ui-scale, the account menu's
+ * Size (src/lib/uiScale.ts, applied before first paint by public/theme-init.js). A design pixel
+ * figure is px / 16 rem.
+ */
+:root {
+  --ui-scale: 1;
+}
+
+/*
  * Palette drawn from the Uroboros mark: navy (#0b1d33, #050e1c, #143a66), electric blue
  * (#3b82f6, #60a5fa) and ice (#cfe8ff, #f0f8ff). The design system skill
  * (.claude/skills/uroboros-design-system/references/foundations.md) holds the hex sources.
@@ -35,9 +47,10 @@
   --overlay: oklch(0.163 0.033 257 / 85%);
   --overlay-foreground: oklch(0.975 0.013 244.3);
   --scrim: oklch(0 0 0 / 55%);
-  --elev-card: 0 1px 2px oklch(0.228 0.049 254.6 / 6%), 0 8px 24px oklch(0.228 0.049 254.6 / 6%);
-  --elev-menu: 0 12px 32px oklch(0.228 0.049 254.6 / 16%);
-  --elev-glow: 0 0 18px color-mix(in oklch, var(--primary) 45%, transparent);
+  --elev-card:
+    0 1px 0.125rem oklch(0.228 0.049 254.6 / 6%), 0 0.5rem 1.5rem oklch(0.228 0.049 254.6 / 6%);
+  --elev-menu: 0 0.75rem 2rem oklch(0.228 0.049 254.6 / 16%);
+  --elev-glow: 0 0 1.125rem color-mix(in oklch, var(--primary) 45%, transparent);
   --glow-top: oklch(0.952 0.023 258.4);
 }
 
@@ -64,18 +77,18 @@
   --border: oklch(1 0 0 / 9%);
   --input: oklch(1 0 0 / 9%);
   --ring: oklch(0.727 0.143 257.1);
-  --elev-card: 0 0 0 1px oklch(1 0 0 / 5%), 0 8px 24px oklch(0 0 0 / 35%);
-  --elev-menu: 0 16px 40px oklch(0 0 0 / 55%);
+  --elev-card: 0 0 0 1px oklch(1 0 0 / 5%), 0 0.5rem 1.5rem oklch(0 0 0 / 35%);
+  --elev-menu: 0 1rem 2.5rem oklch(0 0 0 / 55%);
   --glow-top: oklch(0.314 0.085 259.7);
 }
 
 @theme inline {
   --font-sans: "Roboto Variable", Roboto, ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: calc(var(--radius) - 0.125rem);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 0.25rem);
   --shadow-card: var(--elev-card);
   --shadow-menu: var(--elev-menu);
   --shadow-glow: var(--elev-glow);
@@ -109,6 +122,14 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  html {
+    font-size: calc(100% * var(--ui-scale, 1));
+  }
+  @media (width < 48rem) {
+    html {
+      font-size: calc(110% * var(--ui-scale, 1));
+    }
   }
   html,
   body,
@@ -153,12 +174,12 @@ select[data-slot] option {
   }
 
   select[data-slot]::picker(select) {
-    margin-block: 6px;
-    padding-block: 8px;
+    margin-block: 0.375rem;
+    padding-block: 0.5rem;
     min-width: anchor-size(width);
     /* A hairline too: the list often opens over a dialog of the same colour. */
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 0.75rem;
     background-color: var(--popover);
     color: var(--popover-foreground);
     box-shadow: var(--elev-menu);
@@ -167,10 +188,10 @@ select[data-slot] option {
   select[data-slot] option {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 16px;
-    font-size: 14px;
-    line-height: 20px;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
     cursor: default;
     outline: none;
   }

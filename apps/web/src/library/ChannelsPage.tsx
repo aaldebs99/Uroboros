@@ -29,7 +29,7 @@ export function ChannelsPage() {
               <Link
                 to="/library/channels/$channelKey"
                 params={{ channelKey: c.key }}
-                className="flex items-center gap-4 rounded-[12px] p-3 hover:bg-raised focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
+                className="flex items-center gap-4 rounded-[0.75rem] p-3 hover:bg-raised focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
               >
                 <Avatar name={c.name} className="size-14 text-lg" />
                 <span className="min-w-0">

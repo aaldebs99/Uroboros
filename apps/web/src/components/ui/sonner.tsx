@@ -34,9 +34,9 @@ function ToastCard({
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
-      className="relative flex w-[min(300px,calc(100vw-2rem))] items-start gap-3 overflow-hidden rounded-[12px] border border-border bg-popover px-3.5 py-3 text-sm text-popover-foreground shadow-menu"
+      className="relative flex w-[min(18.75rem,calc(100vw-2rem))] items-start gap-3 overflow-hidden rounded-[0.75rem] border border-border bg-popover px-3.5 py-3 text-sm text-popover-foreground shadow-menu"
     >
-      <Icon className={cn("mt-0.5 size-[18px] shrink-0", className)} aria-hidden />
+      <Icon className={cn("mt-0.5 size-4.5 shrink-0", className)} aria-hidden />
       <div className="grid min-w-0 flex-1 gap-0.5">
         <p className="font-medium break-words">{title}</p>
         {detail === undefined ? null : (
@@ -46,7 +46,7 @@ function ToastCard({
       {action === undefined ? null : (
         <button
           type="button"
-          className="-my-1 h-8 shrink-0 rounded-full px-3 text-[13px] font-medium text-primary outline-none hover:bg-raised focus-visible:ring-[3px] focus-visible:ring-ring/45"
+          className="-my-1 h-8 shrink-0 rounded-full px-3 text-[0.8125rem] font-medium text-primary outline-none hover:bg-raised focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45"
           onClick={() => {
             action.onClick();
             toast.dismiss(id);
@@ -84,7 +84,7 @@ notify.info = shortcut("info");
 /** Themed from our own store (`useTheme`), not next-themes. Top right, unstyled cards. */
 function Toaster(props: ToasterProps) {
   const { theme } = useTheme();
-  return <Sonner theme={theme} position="top-right" offset={72} {...props} />;
+  return <Sonner theme={theme} position="top-right" offset="4.5rem" {...props} />;
 }
 
 export { Toaster, notify };

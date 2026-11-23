@@ -52,7 +52,7 @@ function StateLine({
           className="h-2 overflow-hidden rounded-full bg-raised"
         >
           <div
-            className="h-full rounded-full bg-linear-to-r from-primary-strong to-primary shadow-[0_0_12px] shadow-primary/60 transition-[width]"
+            className="h-full rounded-full bg-linear-to-r from-primary-strong to-primary shadow-[0_0_0.75rem] shadow-primary/60 transition-[width]"
             style={{ width: `${String(percent)}%` }}
           />
         </div>
@@ -68,7 +68,7 @@ function Failure({ download }: { download: Download }) {
       {download.stderrTail.length > 0 ? (
         <details>
           <summary className="cursor-pointer text-xs text-muted-foreground">Details</summary>
-          <pre className="mt-1 max-h-48 overflow-auto rounded-[8px] bg-raised p-2 font-mono text-xs whitespace-pre-wrap">
+          <pre className="mt-1 max-h-48 overflow-auto rounded-[0.5rem] bg-raised p-2 font-mono text-xs whitespace-pre-wrap">
             {download.stderrTail.join("\n")}
           </pre>
         </details>
@@ -98,7 +98,7 @@ export function QueueRow({
   const meta = `${showOwner ? `${download.owner.displayName} · ` : ""}${download.extractor}`;
   return (
     <li className="flex gap-3 border-t border-border py-3.5 first:border-t-0 md:gap-4">
-      <span className="grid aspect-video w-24 shrink-0 place-items-center rounded-[8px] bg-raised md:w-[120px]">
+      <span className="grid aspect-video w-24 shrink-0 place-items-center rounded-[0.5rem] bg-raised md:w-30">
         <Film className="size-5 text-muted-foreground" aria-hidden />
       </span>
       {/* grid-cols-1 (a minmax(0, 1fr) column) lets the title and state line truncate instead of

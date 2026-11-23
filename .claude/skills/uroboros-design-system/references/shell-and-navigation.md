@@ -83,7 +83,9 @@ A Radix dropdown from the avatar, with a header about the person and ruled secti
    no separate Account item.
 3. **Appearance: Device theme ›**, a submenu with Light, Dark and Device (check on the current
    one). It drives `lib/theme.ts`.
-4. **Sign out**. Keep its push cleanup (`forgetThisDevice()` before `signOut`).
+4. **Size: 100% ›**, a submenu with 90, 100, 110 and 125% (check on the current one), the UI's
+   [scale](foundations.md#scale) on this device. It drives `lib/uiScale.ts`.
+5. **Sign out**. Keep its push cleanup (`forgetThisDevice()` before `signOut`).
 
 Rules split the sections.
 

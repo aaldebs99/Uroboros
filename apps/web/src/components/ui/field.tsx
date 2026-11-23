@@ -18,7 +18,7 @@ type FieldChrome = {
 };
 
 const boxClasses =
-  "peer w-full rounded-[8px] border border-foreground/25 bg-transparent px-3.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/45 disabled:opacity-45 aria-invalid:border-destructive";
+  "peer w-full rounded-[0.5rem] border border-foreground/25 bg-transparent px-3.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 disabled:opacity-45 aria-invalid:border-destructive";
 const labelClasses =
   "pointer-events-none absolute top-2 left-3.5 text-xs text-muted-foreground peer-focus-visible:text-primary peer-aria-invalid:text-destructive";
 
@@ -59,7 +59,7 @@ function FieldFoot({
   );
 }
 
-/** The outlined text field: a 56px box with its label inside at the top left. */
+/** The outlined text field: a 3.5rem box with its label inside at the top left. */
 function Field({
   label,
   help,

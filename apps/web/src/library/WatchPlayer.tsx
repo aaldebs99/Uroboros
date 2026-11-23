@@ -28,7 +28,7 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: LibraryItem })
       {compatible ? (
         <CompatiblePlayer {...props} entryId={item.id} native={native} />
       ) : (
-        <Suspense fallback={<div className="aspect-video w-full rounded-[12px] bg-raised" />}>
+        <Suspense fallback={<div className="aspect-video w-full rounded-[0.75rem] bg-raised" />}>
           <Player {...props} src={item.streamUrl} />
         </Suspense>
       )}

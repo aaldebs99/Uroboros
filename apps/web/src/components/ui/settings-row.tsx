@@ -37,7 +37,7 @@ export function SettingsRow({
   wide?: boolean;
 }) {
   return (
-    <div className="grid gap-2 border-t border-border py-4 md:grid-cols-[200px_1fr] md:gap-5">
+    <div className="grid gap-2 border-t border-border py-4 md:grid-cols-[12.5rem_1fr] md:gap-5">
       <p className="font-medium">{label}</p>
       {wide ? (
         <div className="grid min-w-0 gap-3">

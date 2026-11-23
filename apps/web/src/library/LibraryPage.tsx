@@ -41,7 +41,7 @@ export function LibraryPage({
   const narrowed =
     filters.q !== undefined || filters.tag !== undefined || filters.watched !== undefined;
   return (
-    <section className="grid w-full gap-6">
+    <section className="grid w-full grid-cols-1 gap-6">
       <PageHeader title="Library" />
       <ViewTabs />
       {/* The sort sits at the end of the chips' row; on phones the chips scroll beside it. */}

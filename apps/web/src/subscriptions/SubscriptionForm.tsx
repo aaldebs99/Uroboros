@@ -209,7 +209,7 @@ function Backfill({ v, set, kind }: SectionProps) {
             <input
               type="radio"
               name="backfill"
-              className="size-[18px] accent-primary"
+              className="size-4.5 accent-primary"
               checked={v.backfillMode === mode}
               onChange={() => {
                 set("backfillMode", mode);

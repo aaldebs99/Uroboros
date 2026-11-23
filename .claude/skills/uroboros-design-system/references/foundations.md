@@ -56,6 +56,26 @@ when writing `index.css`.
 
 There is no negative letter-spacing, and no display font.
 
+## Scale
+
+Every size is rem, so one knob sizes the UI: `html`'s font size in `index.css`, 100% of the
+reader's browser size on desktop and 110% on phones (below `md`), times `--ui-scale`. The account
+menu's **Size** (90, 100, 110 or 125%, per device, `lib/uiScale.ts`) sets `--ui-scale`, and
+`public/theme-init.js` applies it before first paint, beside the theme.
+
+- The pixel figures in these tables are design pixels at a 16px rem. Write a Tailwind spacing
+  step when there is one (`size-4.5` for 18, `w-42` for 168) and `px ÷ 16` rem otherwise
+  (`text-[0.8125rem]` for 13, `ring-[0.1875rem]` for the 3px ring).
+- 1px hairlines stay pixels (`border`, `divide-y`, `h-px`).
+- `ratchet:pixels` fails any other `px` in `apps/web/src`'s CSS, TS and TSX, comments included:
+  say "a 12-pixel line", or the rem, in prose. A value that truly must be device pixels carries
+  `px-allow: <why>` on its line.
+- Media queries keep their place (a media query's rem is the browser's default, so `md` is
+  always 768px); container queries and grid minimums grow with the knob, so give a grid track
+  `minmax(min(16rem,100%),1fr)` and a page grid `grid-cols-1` so nothing widens a phone at 125%.
+- Third-party sizes: the Video.js skin follows through `--media-scale-unit: 1rem`; Radix's
+  `sideOffset` and Sonner's own width and gap stay pixels (bare numbers the ratchet can't see).
+
 ## Density (roomy)
 
 | Thing                                   | Value         |

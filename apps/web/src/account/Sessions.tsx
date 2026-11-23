@@ -26,7 +26,7 @@ export function Sessions() {
           const name = s.userAgent ?? "Unknown browser";
           return (
             <li key={s.id} className="flex items-center gap-3 py-3">
-              <Monitor className="size-[18px] shrink-0 text-muted-foreground" aria-hidden />
+              <Monitor className="size-4.5 shrink-0 text-muted-foreground" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{name}</p>
                 <p className="text-xs text-muted-foreground">Last seen {when(s.lastSeenAt)}</p>

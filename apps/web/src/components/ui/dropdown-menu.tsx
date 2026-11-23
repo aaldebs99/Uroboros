@@ -10,9 +10,9 @@ const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
 const contentClasses =
-  "z-50 min-w-56 overflow-hidden rounded-[12px] bg-popover py-2 text-popover-foreground shadow-menu data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0";
+  "z-50 min-w-56 overflow-hidden rounded-[0.75rem] bg-popover py-2 text-popover-foreground shadow-menu data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0";
 const itemClasses =
-  "relative flex cursor-default items-center gap-3 px-4 py-2.5 text-sm outline-none select-none focus:bg-raised data-[disabled]:pointer-events-none data-[disabled]:opacity-45 [&_svg]:size-[18px] [&_svg]:shrink-0";
+  "relative flex cursor-default items-center gap-3 px-4 py-2.5 text-sm outline-none select-none focus:bg-raised data-[disabled]:pointer-events-none data-[disabled]:opacity-45 [&_svg]:size-4.5 [&_svg]:shrink-0";
 
 function DropdownMenuContent({
   className,

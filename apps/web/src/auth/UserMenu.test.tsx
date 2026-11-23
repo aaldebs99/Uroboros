@@ -17,6 +17,18 @@ const me = {
 };
 
 describe("UserMenu", () => {
+  it("picks a size in Size, which sets the UI scale and is remembered", async () => {
+    await renderInRouter(<UserMenu me={me} />);
+    await userEvent.click(screen.getByRole("button", { name: "Account menu for Alice" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Size: 100%" }));
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "125%" }));
+
+    expect(localStorage.getItem("uroboros-ui-scale")).toBe("1.25");
+    expect(document.documentElement.style.getPropertyValue("--ui-scale")).toBe("1.25");
+    localStorage.clear();
+    document.documentElement.style.removeProperty("--ui-scale");
+  });
+
   it("shows the name and role, and sends an SSO user to the provider on sign-out", async () => {
     vi.stubGlobal(
       "fetch",

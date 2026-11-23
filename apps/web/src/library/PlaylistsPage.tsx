@@ -17,18 +17,18 @@ function PlaylistTile({ source }: { source: SourceSummary }) {
       <Link
         to="/library/playlists/$sourceId"
         params={{ sourceId: source.id }}
-        className="grid gap-3 rounded-[12px] focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
+        className="grid gap-3 rounded-[0.75rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
       >
-        <div className="relative pt-[18px]">
+        <div className="relative pt-4.5">
           <span
             aria-hidden
-            className="absolute inset-x-6 top-0 h-3 rounded-t-[12px] bg-raised/60"
+            className="absolute inset-x-6 top-0 h-3 rounded-t-[0.75rem] bg-raised/60"
           />
           <span
             aria-hidden
-            className="absolute inset-x-3 top-1.5 h-3 rounded-t-[12px] bg-raised/85"
+            className="absolute inset-x-3 top-1.5 h-3 rounded-t-[0.75rem] bg-raised/85"
           />
-          <div className="relative aspect-video overflow-hidden rounded-[12px] bg-raised">
+          <div className="relative aspect-video overflow-hidden rounded-[0.75rem] bg-raised">
             {source.coverThumbnailUrl === null ? (
               <ListVideo
                 className="absolute inset-0 m-auto size-8 text-muted-foreground"
@@ -42,13 +42,13 @@ function PlaylistTile({ source }: { source: SourceSummary }) {
                 className="size-full object-cover"
               />
             )}
-            <span className="absolute right-1.5 bottom-1.5 inline-flex items-center gap-1 rounded-[4px] bg-overlay px-1.5 py-0.5 text-xs font-medium text-overlay-foreground">
+            <span className="absolute right-1.5 bottom-1.5 inline-flex items-center gap-1 rounded-[0.25rem] bg-overlay px-1.5 py-0.5 text-xs font-medium text-overlay-foreground">
               <ListVideo className="size-3.5" aria-hidden />
               {source.count} videos
             </span>
           </div>
         </div>
-        <span className="line-clamp-2 font-medium md:text-[15px]/[21px]">
+        <span className="line-clamp-2 font-medium md:text-[0.9375rem]/[1.3125rem]">
           {source.title ?? "Playlist"}
         </span>
       </Link>

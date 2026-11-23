@@ -33,7 +33,7 @@ export function Tokens() {
   return (
     <div className="space-y-4">
       {secret ? (
-        <div className="space-y-2 rounded-[12px] border border-primary/40 bg-primary/10 px-3.5 py-3">
+        <div className="space-y-2 rounded-[0.75rem] border border-primary/40 bg-primary/10 px-3.5 py-3">
           <p className="text-sm font-medium">Copy it now: it won&apos;t be shown again.</p>
           <div className="flex items-center gap-2">
             <code className="min-w-0 flex-1 truncate font-mono text-xs">{secret}</code>

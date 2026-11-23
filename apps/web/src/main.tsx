@@ -8,9 +8,11 @@ import { registerSW } from "virtual:pwa-register";
 
 import "./index.css";
 import { initTheme } from "./lib/theme";
+import { initUiScale } from "./lib/uiScale";
 import { createAppRouter } from "./router";
 
 initTheme();
+initUiScale();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },

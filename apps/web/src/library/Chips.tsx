@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const chip =
-  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none";
+  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] font-medium focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none";
 
 export function Chip({
   pressed,

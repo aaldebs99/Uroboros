@@ -4,11 +4,11 @@ import { useInfo } from "@/api/client";
 import { cn } from "@/lib/utils";
 import { ADMIN_ITEMS, inLibrary, LIBRARY_VIEWS, NAV_ITEMS, type NavItem } from "@/nav";
 
-const rowFocus = "outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45";
+const rowFocus = "outline-none focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45";
 
 /**
- * The side navigation below the top bar, on the page colour. Full (240px rows, with the library's
- * views indented under Library) or mini (a 72px rail with the label under the icon), switched by
+ * The side navigation below the top bar, on the page colour. Full (15rem rows, with the library's
+ * views indented under Library) or mini (a 4.5rem rail with the label under the icon), switched by
  * the top bar's menu button.
  */
 export function SidebarNav({
@@ -55,10 +55,10 @@ export function SidebarNav({
 
 function rowClasses(mini: boolean): string {
   return cn(
-    "rounded-[10px] hover:bg-raised/60",
+    "rounded-[0.625rem] hover:bg-raised/60",
     rowFocus,
     mini
-      ? "flex flex-col items-center gap-1.5 px-1 pt-4 pb-3.5 text-[10px]"
+      ? "flex flex-col items-center gap-1.5 px-1 pt-4 pb-3.5 text-[0.625rem]"
       : "flex h-10 items-center gap-6 px-3 text-sm",
   );
 }
@@ -105,7 +105,7 @@ function LibraryLinks({ item, mini }: { item: NavItem; mini: boolean }) {
                 to={view.to}
                 activeOptions={{ exact: view.to === "/" }}
                 className={cn(
-                  "flex h-9 items-center rounded-[10px] pr-3 pl-14 text-sm text-muted-foreground hover:bg-raised/60 hover:text-foreground data-[status=active]:bg-raised data-[status=active]:font-medium data-[status=active]:text-foreground",
+                  "flex h-9 items-center rounded-[0.625rem] pr-3 pl-14 text-sm text-muted-foreground hover:bg-raised/60 hover:text-foreground data-[status=active]:bg-raised data-[status=active]:font-medium data-[status=active]:text-foreground",
                   rowFocus,
                 )}
               >

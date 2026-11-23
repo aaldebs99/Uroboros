@@ -17,7 +17,7 @@ export function SearchBar({ onSearch }: { onSearch?: (q: string) => void }) {
   return (
     <form
       role="search"
-      className="flex w-full max-w-[640px]"
+      className="flex w-full max-w-160"
       onSubmit={(event) => {
         event.preventDefault();
         search(text.trim());
@@ -31,12 +31,12 @@ export function SearchBar({ onSearch }: { onSearch?: (q: string) => void }) {
         onChange={(e) => {
           setText(e.target.value);
         }}
-        className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-foreground/22 bg-card px-4 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/45"
+        className="h-10 min-w-0 flex-1 rounded-l-full border border-r-0 border-foreground/22 bg-card px-4 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45"
       />
       <button
         type="submit"
         aria-label="Search"
-        className="grid h-10 w-16 place-items-center rounded-r-full border border-foreground/22 bg-raised hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
+        className="grid h-10 w-16 place-items-center rounded-r-full border border-foreground/22 bg-raised hover:bg-accent focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
       >
         <Search className="size-5" aria-hidden />
       </button>

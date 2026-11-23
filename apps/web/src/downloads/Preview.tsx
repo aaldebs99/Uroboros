@@ -33,7 +33,7 @@ function EntryRow({
     <li>
       <label
         className={cn(
-          "flex cursor-pointer items-center gap-3 rounded-[10px] px-2 py-2 hover:bg-raised",
+          "flex cursor-pointer items-center gap-3 rounded-[0.625rem] px-2 py-2 hover:bg-raised",
           !on && "opacity-55",
         )}
       >
@@ -44,7 +44,7 @@ function EntryRow({
             toggle(ev.target.checked);
           }}
         />
-        <span className="relative grid aspect-video w-[120px] shrink-0 place-items-center overflow-hidden rounded-[8px] bg-raised">
+        <span className="relative grid aspect-video w-30 shrink-0 place-items-center overflow-hidden rounded-[0.5rem] bg-raised">
           {entry.thumbnailUrl === null ? (
             <Film className="size-5 text-muted-foreground" aria-hidden />
           ) : (

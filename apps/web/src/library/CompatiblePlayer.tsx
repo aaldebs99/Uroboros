@@ -16,7 +16,7 @@ function playable(p: Playback, native: boolean): boolean {
   return native && p.state === "running" && p.readySegments >= 2;
 }
 
-const frame = "grid aspect-video w-full place-items-center rounded-[12px] bg-raised p-6";
+const frame = "grid aspect-video w-full place-items-center rounded-[0.75rem] bg-raised p-6";
 
 function Preparing({ progress }: { progress: number }) {
   const percent = Math.round(progress * 100);
@@ -33,7 +33,7 @@ function Preparing({ progress }: { progress: number }) {
           className="h-2 overflow-hidden rounded-full bg-background"
         >
           <div
-            className="h-full rounded-full bg-linear-to-r from-primary-strong to-primary shadow-[0_0_12px] shadow-primary/60 transition-[width]"
+            className="h-full rounded-full bg-linear-to-r from-primary-strong to-primary shadow-[0_0_0.75rem] shadow-primary/60 transition-[width]"
             style={{ width: `${String(percent)}%` }}
           />
         </div>

@@ -1,6 +1,6 @@
 /*
  * The control bar, after YouTube's: the timeline in the app's accent as a full-width bar along the
- * top, 3px until pointed at (5px, the pointed-at chapter 7px), the played part in the accent, a
+ * top, 3 pixels thick until pointed at (5, the pointed-at chapter 7), the played part in the accent, a
  * lighter run up to the pointer, and a round accent thumb that shows on hover, drag or focus; the
  * buttons under it split between the two ends.
  *
@@ -19,9 +19,9 @@
 .uro-player .video-time-slider-group {
   flex: 0 0 100%;
   order: -1;
-  padding-inline: 4px;
+  padding-inline: 0.25rem;
   /* A tall hit area around the thin bar. */
-  --media-slider-height: 16px;
+  --media-slider-height: 1rem;
   /* The skin fades the inline timeline while the volume popover is open; this one has its row. */
   mask-image: none;
 }
@@ -35,7 +35,7 @@
   margin-inline-start: auto;
 }
 
-/* Chapters are 2px apart. */
+/* Chapters are two pixels apart. */
 .uro-player .media-time-slider-chapter {
   --media-chapter-inset-start: 0.25;
   --media-chapter-inset-end: 0.25;
@@ -50,20 +50,20 @@
 }
 
 .uro-player .media-time-slider-chapter-track[data-orientation="horizontal"] {
-  height: 3px;
+  height: 0.1875rem;
   transition: height 0.1s ease-out;
 }
 
 .uro-player
   .media-time-slider:is([data-pointing], [data-dragging])
   .media-time-slider-chapter-track[data-orientation="horizontal"] {
-  height: 5px;
+  height: 0.3125rem;
 }
 
 .uro-player
   .media-time-slider-chapter[data-highlighted]
   .media-time-slider-chapter-track[data-orientation="horizontal"] {
-  height: 7px;
+  height: 0.4375rem;
 }
 
 /* Unplayed, buffered, played. */
@@ -80,7 +80,7 @@
 .uro-player .media-time-slider .media-slider-fill::before {
   border-radius: 0;
   background-color: var(--primary);
-  box-shadow: 0 0 6px color-mix(in oklch, var(--primary) 60%, transparent);
+  box-shadow: 0 0 0.375rem color-mix(in oklch, var(--primary) 60%, transparent);
 }
 
 /* The lighter run from the start up to the pointer, under the played part. */
@@ -102,9 +102,9 @@
 
 /* The round thumb. */
 .uro-player .media-time-slider-thumb {
-  width: 13px;
-  height: 13px;
+  width: 0.8125rem;
+  height: 0.8125rem;
   border-radius: 50%;
   background-color: var(--primary);
-  box-shadow: 0 0 8px color-mix(in oklch, var(--primary) 70%, transparent);
+  box-shadow: 0 0 0.5rem color-mix(in oklch, var(--primary) 70%, transparent);
 }

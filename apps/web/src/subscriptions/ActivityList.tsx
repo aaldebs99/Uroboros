@@ -16,7 +16,7 @@ function ItemTitle({ item }: { item: SubscriptionItem }) {
     <Link
       to="/library/$entryId"
       params={{ entryId: item.entryId }}
-      className="truncate font-medium hover:underline focus-visible:rounded-[4px] focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
+      className="truncate font-medium hover:underline focus-visible:rounded-[0.25rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
     >
       {title}
     </Link>

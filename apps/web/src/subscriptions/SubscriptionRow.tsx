@@ -59,14 +59,14 @@ function menuFor(sub: Subscription, actions: RowActions): MenuAction[] {
 export function SubscriptionRow({ sub, actions }: { sub: Subscription; actions: RowActions }) {
   const title = sub.title ?? sub.url;
   return (
-    <li className="flex items-center gap-3 rounded-[12px] p-3 hover:bg-raised">
+    <li className="flex items-center gap-3 rounded-[0.75rem] p-3 hover:bg-raised">
       <Avatar name={title} className="size-12 shrink-0 text-base" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <Link
             to="/subscriptions/$subscriptionId"
             params={{ subscriptionId: sub.id }}
-            className="truncate text-base font-medium hover:underline focus-visible:rounded-[4px] focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
+            className="truncate text-base font-medium hover:underline focus-visible:rounded-[0.25rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
           >
             {title}
           </Link>

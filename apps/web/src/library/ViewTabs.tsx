@@ -17,7 +17,7 @@ export function ViewTabs() {
           key={t.to}
           to={t.to}
           activeOptions={{ exact: true }}
-          className="-mb-px border-b-2 border-transparent py-2.5 font-medium text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none data-[status=active]:border-foreground data-[status=active]:text-foreground"
+          className="-mb-px border-b-2 border-transparent py-2.5 font-medium text-muted-foreground hover:text-foreground focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none data-[status=active]:border-foreground data-[status=active]:text-foreground"
         >
           {t.label}
         </Link>

@@ -26,11 +26,11 @@ function PhoneLinks({ isAdmin }: { isAdmin: boolean }) {
         <li key={to}>
           <Link
             to={to}
-            className="flex h-12 items-center gap-4 rounded-[10px] px-2 outline-none hover:bg-raised focus-visible:ring-[3px] focus-visible:ring-ring/45"
+            className="flex h-12 items-center gap-4 rounded-[0.625rem] px-2 outline-none hover:bg-raised focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45"
           >
-            <Icon className="size-[22px] text-muted-foreground" aria-hidden />
+            <Icon className="size-5.5 text-muted-foreground" aria-hidden />
             <span className="flex-1">{label}</span>
-            <ChevronRight className="size-[18px] text-muted-foreground" aria-hidden />
+            <ChevronRight className="size-4.5 text-muted-foreground" aria-hidden />
           </Link>
         </li>
       ))}

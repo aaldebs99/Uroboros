@@ -21,7 +21,7 @@ export function TagEditor({
       {tags.map((t) => (
         <span
           key={t}
-          className="inline-flex h-8 items-center gap-1 rounded-full bg-raised pr-1 pl-3 text-[13px] font-medium"
+          className="inline-flex h-8 items-center gap-1 rounded-full bg-raised pr-1 pl-3 text-[0.8125rem] font-medium"
         >
           <a href={`/?tag=${encodeURIComponent(t)}`} className="hover:underline">
             {t}
@@ -32,7 +32,7 @@ export function TagEditor({
             onClick={() => {
               onChange(tags.filter((x) => x !== t));
             }}
-            className="grid size-6 place-items-center rounded-full hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
+            className="grid size-6 place-items-center rounded-full hover:bg-accent focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
           >
             <X className="size-3.5" aria-hidden />
           </button>
@@ -47,7 +47,7 @@ export function TagEditor({
           onChange={(e) => {
             setText(e.target.value);
           }}
-          className="h-8 w-32 rounded-full border border-foreground/22 bg-card px-3 text-[13px] outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/45"
+          className="h-8 w-32 rounded-full border border-foreground/22 bg-card px-3 text-[0.8125rem] outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45"
         />
       </form>
     </div>

@@ -9,7 +9,7 @@ export function Skeleton({ className }: { className?: string }) {
 export function TileSkeleton() {
   return (
     <div aria-hidden className="grid gap-3">
-      <Skeleton className="aspect-video rounded-[12px]" />
+      <Skeleton className="aspect-video rounded-[0.75rem]" />
       <div className="flex gap-3">
         <Skeleton className="size-9 shrink-0" />
         <div className="grid flex-1 gap-2 pt-1">

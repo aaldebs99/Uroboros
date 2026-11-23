@@ -29,7 +29,7 @@ import { WatchPlayer } from "./WatchPlayer";
 function Description({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-[12px] bg-raised p-3 text-sm">
+    <div className="rounded-[0.75rem] bg-raised p-3 text-sm">
       <p className={open ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"}>{text}</p>
       <button
         type="button"
@@ -57,7 +57,7 @@ function Chapters({ item, onSeek }: { item: LibraryItem; onSeek: (time: number) 
               onClick={() => {
                 onSeek(c.start);
               }}
-              className="flex w-full items-center gap-3 rounded-[10px] px-2 py-2 text-left hover:bg-raised focus-visible:ring-[3px] focus-visible:ring-ring/45 focus-visible:outline-none"
+              className="flex w-full items-center gap-3 rounded-[0.625rem] px-2 py-2 text-left hover:bg-raised focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
             >
               <span className="w-14 text-xs text-primary tabular-nums">
                 {formatDuration(c.start)}
@@ -90,7 +90,7 @@ export function ItemPage({ entryId }: { entryId: string }) {
   );
   if (item.isError) return <p className="text-destructive">{errorText(item.error)}</p>;
   if (item.isPending)
-    return <div aria-busy="true" className="aspect-video w-full rounded-[12px] bg-raised" />;
+    return <div aria-busy="true" className="aspect-video w-full rounded-[0.75rem] bg-raised" />;
   const it = item.data;
   const refresh = () => client.invalidateQueries({ queryKey: ["api", "library"] });
   const fail = (err: unknown) => {

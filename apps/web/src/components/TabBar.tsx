@@ -24,9 +24,9 @@ function TabLink({ tab }: { tab: Tab }) {
     <Link
       to={tab.to}
       activeOptions={{ exact: tab.to === "/" }}
-      className="flex min-w-11 flex-1 flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45 data-[status=active]:text-foreground"
+      className="flex min-w-11 flex-1 flex-col items-center justify-center gap-1 text-[0.625rem] text-muted-foreground outline-none focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 data-[status=active]:text-foreground"
     >
-      <Icon className="size-[22px]" aria-hidden />
+      <Icon className="size-5.5" aria-hidden />
       {tab.label}
     </Link>
   );
@@ -37,7 +37,7 @@ export function TabBar({ onDownload }: { onDownload: () => void }) {
   return (
     <nav
       aria-label="Tabs"
-      className="fixed inset-x-0 bottom-0 z-30 flex h-[calc(58px+env(safe-area-inset-bottom))] items-stretch border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 flex h-[calc(3.625rem+env(safe-area-inset-bottom))] items-stretch border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {LEFT.map((tab) => (
         <TabLink key={tab.to} tab={tab} />
@@ -47,10 +47,10 @@ export function TabBar({ onDownload }: { onDownload: () => void }) {
           variant="ghost"
           size="icon"
           aria-label="Create"
-          className="rounded-full border-[1.5px] border-foreground"
+          className="rounded-full border-[0.09375rem] border-foreground"
           onClick={onDownload}
         >
-          <Plus className="size-[22px]" aria-hidden />
+          <Plus className="size-5.5" aria-hidden />
         </Button>
       </div>
       {RIGHT.map((tab) => (
