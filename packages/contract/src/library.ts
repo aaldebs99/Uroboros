@@ -54,8 +54,14 @@ export const LibraryItem = LibraryEntry.extend({
   audioCodec: z.string().nullable(),
   /** Asks for, and follows, a compatible copy (docs/transcoding.md). */
   playbackUrl: z.string(),
+  /** The owner's name when the caller sees it through a share (docs/sharing.md); null for their own. */
+  sharedBy: z.string().nullable(),
 }).openapi("LibraryItem");
 export type LibraryItem = z.infer<typeof LibraryItem>;
+
+/** An entry of the caller's, by id. */
+export const EntryRef = z.object({ id: z.uuid() }).openapi("EntryRef");
+export type EntryRef = z.infer<typeof EntryRef>;
 
 export const ChannelSummary = z
   .object({

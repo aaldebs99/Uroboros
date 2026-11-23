@@ -1,8 +1,8 @@
 import type { Playback } from "@uroboros/contract";
 import type { Kysely } from "kysely";
 import type { Database, TranscodeEncoder } from "../db/schema.ts";
-import { ApiError } from "../api/errors.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
+import { visibleEntry, type Viewer } from "../sharing/access.ts";
 import { transcodePrefix } from "./keys.ts";
 import type { TranscodeRow } from "./playlists.ts";
 import { addTranscodeJob } from "./queue.ts";
@@ -13,16 +13,9 @@ export interface PlaybackContext extends DownloadContext {
   encoder: TranscodeEncoder;
 }
 
-/** The rendition behind the caller's entry; another person's entry is 404. */
-async function entryRendition(db: Kysely<Database>, userId: string, entryId: string) {
-  const row = await db
-    .selectFrom("library_entries")
-    .select("rendition_id")
-    .where("id", "=", entryId)
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
-  if (row === undefined) throw new ApiError("not_found", "no such library entry");
-  return row.rendition_id;
+/** The rendition behind an entry the viewer may see (docs/sharing.md); anything else is 404. */
+async function entryRendition(db: Kysely<Database>, viewer: Viewer, entryId: string) {
+  return (await visibleEntry(db, viewer, entryId)).rendition_id;
 }
 
 function findCopy(db: Kysely<Database>, renditionId: string, encoder: TranscodeEncoder) {
@@ -42,13 +35,14 @@ async function touch(db: Kysely<Database>, id: string): Promise<void> {
     .execute();
 }
 
-export function toPlayback(row: TranscodeRow, entryId: string): Playback {
+/** `base` is where the entry's playback routes live (`/api/library/{id}/playback`, or a link's). */
+export function toPlayback(row: TranscodeRow, base: string): Playback {
   return {
     state: row.state,
     mode: row.mode,
     readySegments: row.ready_segments,
     progress: Math.min(1, Math.max(0, row.progress)),
-    masterUrl: `/api/library/${entryId}/playback/master.m3u8`,
+    masterUrl: `${base}/master.m3u8`,
     error: row.state === "failed" ? (row.error_message ?? "the conversion failed") : null,
   };
 }
@@ -66,15 +60,16 @@ async function dropFailed(db: Kysely<Database>, id: string): Promise<void> {
 }
 
 /**
- * Finds or makes the compatible copy of the caller's entry and queues it unless it is done. Two
- * requests at once make one copy (the unique key); a failed copy is replaced by a new one.
+ * Finds or makes the compatible copy of an entry the viewer may see and queues it unless it is
+ * done. Two requests at once make one copy (the unique key); a failed copy is replaced anew.
  */
 export async function ensurePlayback(
   ctx: PlaybackContext,
-  userId: string,
+  viewer: Viewer,
   entryId: string,
+  base: string,
 ): Promise<Playback> {
-  const renditionId = await entryRendition(ctx.db, userId, entryId);
+  const renditionId = await entryRendition(ctx.db, viewer, entryId);
   const existing = await findCopy(ctx.db, renditionId, ctx.encoder);
   if (existing?.state === "failed") await dropFailed(ctx.db, existing.id);
   if (existing === undefined || existing.state === "failed") {
@@ -92,27 +87,28 @@ export async function ensurePlayback(
   if (row === undefined) throw new Error("the copy was not recorded");
   if (row.state !== "done") await addTranscodeJob(ctx.queues.transcode, row.id);
   await touch(ctx.db, row.id);
-  return toPlayback(row, entryId);
+  return toPlayback(row, base);
 }
 
-/** The caller's entry's copy as it stands (touched: someone is waiting for it), or null. */
+/** The entry's copy as it stands (touched: someone is waiting for it), or null. */
 export async function getPlayback(
   ctx: PlaybackContext,
-  userId: string,
+  viewer: Viewer,
   entryId: string,
+  base: string,
 ): Promise<Playback | null> {
-  const row = await ownCopy(ctx, userId, entryId);
+  const row = await copyFor(ctx, viewer, entryId);
   if (row === undefined) return null;
   await touch(ctx.db, row.id);
-  return toPlayback(row, entryId);
+  return toPlayback(row, base);
 }
 
-/** The caller's entry's copy, if any; another person's entry is 404. */
-export async function ownCopy(
+/** The copy of an entry the viewer may see, if any; anything else is 404. */
+export async function copyFor(
   ctx: PlaybackContext,
-  userId: string,
+  viewer: Viewer,
   entryId: string,
 ): Promise<TranscodeRow | undefined> {
-  const renditionId = await entryRendition(ctx.db, userId, entryId);
+  const renditionId = await entryRendition(ctx.db, viewer, entryId);
   return findCopy(ctx.db, renditionId, ctx.encoder);
 }

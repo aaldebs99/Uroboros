@@ -54,6 +54,7 @@ export {
 export {
   Chapter,
   ChannelSummary,
+  EntryRef,
   LIBRARY_PAGE_SIZE,
   LibraryItem,
   LibraryPage,

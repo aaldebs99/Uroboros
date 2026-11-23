@@ -16,6 +16,8 @@ export interface LibraryFilters {
   source?: string | undefined;
   /** A manual playlist of the caller's. */
   playlist?: string | undefined;
+  /** One entry (a shared video's listing). */
+  entry?: string | undefined;
   tag?: string | undefined;
   watched?: boolean | undefined;
   sort?: LibrarySort | undefined;
@@ -69,16 +71,17 @@ function sortSpec(sort: LibrarySort, q: string | null): SortSpec {
   }
 }
 
-export function base(db: Kysely<Database>, userId: string) {
+/** `ownerId`'s entries with `viewerId`'s progress (the same person, unless through a share). */
+export function base(db: Kysely<Database>, viewerId: string, ownerId: string = viewerId) {
   return db
     .selectFrom("library_entries as e")
     .innerJoin("media as m", "m.id", "e.media_id")
     .innerJoin("renditions as r", "r.id", "e.rendition_id")
     .innerJoin("format_profiles as p", "p.id", "r.profile_id")
     .leftJoin("watch_progress as wp", (j) =>
-      j.onRef("wp.media_id", "=", "e.media_id").on("wp.user_id", "=", userId),
+      j.onRef("wp.media_id", "=", "e.media_id").on("wp.user_id", "=", viewerId),
     )
-    .where("e.user_id", "=", userId);
+    .where("e.user_id", "=", ownerId);
 }
 
 type Base = ReturnType<typeof base>;
@@ -190,17 +193,23 @@ function inPlaylist(qb: Base, f: LibraryFilters): Base {
   return qb;
 }
 
-/** One page of the caller's library (docs/library.md). */
+/**
+ * One page of the caller's library (docs/library.md), or, with `as`, of another person's entries
+ * the caller reaches through a share (the share's route checked that, and narrows with `entry`,
+ * `playlist` or `source`); those entries carry none of the owner's tags, Keep or subscription.
+ */
 export async function listLibraryPage(
   db: Kysely<Database>,
   userId: string,
   f: LibraryFilters,
+  as?: { ownerId: string },
 ): Promise<LibraryPage> {
   const q = f.q?.trim() ? f.q.trim().slice(0, 500) : null;
   const sort = chooseSort(f, q);
-  await checkPlaylists(db, userId, f);
+  if (as === undefined) await checkPlaylists(db, userId, f);
   const spec = sortSpec(sort, q);
-  let qb = inPlaylist(filtered(base(db, userId), f, q), f);
+  let qb = inPlaylist(filtered(base(db, userId, as?.ownerId), f, q), f);
+  if (f.entry !== undefined) qb = qb.where("e.id", "=", f.entry);
   if (f.cursor !== undefined) {
     const c = decodeCursor(f.cursor);
     const op = spec.dir === "desc" ? sql`<` : sql`>`;
@@ -217,7 +226,7 @@ export async function listLibraryPage(
   const pageRows = typed.slice(0, LIBRARY_PAGE_SIZE);
   const last = pageRows.at(-1);
   return {
-    entries: pageRows.map(toEntry),
+    entries: pageRows.map((r) => toEntry(r, as === undefined)),
     nextCursor:
       typed.length > LIBRARY_PAGE_SIZE && last !== undefined
         ? encodeCursor({ key: keyOf(last.sort_key), id: last.id })
@@ -295,7 +304,8 @@ function badCursorKey(err: unknown): never {
 const keyOf = (v: unknown): Cursor["key"] =>
   v instanceof Date ? v.toISOString() : typeof v === "number" || typeof v === "string" ? v : null;
 
-export function toEntry(r: EntryRow): LibraryEntry {
+/** The contract's entry; `own` false blanks what is the owner's alone (tags, Keep, subscription). */
+export function toEntry(r: EntryRow, own = true): LibraryEntry {
   return {
     id: r.id,
     mediaId: r.media_id,
@@ -312,10 +322,12 @@ export function toEntry(r: EntryRow): LibraryEntry {
       r.position_s === null || r.duration_s === null
         ? null
         : { position: r.position_s, duration: r.duration_s, watched: r.watched ?? false },
-    tags: r.tags,
-    kept: r.kept,
+    tags: own ? r.tags : [],
+    kept: own && r.kept,
     subscription:
-      r.subscription_id === null ? null : { id: r.subscription_id, title: r.subscription_title },
+      !own || r.subscription_id === null
+        ? null
+        : { id: r.subscription_id, title: r.subscription_title },
     channelKey: channelKey(r.extractor, r.channel_id, r.channel ?? r.uploader),
   };
 }

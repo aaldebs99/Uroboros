@@ -69,6 +69,7 @@ const item = {
   webpageUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
   sources: [],
   playlists: [],
+  sharedBy: null,
 };
 
 afterEach(() => {

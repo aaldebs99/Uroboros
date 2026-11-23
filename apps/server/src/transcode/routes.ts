@@ -5,7 +5,8 @@ import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { attemptPrefix } from "./keys.ts";
-import { ensurePlayback, getPlayback, ownCopy, type PlaybackContext } from "./playback.ts";
+import type { Viewer } from "../sharing/access.ts";
+import { copyFor, ensurePlayback, getPlayback, type PlaybackContext } from "./playback.ts";
 import { masterPlaylist } from "./playlists.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
@@ -22,69 +23,84 @@ const attempt = z
   .string()
   .regex(/^\d{1,6}$/)
   .openapi({ param: { name: "attempt", in: "path" } });
-const tags = ["library"];
 const M3U8 = "application/vnd.apple.mpegurl";
 /** A copy's files never change once stored (each attempt has its own folder). */
 const IMMUTABLE = "private, max-age=31536000, immutable";
 const FILE = /^(init\.mp4|seg-\d{5}\.m4s)$/;
 
-const askRoute = createRoute({
-  method: "post",
-  path: "/api/library/{id}/playback",
-  tags,
-  summary: "Ask for a copy of the entry this browser can play (made once, then kept)",
-  request: { params: z.object({ id }) },
-  responses: {
-    200: json(Playback, "The copy and how far along it is"),
-    404: error("No such entry"),
-  },
-});
+/** Where a set of playback routes lives and who asks through it. */
+export interface PlaybackScope {
+  /** The entry's playback path, e.g. `/api/library/{id}/playback`. */
+  path: string;
+  /** The path's own parameters (the entry's `id`, and any before it). */
+  params: z.ZodObject<{ id: typeof id } & Record<string, z.ZodType>>;
+  tags: string[];
+  /** `[]` for routes anyone may call (a public link's). */
+  security?: [];
+  /** The viewer, the entry, and the base its URLs are built on, from the request. */
+  resolve: (c: Context) => { viewer: Viewer; entryId: string; base: string };
+}
 
-const stateRoute = createRoute({
-  method: "get",
-  path: "/api/library/{id}/playback",
-  tags,
-  summary: "How far along the entry's compatible copy is",
-  request: { params: z.object({ id }) },
-  responses: { 200: json(Playback, "The copy"), 404: error("No such entry, or no copy asked for") },
-});
-
-const masterRoute = createRoute({
-  method: "get",
-  path: "/api/library/{id}/playback/master.m3u8",
-  tags,
-  summary: "The copy's multivariant HLS playlist",
-  request: { params: z.object({ id }) },
-  responses: {
-    200: text("The playlist", M3U8),
-    404: error("No such entry or copy"),
-    409: error("The copy has not started yet"),
-  },
-});
-
-const playlistRoute = createRoute({
-  method: "get",
-  path: "/api/library/{id}/playback/{attempt}/index.m3u8",
-  tags,
-  summary: "The copy's media playlist, which grows as segments are stored",
-  request: { params: z.object({ id, attempt }) },
-  responses: { 200: text("The playlist", M3U8), 404: error("Not stored, or another attempt") },
-});
-
-const fileRoute = createRoute({
-  method: "get",
-  path: "/api/library/{id}/playback/{attempt}/{file}",
-  tags,
-  summary: "One of the copy's files: init.mp4 or seg-NNNNN.m4s",
-  request: {
-    params: z.object({
-      id,
-      attempt,
-      file: z.string().openapi({ param: { name: "file", in: "path" } }),
-    }),
-  },
-  responses: { 200: text("The file", "video/mp4"), 404: error("No such file") },
-});
+/** The five playback routes of a scope. */
+function scopeRoutes(scope: PlaybackScope) {
+  const common = { tags: scope.tags, ...(scope.security ? { security: scope.security } : {}) };
+  const ask = createRoute({
+    ...common,
+    method: "post",
+    path: scope.path,
+    summary: "Ask for a copy of the entry this browser can play (made once, then kept)",
+    request: { params: scope.params },
+    responses: {
+      200: json(Playback, "The copy and how far along it is"),
+      404: error("No such entry"),
+    },
+  });
+  const state = createRoute({
+    ...common,
+    method: "get",
+    path: scope.path,
+    summary: "How far along the entry's compatible copy is",
+    request: { params: scope.params },
+    responses: {
+      200: json(Playback, "The copy"),
+      404: error("No such entry, or no copy asked for"),
+    },
+  });
+  const master = createRoute({
+    ...common,
+    method: "get",
+    path: `${scope.path}/master.m3u8`,
+    summary: "The copy's multivariant HLS playlist",
+    request: { params: scope.params },
+    responses: {
+      200: text("The playlist", M3U8),
+      404: error("No such entry or copy"),
+      409: error("The copy has not started yet"),
+    },
+  });
+  const playlist = createRoute({
+    ...common,
+    method: "get",
+    path: `${scope.path}/{attempt}/index.m3u8`,
+    summary: "The copy's media playlist, which grows as segments are stored",
+    request: { params: scope.params.extend({ attempt }) },
+    responses: { 200: text("The playlist", M3U8), 404: error("Not stored, or another attempt") },
+  });
+  const file = createRoute({
+    ...common,
+    method: "get",
+    path: `${scope.path}/{attempt}/{file}`,
+    summary: "One of the copy's files: init.mp4 or seg-NNNNN.m4s",
+    request: {
+      params: scope.params.extend({
+        attempt,
+        file: z.string().openapi({ param: { name: "file", in: "path" } }),
+      }),
+    },
+    responses: { 200: text("The file", "video/mp4"), 404: error("No such file") },
+  });
+  return { ask, state, master, playlist, file };
+}
 
 /** The playback routes need queues and storage; `gen` and tests without them get 503. */
 function need(ctx: PlaybackContext | undefined, store: MediaStore | undefined) {
@@ -113,35 +129,38 @@ async function serveStored(
 }
 
 /** The copy's current attempt's folder, or 404 for another attempt. */
-async function attemptFolder(c: Context, p: PlaybackContext, entryId: string, wanted: string) {
-  const row = await ownCopy(p, currentPrincipal(c).userId, entryId);
+async function attemptFolder(p: PlaybackContext, viewer: Viewer, entryId: string, wanted: string) {
+  const row = await copyFor(p, viewer, entryId);
   if (row?.attempt !== Number(wanted)) throw new ApiError("not_found", "no such copy");
   return { row, prefix: attemptPrefix(row.id, row.attempt) };
 }
 
-export function registerPlaybackRoutes(
+/** Registers one scope's playback routes (docs/transcoding.md). */
+export function registerPlaybackScope(
   app: OpenAPIHono,
+  scope: PlaybackScope,
   ctx: PlaybackContext | undefined,
   store: MediaStore | undefined,
 ): void {
-  app.openapi(askRoute, async (c) => {
+  const r = scopeRoutes(scope);
+  app.openapi(r.ask, async (c) => {
     const { ctx: p } = need(ctx, store);
-    return c.json(
-      await ensurePlayback(p, currentPrincipal(c).userId, c.req.valid("param").id),
-      200,
-    );
+    const { viewer, entryId, base } = scope.resolve(c);
+    return c.json(await ensurePlayback(p, viewer, entryId, base), 200);
   });
 
-  app.openapi(stateRoute, async (c) => {
+  app.openapi(r.state, async (c) => {
     const { ctx: p } = need(ctx, store);
-    const playback = await getPlayback(p, currentPrincipal(c).userId, c.req.valid("param").id);
+    const { viewer, entryId, base } = scope.resolve(c);
+    const playback = await getPlayback(p, viewer, entryId, base);
     if (playback === null) throw new ApiError("not_found", "no copy has been asked for");
     return c.json(playback, 200);
   });
 
-  app.openapi(masterRoute, async (c) => {
+  app.openapi(r.master, async (c) => {
     const { ctx: p } = need(ctx, store);
-    const row = await ownCopy(p, currentPrincipal(c).userId, c.req.valid("param").id);
+    const { viewer, entryId } = scope.resolve(c);
+    const row = await copyFor(p, viewer, entryId);
     if (row === undefined) throw new ApiError("not_found", "no copy has been asked for");
     if (row.mode === null || row.codecs === null) {
       throw new ApiError("conflict", "the copy has not started yet");
@@ -152,19 +171,46 @@ export function registerPlaybackRoutes(
     });
   });
 
-  app.openapi(playlistRoute, async (c) => {
+  app.openapi(r.playlist, async (c) => {
     const { ctx: p, store: s } = need(ctx, store);
-    const { id: entryId, attempt: wanted } = c.req.valid("param");
-    const { prefix } = await attemptFolder(c, p, entryId, wanted);
+    const { viewer, entryId } = scope.resolve(c);
+    const { prefix } = await attemptFolder(p, viewer, entryId, c.req.param("attempt"));
     return serveStored(c, s, `${prefix}index.m3u8`, M3U8, "no-store");
   });
 
-  app.openapi(fileRoute, async (c) => {
+  app.openapi(r.file, async (c) => {
     const { ctx: p, store: s } = need(ctx, store);
-    const { id: entryId, attempt: wanted, file } = c.req.valid("param");
+    const { viewer, entryId } = scope.resolve(c);
+    const file = c.req.param("file");
     if (!FILE.test(file)) throw new ApiError("not_found", "no such file");
-    const { row, prefix } = await attemptFolder(c, p, entryId, wanted);
+    const { row, prefix } = await attemptFolder(p, viewer, entryId, c.req.param("attempt"));
     const type = row.mode === "audio" ? "audio/mp4" : "video/mp4";
     return serveStored(c, s, `${prefix}${file}`, type, IMMUTABLE);
   });
+}
+
+/** The signed-in playback routes, under `/api/library/{id}/playback`. */
+export function registerPlaybackRoutes(
+  app: OpenAPIHono,
+  ctx: PlaybackContext | undefined,
+  store: MediaStore | undefined,
+): void {
+  registerPlaybackScope(
+    app,
+    {
+      path: "/api/library/{id}/playback",
+      params: z.object({ id }),
+      tags: ["library"],
+      resolve: (c) => {
+        const entryId = c.req.param("id") ?? "";
+        return {
+          viewer: { userId: currentPrincipal(c).userId },
+          entryId,
+          base: `/api/library/${entryId}/playback`,
+        };
+      },
+    },
+    ctx,
+    store,
+  );
 }

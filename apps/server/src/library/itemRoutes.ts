@@ -1,6 +1,7 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   ApiErrorBody,
+  EntryRef,
   KeptBody,
   LibraryItem,
   ProgressBody,
@@ -13,6 +14,8 @@ import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { ownEntry } from "../downloads/library.ts";
 import { needStore, serve } from "../downloads/libraryRoutes.ts";
+import { visibleEntry } from "../sharing/access.ts";
+import { addToLibrary } from "../sharing/add.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { extname } from "node:path";
@@ -105,7 +108,23 @@ const tagsRoute = createRoute({
   responses: { 200: json(TagsBody, "The tags, normalized"), 404: error("No such entry") },
 });
 
-/** The item page's routes (docs/library.md); every one is owner-only. */
+const addRoute = createRoute({
+  method: "post",
+  path: "/api/library/{id}/add",
+  tags: ["library"],
+  summary: "Add a video shared with the caller to their own library (instant: same file)",
+  request: { params: z.object({ id }) },
+  responses: {
+    200: json(EntryRef, "The caller already had it (their own entry on that file)"),
+    201: json(EntryRef, "Added"),
+    404: error("No such entry the caller may see"),
+  },
+});
+
+/**
+ * The item page's routes (docs/library.md). Watching (the item, its file, subtitles, progress)
+ * works for entries shared with the caller too (docs/sharing.md); Keep and tags are the owner's.
+ */
 export function registerItemRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
@@ -117,7 +136,11 @@ export function registerItemRoutes(
 
   app.openapi(streamRoute, async (c) => {
     const s = needStore(store);
-    const entry = await ownEntry(db, currentPrincipal(c).userId, c.req.valid("param").id);
+    const entry = await visibleEntry(
+      db,
+      { userId: currentPrincipal(c).userId },
+      c.req.valid("param").id,
+    );
     const ext = extname(entry.storage_key).slice(1) || (entry.container ?? "bin");
     const url = await s.downloadUrl(entry.storage_key, `${entry.video_id}.${ext}`);
     if (url !== null) return c.redirect(url, 302);
@@ -127,7 +150,7 @@ export function registerItemRoutes(
   app.openapi(subtitleRoute, async (c) => {
     const s = needStore(store);
     const { id: entryId, subId } = c.req.valid("param");
-    const entry = await ownEntry(db, currentPrincipal(c).userId, entryId);
+    const entry = await visibleEntry(db, { userId: currentPrincipal(c).userId }, entryId);
     const sub = await db
       .selectFrom("subtitles")
       .select("storage_key")
@@ -140,7 +163,7 @@ export function registerItemRoutes(
 
   app.openapi(progressRoute, async (c) => {
     const { userId } = currentPrincipal(c);
-    const entry = await ownEntry(db, userId, c.req.valid("param").id);
+    const entry = await visibleEntry(db, { userId }, c.req.valid("param").id);
     const { position, duration } = c.req.valid("json");
     await saveProgress(db, userId, entry.media_id, position, duration);
     return c.body(null, 204);
@@ -148,7 +171,7 @@ export function registerItemRoutes(
 
   app.openapi(watchedRoute, async (c) => {
     const { userId } = currentPrincipal(c);
-    const entry = await ownEntry(db, userId, c.req.valid("param").id);
+    const entry = await visibleEntry(db, { userId }, c.req.valid("param").id);
     await setWatched(
       db,
       userId,
@@ -156,6 +179,11 @@ export function registerItemRoutes(
       c.req.valid("json").watched,
     );
     return c.body(null, 204);
+  });
+
+  app.openapi(addRoute, async (c) => {
+    const added = await addToLibrary(db, currentPrincipal(c).userId, c.req.valid("param").id);
+    return added.created ? c.json({ id: added.id }, 201) : c.json({ id: added.id }, 200);
   });
 
   app.openapi(keptRoute, async (c) => {

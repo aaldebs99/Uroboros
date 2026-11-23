@@ -4,17 +4,23 @@ import { z } from "zod";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { playlistsHolding } from "../playlists/listing.ts";
+import { visibleEntry } from "../sharing/access.ts";
 import { base, ENTRY_COLUMNS, toEntry, type EntryRow } from "./query.ts";
 
 const Chapters = z.array(Chapter);
 
-/** The caller's entry with what its page and player need; another person's is 404. */
+/**
+ * An entry with what its page and player need: the caller's own, or one a share reaches them
+ * with (docs/sharing.md), which shows none of the owner's tags, Keep, subscription or playlists.
+ * Anything else is 404.
+ */
 export async function getItem(
   db: Kysely<Database>,
   userId: string,
   entryId: string,
 ): Promise<LibraryItem> {
-  const row = (await base(db, userId)
+  const seen = await visibleEntry(db, { userId }, entryId);
+  const row = (await base(db, userId, seen.user_id)
     .where("e.id", "=", entryId)
     .select([
       ...ENTRY_COLUMNS,
@@ -42,21 +48,12 @@ export async function getItem(
       .orderBy("automatic")
       .orderBy("lang")
       .execute(),
-    db
-      .selectFrom("source_items as si")
-      .innerJoin("sources as s", "s.id", "si.source_id")
-      .innerJoin("user_sources as us", (j) =>
-        j.onRef("us.source_id", "=", "s.id").on("us.user_id", "=", userId),
-      )
-      .where("si.extractor", "=", row.extractor)
-      .where("si.video_id", "=", row.video_id)
-      .select(["s.id", "s.title"])
-      .execute(),
-    playlistsHolding(db, userId, entryId),
+    seen.own ? youtubePlaylists(db, userId, row) : [],
+    seen.own ? playlistsHolding(db, userId, entryId) : [],
   ]);
   const chapters = Chapters.safeParse(row.chapters);
   return {
-    ...toEntry(row),
+    ...toEntry(row, seen.own),
     description: row.description,
     chapters: chapters.success ? chapters.data : [],
     subtitles: subs.map((s) => ({ ...s, url: `/api/library/${entryId}/subtitles/${s.id}` })),
@@ -67,5 +64,24 @@ export async function getItem(
     videoCodec: row.video_codec,
     audioCodec: row.audio_codec,
     playbackUrl: `/api/library/${entryId}/playback`,
+    sharedBy: seen.own ? null : seen.owner_name,
   };
+}
+
+/** The caller's YouTube playlists holding this video. */
+function youtubePlaylists(
+  db: Kysely<Database>,
+  userId: string,
+  row: { extractor: string; video_id: string },
+) {
+  return db
+    .selectFrom("source_items as si")
+    .innerJoin("sources as s", "s.id", "si.source_id")
+    .innerJoin("user_sources as us", (j) =>
+      j.onRef("us.source_id", "=", "s.id").on("us.user_id", "=", userId),
+    )
+    .where("si.extractor", "=", row.extractor)
+    .where("si.video_id", "=", row.video_id)
+    .select(["s.id", "s.title"])
+    .execute();
 }

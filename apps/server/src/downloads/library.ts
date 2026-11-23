@@ -13,6 +13,7 @@ export function entryQuery(db: Kysely<Database>) {
       "e.id",
       "e.user_id",
       "e.media_id",
+      "e.rendition_id",
       "e.added_at",
       "m.title",
       "m.video_id",

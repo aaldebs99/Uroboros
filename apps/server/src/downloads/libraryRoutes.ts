@@ -16,7 +16,8 @@ import { contentTypeOf } from "../storage/contentType.ts";
 import { sanitizeSegment, type MediaStore } from "../storage/index.ts";
 import { listChannels, listSources } from "../library/channels.ts";
 import { listLibraryPage } from "../library/query.ts";
-import { ownEntry, removeEntry } from "./library.ts";
+import { visibleEntry } from "../sharing/access.ts";
+import { removeEntry } from "./library.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
   description,
@@ -107,7 +108,7 @@ const fileRoute = createRoute({
   method: "get",
   path: "/api/library/{id}/file",
   tags: ["library"],
-  summary: "Save the file: streamed with range support, or a redirect to a presigned URL",
+  summary: "Save the file (own or shared): streamed with range support, or a presigned redirect",
   request: { params: idParams },
   responses: {
     200: binary("The file", "application/octet-stream"),
@@ -210,7 +211,8 @@ export function registerLibraryRoutes(
 
   app.openapi(fileRoute, async (c) => {
     const s = needStore(store);
-    const entry = await ownEntry(db, currentPrincipal(c).userId, c.req.valid("param").id);
+    const viewer = { userId: currentPrincipal(c).userId };
+    const entry = await visibleEntry(db, viewer, c.req.valid("param").id);
     const ext = extname(entry.storage_key).slice(1) || (entry.container ?? "bin");
     const filename = `${sanitizeSegment(entry.title ?? entry.video_id)} [${entry.profile_name}].${ext}`;
     const url = await s.downloadUrl(entry.storage_key, filename);
@@ -220,7 +222,8 @@ export function registerLibraryRoutes(
 
   app.openapi(thumbnailRoute, async (c) => {
     const s = needStore(store);
-    const entry = await ownEntry(db, currentPrincipal(c).userId, c.req.valid("param").id);
+    const viewer = { userId: currentPrincipal(c).userId };
+    const entry = await visibleEntry(db, viewer, c.req.valid("param").id);
     if (entry.thumbnail_key === null) throw new ApiError("not_found", "no thumbnail");
     return serve(
       c,
