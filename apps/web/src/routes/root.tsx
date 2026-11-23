@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import { useState } from "react";
 
 import { Brand } from "@/components/Brand";
+import { QuickDownload } from "@/components/QuickDownload";
 import { SidebarNav } from "@/components/SidebarNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,8 @@ export function RootLayout() {
 }
 
 /**
- * The app shell: a full-width top bar (brand on the left; the theme toggle and the account menu
- * on the right), and below it a fixed sidebar from `md` up or a sheet drawer under that. It also
+ * The app shell: a full-width top bar (brand on the left; quick download, the theme toggle and
+ * the account menu on the right), and below it a fixed sidebar from `md` up or a sheet drawer under that. It also
  * mends this browser's push subscription once per launch.
  */
 function Shell({ me }: { me: Me }) {
@@ -65,6 +66,7 @@ function Shell({ me }: { me: Me }) {
         </Sheet>
         <Brand />
         <div className="ml-auto flex items-center gap-2">
+          <QuickDownload />
           <ThemeToggle />
           <UserMenu
             me={me}
