@@ -58,6 +58,21 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
 - The watched bar (a 4px `bg-primary` bar on a `bg-white/35` track along the thumbnail's bottom
   edge) appears only once watch progress is tracked.
 
+## Watch page
+
+`library/ItemPage.tsx`, after YouTube's watch page, across the whole page:
+
+- The side navigation is a [drawer](shell-and-navigation.md#side-navigation) here and the margins
+  are 24px, so the player starts at the left margin and takes the page's width less the
+  suggestions column (18 to 25rem) on the right, 24px away.
+- Under the player: the title (20/700), the channel row with the actions (Watched, Keep on a
+  subscription's entry, Save, Remove, Open on the site), the clamped description, tags, the
+  playlists it is in, and chapters.
+- The columns follow the page's width (`@container`, two columns from `@6xl`); on a narrower page
+  the suggestions stack under the details.
+- The suggestions are "From your library" rows: a 168px thumbnail with the title, channel and
+  when it was added beside it.
+
 ## Player
 
 Video.js 10's packaged Neutral video skin (`library/Player.tsx`), branded through its public
@@ -67,6 +82,8 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
   while pointed at (the pointed-at chapter 7px), chapters 2px apart. Unplayed is white at 20%,
   buffered white at 40%, the run up to the pointer white at 30%, and played the accent with a soft
   glow. The thumb is a 13px accent circle, shown on hover, drag or focus.
+- Under the timeline, play, volume and the time sit at the left; captions, settings, cast,
+  picture-in-picture and fullscreen sit at the right.
 - `player.css` targets the skin's own class names; `playerSkin.test.ts` fails when an upgrade
   renames one. Keep new styling to the public custom properties where they reach.
 - Shortcuts: Space and `k` play and pause, `j`/`l` seek 10 s, the arrows 5 s (`PlayerHotkeys`), `,`

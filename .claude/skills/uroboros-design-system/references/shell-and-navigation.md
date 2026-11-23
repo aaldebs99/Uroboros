@@ -10,7 +10,8 @@ and `components/ThemeToggle.tsx`. The target below replaces their look; the beha
 A bar in the page colour (`bg-background`), 56px tall, with no border or shadow, holding from left
 to right:
 
-1. A ghost icon button with `Menu`, which toggles the side navigation between full and mini.
+1. A ghost icon button with `Menu`, which toggles the side navigation between full and mini (on a
+   watch page, it opens the navigation drawer).
 2. The brand: `Brand` (the tile and "Uroboros" in Roboto 700, 18px).
 3. The [search](actions-and-forms.md#search), centred and up to about 640px wide.
 4. **"+ Create"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500.
@@ -33,7 +34,26 @@ A list of sections in the page colour, below the top bar, not a separate coloure
 - When subscriptions exist, a **Subscriptions** group lists channels with 24px round avatars.
 - **Mini mode** (from the menu button) is a 72px rail: the icon above a 10px label, with the
   current item filled.
+- **On a watch page** (`/library/$entryId`, `isWatchPage` in `nav.ts`) the side navigation steps
+  aside for the player, as on YouTube: the menu button opens it as a 240px drawer from the left
+  over the scrim (`components/NavDrawer.tsx`), with its own menu button and brand where the top
+  bar's sit. Any navigation closes it, and closing it returns the focus to the menu button.
 - The navigation list stays in `nav.ts`.
+
+## Page width
+
+The main area is the window less the side navigation, inside 32px margins (16px on phones, 24px
+on a watch page). Pages use all of it:
+
+- Grids, lists, tables, the downloads queue and the watch page fill the width and grow with the
+  window. A video grid adds columns (`auto-fill`) rather than stretching its tiles.
+- Never centre a page in an `mx-auto max-w-*` column: on a wide window it leaves empty bands on
+  both sides and puts the content far from the navigation.
+- A block that reads badly stretched (a form's fields, a settings column, a long paragraph) caps
+  its own width (`max-w-3xl`, about 768px) and stays at the left margin.
+- Sign-in, which has no shell, is the one centred page. Dialogs are centred overlays.
+- Not yet followed: Downloads, Settings, Account, Users and Format profiles still centre a
+  `max-w-3xl` to `max-w-5xl` column. Bring each one to this rule when you next change it.
 
 ## Create and the download dialog
 

@@ -51,6 +51,11 @@ skill, this skill wins. The existing files are listed in each reference.
    are at least 44px.
 9. **Show only real features.** No bell, Pause, watched bar, subscriber count or Create menu
    item until the feature behind it exists.
+10. **Pages use the whole page.** A page fills the main area from its left margin to its right:
+    grids, lists, tables and the watch page grow with the window. Never centre a page in an
+    `mx-auto max-w-*` column that leaves empty bands either side. A block that reads badly
+    stretched (a form, a settings column, a paragraph) caps its own width and stays at the left
+    margin. Details in [shell-and-navigation](references/shell-and-navigation.md#page-width).
 
 ## Where each primitive is
 
@@ -87,3 +92,4 @@ dialogs and toasts, `rounded-2xl` (16px) cards and sheets, `rounded-[4px]` durat
 | `bg-black/75` on a duration badge                              | `bg-overlay text-overlay-foreground`                                          |
 | A navy sidebar (`bg-sidebar`)                                  | Side navigation on the canvas colour, with the current row filled `bg-raised` |
 | A Pause button, a bell or a subscriber count                   | Only when the feature exists                                                  |
+| A page centred in `mx-auto max-w-4xl` with empty bands beside  | The page at full width; a form or settings column capped and left-aligned     |
