@@ -4,6 +4,7 @@ import {
   LibraryItem,
   TagsBody,
   LibraryPage,
+  Playback,
   SourceSummary,
   type FormatProfilePatch,
   type LibrarySort,
@@ -101,6 +102,28 @@ export const useDeleteProfile = () =>
   useProfileMutation((id: string) => deleteJson(profilePath(id)));
 
 export const itemKey = (id: string) => ["api", "library", "item", id] as const;
+export const playbackKey = (id: string) => ["api", "library", "item", id, "playback"] as const;
+
+/** While a compatible copy is being made, how often to look again. */
+const PLAYBACK_POLL_MS = 2000;
+
+/** Asks for the entry's compatible copy (made once, then kept). */
+export const requestPlayback = (id: string) =>
+  postJson(`/api/library/${encodeURIComponent(id)}/playback`, Playback);
+
+/** The entry's compatible copy, polled while it is being made; off until `enabled`. */
+export function usePlayback(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: playbackKey(id),
+    enabled,
+    queryFn: ({ signal }) =>
+      getJson(`/api/library/${encodeURIComponent(id)}/playback`, Playback, { signal }),
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      return state === "done" || state === "failed" ? false : PLAYBACK_POLL_MS;
+    },
+  });
+}
 
 /** One entry with its chapters, subtitles and stream URL. */
 export function useItem(id: string) {

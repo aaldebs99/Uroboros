@@ -8,9 +8,13 @@ import { renderInRouter } from "@/test/render";
 import { ItemPage } from "./ItemPage";
 import { useProgressReporter } from "./useProgressReporter";
 
+// jsdom plays nothing; these pages are about a browser that plays the original.
+vi.mock("./playable", () => ({ canPlayOriginal: () => true, hasNativeHls: () => false }));
+
 vi.mock("./Player", () => ({
   Player: (props: {
     src: string;
+    hls?: { native: boolean };
     start: number;
     seek: { time: number } | null;
     subtitles: { lang: string }[];
@@ -18,6 +22,7 @@ vi.mock("./Player", () => ({
     <div
       data-testid="player"
       data-src={props.src}
+      data-hls={props.hls === undefined ? "" : props.hls.native ? "native" : "mse"}
       data-start={String(props.start)}
       data-seek={props.seek === null ? "" : String(props.seek.time)}
       data-subs={props.subtitles.map((s) => s.lang).join(",")}
@@ -109,6 +114,35 @@ describe("ItemPage", () => {
       expect(calls.find((c) => c.path.endsWith("/tags"))?.body).toEqual({
         tags: ["movies", "open"],
       });
+    });
+  });
+});
+
+describe("ItemPage compatible version", () => {
+  it("switches to the compatible version by hand, and back", async () => {
+    const done = {
+      state: "done",
+      mode: "encode",
+      readySegments: 3,
+      progress: 1,
+      masterUrl: `/api/library/${ID}/playback/master.m3u8`,
+      error: null,
+    };
+    fakeApi({
+      [`GET /api/library/${ID}`]: () => Response.json(item),
+      [`POST /api/library/${ID}/playback`]: () => Response.json(done),
+      [`GET /api/library/${ID}/playback`]: () => Response.json(done),
+    });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    expect(await screen.findByTestId("player")).toHaveAttribute("data-hls", "");
+    await userEvent.click(screen.getByRole("button", { name: /Use the compatible version/ }));
+    await waitFor(() => {
+      expect(screen.getByTestId("player")).toHaveAttribute("data-hls", "mse");
+    });
+    expect(screen.getByTestId("player")).toHaveAttribute("data-src", done.masterUrl);
+    await userEvent.click(screen.getByRole("button", { name: "Play the original" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("player")).toHaveAttribute("data-hls", "");
     });
   });
 });

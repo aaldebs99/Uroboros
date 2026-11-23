@@ -2,7 +2,7 @@ import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Download, ExternalLink, ListVideo, Trash2 } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 
 import { errorText } from "@/api/client";
 import {
@@ -24,8 +24,7 @@ import { formatDuration } from "@/downloads/format";
 import { Suggestions } from "./Suggestions";
 import { TagEditor } from "./TagEditor";
 import { useProgressReporter } from "./useProgressReporter";
-
-const Player = lazy(() => import("./Player").then((m) => ({ default: m.Player })));
+import { WatchPlayer } from "./WatchPlayer";
 
 function Description({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -101,18 +100,13 @@ export function ItemPage({ entryId }: { entryId: string }) {
     <div className="@container w-full">
       <div className="grid gap-6 @6xl:grid-cols-[minmax(0,13fr)_minmax(18rem,7fr)]">
         <article className="grid min-w-0 content-start gap-4">
-          <Suspense fallback={<div className="aspect-video w-full rounded-[12px] bg-raised" />}>
-            <Player
-              src={it.streamUrl}
-              title={it.title}
-              start={it.progress !== null && !it.progress.watched ? it.progress.position : 0}
-              autoPlay
-              seek={seek}
-              chapters={it.chapters}
-              subtitles={it.subtitles}
-              {...reporter}
-            />
-          </Suspense>
+          <WatchPlayer
+            item={it}
+            start={it.progress !== null && !it.progress.watched ? it.progress.position : 0}
+            autoPlay
+            seek={seek}
+            {...reporter}
+          />
           <h1 className="text-xl font-bold">{it.title}</h1>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
             <div className="flex min-w-0 flex-1 items-center gap-3">

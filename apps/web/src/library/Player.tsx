@@ -3,6 +3,8 @@ import "./player.css";
 
 import type { Chapter, SubtitleTrack } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
+import { HlsVideo } from "@videojs/react/media/hls-video";
+import { NativeHlsVideo } from "@videojs/react/media/native-hls-video";
 import { NeutralVideoSkin, Video, VideoPlayer } from "@videojs/react/video";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 
@@ -11,7 +13,12 @@ import { readVolume, storeVolume } from "@/lib/playerPrefs";
 import { PlayerHotkeys } from "./PlayerHotkeys";
 
 export interface PlayerProps {
+  /** The file, or with `hls` a compatible copy's multivariant playlist. */
   src: string;
+  /**
+   * Play `src` as HLS: natively (Safari, iOS) or through Video.js's MSE engine (docs/transcoding.md).
+   */
+  hls?: { native: boolean };
   title: string;
   /** Where to start, in seconds (the saved position). */
   start: number;
@@ -113,6 +120,8 @@ export function Player(p: PlayerProps) {
   }, [p.seek]);
   const at = (v: HTMLVideoElement) =>
     [v.currentTime, Number.isFinite(v.duration) ? v.duration : 0] as const;
+  // The same element and props either way: a file, or an HLS copy.
+  const Media = p.hls === undefined ? Video : p.hls.native ? NativeHlsVideo : HlsVideo;
   return (
     <VideoPlayer>
       {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
@@ -120,7 +129,7 @@ export function Player(p: PlayerProps) {
         style={brand}
         className="uro-player overflow-hidden rounded-[12px] bg-black"
       >
-        <Video
+        <Media
           ref={video}
           src={p.src}
           title={p.title}
@@ -149,7 +158,7 @@ export function Player(p: PlayerProps) {
               default={i === 0}
             />
           ))}
-        </Video>
+        </Media>
         <PlayerHotkeys video={video} />
       </NeutralVideoSkin>
     </VideoPlayer>
