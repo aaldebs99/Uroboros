@@ -60,6 +60,8 @@ export const MediaStream = z
     channels: num,
     duration: numeric,
     bit_rate: numeric,
+    pix_fmt: str,
+    color_transfer: str,
     tags: Tags,
   })
   .transform((s) => ({
@@ -75,6 +77,10 @@ export const MediaStream = z
     channels: s.channels,
     duration: s.duration,
     bitRate: s.bit_rate,
+    /** "yuv420p", "yuv420p10le"…: 8-bit or not decides whether H.264 can be copied. */
+    pixFmt: s.pix_fmt,
+    /** "smpte2084" (PQ) or "arib-std-b67" (HLG) mark an HDR source. */
+    colorTransfer: s.color_transfer,
     language: s.tags.language,
   }));
 export type MediaStream = z.output<typeof MediaStream>;

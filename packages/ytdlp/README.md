@@ -6,11 +6,12 @@ allowlist (`normalizeExtraArgs`), which the api uses to check a format profile's
 when an admin saves it. `@uroboros/ytdlp/testing` exports the fake binary's helpers for other
 packages' tests. yt-dlp is the only downloader, with no setting and no fallback.
 
-| Export     | What it does                                                                                                                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `probe`    | `yt-dlp --dump-single-json` (`flat: true` adds `--flat-playlist`). Returns a `VideoInfo` or a `PlaylistInfo` whose `kind` is `video`, `playlist` or `channel`.                                 |
-| `download` | Downloads into an absolute `workDir` with a format selector and output template, reports `ProgressEvent`s through `onProgress`, and resolves with each final file and its parsed `.info.json`. |
-| `ffprobe`  | A file's container, duration and typed streams.                                                                                                                                                |
+| Export         | What it does                                                                                                                                                                                                                                                                              |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `probe`        | `yt-dlp --dump-single-json` (`flat: true` adds `--flat-playlist`). Returns a `VideoInfo` or a `PlaylistInfo` whose `kind` is `video`, `playlist` or `channel`.                                                                                                                            |
+| `download`     | Downloads into an absolute `workDir` with a format selector and output template, reports `ProgressEvent`s through `onProgress`, and resolves with each final file and its parsed `.info.json`.                                                                                            |
+| `ffprobe`      | A file's container, duration and typed streams (with pixel format and colour transfer).                                                                                                                                                                                                   |
+| `transcodeHls` | Runs ffmpeg into fragmented-MP4 HLS (`index.m3u8`, `init.mp4`, `seg-00001.m4s`…) in a working directory: H.264 (libx264 or NVENC, at most 1080 lines, HDR tone-mapped), a copied H.264 video, or audio only, with AAC; reports progress from `-progress`. `hlsArgs` builds its arguments. |
 
 Every call takes `binary` (the server passes `YTDLP_PATH`; this package reads no environment
 itself), `jsRuntime` (an absolute path to Node, passed as `--js-runtimes node:<path>` so yt-dlp

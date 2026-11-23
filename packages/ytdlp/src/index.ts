@@ -25,5 +25,13 @@ export {
   type ProbeResult,
 } from "./info.ts";
 export { probe, type ProbeOptions } from "./probe.ts";
+export {
+  hlsArgs,
+  transcodeHls,
+  type HlsEncoder,
+  type HlsMode,
+  type HlsPlan,
+  type TranscodeOptions,
+} from "./transcode.ts";
 export type { ProgressEvent, ProgressPhase, ProgressState } from "./progress.ts";
 export { redactLine } from "./redact.ts";
