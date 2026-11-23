@@ -14,6 +14,7 @@ import { registerLibraryRoutes } from "../downloads/libraryRoutes.ts";
 import { registerProfileRoutes } from "../downloads/profileRoutes.ts";
 import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
+import type { MediaStore } from "../storage/index.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
@@ -45,6 +46,8 @@ export interface Deps {
   auth?: AuthDeps;
   /** Download queues and limits; without them the download routes answer 503 (what `gen` uses). */
   downloads?: DownloadContext;
+  /** Where media is stored; without it the file and thumbnail routes answer 503. */
+  store?: MediaStore;
   /** The replica's download event subscription; without it the event stream answers 503. */
   downloadEvents?: EventHub;
 }
@@ -207,7 +210,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerProfileRoutes(app, deps.db);
   registerDownloadRoutes(app, deps.downloads);
   registerEventRoutes(app, deps.downloads, deps.downloadEvents);
-  registerLibraryRoutes(app, deps.db);
+  registerLibraryRoutes(app, deps.db, deps.store);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

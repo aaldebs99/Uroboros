@@ -8,26 +8,13 @@ import { publishDownloadEvent } from "../downloads/events.ts";
 import { ytdlpArgsFor } from "../downloads/profiles.ts";
 import type { FetchJob } from "../downloads/queues.ts";
 import { renditionKey, sidecarKey, type MediaNames } from "../storage/index.ts";
+import { contentTypeOf } from "../storage/contentType.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { upsertMedia } from "./media.ts";
 import { createProgressPublisher } from "./progress.ts";
 
 const ACTIVE = ["queued", "running"] as const;
 const DOWNLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
-
-const CONTENT_TYPES: Record<string, string> = {
-  mp4: "video/mp4",
-  m4a: "audio/mp4",
-  webm: "video/webm",
-  mkv: "video/x-matroska",
-  opus: "audio/ogg",
-  ogg: "audio/ogg",
-  mp3: "audio/mpeg",
-  jpg: "image/jpeg",
-  json: "application/json",
-};
-export const contentTypeOf = (ext: string): string =>
-  CONTENT_TYPES[ext.toLowerCase()] ?? "application/octet-stream";
 
 /** Aborts running fetches by key; the cancel subscriber calls `cancel`. */
 export function createCancelRegistry() {

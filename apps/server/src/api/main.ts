@@ -18,6 +18,7 @@ import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createDownloadQueues } from "../downloads/queues.ts";
 import { createEventHub } from "../downloads/sse.ts";
+import { createStore } from "../storage/index.ts";
 import { DEFAULT_PREFIX } from "../worker/queues.ts";
 import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
 import { startClaimsSync } from "../auth/claimsSync.ts";
@@ -128,6 +129,7 @@ export async function startApi(
         logger,
       },
       downloadEvents,
+      store: createStore(config.storage),
     },
     { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
   );

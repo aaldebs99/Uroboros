@@ -2290,6 +2290,107 @@
         ]
       }
     },
+    "/api/library/{id}/file": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range of it"
+          },
+          "302": {
+            "description": "A presigned URL (S3 with a public URL set)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry, or the file is missing"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "summary": "Save the file: streamed with range support, or a redirect to a presigned URL",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/thumbnail": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The image"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry or thumbnail"
+          }
+        },
+        "summary": "The entry's thumbnail",
+        "tags": [
+          "library"
+        ]
+      }
+    },
     "/api/me": {
       "get": {
         "responses": {
