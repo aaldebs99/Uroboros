@@ -12,12 +12,15 @@ import {
   ShareKind,
   ShareState,
 } from "@uroboros/contract";
+import type { Queue } from "bullmq";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
+import type { NotifyJob } from "../downloads/queues.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { listDirectory } from "./directory.ts";
 import { listMyShares, setLink, setPeople, shareState, stopSharing } from "./manage.ts";
+import { noticeShared, sharedNotice } from "./notices.ts";
 import { listSharedWithMe, saveShared, sharedDetail, sharedEntries } from "./shared.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
@@ -159,8 +162,15 @@ const directoryRoute = createRoute({
 
 const me = (c: Context) => currentPrincipal(c).userId;
 
-/** Sharing with people and by link, and what is shared with the caller (docs/sharing.md). */
-export function registerSharingRoutes(app: OpenAPIHono, db: Kysely<Database>): void {
+/**
+ * Sharing with people and by link, and what is shared with the caller (docs/sharing.md). With
+ * the `notify` queue, people a share newly reaches hear about it.
+ */
+export function registerSharingRoutes(
+  app: OpenAPIHono,
+  db: Kysely<Database>,
+  notify?: Queue<NotifyJob>,
+): void {
   app.openapi(mineRoute, async (c) => c.json(await listMyShares(db, me(c)), 200));
   app.openapi(stateRoute, async (c) => {
     const t = c.req.valid("param");
@@ -169,6 +179,19 @@ export function registerSharingRoutes(app: OpenAPIHono, db: Kysely<Database>): v
   app.openapi(peopleRoute, async (c) => {
     const t = c.req.valid("param");
     const result = await setPeople(db, me(c), t.kind, t.id, c.req.valid("json"));
+    if (notify !== undefined && result.shareId !== null && result.newlyReached.length > 0) {
+      const owner = await db
+        .selectFrom("users")
+        .select("display_name")
+        .where("id", "=", me(c))
+        .executeTakeFirstOrThrow();
+      const message = sharedNotice(owner.display_name, result.state.title, {
+        kind: t.kind,
+        id: t.id,
+        shareId: result.shareId,
+      });
+      await noticeShared(db, notify, result.newlyReached, message);
+    }
     return c.json(result.state, 200);
   });
   app.openapi(stopPeopleRoute, async (c) => {

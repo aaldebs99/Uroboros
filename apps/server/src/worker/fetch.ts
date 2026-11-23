@@ -5,6 +5,7 @@ import { DelayedError, UnrecoverableError } from "bullmq";
 import { dispatchFor } from "../downloads/dispatch.ts";
 import { StorageError, toDownloadError, type DownloadFailure } from "../downloads/errors.ts";
 import { publishDownloadEvent } from "../downloads/events.ts";
+import { noticeFinishedRequests } from "../downloads/requestNotices.ts";
 import { ytdlpArgsFor } from "../downloads/profiles.ts";
 import type { FetchJob } from "../downloads/queues.ts";
 import { renditionKey, sidecarKey, type MediaNames } from "../storage/index.ts";
@@ -154,6 +155,10 @@ export async function settleDone(
   if (settled === null) return false;
   await publishAll(deps, settled);
   await dispatchUsers(deps, settled);
+  await noticeFinishedRequests(
+    deps,
+    settled.map((r) => r.id),
+  );
   return true;
 }
 
@@ -303,7 +308,13 @@ async function recordFailure(
     .returning(["id", "user_id"])
     .execute();
   await publishAll(deps, rows);
-  if (final) await dispatchUsers(deps, rows);
+  if (final) {
+    await dispatchUsers(deps, rows);
+    await noticeFinishedRequests(
+      deps,
+      rows.map((r) => r.id),
+    );
+  }
   return final;
 }
 

@@ -1,5 +1,6 @@
 export { ApiErrorBody, ApiErrorCode, apiErrorStatus } from "./errors.ts";
 export {
+  NotificationPrefs,
   PUSH_LABEL_CHARS,
   PushDevice,
   PushDeviceId,

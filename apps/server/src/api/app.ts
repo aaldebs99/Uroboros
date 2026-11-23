@@ -19,6 +19,7 @@ import { registerPlaylistRoutes } from "../playlists/routes.ts";
 import { linkPreviews } from "../sharing/previews.ts";
 import { registerPublicRoutes } from "../sharing/publicRoutes.ts";
 import { registerSharingRoutes } from "../sharing/routes.ts";
+import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
 import { registerPlaybackRoutes } from "../transcode/routes.ts";
@@ -229,7 +230,8 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerLibraryRoutes(app, deps.db, deps.store);
   registerItemRoutes(app, deps.db, deps.store);
   registerPlaylistRoutes(app, deps.db);
-  registerSharingRoutes(app, deps.db);
+  registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
+  registerNotificationPrefRoutes(app, deps.db);
   registerSubscriptionRoutes(app, deps.downloads);
   const playback =
     deps.downloads === undefined

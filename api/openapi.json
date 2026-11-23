@@ -1300,6 +1300,21 @@
         ],
         "type": "object"
       },
+      "NotificationPrefs": {
+        "properties": {
+          "downloads": {
+            "type": "boolean"
+          },
+          "shares": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "downloads",
+          "shares"
+        ],
+        "type": "object"
+      },
       "PeopleShare": {
         "nullable": true,
         "properties": {
@@ -4763,6 +4778,54 @@
         "summary": "The signed-in user",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/me/notifications": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPrefs"
+                }
+              }
+            },
+            "description": "The choices"
+          }
+        },
+        "summary": "Which kinds of notification the caller gets (all by default)",
+        "tags": [
+          "push"
+        ]
+      },
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPrefs"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPrefs"
+                }
+              }
+            },
+            "description": "The choices"
+          }
+        },
+        "summary": "Choose which kinds of notification the caller gets",
+        "tags": [
+          "push"
         ]
       }
     },

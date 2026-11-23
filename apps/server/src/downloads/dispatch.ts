@@ -65,6 +65,16 @@ async function storedRendition(
   );
 }
 
+/** Something of the request is pending again, so its next finish notifies again. */
+async function reopenNotice(db: Kysely<Database>, requestId: string): Promise<void> {
+  await db
+    .updateTable("download_requests")
+    .set({ noticed_at: null })
+    .where("id", "=", requestId)
+    .where("noticed_at", "is not", null)
+    .execute();
+}
+
 /**
  * Records one download for a person: `skipped` if they already have it or are already getting
  * it, `done` (with a library entry) if the rendition is stored, otherwise `queued` to wait for a
@@ -120,6 +130,7 @@ export async function queueDownload(
     })
     .returning("id")
     .executeTakeFirstOrThrow();
+  if (stored === undefined && input.requestId !== null) await reopenNotice(tx, input.requestId);
   return { outcome: stored === undefined ? "queued" : "done", downloadId: row.id };
 }
 
@@ -303,6 +314,7 @@ export async function retryDownload(
     }
     throw err;
   }
+  if (row.request_id !== null) await reopenNotice(ctx.db, row.request_id);
   await publishDownloadEvent(ctx.valkey, ctx.prefix, {
     kind: "state",
     downloadId: id,
