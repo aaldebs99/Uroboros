@@ -12,7 +12,9 @@ export type SyncAction =
   /** The subscription is gone: subscribe again (permission still stands) and register. */
   | "resubscribe"
   /** The subscription changed, or the server forgot the device: register it again. */
-  | "register";
+  | "register"
+  /** The person turned this device off from another device: leave it off, and say so here. */
+  | "turnedOff";
 
 export interface SyncState {
   permission: NotificationPermission;
@@ -21,12 +23,16 @@ export interface SyncState {
   stored: StoredDevice | null;
   /** The ids of the person's devices on the server. */
   serverDevices: string[];
+  /** The server remembers this browser's endpoint as turned off from another device. */
+  turnedOffElsewhere: boolean;
 }
 
-export function syncAction({ permission, endpoint, stored, serverDevices }: SyncState): SyncAction {
+export function syncAction(state: SyncState): SyncAction {
+  const { permission, endpoint, stored, serverDevices, turnedOffElsewhere } = state;
   if (!stored) return "none";
   if (permission !== "granted") return "forget";
   if (endpoint === null) return "resubscribe";
-  if (endpoint !== stored.endpoint || !serverDevices.includes(stored.id)) return "register";
-  return "none";
+  if (endpoint !== stored.endpoint) return "register";
+  if (serverDevices.includes(stored.id)) return "none";
+  return turnedOffElsewhere ? "turnedOff" : "register";
 }

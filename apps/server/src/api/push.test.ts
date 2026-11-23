@@ -1,5 +1,11 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import { ApiErrorBody, PushDevice, PushTestResult, PushView } from "@uroboros/contract";
+import {
+  ApiErrorBody,
+  PushDevice,
+  PushEndpointStatus,
+  PushTestResult,
+  PushView,
+} from "@uroboros/contract";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -255,5 +261,73 @@ describe("openapi", () => {
         "/api/me/push/devices/{id}/test",
       ]),
     );
+  });
+});
+
+describe("ownership and races", () => {
+  it("never lets concurrent registrations exceed the cap", async () => {
+    await testDb.db.deleteFrom("push_devices").execute();
+    const a = app({ maxDevices: 3 });
+    const results = await Promise.all(
+      Array.from({ length: 20 }, async (_, i) =>
+        post(a, "/api/me/push/devices", body(`race${String(i)}`)),
+      ),
+    );
+    expect(results.filter((r) => r.status === 200)).toHaveLength(3);
+    expect(results.filter((r) => r.status === 422)).toHaveLength(17);
+    const { n } = await testDb.db
+      .selectFrom("push_devices")
+      .select((eb) => eb.fn.countAll<string>().as("n"))
+      .where("user_id", "=", session.userId)
+      .executeTakeFirstOrThrow();
+    expect(n).toBe("3");
+  });
+
+  it("refuses an endpoint another user registered (409) instead of taking it over", async () => {
+    const other = await signedIn(testDb.db, { username: `push-other-${String(Date.now())}` });
+    const otherApp = asUser(
+      createApp(
+        {
+          db: testDb.db,
+          valkey: noValkey,
+          version: "0",
+          logger,
+          push: createPushService(settings(), testDb.db, logger),
+        },
+        { webDist: null },
+      ),
+      other,
+    );
+    expect((await post(otherApp, "/api/me/push/devices", body("shared"))).status).toBe(200);
+    const res = await post(app(), "/api/me/push/devices", body("shared"));
+    expect(res.status).toBe(409);
+    const row = await testDb.db
+      .selectFrom("push_devices")
+      .select("user_id")
+      .where("endpoint", "=", stub.endpoint("shared"))
+      .executeTakeFirstOrThrow();
+    expect(row.user_id).toBe(other.userId);
+  });
+
+  it("remembers a device turned off elsewhere until it is turned on again", async () => {
+    const a = app();
+    const device = PushDevice.parse(
+      await (await post(a, "/api/me/push/devices", body("phone"))).json(),
+    );
+    const status = async () =>
+      PushEndpointStatus.parse(
+        await (
+          await a.request(
+            `/api/me/push/devices/status?endpoint=${encodeURIComponent(stub.endpoint("phone"))}`,
+          )
+        ).json(),
+      );
+    expect(await status()).toEqual({ known: true, turnedOffElsewhere: false });
+    expect(
+      (await a.request(`/api/me/push/devices/${device.id}`, { method: "DELETE" })).status,
+    ).toBe(204);
+    expect(await status()).toEqual({ known: false, turnedOffElsewhere: true });
+    expect((await post(a, "/api/me/push/devices", body("phone"))).status).toBe(200);
+    expect(await status()).toEqual({ known: true, turnedOffElsewhere: false });
   });
 });

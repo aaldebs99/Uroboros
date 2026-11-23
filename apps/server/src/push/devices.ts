@@ -1,4 +1,5 @@
 /** `push_devices`: the browsers that take a user's notifications. */
+import { createHash } from "node:crypto";
 import type { Kysely, Selectable } from "kysely";
 import type { Database, PushDevicesTable } from "../db/schema.ts";
 
@@ -63,18 +64,60 @@ export function upsertDevice(db: Kysely<Database>, device: NewDevice): Promise<D
     .executeTakeFirstOrThrow();
 }
 
-/** Removes one of `userId`'s devices; false when they have none with that id. */
+/** The key a turned-off endpoint is remembered by. */
+export function endpointHash(endpoint: string): Buffer {
+  return createHash("sha256").update(endpoint).digest();
+}
+
+/**
+ * Removes one of `userId`'s devices and remembers its endpoint as turned off, so that browser's
+ * launch-time sync does not quietly turn it back on. False when they have no device with that id.
+ */
 export async function deleteDevice(
   db: Kysely<Database>,
   userId: string,
   id: string,
 ): Promise<boolean> {
-  const result = await db
-    .deleteFrom("push_devices")
-    .where("user_id", "=", userId)
-    .where("id", "=", id)
-    .executeTakeFirst();
-  return result.numDeletedRows > 0n;
+  return db.transaction().execute(async (tx) => {
+    const gone = await tx
+      .deleteFrom("push_devices")
+      .where("user_id", "=", userId)
+      .where("id", "=", id)
+      .returning("endpoint")
+      .executeTakeFirst();
+    if (gone === undefined) return false;
+    await tx
+      .insertInto("push_device_tombstones")
+      .values({ endpoint_hash: endpointHash(gone.endpoint), user_id: userId })
+      .onConflict((oc) =>
+        oc.column("endpoint_hash").doUpdateSet({ user_id: userId, deleted_at: new Date() }),
+      )
+      .execute();
+    return true;
+  });
+}
+
+/** Whether `endpoint` is one of `userId`'s devices, and whether they turned it off elsewhere. */
+export async function endpointStatus(
+  db: Kysely<Database>,
+  userId: string,
+  endpoint: string,
+): Promise<{ known: boolean; turnedOffElsewhere: boolean }> {
+  const [device, tomb] = await Promise.all([
+    db
+      .selectFrom("push_devices")
+      .select("id")
+      .where("user_id", "=", userId)
+      .where("endpoint", "=", endpoint)
+      .executeTakeFirst(),
+    db
+      .selectFrom("push_device_tombstones")
+      .select("user_id")
+      .where("endpoint_hash", "=", endpointHash(endpoint))
+      .where("user_id", "=", userId)
+      .executeTakeFirst(),
+  ]);
+  return { known: device !== undefined, turnedOffElsewhere: tomb !== undefined };
 }
 
 /** Drops a device its push service says is gone, whoever owns it. */

@@ -29,3 +29,23 @@ export function storeDevice(device: StoredDevice | null): void {
     // on again, which registers it afresh.
   }
 }
+
+const TURNED_OFF_KEY = "uroboros.pushTurnedOff";
+
+/** Whether this browser's notifications were turned off from another device (shown in Settings). */
+export function turnedOffHere(): boolean {
+  try {
+    return localStorage.getItem(TURNED_OFF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markTurnedOffHere(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(TURNED_OFF_KEY, "1");
+    else localStorage.removeItem(TURNED_OFF_KEY);
+  } catch {
+    // Storage refused: Settings just shows the plain "Turn on" button.
+  }
+}

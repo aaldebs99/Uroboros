@@ -1,5 +1,6 @@
 import {
   PushDevice,
+  PushEndpointStatus,
   PushTestResult,
   PushView,
   type PushSubscriptionBody,
@@ -19,6 +20,14 @@ export function usePush() {
 /** Keeps a browser's subscription as one of the caller's devices. */
 export function registerDevice(body: PushSubscriptionBody): Promise<PushDevice> {
   return postJson("/api/me/push/devices", PushDevice, body);
+}
+
+/** Whether `endpoint` is one of the caller's devices, or was turned off from another device. */
+export function endpointStatus(endpoint: string): Promise<PushEndpointStatus> {
+  return getJson(
+    `/api/me/push/devices/status?endpoint=${encodeURIComponent(endpoint)}`,
+    PushEndpointStatus,
+  );
 }
 
 const devicePath = (id: string) => `/api/me/push/devices/${encodeURIComponent(id)}`;

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Toaster } from "@/components/ui/sonner";
-import { storeDevice, storedDevice } from "@/push/stored";
+import { markTurnedOffHere, storeDevice, storedDevice, turnedOffHere } from "@/push/stored";
 import { renderWithQuery } from "@/test/render";
 
 import { MyNotifications } from "./MyNotifications";
@@ -129,6 +129,18 @@ describe("MyNotifications", () => {
     });
     expect(requestPermission).toHaveBeenCalledOnce();
     expect(subscribe).toHaveBeenCalledOnce();
+  });
+
+  it("says when this browser was turned off from another device, and turns it on here again", async () => {
+    pushBrowser("granted");
+    markTurnedOffHere(true);
+    routes["POST /api/me/push/devices"] = () => Response.json(device(D1, "Firefox on Linux"));
+    show(view());
+    expect(await screen.findByText("Turned off from another device.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Turn on here" }));
+    await waitFor(() => {
+      expect(turnedOffHere()).toBe(false);
+    });
   });
 
   it("changes nothing when the person says no", async () => {

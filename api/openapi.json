@@ -381,6 +381,21 @@
         "format": "uuid",
         "type": "string"
       },
+      "PushEndpointStatus": {
+        "properties": {
+          "known": {
+            "type": "boolean"
+          },
+          "turnedOffElsewhere": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "known",
+          "turnedOffElsewhere"
+        ],
+        "type": "object"
+      },
       "PushSubscriptionBody": {
         "properties": {
           "auth": {
@@ -1215,6 +1230,38 @@
           }
         },
         "summary": "Turn notifications on for the browser whose subscription this is",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/api/me/push/devices/status": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "endpoint",
+            "required": true,
+            "schema": {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushEndpointStatus"
+                }
+              }
+            },
+            "description": "The endpoint's status"
+          }
+        },
+        "summary": "Whether this browser's endpoint is one of the caller's devices, or was turned off elsewhere",
         "tags": [
           "push"
         ]

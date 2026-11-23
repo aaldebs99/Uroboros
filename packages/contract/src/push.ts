@@ -48,3 +48,9 @@ export type PushTestOutcome = z.infer<typeof PushTestOutcome>;
 
 export const PushTestResult = z.object({ outcome: PushTestOutcome }).openapi("PushTestResult");
 export type PushTestResult = z.infer<typeof PushTestResult>;
+
+/** Whether this browser's endpoint is one of the caller's devices, or was turned off from another device. */
+export const PushEndpointStatus = z
+  .object({ known: z.boolean(), turnedOffElsewhere: z.boolean() })
+  .openapi("PushEndpointStatus");
+export type PushEndpointStatus = z.infer<typeof PushEndpointStatus>;

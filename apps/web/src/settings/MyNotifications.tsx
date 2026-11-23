@@ -9,7 +9,7 @@ import { registerDevice, useDeleteDevice, usePush, useTestPush } from "@/api/pus
 import { Button } from "@/components/ui/button";
 import { bodyOf, currentSubscription, deviceLabel, pushSupported, subscribe } from "@/push/browser";
 import { isInstalled, isIos } from "@/push/installed";
-import { storeDevice, storedDevice } from "@/push/stored";
+import { markTurnedOffHere, storeDevice, storedDevice, turnedOffHere } from "@/push/stored";
 
 /** What a test notification's outcome means to the person, said as a toast. */
 const TEST_SAID: Record<PushTestOutcome, { text: string; ok: boolean }> = {
@@ -97,7 +97,7 @@ function DeviceRow({ device, here }: { device: PushDevice; here: boolean }) {
 }
 
 /** Turns notifications on for this browser, from the tap the permission prompt needs. */
-function TurnOn({ publicKey }: { publicKey: string }) {
+function TurnOn({ publicKey, label }: { publicKey: string; label: string }) {
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const turnOn = async () => {
@@ -110,6 +110,7 @@ function TurnOn({ publicKey }: { publicKey: string }) {
       }
       const device = await registerDevice(bodyOf(subscription, deviceLabel()));
       storeDevice({ id: device.id, endpoint: subscription.endpoint });
+      markTurnedOffHere(false);
       await client.invalidateQueries({ queryKey: queryKeys.myPush });
     } catch (error) {
       toast.error(`Could not turn on notifications: ${errorText(error)}`);
@@ -121,7 +122,7 @@ function TurnOn({ publicKey }: { publicKey: string }) {
     <div>
       <Button disabled={busy} onClick={() => void turnOn()}>
         {busy ? <Loader className="animate-spin" aria-hidden /> : <BellRing aria-hidden />}
-        {busy ? "Turning on…" : "Turn on notifications"}
+        {busy ? "Turning on…" : label}
       </Button>
     </div>
   );
@@ -140,10 +141,19 @@ function Notifications({ view }: { view: PushView }) {
   const stored = storedDevice();
   const hereOn = stored !== null && view.devices.some((device) => device.id === stored.id);
   const blocked = hereOn ? null : blocker();
+  const offElsewhere = !hereOn && turnedOffHere();
   return (
     <div className="space-y-4">
       {blocked ? <p className="text-sm">{blocked}</p> : null}
-      {!hereOn && !blocked ? <TurnOn publicKey={view.publicKey} /> : null}
+      {offElsewhere && !blocked ? (
+        <p className="text-sm text-muted-foreground">Turned off from another device.</p>
+      ) : null}
+      {!hereOn && !blocked ? (
+        <TurnOn
+          publicKey={view.publicKey}
+          label={offElsewhere ? "Turn on here" : "Turn on notifications"}
+        />
+      ) : null}
       {view.devices.length > 0 ? (
         <ul aria-label="Devices with notifications" className="divide-y border-y">
           {view.devices.map((device) => (

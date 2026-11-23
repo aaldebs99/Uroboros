@@ -3,6 +3,7 @@ export {
   PUSH_LABEL_CHARS,
   PushDevice,
   PushDeviceId,
+  PushEndpointStatus,
   PushSubscriptionBody,
   PushTestOutcome,
   PushTestResult,

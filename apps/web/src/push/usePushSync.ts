@@ -3,24 +3,34 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
 import { queryKeys } from "@/api/client";
-import { registerDevice, usePush } from "@/api/push";
+import { endpointStatus, registerDevice, usePush } from "@/api/push";
 
 import { bodyOf, currentSubscription, deviceLabel, pushSupported, subscribeWith } from "./browser";
-import { storeDevice, storedDevice } from "./stored";
+import { markTurnedOffHere, storeDevice, storedDevice } from "./stored";
 import { syncAction } from "./sync";
 
 /** Mends this browser's notifications as `syncAction` says; true when it registered a device. */
 async function mend(view: PushView, publicKey: string): Promise<boolean> {
   let subscription = await currentSubscription();
+  const stored = storedDevice();
+  const serverDevices = view.devices.map((device) => device.id);
+  const endpoint = subscription?.endpoint ?? null;
+  // Only a device the server no longer lists needs asking why: forgotten, or turned off elsewhere.
+  const forgotten =
+    stored !== null && endpoint === stored.endpoint && !serverDevices.includes(stored.id);
+  const turnedOffElsewhere =
+    forgotten && (await endpointStatus(stored.endpoint)).turnedOffElsewhere;
   const action = syncAction({
     permission: Notification.permission,
-    endpoint: subscription?.endpoint ?? null,
-    stored: storedDevice(),
-    serverDevices: view.devices.map((device) => device.id),
+    endpoint,
+    stored,
+    serverDevices,
+    turnedOffElsewhere,
   });
   if (action === "none") return false;
-  if (action === "forget") {
+  if (action === "forget" || action === "turnedOff") {
     storeDevice(null);
+    markTurnedOffHere(action === "turnedOff");
     return false;
   }
   if (action === "resubscribe" || subscription === null) {
@@ -28,6 +38,7 @@ async function mend(view: PushView, publicKey: string): Promise<boolean> {
   }
   const device = await registerDevice(bodyOf(subscription, deviceLabel()));
   storeDevice({ id: device.id, endpoint: subscription.endpoint });
+  markTurnedOffHere(false);
   return true;
 }
 

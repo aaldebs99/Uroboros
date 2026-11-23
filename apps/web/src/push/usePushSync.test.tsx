@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithQuery } from "@/test/render";
 
-import { storeDevice, storedDevice } from "./stored";
+import { storeDevice, storedDevice, turnedOffHere } from "./stored";
 import { usePushSync } from "./usePushSync";
 
 const OLD = "0190a3f2-7c1e-7000-8000-0000000000d1";
@@ -33,7 +33,7 @@ function browser(permission: NotificationPermission, existing: object | null) {
   return subscribe;
 }
 
-function server(devices: string[]) {
+function server(devices: string[], turnedOffElsewhere = false) {
   const posted: unknown[] = [];
   vi.stubGlobal(
     "fetch",
@@ -49,6 +49,10 @@ function server(devices: string[]) {
             failedAt: null,
           }),
         );
+      }
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.startsWith("/api/me/push/devices/status?endpoint=")) {
+        return Promise.resolve(Response.json({ known: false, turnedOffElsewhere }));
       }
       expect(input).toBe("/api/me/push");
       return Promise.resolve(
@@ -76,6 +80,31 @@ afterEach(() => {
 });
 
 describe("usePushSync", () => {
+  it("does not turn back on a device that was turned off from another device", async () => {
+    const existing = { ...fresh, endpoint: "https://fcm.googleapis.com/fcm/send/kept" };
+    storeDevice({ id: OLD, endpoint: existing.endpoint });
+    browser("granted", existing);
+    const posted = server([], true);
+    renderWithQuery(<Probe />);
+    await waitFor(() => {
+      expect(storedDevice()).toBeNull();
+    });
+    expect(turnedOffHere()).toBe(true);
+    expect(posted).toEqual([]);
+  });
+
+  it("re-registers a device the server merely forgot (not turned off)", async () => {
+    const existing = { ...fresh, endpoint: "https://fcm.googleapis.com/fcm/send/kept" };
+    storeDevice({ id: OLD, endpoint: existing.endpoint });
+    browser("granted", existing);
+    const posted = server([], false);
+    renderWithQuery(<Probe />);
+    await waitFor(() => {
+      expect(posted).toHaveLength(1);
+    });
+    expect(turnedOffHere()).toBe(false);
+  });
+
   it("subscribes again and registers when the subscription vanished", async () => {
     storeDevice({ id: OLD, endpoint: "https://fcm.googleapis.com/fcm/send/old" });
     const subscribe = browser("granted", null);

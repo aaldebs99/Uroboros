@@ -8,15 +8,19 @@ import {
   PUSH_LABEL_CHARS,
   PushDevice,
   PushDeviceId,
+  PushEndpointStatus,
   PushSubscriptionBody,
   PushTestResult,
   PushView,
   type PushTestOutcome,
 } from "@uroboros/contract";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { lockKey } from "../shared/lockKeys.ts";
 import {
   deleteDevice,
+  endpointHash,
+  endpointStatus,
   findDevice,
   listDevices,
   upsertDevice,
@@ -81,6 +85,16 @@ const deleteRoute = createRoute({
     404: error("No such device of the caller's"),
     500: error("Unexpected error"),
   },
+});
+
+const statusRoute = createRoute({
+  method: "get",
+  path: "/api/me/push/devices/status",
+  tags: ["push"],
+  summary:
+    "Whether this browser's endpoint is one of the caller's devices, or was turned off elsewhere",
+  request: { query: z.object({ endpoint: z.string().min(1).max(2048) }) },
+  responses: { 200: json(PushEndpointStatus, "The endpoint's status") },
 });
 
 const testRoute = createRoute({
@@ -149,17 +163,34 @@ async function register(
     if (err instanceof SubscriptionError) throw new ApiError("bad_request", err.message);
     throw err;
   }
-  const devices = await listDevices(db, userId);
-  const known = devices.some((device) => device.endpoint === subscription.endpoint);
-  // Two registrations racing past this check can end one over the cap; the cap is a guard
-  // against a runaway client, not a quota, so that is acceptable.
-  if (!known && devices.length >= push.maxDevices) {
-    throw new ApiError(
-      "unprocessable",
-      `notifications are on for ${String(devices.length)} devices already; turn one off first`,
+  const row = await db.transaction().execute(async (tx) => {
+    // One registration per user at a time, across replicas: the cap check and the insert agree.
+    await sql`SELECT pg_advisory_xact_lock(${lockKey("PUSH", userId).toString()}::bigint)`.execute(
+      tx,
     );
-  }
-  const row = await upsertDevice(db, { userId, ...subscription, label: labelOf(body.label) });
+    const owner = await tx
+      .selectFrom("push_devices")
+      .select("user_id")
+      .where("endpoint", "=", subscription.endpoint)
+      .executeTakeFirst();
+    if (owner !== undefined && owner.user_id !== userId) {
+      throw new ApiError("conflict", "this browser's notifications belong to another account");
+    }
+    if (owner === undefined) {
+      const devices = await listDevices(tx, userId);
+      if (devices.length >= push.maxDevices) {
+        throw new ApiError(
+          "unprocessable",
+          `notifications are on for ${String(devices.length)} devices already; turn one off first`,
+        );
+      }
+    }
+    await tx
+      .deleteFrom("push_device_tombstones")
+      .where("endpoint_hash", "=", endpointHash(subscription.endpoint))
+      .execute();
+    return upsertDevice(tx, { userId, ...subscription, label: labelOf(body.label) });
+  });
   return view(row);
 }
 
@@ -180,6 +211,11 @@ export function registerPushRoutes(
       },
       200,
     );
+  });
+
+  app.openapi(statusRoute, async (c) => {
+    const { userId } = currentPrincipal(c);
+    return c.json(await endpointStatus(db, userId, c.req.valid("query").endpoint), 200);
   });
 
   app.openapi(registerRoute, async (c) => {
