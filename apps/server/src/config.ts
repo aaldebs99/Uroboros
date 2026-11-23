@@ -215,8 +215,8 @@ const workerSchema = z
     UROBOROS_WORK_DIR: unsetIfEmpty(z.string().optional()),
     UROBOROS_YTDLP_COOKIES_FILE: unsetIfEmpty(z.string().optional()),
     ...storageEnvSchema.shape,
-    UROBOROS_WORKER_CONCURRENCY: positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(
-      String(DEFAULT_WORKER_CONCURRENCY),
+    UROBOROS_WORKER_CONCURRENCY: unsetIfEmpty(
+      positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(String(DEFAULT_WORKER_CONCURRENCY)),
     ),
     YTDLP_PATH: unsetIfEmpty(z.string().optional()),
   })
