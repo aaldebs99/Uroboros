@@ -26,10 +26,46 @@
           "conflict",
           "payload_too_large",
           "unprocessable",
+          "too_many_requests",
           "internal",
           "unavailable"
         ],
         "type": "string"
+      },
+      "AuthMethod": {
+        "enum": [
+          "local",
+          "oidc"
+        ],
+        "type": "string"
+      },
+      "AuthMethods": {
+        "properties": {
+          "local": {
+            "type": "boolean"
+          },
+          "oidc": {
+            "nullable": true,
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "ready": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "displayName",
+              "ready"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "local",
+          "oidc"
+        ],
+        "type": "object"
       },
       "DependencyName": {
         "enum": [
@@ -67,6 +103,70 @@
         },
         "required": [
           "status"
+        ],
+        "type": "object"
+      },
+      "LocalLoginBody": {
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "type": "object"
+      },
+      "LogoutResult": {
+        "properties": {
+          "endSessionUrl": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endSessionUrl"
+        ],
+        "type": "object"
+      },
+      "Me": {
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isBootstrap": {
+            "type": "boolean"
+          },
+          "method": {
+            "$ref": "#/components/schemas/AuthMethod"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "email",
+          "role",
+          "method",
+          "isBootstrap"
         ],
         "type": "object"
       },
@@ -209,6 +309,13 @@
           "starting"
         ],
         "type": "string"
+      },
+      "Role": {
+        "enum": [
+          "admin",
+          "member"
+        ],
+        "type": "string"
       }
     }
   },
@@ -218,6 +325,129 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/auth/local/login": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalLoginBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Signed in; the session and CSRF cookies are set"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Wrong username or password"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The account is disabled"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Local sign-in is turned off"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Too many failed attempts; try again later"
+          }
+        },
+        "summary": "Sign in with a local username and password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResult"
+                }
+              }
+            },
+            "description": "Signed out; where to send the browser next"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Signed in with an API token, which has no session"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not signed in"
+          }
+        },
+        "summary": "Sign out of this browser",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/methods": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMethods"
+                }
+              }
+            },
+            "description": "Sign-in methods"
+          }
+        },
+        "summary": "The sign-in methods this server offers",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/health": {
       "get": {
         "responses": {
@@ -260,6 +490,36 @@
           }
         },
         "summary": "Service name and version"
+      }
+    },
+    "/api/me": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            },
+            "description": "The caller"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not signed in"
+          }
+        },
+        "summary": "The signed-in user",
+        "tags": [
+          "auth"
+        ]
       }
     },
     "/api/me/push": {

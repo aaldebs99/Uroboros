@@ -29,6 +29,7 @@ const HTTP_EXCEPTION: Partial<Record<number, [ApiErrorCode, string]>> = {
   409: ["conflict", "conflict"],
   413: ["payload_too_large", "request body too large"],
   422: ["unprocessable", "unprocessable request"],
+  429: ["too_many_requests", "too many requests"],
   503: ["unavailable", "unavailable"],
 };
 

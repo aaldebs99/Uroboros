@@ -125,3 +125,28 @@ describe("api leadership", () => {
     );
   });
 });
+
+describe("bootstrap admin on start", () => {
+  it("creates the configured admin before the api reports ready, and it can sign in", async () => {
+    const url = await emptyDb();
+    const cfg = apiConfig(url, {
+      auth: {
+        sessionTtlHours: 1,
+        trustProxy: false,
+        local: {
+          enabled: true,
+          bootstrap: { username: "admin", password: "correct horse battery" },
+        },
+        oidc: null,
+      },
+    });
+    const api = track(await startApi(cfg, logger));
+    await api.attached;
+    const res = await fetch(`http://127.0.0.1:${String(api.port)}/api/auth/local/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "admin", password: "correct horse battery" }),
+    });
+    expect(res.status).toBe(204);
+  });
+});

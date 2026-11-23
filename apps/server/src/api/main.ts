@@ -16,6 +16,7 @@ import { createPushService } from "../push/service.ts";
 import { idleDuty, LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/leader.ts";
 import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
+import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
 import { createApp } from "./app.ts";
 import { CLEANUP_MS, drain, settlesWithin } from "./drain.ts";
 
@@ -96,7 +97,10 @@ export async function startApi(
       logger,
       push,
       attached: () => attached,
-      auth: { secureCookies: config.push.publicBaseUrl?.startsWith("https://") ?? false },
+      auth: {
+        secureCookies: config.push.publicBaseUrl?.startsWith("https://") ?? false,
+        settings: config.auth,
+      },
     },
     { webDist: config.webDist, bodyLimitBytes: config.bodyLimitBytes },
   );
@@ -122,6 +126,8 @@ export async function startApi(
       waitReady(valkey, 2000),
     ]);
     logMigrations(logger, outcome);
+    const bootstrap = config.auth.local.bootstrap;
+    if (bootstrap !== null) await ensureBootstrapAdmin(db, bootstrap, logger);
     attached = true;
     logger.info("api ready");
     // No duties yet: BullMQ's job schedulers already run each repeatable job exactly once. The

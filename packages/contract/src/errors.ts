@@ -9,6 +9,7 @@ export const ApiErrorCode = z
     "conflict",
     "payload_too_large",
     "unprocessable",
+    "too_many_requests",
     "internal",
     "unavailable",
   ])
@@ -22,7 +23,7 @@ export type ApiErrorBody = z.infer<typeof ApiErrorBody>;
 
 export const apiErrorStatus: Record<
   ApiErrorCode,
-  400 | 401 | 403 | 404 | 409 | 413 | 422 | 500 | 503
+  400 | 401 | 403 | 404 | 409 | 413 | 422 | 429 | 500 | 503
 > = {
   bad_request: 400,
   unauthorized: 401,
@@ -31,6 +32,7 @@ export const apiErrorStatus: Record<
   conflict: 409,
   payload_too_large: 413,
   unprocessable: 422,
+  too_many_requests: 429,
   internal: 500,
   unavailable: 503,
 };

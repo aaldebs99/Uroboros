@@ -125,7 +125,7 @@ describe("HTTPException mapping", () => {
     [409, 409, "conflict"],
     [413, 413, "payload_too_large"],
     [422, 422, "unprocessable"],
-    [429, 400, "bad_request"],
+    [429, 429, "too_many_requests"],
     [500, 500, "internal"],
     [503, 503, "unavailable"],
   ] as const)("renders HTTPException %i as %i %s", async (thrown, status, code) => {

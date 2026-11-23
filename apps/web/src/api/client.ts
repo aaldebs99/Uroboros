@@ -150,6 +150,7 @@ const ERROR_TEXT: Record<ApiErrorCode, (message: string) => string> = {
   conflict: (message) => message,
   payload_too_large: () => "That is more than the server accepts in one request.",
   unprocessable: (message) => message,
+  too_many_requests: () => "Too many attempts. Wait a few minutes and try again.",
   internal: () => "The server failed. Try again later.",
   unavailable: () => "The server is not ready. Try again in a moment.",
 };

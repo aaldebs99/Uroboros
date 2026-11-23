@@ -4,7 +4,10 @@ import type { Kysely } from "kysely";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
 import type { Logger } from "pino";
+import type { AuthConfig } from "../auth/config.ts";
 import { authGuard, type ResolveToken } from "../auth/guard.ts";
+import { createLimiter } from "../auth/limiter.ts";
+import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
 import type { Database } from "../db/schema.ts";
 import { disabledPush, type PushService } from "../push/service.ts";
 import { registerDocs } from "./docs.ts";
@@ -37,7 +40,18 @@ export interface AuthDeps {
   secureCookies: boolean;
   /** API-token lookup (personal tokens); defaults to "no tokens". */
   resolveToken?: ResolveToken;
+  /** Sign-in settings; defaults to local sign-in only (what `gen` documents). */
+  settings?: AuthConfig;
+  /** Valkey key prefix for the failed sign-in counters. */
+  limiterPrefix?: string;
 }
+
+const DEFAULT_AUTH_SETTINGS: AuthConfig = {
+  sessionTtlHours: 720,
+  trustProxy: false,
+  local: { enabled: true, bootstrap: null },
+  oidc: null,
+};
 
 const noTokens: ResolveToken = () => Promise.resolve(null);
 
@@ -118,6 +132,14 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     return c.json(await checkHealth(deps.db, deps.valkey), 200);
   });
   app.openapi(infoRoute, (c) => c.json({ name: "uroboros" as const, version: deps.version }, 200));
+  registerSessionRoutes(app, {
+    db: deps.db,
+    settings: deps.auth?.settings ?? DEFAULT_AUTH_SETTINGS,
+    limiter: createLimiter(deps.valkey, deps.auth?.limiterPrefix ?? "uroboros"),
+    secureCookies: deps.auth?.secureCookies ?? false,
+    oidcMethod: () => null,
+    endSessionUrl: () => Promise.resolve(null),
+  });
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

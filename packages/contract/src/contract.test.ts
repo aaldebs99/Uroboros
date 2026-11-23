@@ -32,7 +32,7 @@ describe("contract", () => {
   it("maps every error code to a status in enum order", () => {
     expect(Object.keys(apiErrorStatus).sort()).toEqual(ApiErrorCode.options.slice().sort());
     expect(ApiErrorCode.options.map((c) => apiErrorStatus[c])).toEqual([
-      400, 401, 403, 404, 409, 413, 422, 500, 503,
+      400, 401, 403, 404, 409, 413, 422, 429, 500, 503,
     ]);
   });
 
