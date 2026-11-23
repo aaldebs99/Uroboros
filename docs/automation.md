@@ -1,0 +1,154 @@
+# Automation: subscriptions, retention and the reaper
+
+Uroboros keeps itself up to date and tidy: it follows channels and playlists, downloads what is
+new, cuts sponsor segments, and clears out what nobody wants any more. Downloads and storage are
+in [downloads.md](downloads.md), the library in [library.md](library.md).
+
+## Subscribing
+
+A subscription is made from the preview downloads already use (`src/subscriptions/`): paste a
+channel or playlist link, and its preview offers **Subscribe** beside queueing entries. The probe
+records the source (a channel's id with its videos' extractor, so the subscription's channel key
+matches the library's channel page; a playlist's id with its listing's extractor) and each group's
+listing URL (a channel's tabs, or the playlist).
+
+`POST /api/subscriptions` takes the request id, the tabs to follow, a format profile, a check
+interval, filters, a wait, what to do with the videos already there, retention and whether to
+notify. Each person follows a source once (a second is 409). `PATCH` edits everything but the
+backfill choice; `DELETE` unsubscribes (below); `POST /{id}/check` checks now; `GET /{id}/items`
+pages through what the subscription saw, newest first. Everything is the caller's own: another
+person's subscription is 404, admins included.
+
+## Checks
+
+Each enabled subscription has a BullMQ job scheduler on the `automation` queue, keyed by its id and
+firing every `interval_minutes` (`src/subscriptions/queue.ts`); BullMQ fires each schedule once
+across replicas and runs a new one's first check at once. Intervals run from
+`UROBOROS_MIN_CHECK_INTERVAL_MINUTES` (default 60) to a week; the web app offers 1, 3, 6 (default)
+and 12 hours, a day and a week. Pausing removes the scheduler and resuming adds it back. The
+leader re-syncs schedulers with the table every five minutes (`src/subscriptions/duties.ts`): a
+flushed Valkey, or a crash between a commit and the scheduler call, heals itself, and the
+subscriptions of a disabled or revoked account lose theirs.
+
+Every replica consumes `automation`, two checks at a time, with a queue-wide limiter of one check
+start per two seconds. A check (`src/subscriptions/check.ts`):
+
+1. Takes the subscription's 15-minute lease (an `UPDATE ... RETURNING` that only succeeds while no
+   other check holds it, the subscription is enabled and its owner active), renewed between feeds
+   and probes. A second check at the same time returns at once.
+2. Lists each followed feed flat, capped at `UROBOROS_MAX_PLAYLIST_ENTRIES` from the top (a channel
+   tab lists newest first, so the cap keeps the newest). A playlist that reaches the cap sets the
+   subscription's warning: only its first N entries are followed.
+3. Skips videos with a final outcome in `subscription_items`, the seen set; `waiting` ones come
+   back.
+4. Primes each feed on its own first check. On the subscription's very first check the backfill
+   applies: **none** records every listed video as `existing`, **newest** lets each tab's newest N
+   through (channels only: a playlist's order says nothing about age), **all** lets them all
+   through. A tab followed later primes with none.
+5. Filters what is left (`filters.ts`, `decisions.ts`), then queues it.
+6. Records how it went, frees the lease, and resets or counts the failures in a row. A check cut by
+   shutdown records nothing and frees its lease; the schedule runs it again.
+
+### Filters, in order
+
+- A private entry is filtered as unavailable; an upcoming or live-now one waits ("upcoming", "live
+  now") whatever the filters say, since it cannot be fetched yet.
+- With **exclude live**, a finished live stream is filtered.
+- **Title patterns** (include and exclude) are Postgres regular expressions, matched
+  case-insensitively in one query over the batch, never in Node: a backtracking pattern would
+  freeze a replica that also serves HTTP. They run under a 5 s `statement_timeout`; a pattern that
+  takes longer fails the check with "a title pattern took too long". Patterns are checked by
+  Postgres when saved (an invalid one is 400), and a `\b` or `\B` outside brackets is stored as
+  `\y` or `\Y`, Postgres's word boundary (its `\b` is a backspace).
+- **Duration** bounds, an **uploaded on or after** date, and (playlists only) **exclude Shorts** by
+  a `/shorts/` URL or yt-dlp's `media_type`. A channel leaves Shorts out by not following its
+  Shorts tab.
+
+The listing decides whatever it can. When a filter needs a field the listing lacks (YouTube's
+listings carry no upload date), the check probes that one video in full, at most 50 per check;
+the rest wait for the next check unrecorded. A video whose probe says it is unavailable or private
+is filtered; any other probe failure leaves it for next time.
+
+### The wait
+
+With **wait before downloading**, a passing video waits until that many hours after Uroboros first
+saw it, then queues on the first check after that. It is for SponsorBlock: segments are submitted
+in the hours after a video goes up, and cutting a brand-new video usually cuts nothing.
+
+### Queueing
+
+Passing videos go through `queueDownload` and `dispatchFor` like any other, with the
+subscription's profile and id. A first check's backfill is queued at priority 1 and everything
+else at 0, and `dispatchFor` takes priority first, then age, so a backfill of hundreds never holds
+up a pasted link or another subscription's new upload. The fetch's settle copies the
+subscription's id onto the library entry it creates. A video the person already has, or is already
+getting, is recorded `queued` with no download.
+
+Changing the filters forgets the `filtered` items, so the next check reconsiders those still listed
+under the new filters; `existing` and `queued` items stay as they are.
+
+## SponsorBlock
+
+Removing segments changes the file, so it lives in the format profile, which already says what
+shapes a file: an admin ticks categories (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`,
+`filler`, `interaction`, `music_offtopic`) in the profile editor, and downloads with that profile
+run `--sponsorblock-remove=<categories>`. The categories join the profile's revision only when
+there are any (so profiles without them kept their revisions), and the same cut file is shared by
+everyone using the profile.
+
+## Unsubscribing
+
+Deleting a subscription removes its scheduler and its seen set, cancels its downloads that have not
+been dispatched yet, and leaves its library entries in the library as ordinary entries.
+
+## Notifications
+
+The `notify` queue's consumer (`src/worker/notify.ts`) sends each job through `Pusher.notify`, and
+drops it while push is off. A check that queued at least one video outside a backfill sends "N new
+videos from <subscription>" (one: "New from <subscription>") with the first three titles, opening
+the subscription's page; a newer one replaces it (tag `subscription-<id>`). The third failed check
+in a row sends "<subscription>: checks are failing" at high urgency, once per failing streak.
+Each subscription can turn its notifications off.
+
+## Retention and Keep
+
+The leader applies retention hourly (`src/subscriptions/retention.ts`), to entries the subscription
+brought, in that person's library:
+
+- **Keep only the newest N**, by upload date, then when added.
+- **Remove watched after D days**, counted from `watch_progress.watched_at`, the moment the video
+  first counted as watched (unwatching clears it).
+
+An entry marked **Keep** (`PUT /api/library/{id}/kept`; a switch on the item page of an entry from
+a subscription) neither counts toward N nor goes. Removing means deleting the library entry (its
+tags go with it); the video stays in the seen set, so it is not downloaded again, and its file is
+the reaper's.
+
+## The reaper
+
+The leader runs the reaper every 15 minutes (`src/storage/reaper.ts`), mark and sweep:
+
+1. A rendition no entry references is marked (`orphaned_at`), and one that gained an entry again is
+   unmarked.
+2. A rendition marked more than 24 hours ago is swept: under its row lock it is checked again (in
+   a new statement, so an entry committed while waiting counts) for entries and for an active
+   download of its fetch key, then deleted, its key moved to `storage_trash` in the same
+   transaction. `library_entries.rendition_id` is `ON DELETE RESTRICT`, so a delete racing a new
+   entry fails rather than taking the entry with it, and the two places that link an entry to a
+   stored rendition (`queueDownload` and the fetch's settle) lock it `FOR KEY SHARE` first: they
+   wait for the reaper and then see the rendition gone and fetch anew, or hold it until their
+   entry is committed.
+3. Media with no renditions, untouched for 24 hours and with no active download, go the same way;
+   their thumbnail, info JSON and subtitle keys go to the trash.
+4. Trashed files are deleted, then their trash rows; a failed delete stays for the next pass. A key
+   some row uses again (folder-layout keys repeat when a video comes back) is only dropped from the
+   trash, and a new file never takes a key still in the trash. On the filesystem backend a delete
+   also removes the folders it leaves empty, never the root.
+
+The 24 hours are an undo window: queueing a removed video again within it links the stored file
+at once. Removing an entry by hand frees its file the same way.
+
+## Configuration
+
+`UROBOROS_MIN_CHECK_INTERVAL_MINUTES` (60): the shortest check interval a subscription may have.
+`UROBOROS_MAX_PLAYLIST_ENTRIES` (1000) also caps each feed's listing.

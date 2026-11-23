@@ -99,8 +99,11 @@ stay. Exactly one profile is the default. A profile in use cannot be deleted. Se
 `GET /api/library/{id}/file` streams the file with range support, named
 `<title> [<profile>].<ext>`; with `UROBOROS_S3_PUBLIC_URL` set it redirects to a URL presigned
 against that endpoint for 15 minutes instead. `GET /api/library/{id}/thumbnail` serves the
-thumbnail. Removing a library entry deletes the row only; the file stays until the reaper (with
-subscriptions and retention) deletes unreferenced renditions.
+thumbnail. Removing a library entry deletes the row only; the reaper deletes a file once no entry
+has referenced it for a day ([automation.md](automation.md#the-reaper)).
+
+Pasted links and new uploads dispatch before a subscription's backfill (`downloads.priority`), and
+a format profile can cut SponsorBlock segments ([automation.md](automation.md#sponsorblock)).
 
 ## JavaScript challenges
 
@@ -111,4 +114,5 @@ image (no Deno needed).
 
 ## Not yet
 
-Push notifications for finished downloads, per-site rate limits, per-user cookies, and the reaper.
+Push notifications for finished downloads, per-site rate limits and per-user cookies. Subscriptions,
+retention and the reaper are in [automation.md](automation.md).

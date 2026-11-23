@@ -51,6 +51,13 @@ report from earlier in it (a rewatch, a late report) doesn't undo. `PUT /api/lib
 sets it by hand; unwatching also starts it over. Tiles show a watched bar; the item page resumes
 where the person left off.
 
+## Keep and retention
+
+An entry a subscription brought carries it (`subscription`), and that subscription's retention may
+remove it; **Keep** (`PUT /api/library/{id}/kept`) exempts it ([automation.md](automation.md)).
+Removing an entry, by hand or by retention, deletes the row; the reaper frees the file a day after
+its last entry goes.
+
 ## Tags
 
 Per entry and person: lower-cased, trimmed, 1–32 characters, at most 20 (`PUT
