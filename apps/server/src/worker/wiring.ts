@@ -44,5 +44,7 @@ export function workerDeps(
     ffprobe: { binary: "ffprobe" },
     subtitles: config.worker.subtitles,
     push: shared.push,
+    ffmpeg: { binary: "ffmpeg" },
+    transcodeConcurrency: config.worker.transcode.concurrency,
   };
 }

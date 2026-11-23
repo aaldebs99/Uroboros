@@ -22,4 +22,8 @@ export interface WorkerDeps extends DownloadContext {
   subtitles: SubtitleSettings;
   /** The process's push service, for the `notify` consumer. */
   push: PushService;
+  /** The ffmpeg the `transcode` consumer runs. */
+  ffmpeg: { binary: string; env?: Record<string, string> };
+  /** Playback copies this process makes at once (0: it takes none). */
+  transcodeConcurrency: number;
 }

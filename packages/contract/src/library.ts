@@ -47,8 +47,7 @@ export const LibraryItem = LibraryEntry.extend({
   webpageUrl: z.string().nullable(),
   /** The caller's playlists this video is in. */
   sources: z.array(z.object({ id: z.uuid(), title: z.string().nullable() })),
-  /** The file's container (its extension) and ffprobe's codec names: does this browser play it? */
-  container: z.string().nullable(),
+  /** ffprobe's codec names (with the entry's `container`): does this browser play the file? */
   videoCodec: z.string().nullable(),
   audioCodec: z.string().nullable(),
   /** Asks for, and follows, a compatible copy (docs/transcoding.md). */

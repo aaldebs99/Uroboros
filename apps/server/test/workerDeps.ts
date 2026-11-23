@@ -48,8 +48,28 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
         ffprobe: { binary: ffprobeRun.options.binary, env: ffprobeRun.options.env },
         subtitles: { langs: "en.*", automatic: false },
         push: disabledPush,
+        ffmpeg: { binary: "ffmpeg" },
+        transcodeConcurrency: 1,
       };
     },
+    /**
+     * Deps for a transcode: ffmpeg replays `ffmpeg` (writing files into its working directory) and
+     * ffprobe answers `probe` (ffprobe's JSON) for any file.
+     */
+    async transcodeDeps(ffmpeg: Scenario, probe: unknown): Promise<WorkerDeps> {
+      const base = await this.deps({ steps: [] });
+      // ffmpeg's run is second to last in `runs`, ffprobe's last.
+      const ffmpegRun = await FakeRun.create(ffmpeg);
+      const probeRun = await FakeRun.create({ steps: [{ stdout: JSON.stringify(probe) }] });
+      runs.push(ffmpegRun, probeRun);
+      return {
+        ...base,
+        ffmpeg: { binary: ffmpegRun.options.binary, env: ffmpegRun.options.env },
+        ffprobe: { binary: probeRun.options.binary, env: probeRun.options.env },
+      };
+    },
+    /** Every fake started so far, in order. */
+    runs,
     async close(): Promise<void> {
       await Promise.all(runs.map((r) => r.close()));
       await h.close();

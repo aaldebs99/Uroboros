@@ -15,6 +15,14 @@ export async function addTranscodeJob(q: Queue<TranscodeJob>, transcodeId: strin
   await q.add(
     "transcode",
     { transcodeId },
-    { jobId: `transcode|${transcodeId}`, lifo: true, removeOnComplete: true, removeOnFail: true },
+    {
+      jobId: `transcode|${transcodeId}`,
+      lifo: true,
+      // A run cut by shutdown fails its attempt and runs again (ffmpeg's own failures do not throw).
+      attempts: 3,
+      backoff: { type: "fixed", delay: 5000 },
+      removeOnComplete: true,
+      removeOnFail: true,
+    },
   );
 }

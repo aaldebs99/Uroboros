@@ -61,7 +61,6 @@ export async function getItem(
     streamUrl: `/api/library/${entryId}/stream`,
     webpageUrl: row.webpage_url,
     sources,
-    container: row.container,
     videoCodec: row.video_codec,
     audioCodec: row.audio_codec,
     playbackUrl: `/api/library/${entryId}/playback`,
