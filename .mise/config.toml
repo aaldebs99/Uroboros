@@ -146,6 +146,13 @@ if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yam
   exit 1
 fi
 echo "ok: half a VAPID pair is rejected at render time"
+# Negative check: half an OIDC setup (issuer without client id and secret) must refuse to render.
+if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
+  --set publicBaseUrl=https://u.example --set auth.oidc.issuer=https://sso.example/ >/dev/null 2>&1; then
+  echo "expected render to fail: auth.oidc.issuer without clientId and existingSecret" >&2
+  exit 1
+fi
+echo "ok: half an OIDC setup is rejected at render time"
 # Negative check: a termination grace period that leaves the api no time to drain must refuse to render.
 if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
   --set api.terminationGracePeriodSeconds=31 >/dev/null 2>&1; then

@@ -19,6 +19,7 @@ gates need Docker (`test` and `docker:build`) and two need the network (`check:a
 | `apps/server`         | `@uroboros/server`: the api (`src/api`), the worker (`src/worker`), the migration runner (`src/migrate`), the leader lock (`src/shared/leader.ts`) and the OpenAPI generator (`src/gen`).                                                   |
 | `apps/server/src/bin` | The entrypoints, `api.ts`, `worker.ts`, `migrate.ts` and `gen.ts`, each a two-line wrapper that calls a side-effect-free `main()`; tsdown bundles them to `dist/*.mjs`. `notices.ts` is the image build's notices generator, run unbundled. |
 | `apps/web`            | `@uroboros/web`: React, TanStack Router and Query, Tailwind. Talks to the api through `src/api/client.ts`, which validates every response against the contract.                                                                             |
+| `packages/ytdlp`      | `@uroboros/ytdlp`: the typed yt-dlp/ffprobe wrapper (probe, download with progress, cancel, error kinds); workers only. Details in `packages/ytdlp/README.md`.                                                                              |
 | `packages/contract`   | `@uroboros/contract`: the zod schemas for everything that crosses HTTP (bodies, errors, enums). The server's OpenAPI routes and the web client both import from here.                                                                       |
 | `tools/ratchet`       | `@uroboros/ratchet`: the ratchets and `ci-parity`, TypeScript run on node's type stripping. Its frozen numbers are in `tools/ratchet/frozen.json`.                                                                                          |
 | `migrations/`         | Forward-only SQL migrations, applied by every api replica as it starts (under an advisory lock), or by hand with `mise run migrate`. There is no migrate container or Job.                                                                  |
@@ -92,6 +93,25 @@ database calls `TestDb.create()`, which clones the template into a fresh databas
 `UROBOROS_TEST_VALKEY_URL` are set, no containers start and the template is rebuilt on the
 servers they name; CI's `node` job does that with containers it starts itself. Two runs must not
 share one external Postgres at the same time, because each rebuilds the template.
+
+## Sign-in and accounts
+
+Ported from Djinn's authentication (docs/auth.md has the decisions). Every `/api` route outside a
+small public list (health, ready, info, openapi, docs, `/api/auth/methods`,
+`/api/auth/local/login`, `/api/auth/oidc/*`) needs a session or an API token: `authGuard`
+(`apps/server/src/auth/guard.ts`) resolves it and `currentPrincipal(c)` returns `{ userId, role,
+via }`; admin routes call `requireAdmin`. Sessions are opaque random tokens in Postgres (only the
+SHA-256 is stored) behind the `uroboros_session` cookie, and every cookie write needs the
+`X-Uroboros-CSRF` header matching the `uroboros_csrf` cookie; bearer tokens skip CSRF but are
+refused on `/api/admin`, `/api/me/tokens`, `/api/me/password`, `/api/me/sessions` and
+`/api/me/push`. Local passwords are argon2id on Node's built-in `crypto.argon2`; failed sign-ins
+are counted in Valkey so the limit holds across replicas. OIDC uses `openid-client` with PKCE S256
+and checks ID-token signatures against the provider's JWKS; the claims sync redeems refresh tokens
+under the `URO_OSYN` advisory lock, one replica at a time. An account is local or SSO, never both;
+admins manage local accounts in the web app (Admin › Users), and an SSO user's role always comes
+from the provider's groups. There is no account CLI. Tests sign in with `signedIn()` and
+`asUser()` from `apps/server/test/auth.ts`; OIDC tests run `test/oidcIdp.ts`, a loopback HTTPS
+provider (needs `openssl` on PATH).
 
 ## PWA and push
 

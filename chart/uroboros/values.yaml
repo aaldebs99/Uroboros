@@ -57,6 +57,35 @@ push:
   # Devices with notifications per user.
   maxDevices: 10
 
+# Sign-in (docs/auth.md).
+auth:
+  # Fixed session lifetime.
+  sessionTtlHours: 720
+  # Read the client IP from X-Forwarded-For for the per-IP sign-in limit. True behind an ingress.
+  trustProxy: true
+  local:
+    enabled: true
+    bootstrap:
+      # A Secret holding the bootstrap admin's username and password (re-seeded on every start).
+      # Empty: no bootstrap admin.
+      existingSecret: ""
+      usernameKey: UROBOROS_BOOTSTRAP_USERNAME
+      passwordKey: UROBOROS_BOOTSTRAP_PASSWORD
+  oidc:
+    # The provider's issuer URL, e.g. https://sso.example/application/o/uroboros/. Empty: no SSO.
+    # Needs publicBaseUrl (the callback is <publicBaseUrl>/api/auth/oidc/callback).
+    issuer: ""
+    clientId: ""
+    # The Secret holding the client secret.
+    existingSecret: ""
+    clientSecretKey: UROBOROS_OIDC_CLIENT_SECRET
+    displayName: Authentik
+    # Members of any of these groups are admins.
+    adminGroups: ["authentik Admins"]
+    groupsClaim: groups
+    # How old an SSO user's claims may get before the sync refreshes them; 0 turns sync off.
+    syncIntervalSecs: 900
+
 api:
   replicas: 2
   resources:

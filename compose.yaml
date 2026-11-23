@@ -24,6 +24,17 @@ x-server-env: &server-env
   UROBOROS_VAPID_PUBLIC_KEY: ${UROBOROS_VAPID_PUBLIC_KEY:-}
   UROBOROS_VAPID_PRIVATE_KEY: ${UROBOROS_VAPID_PRIVATE_KEY:-}
   UROBOROS_PUSH_ALLOWED_HOSTS: ${UROBOROS_PUSH_ALLOWED_HOSTS:-}
+  # Sign-in (docs/auth.md). Caddy is the proxy in front, so the client IP comes from
+  # X-Forwarded-For. A dev-only bootstrap admin so a fresh stack can be signed into; override
+  # both from the shell. OIDC is off unless its three variables are set (it also needs an https
+  # UROBOROS_PUBLIC_BASE_URL for the callback).
+  UROBOROS_TRUST_PROXY: "true"
+  UROBOROS_BOOTSTRAP_USERNAME: ${UROBOROS_BOOTSTRAP_USERNAME:-admin}
+  UROBOROS_BOOTSTRAP_PASSWORD: ${UROBOROS_BOOTSTRAP_PASSWORD:-uroboros-dev-admin}
+  UROBOROS_OIDC_ISSUER: ${UROBOROS_OIDC_ISSUER:-}
+  UROBOROS_OIDC_CLIENT_ID: ${UROBOROS_OIDC_CLIENT_ID:-}
+  UROBOROS_OIDC_CLIENT_SECRET: ${UROBOROS_OIDC_CLIENT_SECRET:-}
+  UROBOROS_OIDC_ADMIN_GROUPS: ${UROBOROS_OIDC_ADMIN_GROUPS:-}
   UROBOROS_PUSH_MAX_DEVICES: ${UROBOROS_PUSH_MAX_DEVICES:-}
   # The largest request body /api/* accepts (default 65536 bytes).
   UROBOROS_BODY_LIMIT_BYTES: ${UROBOROS_BODY_LIMIT_BYTES:-}

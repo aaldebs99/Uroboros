@@ -478,6 +478,84 @@
           }
         }
       }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sessionTtlHours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "trustProxy": {
+          "type": "boolean"
+        },
+        "local": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "bootstrap": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "existingSecret": {
+                  "type": "string"
+                },
+                "usernameKey": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "passwordKey": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "oidc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "issuer": {
+              "type": "string",
+              "pattern": "^(https://.+)?$"
+            },
+            "clientId": {
+              "type": "string"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "clientSecretKey": {
+              "type": "string",
+              "minLength": 1
+            },
+            "displayName": {
+              "type": "string",
+              "minLength": 1
+            },
+            "adminGroups": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "groupsClaim": {
+              "type": "string",
+              "minLength": 1
+            },
+            "syncIntervalSecs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
     }
   }
 }

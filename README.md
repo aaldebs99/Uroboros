@@ -143,6 +143,15 @@ the worker's test seam and `vite.config.ts`. The compose stack and the chart set
 | `UROBOROS_VAPID_PUBLIC_KEY`, `UROBOROS_VAPID_PRIVATE_KEY`     | api                           | generated once, kept in the database   | A fixed VAPID pair; both or neither. Changing it drops every subscription.                    |
 | `UROBOROS_PUSH_ALLOWED_HOSTS`                                 | api                           | Apple, Google, Mozilla, Microsoft push | Comma-separated hosts a subscription endpoint may be on (or a subdomain of), against SSRF.    |
 | `UROBOROS_PUSH_MAX_DEVICES`                                   | api                           | `10`                                   | Devices with notifications per user.                                                          |
+| `UROBOROS_SESSION_TTL_HOURS`                                  | api                           | `720`                                  | Fixed session lifetime (docs/auth.md).                                                        |
+| `UROBOROS_TRUST_PROXY`                                        | api                           | `false`                                | Read the client IP from `X-Forwarded-For` for the per-IP sign-in limit; true behind a proxy.  |
+| `UROBOROS_LOCAL_LOGIN`                                        | api                           | `true`                                 | Local username/password sign-in; with it off, OIDC must be configured.                        |
+| `UROBOROS_BOOTSTRAP_USERNAME`, `UROBOROS_BOOTSTRAP_PASSWORD`  | api                           | unset (no bootstrap admin)             | The admin re-seeded on every start; both or neither, password 12+ characters.                 |
+| `UROBOROS_OIDC_ISSUER`, `_CLIENT_ID`, `_CLIENT_SECRET`        | api                           | unset (no SSO)                         | The OIDC provider; all three or none, and `UROBOROS_PUBLIC_BASE_URL` is required with them.   |
+| `UROBOROS_OIDC_DISPLAY_NAME`                                  | api                           | `Authentik`                            | The provider's name on the sign-in button.                                                    |
+| `UROBOROS_OIDC_ADMIN_GROUPS`                                  | api                           | `authentik Admins`                     | Comma-separated groups whose members are admins.                                              |
+| `UROBOROS_OIDC_GROUPS_CLAIM`                                  | api                           | `groups`                               | The ID-token claim holding the groups.                                                        |
+| `UROBOROS_OIDC_SYNC_INTERVAL_SECS`                            | api                           | `900`                                  | How stale SSO claims may get before the sync refreshes them; `0` turns the sync off.          |
 | `UROBOROS_WORKER_CONCURRENCY`                                 | worker                        | `4`                                    | Parallel jobs per worker process.                                                             |
 | `YTDLP_PATH`                                                  | worker                        | `yt-dlp` on `PATH`                     | The yt-dlp binary; the image sets `/opt/yt-dlp/bin/yt-dlp`.                                   |
 | `UROBOROS_MIGRATIONS_DIR`                                     | api, migrate, `migration:new` | the repo's `migrations/`               | Where the SQL files are; the image sets `/app/migrations`.                                    |
@@ -150,7 +159,9 @@ the worker's test seam and `vite.config.ts`. The compose stack and the chart set
 | `UROBOROS_WORKER_TEST_QUEUE`, `_PREFIX`, `_GRACE_MS`, `_HANG` | worker (tests)                | unset                                  | The spawned-worker test's seam; never set in production.                                      |
 | `UROBOROS_API_URL`, `UROBOROS_UI_PORT`                        | Vite (`dev:ui`)               | `http://127.0.0.1:18081`, `18173`      | Where the dev server proxies `/api`, and its own port.                                        |
 
-The compose host ports (`UROBOROS_PORT` and the others) are under Quickstart.
+The compose host ports (`UROBOROS_PORT` and the others) are under Quickstart. The compose stack
+signs in with a dev-only bootstrap admin, `admin` / `uroboros-dev-admin`, unless you set
+`UROBOROS_BOOTSTRAP_USERNAME` and `UROBOROS_BOOTSTRAP_PASSWORD` in the shell.
 
 ## CI and releases
 

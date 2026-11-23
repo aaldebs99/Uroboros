@@ -158,3 +158,56 @@ defaults cover the rest. A VAPID public key and its private-key Secret come toge
 - name: UROBOROS_PUSH_MAX_DEVICES
   value: {{ .Values.push.maxDevices | quote }}
 {{- end -}}
+
+{{/* Sign-in settings for the api (docs/auth.md). Refuses half an OIDC setup. */}}
+{{- define "uroboros.authEnv" -}}
+{{- $a := .Values.auth -}}
+{{- $o := $a.oidc -}}
+{{- $oidcSet := or $o.issuer $o.clientId $o.existingSecret -}}
+{{- if and $oidcSet (not (and $o.issuer $o.clientId $o.existingSecret)) -}}
+{{- fail "auth.oidc needs issuer, clientId and existingSecret together" -}}
+{{- end -}}
+{{- if and $oidcSet (not .Values.publicBaseUrl) -}}
+{{- fail "auth.oidc needs publicBaseUrl (the OIDC callback is built from it)" -}}
+{{- end -}}
+{{- if and (not $a.local.enabled) (not $oidcSet) -}}
+{{- fail "auth: no sign-in method; enable auth.local or configure auth.oidc" -}}
+{{- end -}}
+- name: UROBOROS_SESSION_TTL_HOURS
+  value: {{ $a.sessionTtlHours | quote }}
+- name: UROBOROS_TRUST_PROXY
+  value: {{ $a.trustProxy | quote }}
+- name: UROBOROS_LOCAL_LOGIN
+  value: {{ $a.local.enabled | quote }}
+{{- with $a.local.bootstrap.existingSecret }}
+- name: UROBOROS_BOOTSTRAP_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: {{ $a.local.bootstrap.usernameKey }}
+- name: UROBOROS_BOOTSTRAP_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ . }}
+      key: {{ $a.local.bootstrap.passwordKey }}
+{{- end }}
+{{- if $oidcSet }}
+- name: UROBOROS_OIDC_ISSUER
+  value: {{ $o.issuer | quote }}
+- name: UROBOROS_OIDC_CLIENT_ID
+  value: {{ $o.clientId | quote }}
+- name: UROBOROS_OIDC_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{ $o.existingSecret }}
+      key: {{ $o.clientSecretKey }}
+- name: UROBOROS_OIDC_DISPLAY_NAME
+  value: {{ $o.displayName | quote }}
+- name: UROBOROS_OIDC_ADMIN_GROUPS
+  value: {{ join "," $o.adminGroups | quote }}
+- name: UROBOROS_OIDC_GROUPS_CLAIM
+  value: {{ $o.groupsClaim | quote }}
+- name: UROBOROS_OIDC_SYNC_INTERVAL_SECS
+  value: {{ $o.syncIntervalSecs | quote }}
+{{- end }}
+{{- end -}}
