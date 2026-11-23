@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError, loadConfig, loadWorkerConfig } from "../config.ts";
+import { ConfigError, loadConfig } from "../config.ts";
 import { DEFAULT_LAYOUT } from "./config.ts";
 
 const base = { DATABASE_URL: "postgres://u:p@h/db", VALKEY_URL: "redis://h:6379" };
@@ -89,41 +89,35 @@ describe("storage settings", () => {
     });
   });
 
-  it("gives the worker the database, storage, limits, work dir and cookies", () => {
-    expect(() => loadWorkerConfig({ VALKEY_URL: "redis://h", ...s3 })).toThrow(/DATABASE_URL/);
-    const w = loadWorkerConfig({
+  it("gives the job consumers their work dir and cookies", () => {
+    const c = loadConfig({
       ...base,
       ...s3,
       UROBOROS_WORK_DIR: "/work",
       UROBOROS_YTDLP_COOKIES_FILE: "/secrets/cookies.txt",
     });
-    expect(w).toMatchObject({
-      databaseUrl: base.DATABASE_URL,
-      workDir: "/work",
-      cookiesFile: "/secrets/cookies.txt",
-      downloads: { maxActivePerUser: 3, maxPlaylistEntries: 1000 },
-    });
-    expect(w.storage.kind).toBe("s3");
-    expect(loadWorkerConfig({ ...base, ...s3 }).cookiesFile).toBeNull();
+    expect(c.worker).toMatchObject({ workDir: "/work", cookiesFile: "/secrets/cookies.txt" });
+    expect(c.storage.kind).toBe("s3");
+    expect(loadConfig({ ...base, ...s3 }).worker.cookiesFile).toBeNull();
   });
 
   it("reads the subtitle settings: English by default, empty turns them off", () => {
-    expect(loadWorkerConfig({ ...base, ...s3 }).subtitles).toEqual({
+    expect(loadConfig({ ...base, ...s3 }).worker.subtitles).toEqual({
       langs: "en.*",
       automatic: false,
     });
     expect(
-      loadWorkerConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "" }).subtitles.langs,
+      loadConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "" }).worker.subtitles.langs,
     ).toBeNull();
     expect(
-      loadWorkerConfig({
+      loadConfig({
         ...base,
         ...s3,
         UROBOROS_SUBTITLE_LANGS: "de,fr",
         UROBOROS_AUTO_SUBTITLES: "true",
-      }).subtitles,
+      }).worker.subtitles,
     ).toEqual({ langs: "de,fr", automatic: true });
-    expect(() => loadWorkerConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "en; rm" })).toThrow(
+    expect(() => loadConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "en; rm" })).toThrow(
       /UROBOROS_SUBTITLE_LANGS/,
     );
   });

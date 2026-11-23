@@ -6,7 +6,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 /**
  * `base: "/"` keeps deep links working on a hard refresh behind the server's SPA fallback. In dev,
- * `/api` is proxied to the API (`mise run dev:api`, on 127.0.0.1:18081). The dev server's own
+ * `/api` is proxied to the API (`mise run dev:server`, on 127.0.0.1:18081). The dev server's own
  * port is 18173 (UROBOROS_UI_PORT), strict so a clash fails instead of silently moving to another
  * port. Tests live in `vitest.config.ts`.
  */

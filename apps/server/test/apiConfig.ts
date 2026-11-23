@@ -12,7 +12,7 @@ export const MIGRATIONS = fileURLToPath(new URL("../../../migrations", import.me
 export const fixtureMigrations = (name: string): string =>
   fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 
-/** An api config on a free port against `databaseUrl` and the shared Valkey. */
+/** A server config on a free port against `databaseUrl` and the shared Valkey. */
 export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Config {
   return {
     bind: { host: "127.0.0.1", port: 0 },
@@ -32,6 +32,13 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
     },
     storage: { kind: "filesystem", root: "/tmp/uroboros-api-test", layout: DEFAULT_LAYOUT },
     downloads: { maxActivePerUser: 3, maxPlaylistEntries: 1000 },
+    worker: {
+      workDir: "/tmp/uroboros-api-test-work",
+      cookiesFile: null,
+      subtitles: { langs: null, automatic: false },
+      concurrency: 2,
+      ytdlpPath: "yt-dlp",
+    },
     ...over,
   };
 }

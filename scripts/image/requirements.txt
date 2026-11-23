@@ -1,4 +1,4 @@
-# What pip installs into the worker image's venv (install-pip-packages.sh): yt-dlp with its
+# What pip installs into the image's venv (install-pip-packages.sh): yt-dlp with its
 # [default] extras (brotli, certifi, mutagen, pycryptodomex, requests, websockets, yt-dlp-ejs and
 # what they need), every package pinned with the hashes of its release files. pip runs with
 # --require-hashes, so a file that differs from these, or an unpinned dependency, fails the build.

@@ -1,19 +1,16 @@
-import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createServer, connect } from "node:net";
 import type { Socket } from "node:net";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
-import { fileURLToPath } from "node:url";
 import { Queue, QueueEvents } from "bullmq";
 import type { Processor } from "bullmq";
 import { Redis } from "ioredis";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TestValkey } from "../../test/testValkey.ts";
-import { ConfigError, loadWorkerConfig } from "../config.ts";
 import { createValkey } from "../shared/valkey.ts";
-import { main, startWorker } from "./main.ts";
-import type { RunningWorker } from "./main.ts";
+import { StartupAborted, startWorker } from "./start.ts";
+import type { RunningWorker } from "./start.ts";
 import { QUEUE_NAMES } from "./queues.ts";
 import { createSystemWorker } from "./system.ts";
 
@@ -66,18 +63,6 @@ function start(
     queueName: name,
     ...extra,
   });
-}
-
-/** The worker's required settings besides Valkey (a filesystem store; nothing connects to it). */
-const W = {
-  DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
-  UROBOROS_STORAGE: "filesystem",
-  UROBOROS_STORAGE_ROOT: "/tmp/uroboros-worker-test",
-};
-
-function stubWorkerEnv(valkeyUrl: string): void {
-  vi.stubEnv("VALKEY_URL", valkeyUrl);
-  for (const [k, v] of Object.entries(W)) vi.stubEnv(k, v);
 }
 
 describe("system queue", () => {
@@ -202,77 +187,6 @@ describe("crash", () => {
   });
 });
 
-describe("main", () => {
-  it("returns 2 when VALKEY_URL is missing", async () => {
-    vi.stubEnv("VALKEY_URL", "");
-    try {
-      expect(await main()).toBe(2);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-
-  it("runs until SIGTERM, then resolves 0 and removes its heartbeat", async () => {
-    stubWorkerEnv(TestValkey.url());
-    const queueName = `main-${randomUUID()}`;
-    const running = main([], { prefix, queueName });
-    const key = `${prefix}:worker:${hostname()}:${String(process.pid)}`;
-    try {
-      await vi.waitFor(async () => {
-        expect(await redis.exists(key)).toBe(1);
-      }, WAIT);
-      process.emit("SIGTERM");
-      expect(await running).toBe(0);
-      expect(await redis.exists(key)).toBe(0);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-});
-
-describe("process", () => {
-  it("exits 1 within the grace deadline when a job hangs", async () => {
-    const name = `proc-${randomUUID()}`;
-    const { queue } = openQueue(name);
-    const job = await queue.add("stuck", {});
-    const serverDir = fileURLToPath(new URL("../..", import.meta.url));
-    const child = spawn(process.execPath, ["--import", "tsx", "src/bin/worker.ts"], {
-      cwd: serverDir,
-      stdio: "ignore",
-      env: {
-        ...process.env,
-        ...W,
-        VALKEY_URL: TestValkey.url(),
-        UROBOROS_WORKER_TEST_QUEUE: name,
-        UROBOROS_WORKER_TEST_PREFIX: prefix,
-        UROBOROS_WORKER_TEST_GRACE_MS: "500",
-        UROBOROS_WORKER_TEST_HANG: "1",
-      },
-    });
-    track(child, (c) => Promise.resolve(c.kill("SIGKILL")));
-    const exited = new Promise<number | null>((resolve) => {
-      child.once("exit", (code) => {
-        resolve(code);
-      });
-    });
-    await vi.waitFor(async () => {
-      expect(await job.getState()).toBe("active");
-    }, WAIT);
-    const t0 = Date.now();
-    child.kill("SIGTERM");
-    const code = await Promise.race([
-      exited,
-      new Promise<string>((r) =>
-        setTimeout(() => {
-          r("hung");
-        }, 8000),
-      ),
-    ]);
-    expect(code).toBe(1);
-    expect(Date.now() - t0).toBeLessThan(8000);
-  });
-});
-
 describe("unreachable valkey", () => {
   it("still settles close() within the grace deadline", async () => {
     const upstream = new URL(TestValkey.url());
@@ -307,77 +221,37 @@ describe("unreachable valkey", () => {
   });
 });
 
-describe("main before ready", () => {
-  it("returns 1 within the grace period when SIGTERM lands before Valkey answers", async () => {
-    // Nothing listens on port 1, and the worker connection retries forever, so startup never
-    // reaches ready on its own.
-    stubWorkerEnv("redis://127.0.0.1:1");
-    const before = process.listenerCount("SIGTERM");
-    const running = main([], {
+describe("shutdown", () => {
+  it("rejects close() within the grace deadline when a job hangs", async () => {
+    const name = `hang-${randomUUID()}`;
+    const { queue } = openQueue(name);
+    const worker = await start(
+      { shutdownGraceMs: 500, processor: () => new Promise<never>(() => undefined) },
+      name,
+    );
+    const job = await queue.add("stuck", {});
+    await vi.waitFor(async () => {
+      expect(await job.getState()).toBe("active");
+    }, WAIT);
+    const t0 = Date.now();
+    await expect(worker.close()).rejects.toThrow(/did not drain within 500 ms/);
+    expect(Date.now() - t0).toBeLessThan(2000);
+  });
+
+  it("gives up a start that is still waiting for Valkey when it is aborted", async () => {
+    // Nothing listens on port 1, and the connection retries forever, so start-up never gets ready.
+    const abort = new AbortController();
+    const starting = startWorker({
+      valkeyUrl: "redis://127.0.0.1:1",
+      concurrency: 1,
       prefix,
       queueName: `unready-${randomUUID()}`,
       shutdownGraceMs: 500,
+      abort: abort.signal,
     });
-    try {
-      // The trap is installed once main has logged the tool versions; signal only after that.
-      await vi.waitFor(() => {
-        expect(process.listenerCount("SIGTERM")).toBeGreaterThan(before);
-      }, WAIT);
-      const t0 = Date.now();
-      process.emit("SIGTERM");
-      expect(await running).toBe(1);
-      expect(Date.now() - t0).toBeLessThan(1500);
-      expect(process.listenerCount("SIGTERM")).toBe(before);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-});
-
-describe("test seam validation", () => {
-  it("rejects a non-integer grace with exit 2", async () => {
-    stubWorkerEnv(TestValkey.url());
-    vi.stubEnv("UROBOROS_WORKER_TEST_QUEUE", "x");
-    vi.stubEnv("UROBOROS_WORKER_TEST_GRACE_MS", "abc");
-    try {
-      expect(await main()).toBe(2);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-});
-
-describe("loadWorkerConfig", () => {
-  it("requires VALKEY_URL, DATABASE_URL and storage", () => {
-    expect(loadWorkerConfig({ ...W, VALKEY_URL: "redis://x:1" })).toMatchObject({
-      valkeyUrl: "redis://x:1",
-      databaseUrl: W.DATABASE_URL,
-      concurrency: 4,
-      ytdlpPath: "yt-dlp",
-    });
-    expect(() => loadWorkerConfig({})).toThrow(ConfigError);
-  });
-
-  it("reads YTDLP_PATH, treating an empty one as unset", () => {
-    const env = { ...W, VALKEY_URL: "redis://x:1", YTDLP_PATH: "/opt/yt-dlp/bin/yt-dlp" };
-    expect(loadWorkerConfig(env).ytdlpPath).toBe("/opt/yt-dlp/bin/yt-dlp");
-    expect(loadWorkerConfig({ ...W, VALKEY_URL: "redis://x:1", YTDLP_PATH: "" }).ytdlpPath).toBe(
-      "yt-dlp",
-    );
-  });
-
-  it("reads UROBOROS_WORKER_CONCURRENCY", () => {
-    const env = { ...W, VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: "8" };
-    expect(loadWorkerConfig(env).concurrency).toBe(8);
-  });
-
-  it("treats an empty UROBOROS_WORKER_CONCURRENCY as unset, as compose passes it", () => {
-    const env = { ...W, VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: "" };
-    expect(loadWorkerConfig(env).concurrency).toBe(4);
-  });
-
-  it.each(["0", "-1", "2.5", "abc", "4 "])("rejects concurrency %j", (bad) => {
-    const env = { ...W, VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: bad };
-    expect(() => loadWorkerConfig(env)).toThrow(ConfigError);
+    const t0 = Date.now();
+    abort.abort();
+    await expect(starting).rejects.toBeInstanceOf(StartupAborted);
+    expect(Date.now() - t0).toBeLessThan(1500);
   });
 });

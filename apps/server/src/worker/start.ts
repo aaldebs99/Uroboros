@@ -3,22 +3,22 @@ import type { Processor } from "bullmq";
 import { pino } from "pino";
 import type { Logger } from "pino";
 import type { Redis } from "ioredis";
-import { ConfigError, loadWorkerConfig, type WorkerConfig } from "../config.ts";
 import type { DownloadWorkers } from "./downloadWorkers.ts";
 import { createValkey } from "../shared/valkey.ts";
 import { DEFAULT_PREFIX } from "./queues.ts";
 import { createSystemWorker } from "./system.ts";
-import { logToolVersions } from "./versions.ts";
-import { downloadWiring } from "./wiring.ts";
 
 const HEARTBEAT_EVERY_MS = 10_000;
 const HEARTBEAT_TTL_S = 30;
-const DEFAULT_SHUTDOWN_GRACE_MS = 25_000;
+/** How long a stopping process waits for its running jobs. */
+export const DEFAULT_SHUTDOWN_GRACE_MS = 25_000;
+/** Before the grace runs out, running fetches are cut and requeued, so the drain can finish. */
+const ABORT_MARGIN_MS = 5000;
 
 export interface StartWorkerOptions {
   valkeyUrl: string;
   concurrency: number;
-  /** Hard deadline for `close()`; keep it under Kubernetes' 30 s grace. Default 25000. */
+  /** Hard deadline for `close()`; keep it under the container's stop timeout. Default 25000. */
   shutdownGraceMs?: number;
   /** BullMQ key prefix and heartbeat key prefix. Default "uroboros"; tests use their own. */
   prefix?: string;
@@ -94,7 +94,7 @@ async function bestEffort(p: Promise<unknown>, ms: number): Promise<void> {
 
 /** Starts the worker and its heartbeat. Installs no process handlers; the caller owns shutdown. */
 export async function startWorker(opts: StartWorkerOptions): Promise<RunningWorker> {
-  const log = opts.logger ?? pino({ name: "uroboros-worker" });
+  const log = opts.logger ?? pino({ name: "uroboros" });
   const prefix = opts.prefix ?? DEFAULT_PREFIX;
   const graceMs = opts.shutdownGraceMs ?? DEFAULT_SHUTDOWN_GRACE_MS;
   const heartbeatKey = `${prefix}:worker:${hostname()}:${String(process.pid)}`;
@@ -139,11 +139,18 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
   await ready;
   const extra = opts.extraWorkers === undefined ? null : await opts.extraWorkers(valkey);
   const timer = setInterval(() => void beat(), opts.heartbeatEveryMs ?? HEARTBEAT_EVERY_MS);
-  log.info({ heartbeatKey, concurrency: opts.concurrency }, "worker started");
+  log.info({ heartbeatKey, concurrency: opts.concurrency }, "job consumers started");
 
   let closing: Promise<void> | undefined;
   const closeOnce = async () => {
     clearInterval(timer);
+    // Short jobs finish on their own; a long download is cut near the deadline and requeued.
+    const cut = setTimeout(
+      () => {
+        extra?.abortRunning();
+      },
+      Math.max(0, graceMs - ABORT_MARGIN_MS),
+    );
     let deadline: NodeJS.Timeout | undefined;
     const expired = new Promise<"timeout">((resolve) => {
       deadline = setTimeout(() => {
@@ -163,12 +170,13 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
       if (outcome === "timeout") {
         // The pending graceful close() cannot be forced, so cut the connections (including the
         // blocking one) without awaiting. BullMQ's lock renewal timer keeps running after this, so
-        // the process cannot exit by draining; bin/worker.ts calls process.exit.
+        // the process cannot exit by draining; bin/server.ts calls process.exit.
         worker.disconnect().catch(() => undefined);
         for (const w of extra?.workers ?? []) w.disconnect().catch(() => undefined);
         throw new Error(`worker did not drain within ${String(graceMs)} ms; force closed`);
       }
     } finally {
+      clearTimeout(cut);
       clearTimeout(deadline);
       valkey.disconnect();
     }
@@ -178,134 +186,6 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
     close() {
       closing ??= closeOnce();
       return closing;
-    },
-  };
-}
-
-function parseGraceMs(text: string): number {
-  if (!/^[1-9]\d*$/.test(text)) {
-    throw new ConfigError(
-      `UROBOROS_WORKER_TEST_GRACE_MS must be a positive integer, got "${text}"`,
-    );
-  }
-  return Number(text);
-}
-
-/**
- * Env seam for the spawned-process test, honoured only when UROBOROS_WORKER_TEST_QUEUE is set:
- * UROBOROS_WORKER_TEST_{QUEUE,PREFIX,GRACE_MS} and UROBOROS_WORKER_TEST_HANG=1 (processor that never
- * finishes). Never set in production.
- */
-function testOverridesFromEnv(env: NodeJS.ProcessEnv): Partial<StartWorkerOptions> {
-  const queueName = env["UROBOROS_WORKER_TEST_QUEUE"];
-  if (queueName === undefined) return {};
-  const prefix = env["UROBOROS_WORKER_TEST_PREFIX"];
-  const grace = env["UROBOROS_WORKER_TEST_GRACE_MS"];
-  return {
-    queueName,
-    ...(prefix === undefined ? {} : { prefix }),
-    ...(grace === undefined ? {} : { shutdownGraceMs: parseGraceMs(grace) }),
-    ...(env["UROBOROS_WORKER_TEST_HANG"] === "1"
-      ? { processor: () => new Promise<never>(() => undefined) }
-      : {}),
-  };
-}
-
-/**
- * Runs the worker until SIGTERM/SIGINT, then drains. Exit codes: 0 clean, 1 drain failed, hit the
- * deadline or a signal arrived before the worker was ready, 2 configuration error. After a missed deadline BullMQ's lock renewal timer is still
- * alive, so the process does not exit by itself; bin/worker.ts calls process.exit with this code.
- * `overrides` is a test seam (prefix, queue, processor, grace) and wins over the env seam.
- */
-export async function main(
-  _argv: string[] = [],
-  overrides: Partial<StartWorkerOptions> = {},
-): Promise<number> {
-  const logger = pino({ name: "uroboros-worker" });
-  let config: WorkerConfig;
-  let testOverrides: Partial<StartWorkerOptions>;
-  try {
-    config = loadWorkerConfig(process.env);
-    testOverrides = testOverridesFromEnv(process.env);
-  } catch (err) {
-    if (err instanceof ConfigError) {
-      logger.fatal(err.message);
-      return 2;
-    }
-    throw err;
-  }
-  const { valkeyUrl, concurrency, ytdlpPath } = config;
-  await logToolVersions(logger, { ytdlp: ytdlpPath });
-  const downloads = downloadWiring(
-    config,
-    overrides.prefix ?? testOverrides.prefix ?? DEFAULT_PREFIX,
-    logger,
-  );
-  // Trapped before the worker starts: BullMQ begins taking jobs inside startWorker, so a SIGTERM
-  // that lands before it returns must still drain them, not kill the process mid-job. A signal
-  // before the worker is ready (Valkey unreachable) aborts the startup instead, and main returns 1
-  // within the grace period rather than waiting for a connection that may never come.
-  const signals = trapShutdownSignals();
-  const startup = new AbortController();
-  void signals.received.then((signal) => {
-    startup.abort(signal);
-  });
-  try {
-    let worker: RunningWorker;
-    try {
-      worker = await startWorker({
-        valkeyUrl,
-        concurrency,
-        logger,
-        extraWorkers: (connection) => downloads.start(connection),
-        ...testOverrides,
-        ...overrides,
-        abort: startup.signal,
-      });
-    } catch (err) {
-      if (!(err instanceof StartupAborted)) throw err;
-      logger.error(
-        { signal: startup.signal.reason as unknown },
-        "shut down before the worker was ready",
-      );
-      return 1;
-    }
-    const signal = await signals.received;
-    logger.info({ signal }, "shutting down");
-    try {
-      await worker.close();
-      return 0;
-    } catch (err) {
-      logger.error({ err }, "shutdown failed");
-      return 1;
-    }
-  } finally {
-    signals.dispose();
-    await downloads.close().catch((err: unknown) => {
-      logger.warn({ err }, "closing the download connections failed");
-    });
-  }
-}
-
-/** The first SIGTERM or SIGINT, from the moment this is called; `dispose` removes the listeners. */
-function trapShutdownSignals(): { received: Promise<string>; dispose(): void } {
-  let onSignal: (signal: string) => void = () => undefined;
-  const received = new Promise<string>((resolve) => {
-    onSignal = resolve;
-  });
-  const onTerm = () => {
-    onSignal("SIGTERM");
-  };
-  const onInt = () => {
-    onSignal("SIGINT");
-  };
-  process.once("SIGTERM", onTerm);
-  process.once("SIGINT", onInt);
-  return {
-    received,
-    dispose() {
-      process.off("SIGTERM", onTerm);
-      process.off("SIGINT", onInt);
     },
   };
 }

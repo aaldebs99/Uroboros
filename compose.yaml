@@ -1,21 +1,23 @@
-# Local stack, the shape of a deployment: Postgres, Valkey and RustFS, two api replicas (each
-# applies pending migrations as it starts, one at a time under an advisory lock) behind Caddy on 127.0.0.1:18080 (UROBOROS_PORT overrides the host port) and two workers.
+# Local stack, the shape of a production run: Postgres, Valkey and RustFS, and two uroboros
+# replicas behind Caddy on 127.0.0.1:18080 (UROBOROS_PORT overrides the host port). Every replica
+# serves HTTP and runs the download jobs, and applies pending migrations as it starts (one at a
+# time, under an advisory lock); one of them leads the singleton duties.
 # `mise run docker:up` builds the real images and starts it. The proxy is the only port this file
-# publishes. Everything dev-only (hot reload for the api, loopback ports for Postgres, Valkey and
-# RustFS, which `mise run dev:deps` uses for a host-run api and worker) is in compose.dev.yaml.
+# publishes. Everything dev-only (hot reload, loopback ports for Postgres, Valkey and RustFS,
+# which `mise run dev:deps` uses for a host-run server) is in compose.dev.yaml.
 #
 # One project name, so up, down, logs and ps from any directory address the same stack.
 name: uroboros
 
 x-server-build: &server-build
   context: .
-  target: api
+  target: uroboros
   args:
     VERSION: 0.0.0-compose
 
-# Media storage (docs/downloads.md), shared by the api and the workers. RustFS by default, with
+# Media storage (docs/downloads.md), shared by the replicas. RustFS by default, with
 # the bucket the rustfs-init one-shot creates; UROBOROS_STORAGE=filesystem stores organized
-# folders on the media-data volume instead (mounted at /media in both).
+# folders on the media-data volume instead (mounted at /media in each).
 x-storage-env: &storage-env
   UROBOROS_STORAGE: ${UROBOROS_STORAGE:-s3}
   UROBOROS_S3_ENDPOINT: http://rustfs:9000
@@ -63,11 +65,20 @@ x-server-env: &server-env
   UROBOROS_PUSH_MAX_DEVICES: ${UROBOROS_PUSH_MAX_DEVICES:-}
   # The largest request body /api/* accepts (default 65536 bytes).
   UROBOROS_BODY_LIMIT_BYTES: ${UROBOROS_BODY_LIMIT_BYTES:-}
-  # How long a stopping api waits for in-flight requests (default 20000 ms).
+  # How long a stopping replica waits for in-flight requests (default 20000 ms). Its running
+  # download jobs get 25 s, after which they go back to the queue for another replica.
   UROBOROS_SHUTDOWN_GRACE_MS: ${UROBOROS_SHUTDOWN_GRACE_MS:-}
-  # How long a starting api retries an unreachable Postgres, in seconds (default 0: until it
-  # answers). The api waits for Postgres to be healthy anyway, so this only matters on a restart.
+  # How long a starting replica retries an unreachable Postgres, in seconds (default 0: until it
+  # answers). It waits for Postgres to be healthy anyway, so this only matters on a restart.
   UROBOROS_DB_STARTUP_GRACE_SECS: ${UROBOROS_DB_STARTUP_GRACE_SECS:-}
+  # The download jobs: scratch space, parallel downloads per replica (default 4), a Netscape
+  # cookies file for yt-dlp (mount it and set the path to use one), and the subtitles saved with
+  # each download (yt-dlp --sub-langs; an explicitly empty value saves none).
+  UROBOROS_WORK_DIR: /work
+  UROBOROS_WORKER_CONCURRENCY: ${UROBOROS_WORKER_CONCURRENCY:-}
+  UROBOROS_YTDLP_COOKIES_FILE: ${UROBOROS_YTDLP_COOKIES_FILE:-}
+  UROBOROS_SUBTITLE_LANGS: ${UROBOROS_SUBTITLE_LANGS-en.*}
+  UROBOROS_AUTO_SUBTITLES: ${UROBOROS_AUTO_SUBTITLES:-}
 
 services:
   postgres:
@@ -131,7 +142,7 @@ services:
       rustfs:
         condition: service_healthy
 
-  api:
+  uroboros:
     build: *server-build
     image: uroboros:local
     restart: unless-stopped
@@ -140,16 +151,20 @@ services:
     environment: *server-env
     volumes:
       - media-data:/media
-    # Above the api's 20 s drain plus 2 s for cut connections, 2 s cleanup and 2 s hard-exit
-    # slack (26 s at most), so compose does not SIGKILL it mid-drain (the default is 10 s).
-    stop_grace_period: 30s
+    # Scratch space for downloads in progress. The mode is explicit: a restarted container gets a
+    # fresh tmpfs owned by root with 755, which the non-root process could not write.
+    tmpfs:
+      - /work:mode=1777
+    # Above the stop budget: the 25 s job grace (alongside the 20 s HTTP drain), 2 s for cut
+    # connections, 2 s cleanup and 2 s hard-exit slack (31 s at most), so compose does not
+    # SIGKILL a replica mid-drain (the default is 10 s).
+    stop_grace_period: 35s
     healthcheck:
-      # The image is distroless: no shell, no curl. Node's fetch is enough. /api/ready is 503
-      # until the replica has migrated; degraded is still HTTP 200, so a stopped Valkey does not
-      # take the replicas out.
+      # /api/ready is 503 until the replica has migrated; degraded is still HTTP 200, so a
+      # stopped Valkey does not take the replicas out.
       test:
         - CMD
-        - /usr/local/bin/node
+        - node
         - -e
         - "fetch('http://127.0.0.1:8080/api/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
       interval: 5s
@@ -164,40 +179,7 @@ services:
       rustfs-init:
         condition: service_completed_successfully
 
-  worker:
-    build:
-      context: .
-      target: worker
-      args:
-        VERSION: 0.0.0-compose
-    image: uroboros:local-worker
-    restart: unless-stopped
-    deploy:
-      replicas: 2
-    environment:
-      <<: *storage-env
-      DATABASE_URL: postgres://uroboros:uroboros@postgres:5432/uroboros
-      VALKEY_URL: redis://valkey:6379
-      UROBOROS_WORK_DIR: /work
-      UROBOROS_WORKER_CONCURRENCY: ${UROBOROS_WORKER_CONCURRENCY:-}
-      # A Netscape cookies file for yt-dlp; mount it and set the path to use one.
-      UROBOROS_YTDLP_COOKIES_FILE: ${UROBOROS_YTDLP_COOKIES_FILE:-}
-      # Subtitles saved with each download (yt-dlp --sub-langs); an explicitly empty value saves none.
-      UROBOROS_SUBTITLE_LANGS: ${UROBOROS_SUBTITLE_LANGS-en.*}
-      UROBOROS_AUTO_SUBTITLES: ${UROBOROS_AUTO_SUBTITLES:-}
-    volumes:
-      - media-data:/media
-    tmpfs:
-      - /work
-    depends_on:
-      postgres:
-        condition: service_healthy
-      valkey:
-        condition: service_healthy
-      rustfs-init:
-        condition: service_completed_successfully
-
-  # The one entrypoint, round-robin over both api replicas. `dynamic a` re-resolves the `api`
+  # The one entrypoint, round-robin over both replicas. `dynamic a` re-resolves the `uroboros`
   # service name every two seconds, so replicas that restart or scale are picked up.
   caddy:
     image: caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
@@ -211,7 +193,7 @@ services:
     volumes:
       - ./compose/Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
-      api:
+      uroboros:
         condition: service_healthy
 
 volumes:

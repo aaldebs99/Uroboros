@@ -1,7 +1,7 @@
 ---
-# Builds and publishes both container images (the Dockerfile's `api` target, the distroless api
-# that migrates on start, and `worker`, the Debian slim image with ffmpeg and the pinned
-# yt-dlp) to the registry named by the REGISTRY repository variable, under the aaldebs99
+# Builds and publishes the container image (the Dockerfile's `uroboros` target: the Debian slim
+# image with ffmpeg and the pinned yt-dlp, whose one process serves HTTP, runs the download jobs
+# and migrates on start) to the registry named by the REGISTRY repository variable, under the aaldebs99
 # namespace. A Forgejo user's package namespace takes pushes from that user alone, so the push
 # authenticates as aaldebs99 with the REGISTRY_TOKEN secret (an access token of that account
 # scoped write:package), not as the release bot release-pr.yml cuts releases with.
@@ -9,14 +9,11 @@
 #   push to main          -> <REGISTRY>/aaldebs99/uroboros:main (no per-commit tags)
 #   published release X.Y.Z (cut by release-pr.yml) -> :X.Y.Z, :X.Y, :latest
 #   workflow_dispatch     -> the tags of the ref it runs on (a branch: :<branch>; a tag: :X.Y.Z, :X.Y, :latest)
-#   the worker image      -> every tag above with -worker appended (:main-worker,
-#                            :X.Y.Z-worker, :X.Y-worker, :latest-worker), the chart's
-#                            image.workerSuffix
 #
 # Every run on a tag ref (the release event, or a manual dispatch on a tag) passes
 # scripts/image/smoke-test.sh before any tag is pushed; a push to main publishes :main without it.
 #
-# Ported from Djinn's release.yml (its `slim` image is the worker here). This is not a CI gate:
+# Ported from Djinn's release.yml. This is not a CI gate:
 # `mise run ci` and ci:parity do not know about it.
 # No `permissions:` blocks: Forgejo ignores the field and warns about it on every run;
 # capabilities come from the forge's Authorized Integrations.
@@ -41,20 +38,19 @@ env:
   # login step's account). Lowercase because OCI repository names must be.
   IMAGE_NAMESPACE: aaldebs99
   IMAGE_NAME: uroboros
-  # Add linux/arm64 once a builder for it exists. The worker's ffmpeg mirror image is
-  # linux/amd64 only (yt-dlp's linux64 build), so the worker needs an arm64 mirror first.
+  # Add linux/arm64 once a builder for it exists. The ffmpeg mirror image is linux/amd64 only
+  # (yt-dlp's linux64 build), so the image needs an arm64 mirror first.
   PLATFORMS: linux/amd64
 
 jobs:
   image:
-    name: Images
+    name: Image
     # Docker for buildx. The timeout carries 90 extra minutes for the runner's pod wait, as in
     # ci.yml.
     runs-on: big-dind
     timeout-minutes: 150
     outputs:
       digest: ${{ steps.build.outputs.digest }}
-      digest_worker: ${{ steps.build-worker.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -102,24 +98,23 @@ jobs:
           labels: |
             org.opencontainers.image.title=uroboros
 
-      # A release is smoke-tested before anything is pushed: both images are built into the
-      # runner's Docker (`load`), scripts/image/smoke-test.sh runs migrate, the api and the worker
-      # against throwaway Postgres and Valkey, and only then do the push steps below run,
-      # rebuilding from this builder's cache (the same layers, so the pushed image is the one
-      # tested). A failure leaves :X.Y.Z, :latest and their -worker twins where they were. The
-      # :main pushes skip this and push as before.
+      # A release is smoke-tested before anything is pushed: the image is built into the
+      # runner's Docker (`load`), scripts/image/smoke-test.sh runs the server and migrate against
+      # throwaway Postgres and Valkey, and only then does the push step below run, rebuilding
+      # from this builder's cache (the same layers, so the pushed image is the one tested). A
+      # failure leaves :X.Y.Z and :latest where they were. The :main pushes skip this.
       #
       # Gated on the tag ref, the same condition that turns on the release tags below, not on the
       # event name: a workflow_dispatch run on a tag also pushes :X.Y.Z, :X.Y and :latest, and must
       # be smoked first too. (Djinn's release.yml gates on `github.event_name == 'release'` and has
       # that gap.)
-      - name: Build the api image for the smoke test
+      - name: Build the image for the smoke test
         if: startsWith(github.ref, 'refs/tags/')
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ./Dockerfile
-          target: api
+          target: uroboros
           platforms: ${{ env.PLATFORMS }}
           load: true
           push: false
@@ -130,36 +125,17 @@ jobs:
             REVISION=${{ github.sha }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache
 
-      - name: Build the worker image for the smoke test
+      - name: Smoke test the release image
         if: startsWith(github.ref, 'refs/tags/')
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: ./Dockerfile
-          target: worker
-          platforms: ${{ env.PLATFORMS }}
-          load: true
-          push: false
-          provenance: false
-          tags: uroboros:smoke-worker
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            REVISION=${{ github.sha }}
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache-worker
+        run: scripts/image/smoke-test.sh uroboros:smoke
 
-      - name: Smoke test the release images
-        if: startsWith(github.ref, 'refs/tags/')
-        run: scripts/image/smoke-test.sh uroboros:smoke uroboros:smoke-worker
-
-      - name: Build and push the api image
+      - name: Build and push the image
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ./Dockerfile
-          target: api
+          target: uroboros
           platforms: ${{ env.PLATFORMS }}
           push: true
           provenance: false
@@ -171,56 +147,12 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
-      # Same tags with -worker appended (onlatest: `latest-worker` too).
-      - name: Derive the worker tags and labels
-        id: meta-worker
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            suffix=-worker,onlatest=true
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=ref,event=branch
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
-          labels: |
-            org.opencontainers.image.title=uroboros-worker
-
-      # The build stage is already in this builder's cache from the step above; only the worker
-      # layers are new. Its own cache ref, so this export never evicts the api image's layers
-      # from :buildcache.
-      - name: Build and push the worker image
-        id: build-worker
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: ./Dockerfile
-          target: worker
-          platforms: ${{ env.PLATFORMS }}
-          push: true
-          provenance: false
-          tags: ${{ steps.meta-worker.outputs.tags }}
-          labels: ${{ steps.meta-worker.outputs.labels }}
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            REVISION=${{ github.sha }}
-          cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache-worker
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:buildcache-worker,mode=max
-
       - name: Summarise
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build.outputs.digest }}
-          TAGS_WORKER: ${{ steps.meta-worker.outputs.tags }}
-          DIGEST_WORKER: ${{ steps.build-worker.outputs.digest }}
         run: |
           set -eu
-          echo "api image digest: ${DIGEST}"
+          echo "image digest: ${DIGEST}"
           echo "tags:"
           echo "${TAGS}"
-          echo "worker image digest: ${DIGEST_WORKER}"
-          echo "tags:"
-          echo "${TAGS_WORKER}"

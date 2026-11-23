@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the worker's Python packages into a venv, so nothing touches the system Python.
+# Installs the image's Python packages into a venv, so nothing touches the system Python.
 # yt-dlp (with its [default] extras) is the only downloader.
 set -euo pipefail
 

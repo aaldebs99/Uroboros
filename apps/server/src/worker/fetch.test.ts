@@ -1,7 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fixture, type Scenario, type Step } from "@uroboros/ytdlp/testing";
-import { UnrecoverableError } from "bullmq";
+import { DelayedError, UnrecoverableError } from "bullmq";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -288,6 +288,33 @@ describe("fetch", () => {
     await expect(running).resolves.toBeUndefined();
     expect(await readdir(h.workDir)).toEqual([]);
     expect((await states("cancel-1"))[0]?.state).toBe("cancelled");
+  });
+});
+
+describe("shutdown", () => {
+  it("requeues a fetch cut by shutdown without recording a failure or spending an attempt", async () => {
+    const u = await user();
+    const data = await queued("shutdown-1", [u]);
+    const registry = createCancelRegistry();
+    const moveToDelayed = vi.fn(() => Promise.resolve());
+    const running = fetchProcessor(
+      await h.deps(
+        await downloadScenario([
+          { writeFile: "clip.mp4.part", content: "partial" },
+          { sleepMs: 10_000 },
+        ]),
+      ),
+      registry,
+    )({ ...job(data), moveToDelayed }, "token-1");
+    await vi.waitFor(async () => {
+      expect((await states("shutdown-1"))[0]?.state).toBe("running");
+    });
+    registry.abortAll();
+    await expect(running).rejects.toBeInstanceOf(DelayedError);
+    expect(moveToDelayed).toHaveBeenCalledWith(expect.any(Number), "token-1");
+    expect(await readdir(h.workDir)).toEqual([]);
+    const [row] = await states("shutdown-1");
+    expect(row?.state).toBe("running");
   });
 });
 

@@ -1,51 +1,45 @@
+import type { Kysely } from "kysely";
 import type { Redis } from "ioredis";
 import type { Logger } from "pino";
-import type { WorkerConfig } from "../config.ts";
-import { createDb } from "../db/kysely.ts";
-import { createDownloadQueues } from "../downloads/queues.ts";
-import { createValkey } from "../shared/valkey.ts";
-import { createStore } from "../storage/index.ts";
-import { startDownloadWorkers, type DownloadWorkers } from "./downloadWorkers.ts";
+import type { Config } from "../config.ts";
+import type { Database } from "../db/schema.ts";
+import type { DownloadQueues } from "../downloads/queues.ts";
+import type { MediaStore } from "../storage/index.ts";
+import type { WorkerDeps } from "./deps.ts";
 
-/**
- * The download side of a worker process: its database pool, store, queue producers (to dispatch the
- * next download) and event connection. `start` runs the consumers on the worker's own connection;
- * `close` releases the rest once the workers have drained.
- */
-export function downloadWiring(config: WorkerConfig, prefix: string, logger: Logger) {
-  const db = createDb(config.databaseUrl, logger);
-  const valkey: Redis = createValkey(config.valkeyUrl, "worker", logger);
-  const queues = createDownloadQueues(valkey, prefix);
+/** The connections a server process opens once and shares between HTTP and its job consumers. */
+export interface SharedResources {
+  db: Kysely<Database>;
+  /** A non-blocking connection: progress and events, queue producers. */
+  valkey: Redis;
+  queues: DownloadQueues;
+  store: MediaStore;
+}
+
+/** What the probe and fetch processors run with, on the process's shared connections. */
+export function workerDeps(
+  shared: SharedResources,
+  config: Config,
+  prefix: string,
+  logger: Logger,
+): WorkerDeps {
   return {
-    start(connection: Redis): Promise<DownloadWorkers> {
-      return startDownloadWorkers(
-        connection,
-        {
-          db,
-          valkey,
-          prefix,
-          queues,
-          limits: config.downloads,
-          logger,
-          store: createStore(config.storage),
-          storage: config.storage,
-          workDir: config.workDir,
-          // The worker's own Node solves sites' JavaScript challenges (yt-dlp-ejs).
-          ytdlp: {
-            binary: config.ytdlpPath,
-            cookiesFile: config.cookiesFile,
-            jsRuntime: process.execPath,
-          },
-          ffprobe: { binary: "ffprobe" },
-          subtitles: config.subtitles,
-        },
-        { prefix, concurrency: config.concurrency },
-      );
+    db: shared.db,
+    valkey: shared.valkey,
+    prefix,
+    queues: shared.queues,
+    limits: config.downloads,
+    logger,
+    store: shared.store,
+    storage: config.storage,
+    workDir: config.worker.workDir,
+    // The process's own Node solves sites' JavaScript challenges (yt-dlp-ejs).
+    ytdlp: {
+      binary: config.worker.ytdlpPath,
+      cookiesFile: config.worker.cookiesFile,
+      jsRuntime: process.execPath,
     },
-    async close(): Promise<void> {
-      await queues.close().catch(() => undefined);
-      valkey.disconnect();
-      await db.destroy();
-    },
+    ffprobe: { binary: "ffprobe" },
+    subtitles: config.worker.subtitles,
   };
 }

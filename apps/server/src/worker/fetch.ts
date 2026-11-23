@@ -1,7 +1,7 @@
 import { access, mkdir, rm } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { download, ffprobe, type DownloadedFile, type MediaInfo } from "@uroboros/ytdlp";
-import { UnrecoverableError } from "bullmq";
+import { DelayedError, UnrecoverableError } from "bullmq";
 import { dispatchFor } from "../downloads/dispatch.ts";
 import { StorageError, toDownloadError, type DownloadFailure } from "../downloads/errors.ts";
 import { publishDownloadEvent } from "../downloads/events.ts";
@@ -17,7 +17,18 @@ import { storeSubtitles, subtitleArgs } from "./subtitles.ts";
 const ACTIVE = ["queued", "running"] as const;
 const DOWNLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 
-/** Aborts running fetches by key; the cancel subscriber calls `cancel`. */
+/**
+ * Why a fetch was aborted when the process is stopping: not a person's cancel and not a failure,
+ * so the job goes back to the queue for another replica and no outcome is recorded.
+ */
+export class ShutdownAbort extends Error {
+  override readonly name = "ShutdownAbort";
+  constructor() {
+    super("the process is shutting down");
+  }
+}
+
+/** Aborts running fetches: one by key (a cancel), or all of them (shutdown). */
 export function createCancelRegistry() {
   const running = new Map<string, AbortController>();
   return {
@@ -32,6 +43,10 @@ export function createCancelRegistry() {
     cancel(key: string): void {
       running.get(key)?.abort(new Error("cancelled"));
     },
+    /** Aborts every running fetch with a `ShutdownAbort`; they go back to the queue. */
+    abortAll(): void {
+      for (const controller of running.values()) controller.abort(new ShutdownAbort());
+    },
   };
 }
 export type CancelRegistry = ReturnType<typeof createCancelRegistry>;
@@ -41,7 +56,12 @@ export interface FetchJobLike {
   data: FetchJob;
   attemptsMade: number;
   opts: { attempts?: number | undefined };
+  /** BullMQ's, so a fetch cut by shutdown goes back to the queue without spending an attempt. */
+  moveToDelayed?: (timestamp: number, token?: string) => Promise<void>;
 }
+
+/** How long a fetch cut by shutdown waits before another replica may take it. */
+const SHUTDOWN_REQUEUE_DELAY_MS = 1000;
 
 async function waitingUsers(
   deps: WorkerDeps,
@@ -274,7 +294,7 @@ async function markRunning(deps: WorkerDeps, job: FetchJobLike): Promise<void> {
 
 /** Downloads one video in one profile revision and settles everyone waiting on it. */
 export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
-  return async (job: FetchJobLike): Promise<void> => {
+  return async (job: FetchJobLike, token?: string): Promise<void> => {
     const data = job.data;
     if ((await waitingUsers(deps, data.fetchKey)).length === 0) return;
     const stored = await existingRendition(deps, data);
@@ -308,6 +328,15 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
       progress({ phase: "storing" });
       await settleDone(deps, data, await store(deps, data, file));
     } catch (err) {
+      if (controller.signal.reason instanceof ShutdownAbort) {
+        // Back to the queue as it was: no failure, no cancel, and no attempt spent.
+        deps.logger.info({ fetchKey: data.fetchKey }, "fetch cut by shutdown; requeued");
+        if (job.moveToDelayed !== undefined && token !== undefined) {
+          await job.moveToDelayed(Date.now() + SHUTDOWN_REQUEUE_DELAY_MS, token);
+          throw new DelayedError();
+        }
+        throw new Error("interrupted by shutdown; retrying", { cause: err });
+      }
       if (controller.signal.aborted) {
         // Someone may have started waiting while the cancel was on its way; their dispatch found
         // this job still live and added nothing, so the fetch must run again for them.

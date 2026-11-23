@@ -160,6 +160,7 @@ describe("hard exit", () => {
   const stuckApi = (budgetMs: number, close: () => Promise<void>): RunningApi => ({
     port: 0,
     attached: Promise.resolve(),
+    crashed: new Promise(() => undefined),
     leader: new LeaderStatus(),
     shutdownBudgetMs: budgetMs,
     close,

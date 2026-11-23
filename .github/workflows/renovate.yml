@@ -15,7 +15,7 @@
 # those dependencies are skipped with a "GitHub token is required" warning. Forgejo refuses secret
 # names that start with GITHUB_, hence the prefix.
 #
-# The worker's ffmpeg is an image in this forge's private registry, so Renovate looks its tags up
+# The image's ffmpeg is an image in this forge's private registry, so Renovate looks its tags up
 # with credentials, as upstream-builder's renovate.yaml does: RENOVATE_DETECT_HOST_RULES_FROM_ENV
 # turns RENOVATE_DOCKER_CODE_example_COM_USERNAME and _PASSWORD into a docker hostRule for
 # code.example.com (the host's dots written as `_`). They are user-scope secrets under aaldebs99
@@ -28,7 +28,7 @@
 # The job runs inside Renovate's own image, pinned by digest; Renovate keeps the pin current (the
 # github-actions manager reads `container.image`, looked up on Docker Hub's copy for its release
 # timestamps, see .renovaterc.json5) in one PR with the `lint:renovate` validator's pin. Whatever a
-# lockfile update needs (pnpm, hashin for the worker's requirements.txt) is installed on demand
+# lockfile update needs (pnpm, hashin for the image's requirements.txt) is installed on demand
 # inside the container.
 #
 # This is not a CI gate: `mise run ci` and ci:parity do not know about it.

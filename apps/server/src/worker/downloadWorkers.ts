@@ -8,6 +8,8 @@ import { probeProcessor } from "./probe.ts";
 
 export interface DownloadWorkers {
   workers: Worker[];
+  /** Aborts every running fetch for shutdown; each goes back to the queue unrecorded. */
+  abortRunning(): void;
   /** Stops listening for cancels (the workers are closed by the caller with the others). */
   close(): Promise<void>;
 }
@@ -52,6 +54,9 @@ export async function startDownloadWorkers(
   }
   return {
     workers: [probe, download],
+    abortRunning() {
+      cancels.abortAll();
+    },
     async close() {
       subscriber.disconnect();
       await Promise.resolve();

@@ -1,5 +1,5 @@
-# Caddy for the local compose stack: one entrypoint, round-robin over both api replicas.
-# `dynamic a` re-resolves the `api` service name every two seconds, so replicas that restart
+# Caddy for the local compose stack: one entrypoint, round-robin over both uroboros replicas.
+# `dynamic a` re-resolves the `uroboros` service name every two seconds, so replicas that restart
 # or scale are picked up.
 {
 	admin off
@@ -9,7 +9,7 @@
 :8080 {
 	reverse_proxy {
 		dynamic a {
-			name api
+			name uroboros
 			port 8080
 			refresh 2s
 		}

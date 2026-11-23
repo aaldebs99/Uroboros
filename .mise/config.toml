@@ -182,13 +182,13 @@ run = "pnpm exec ratchet ci-parity"
 # ── Local development ─────────────────────────────────────────────────────────────────────────
 
 [tasks."dev:deps"]
-description = "Start local Postgres (127.0.0.1:15432), Valkey (127.0.0.1:16379) and RustFS (127.0.0.1:19000, with its bucket) for a host-run api, worker and ui"
+description = "Start local Postgres (127.0.0.1:15432), Valkey (127.0.0.1:16379) and RustFS (127.0.0.1:19000, with its bucket) for a host-run server and ui"
 run = "docker compose $COMPOSE_DEV up postgres valkey rustfs rustfs-init"
 
 # ── Containers (not CI gates) ─────────────────────────────────────────────────────────────────
 
 [tasks."docker:up"]
-description = "Run the real artifact: production images, 2 api replicas (migrating on start) behind Caddy on http://127.0.0.1:18080, 2 workers (minutes on a cold cache)"
+description = "Run the real artifact: the production image, 2 replicas (each serving and downloading, migrating on start) behind Caddy on http://127.0.0.1:18080 (minutes on a cold cache)"
 # COMPOSE_BAKE=false: compose's bake path builds the images in parallel, and on a
 # containerd-snapshotter host that was observed to trip BuildKit's overlay cache-mount race
 # ("device or resource busy"); the classic sequential builder did not. A retry also works.
@@ -196,7 +196,7 @@ env = { COMPOSE_BAKE = "false" }
 run = "docker compose up --build"
 
 [tasks."docker:up:dev"]
-description = "Run the dev stack with hot reload: api from source behind Caddy on http://127.0.0.1:18080, deps on loopback ports (Vite against it: mise run dev:ui:docker)"
+description = "Run the dev stack with hot reload: the server from source (downloads included) behind Caddy on http://127.0.0.1:18080, deps on loopback ports (Vite against it: mise run dev:ui:docker)"
 # COMPOSE_BAKE=false: compose's bake path builds the images in parallel, and on a
 # containerd-snapshotter host that was observed to trip BuildKit's overlay cache-mount race
 # ("device or resource busy"); the classic sequential builder did not. A retry also works.
@@ -205,7 +205,7 @@ env = { COMPOSE_BAKE = "false" }
 run = "docker compose $COMPOSE_DEV up"
 
 [tasks."docker:up:dev:build"]
-description = "Same as docker:up:dev, rebuilding the dev images first (after a Dockerfile edit)"
+description = "Same as docker:up:dev, rebuilding the dev image first (after a Dockerfile or dependency change)"
 # `docker compose up` reuses an existing image and only builds when none is present, so a
 # Dockerfile change is invisible to a down/up cycle without --build.
 env = { COMPOSE_BAKE = "false" }
@@ -216,39 +216,33 @@ description = "Stop every compose service, dev or prod (add -v by hand to reclai
 run = "docker compose $COMPOSE_DEV down"
 
 [tasks."docker:build"]
-description = "Build both images without compose: uroboros:local (the api, with the manual migrate) and uroboros:local-worker"
+description = "Build the image without compose: uroboros:local (the server, with the manual migrate)"
 # uroboros:local is the compose image name, so a later `docker compose up` without --build reuses it.
 run = '''
 set -eu
-docker build --build-arg VERSION=0.0.0-local --build-arg REVISION="$(git rev-parse --short HEAD)" --target api -t uroboros:local .
-docker build --build-arg VERSION=0.0.0-local --build-arg REVISION="$(git rev-parse --short HEAD)" --target worker -t uroboros:local-worker .
+docker build --build-arg VERSION=0.0.0-local --build-arg REVISION="$(git rev-parse --short HEAD)" --target uroboros -t uroboros:local .
 '''
 
 [tasks."docker:smoke"]
-description = "Build both images and smoke-test them (scripts/image/smoke-test.sh)"
+description = "Build the image and smoke-test it (scripts/image/smoke-test.sh)"
 depends = ["docker:build"]
-run = "scripts/image/smoke-test.sh uroboros:local uroboros:local-worker"
+run = "scripts/image/smoke-test.sh uroboros:local"
 
 [tasks.migrate]
-description = "Apply pending migrations to $DATABASE_URL by hand, failing fast (the api also applies them on start; default: the dev:deps Postgres on 127.0.0.1:15432)"
+description = "Apply pending migrations to $DATABASE_URL by hand, failing fast (every replica also applies them on start; default: the dev:deps Postgres on 127.0.0.1:15432)"
 depends = ["install"]
 env = { DATABASE_URL = "{{ get_env(name='DATABASE_URL', default='postgres://uroboros:uroboros@127.0.0.1:15432/uroboros') }}" }
 run = "pnpm -F @uroboros/server exec tsx src/bin/migrate.ts"
 
-[tasks."dev:api"]
-description = "Run the API with reload on 127.0.0.1:18081 against the dev:deps containers"
+[tasks."dev:server"]
+description = "Run the server (HTTP and the download jobs) with reload on 127.0.0.1:18081 against the dev:deps containers; downloads need yt-dlp and ffmpeg on PATH"
 env = { DATABASE_URL = "{{ get_env(name='DATABASE_URL', default='postgres://uroboros:uroboros@127.0.0.1:15432/uroboros') }}", VALKEY_URL = "{{ get_env(name='VALKEY_URL', default='redis://127.0.0.1:16379') }}", UROBOROS_BIND = "{{ get_env(name='UROBOROS_BIND', default='127.0.0.1:18081') }}", UROBOROS_STORAGE = "{{ get_env(name='UROBOROS_STORAGE', default='s3') }}", UROBOROS_S3_ENDPOINT = "{{ get_env(name='UROBOROS_S3_ENDPOINT', default='http://127.0.0.1:19000') }}", UROBOROS_S3_BUCKET = "{{ get_env(name='UROBOROS_S3_BUCKET', default='uroboros') }}", UROBOROS_S3_ACCESS_KEY_ID = "{{ get_env(name='UROBOROS_S3_ACCESS_KEY_ID', default='uroboros') }}", UROBOROS_S3_SECRET_ACCESS_KEY = "{{ get_env(name='UROBOROS_S3_SECRET_ACCESS_KEY', default='uroboros-dev-secret') }}" }
-run = "pnpm -F @uroboros/server exec tsx watch src/bin/api.ts"
+run = "pnpm -F @uroboros/server exec tsx watch src/bin/server.ts"
 
 [tasks."migration:new"]
 description = "Create an empty migrations/<UTC now>_<name>.sql (usage: mise run migration:new <snake_case_name>)"
 usage = 'arg "<name>" help="snake_case, starts with a letter, at least 3 characters"'
 run = 'pnpm -F @uroboros/server exec tsx src/migrate/new.ts "${usage_name}"'
-
-[tasks."dev:worker"]
-description = "Run the worker with reload against the dev:deps Postgres, Valkey and RustFS"
-env = { DATABASE_URL = "{{ get_env(name='DATABASE_URL', default='postgres://uroboros:uroboros@127.0.0.1:15432/uroboros') }}", VALKEY_URL = "{{ get_env(name='VALKEY_URL', default='redis://127.0.0.1:16379') }}", UROBOROS_STORAGE = "{{ get_env(name='UROBOROS_STORAGE', default='s3') }}", UROBOROS_S3_ENDPOINT = "{{ get_env(name='UROBOROS_S3_ENDPOINT', default='http://127.0.0.1:19000') }}", UROBOROS_S3_BUCKET = "{{ get_env(name='UROBOROS_S3_BUCKET', default='uroboros') }}", UROBOROS_S3_ACCESS_KEY_ID = "{{ get_env(name='UROBOROS_S3_ACCESS_KEY_ID', default='uroboros') }}", UROBOROS_S3_SECRET_ACCESS_KEY = "{{ get_env(name='UROBOROS_S3_SECRET_ACCESS_KEY', default='uroboros-dev-secret') }}" }
-run = "pnpm -F @uroboros/server exec tsx watch src/bin/worker.ts"
 
 [tasks.gen]
 description = "Regenerate api/openapi.json from the API"
@@ -263,7 +257,7 @@ run = "pnpm -F @uroboros/server exec tsx src/bin/gen.ts --check"
 # ── Web ───────────────────────────────────────────────────────────────────────────────────────
 
 [tasks."dev:ui"]
-description = "Run the web UI with HMR on http://127.0.0.1:18173 ($UROBOROS_UI_PORT); /api is proxied to $UROBOROS_API_URL (default http://127.0.0.1:18081, the host-run dev:api)"
+description = "Run the web UI with HMR on http://127.0.0.1:18173 ($UROBOROS_UI_PORT); /api is proxied to $UROBOROS_API_URL (default http://127.0.0.1:18081, the host-run dev:server)"
 run = "pnpm -F @uroboros/web dev"
 
 [tasks."dev:ui:docker"]
@@ -289,7 +283,7 @@ pnpm dlx @vite-pwa/assets-generator@2.0.0 --root apps/web
 """
 
 [tasks."build:server"]
-description = "Bundle the server with tsdown into apps/server/dist/{api,worker,migrate,gen}.mjs"
+description = "Bundle the server with tsdown into apps/server/dist/{server,migrate,gen}.mjs"
 depends = ["install"]
 run = "pnpm -F @uroboros/server build"
 

@@ -222,3 +222,25 @@ describe("loadConfig push", () => {
     },
   );
 });
+
+describe("loadConfig job consumers", () => {
+  it("defaults to 4 parallel downloads and yt-dlp on PATH", () => {
+    expect(loadConfig(base).worker).toMatchObject({ concurrency: 4, ytdlpPath: "yt-dlp" });
+  });
+
+  it("reads YTDLP_PATH, treating an empty one as unset", () => {
+    expect(loadConfig({ ...base, YTDLP_PATH: "/opt/yt-dlp/bin/yt-dlp" }).worker.ytdlpPath).toBe(
+      "/opt/yt-dlp/bin/yt-dlp",
+    );
+    expect(loadConfig({ ...base, YTDLP_PATH: "" }).worker.ytdlpPath).toBe("yt-dlp");
+  });
+
+  it("reads UROBOROS_WORKER_CONCURRENCY, treating an empty one as unset", () => {
+    expect(loadConfig({ ...base, UROBOROS_WORKER_CONCURRENCY: "8" }).worker.concurrency).toBe(8);
+    expect(loadConfig({ ...base, UROBOROS_WORKER_CONCURRENCY: "" }).worker.concurrency).toBe(4);
+  });
+
+  it.each(["0", "-1", "2.5", "abc", "4 "])("rejects concurrency %j", (bad) => {
+    expect(() => loadConfig({ ...base, UROBOROS_WORKER_CONCURRENCY: bad })).toThrow(ConfigError);
+  });
+});

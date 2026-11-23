@@ -1,19 +1,20 @@
 # Dev overlay for compose.yaml: `mise run docker:up:dev`.
 #
-#   api       the `build` stage of the Dockerfile (node, pnpm and the installed workspace) running
-#             `tsx watch`, with apps/server/src and packages/contract/src mounted over the image's
-#             copies, so an edit restarts both replicas, and ./migrations. Only those directories are mounted:
-#             the image's node_modules stay in place. The SPA it serves is the one built into the
+#   uroboros  the Dockerfile's `dev` stage (node, pnpm, the installed workspace, yt-dlp and ffmpeg)
+#             running `tsx watch`, with apps/server/src, packages/contract/src, packages/ytdlp/src
+#             and ./migrations mounted over the image's copies, so an edit to any server code
+#             (downloads included) restarts both replicas. Only those directories are mounted: the
+#             image's node_modules stay in place. The SPA it serves is the one built into the
 #             image; `mise run dev:ui:docker` (Vite with HMR, proxying /api to this stack's Caddy on
-#             :18080) is the UI loop. Plain `dev:ui` proxies to a host-run `dev:api` on :18081.
-#             The api applies migrations as it starts, reading ./migrations from the host, so a new
+#             :18080) is the UI loop. Plain `dev:ui` proxies to a host-run `dev:server` on :18081.
+#             Migrations apply as a replica starts, reading ./migrations from the host, so a new
 #             file applies on the next restart (an edit under apps/server/src restarts it).
+#             A dependency or Dockerfile change needs `mise run docker:up:dev:build`.
 #   host ports on loopback for Postgres (15432), Valkey (16379) and RustFS (19000, console
-#             19001), which `mise run dev:deps` uses for an api and worker run on the host. Each
-#             has an env override (UROBOROS_POSTGRES_PORT, UROBOROS_VALKEY_PORT, UROBOROS_S3_PORT,
+#             19001), which `mise run dev:deps` uses for a server run on the host. Each has an env
+#             override (UROBOROS_POSTGRES_PORT, UROBOROS_VALKEY_PORT, UROBOROS_S3_PORT,
 #             UROBOROS_S3_CONSOLE_PORT); the container side keeps the services' own ports.
 #
-# The worker is the real worker image: it needs yt-dlp and ffmpeg, which only that image has.
 # The dev image is tagged uroboros:dev so it never overwrites the production uroboros:local.
 services:
   postgres:
@@ -29,12 +30,12 @@ services:
       - "127.0.0.1:${UROBOROS_S3_PORT:-19000}:9000"
       - "127.0.0.1:${UROBOROS_S3_CONSOLE_PORT:-19001}:9001"
 
-  api:
+  uroboros:
     build:
-      target: build
+      target: dev
     image: uroboros:dev
     working_dir: /src/apps/server
-    command: ["pnpm", "exec", "tsx", "watch", "src/bin/api.ts"]
+    command: ["pnpm", "exec", "tsx", "watch", "src/bin/server.ts"]
     environment:
       UROBOROS_BIND: 0.0.0.0:8080
       UROBOROS_WEB_DIST: /src/apps/web/dist
@@ -53,3 +54,4 @@ services:
       - ./migrations:/src/migrations:ro
       - ./apps/server/src:/src/apps/server/src:ro
       - ./packages/contract/src:/src/packages/contract/src:ro
+      - ./packages/ytdlp/src:/src/packages/ytdlp/src:ro

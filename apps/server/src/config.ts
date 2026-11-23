@@ -39,6 +39,8 @@ export interface Config {
   /** Where media is stored (docs/downloads.md). */
   storage: StorageConfig;
   downloads: DownloadLimits;
+  /** The job consumers' settings (probe, download, notify): yt-dlp, scratch space, concurrency. */
+  worker: WorkerSettings;
 }
 
 /** What the manual migrate command needs: the database and where the SQL files are. */
@@ -48,21 +50,17 @@ export interface MigrateConfig {
   migrationsDir: string | null;
 }
 
-/** What the worker needs: Valkey, the database, storage, and the downloader's settings. */
-export interface WorkerConfig {
-  valkeyUrl: string;
-  databaseUrl: string;
-  storage: StorageConfig;
-  downloads: DownloadLimits;
-  /** Scratch space for downloads in progress (`UROBOROS_WORK_DIR`; the chart's emptyDir). */
+/** How this process's job consumers run yt-dlp and how many jobs they take at once. */
+export interface WorkerSettings {
+  /** Scratch space for downloads in progress (`UROBOROS_WORK_DIR`; a tmpfs in compose). */
   workDir: string;
-  /** A Netscape cookies file for yt-dlp (`UROBOROS_YTDLP_COOKIES_FILE`, a mounted Secret). */
+  /** A Netscape cookies file for yt-dlp (`UROBOROS_YTDLP_COOKIES_FILE`, a mounted file). */
   cookiesFile: string | null;
   /** Subtitles captured with each download: yt-dlp `--sub-langs` (null: none), and auto captions. */
   subtitles: { langs: string | null; automatic: boolean };
-  /** Parallel jobs per worker process. */
+  /** Parallel download jobs per process. */
   concurrency: number;
-  /** The yt-dlp to run: `YTDLP_PATH` (set in the worker image), else `yt-dlp` on PATH. */
+  /** The yt-dlp to run: `YTDLP_PATH` (set in the image), else `yt-dlp` on PATH. */
   ytdlpPath: string;
 }
 
@@ -72,7 +70,7 @@ const DEFAULT_SUBTITLE_LANGS = "en.*";
 const DEFAULT_BIND = "127.0.0.1:18081";
 const DEFAULT_SHUTDOWN_GRACE_MS = 20_000;
 const DEFAULT_BODY_LIMIT_BYTES = 64 * 1024;
-/** Djinn's default: wait for the database as long as it takes; the startupProbe bounds it. */
+/** Djinn's default: wait for the database as long as it takes. */
 const DEFAULT_DB_STARTUP_GRACE_SECS = 0;
 
 const bindSchema = z.string().transform((value, ctx) => {
@@ -148,6 +146,29 @@ const allowedHosts = z
   )
   .optional();
 
+/** The job consumers' variables. */
+const workerEnvSchema = z.object({
+  UROBOROS_WORK_DIR: unsetIfEmpty(z.string().optional()),
+  UROBOROS_YTDLP_COOKIES_FILE: unsetIfEmpty(z.string().optional()),
+  UROBOROS_WORKER_CONCURRENCY: unsetIfEmpty(
+    positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(String(DEFAULT_WORKER_CONCURRENCY)),
+  ),
+  YTDLP_PATH: unsetIfEmpty(z.string().optional()),
+  // Unset: English; empty: no subtitles (so this one is not unsetIfEmpty).
+  UROBOROS_SUBTITLE_LANGS: z
+    .string()
+    .regex(
+      /^$|^[\w.,*+\-!^$|()]{1,200}$/,
+      "UROBOROS_SUBTITLE_LANGS must be yt-dlp --sub-langs values, comma-separated",
+    )
+    .optional(),
+  UROBOROS_AUTO_SUBTITLES: unsetIfEmpty(
+    z
+      .enum(["true", "false"], { error: "UROBOROS_AUTO_SUBTITLES must be true or false" })
+      .optional(),
+  ),
+});
+
 const configSchema = z
   .object({
     UROBOROS_BIND: bindSchema.prefault(DEFAULT_BIND),
@@ -175,6 +196,7 @@ const configSchema = z
     ),
     ...authEnvSchema.shape,
     ...storageEnvSchema.shape,
+    ...workerEnvSchema.shape,
   })
   .superRefine((env, ctx) => {
     for (const [path, message] of storageEnvProblems(env)) {
@@ -211,37 +233,6 @@ const migrateSchema = z.object({
   ...migrationsDirSchema.shape,
 });
 
-const workerSchema = z
-  .object({
-    VALKEY_URL: required("VALKEY_URL"),
-    DATABASE_URL: required("DATABASE_URL"),
-    UROBOROS_WORK_DIR: unsetIfEmpty(z.string().optional()),
-    UROBOROS_YTDLP_COOKIES_FILE: unsetIfEmpty(z.string().optional()),
-    ...storageEnvSchema.shape,
-    UROBOROS_WORKER_CONCURRENCY: unsetIfEmpty(
-      positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(String(DEFAULT_WORKER_CONCURRENCY)),
-    ),
-    YTDLP_PATH: unsetIfEmpty(z.string().optional()),
-    // Unset: English; empty: no subtitles (so this one is not unsetIfEmpty).
-    UROBOROS_SUBTITLE_LANGS: z
-      .string()
-      .regex(
-        /^$|^[\w.,*+\-!^$|()]{1,200}$/,
-        "UROBOROS_SUBTITLE_LANGS must be yt-dlp --sub-langs values, comma-separated",
-      )
-      .optional(),
-    UROBOROS_AUTO_SUBTITLES: unsetIfEmpty(
-      z
-        .enum(["true", "false"], { error: "UROBOROS_AUTO_SUBTITLES must be true or false" })
-        .optional(),
-    ),
-  })
-  .superRefine((env, ctx) => {
-    for (const [path, message] of storageEnvProblems(env)) {
-      ctx.addIssue({ code: "custom", path: [path], message });
-    }
-  });
-
 function parse<S extends z.ZodType>(schema: S, env: NodeJS.ProcessEnv): z.output<S> {
   const result = schema.safeParse(env);
   if (!result.success) {
@@ -251,7 +242,7 @@ function parse<S extends z.ZodType>(schema: S, env: NodeJS.ProcessEnv): z.output
   return result.data;
 }
 
-/** Full configuration for the api process. */
+/** Full configuration for the server process (HTTP and the job consumers). */
 export function loadConfig(env: NodeJS.ProcessEnv): Config {
   const e = parse(configSchema, env);
   return {
@@ -276,6 +267,19 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     auth: toAuthConfig(e, e.UROBOROS_PUBLIC_BASE_URL),
     storage: toStorageConfig(e),
     downloads: toDownloadLimits(e),
+    worker: {
+      workDir: e.UROBOROS_WORK_DIR ?? join(tmpdir(), "uroboros-work"),
+      cookiesFile: e.UROBOROS_YTDLP_COOKIES_FILE ?? null,
+      subtitles: {
+        langs:
+          e.UROBOROS_SUBTITLE_LANGS === undefined
+            ? DEFAULT_SUBTITLE_LANGS
+            : e.UROBOROS_SUBTITLE_LANGS || null,
+        automatic: e.UROBOROS_AUTO_SUBTITLES === "true",
+      },
+      concurrency: e.UROBOROS_WORKER_CONCURRENCY,
+      ytdlpPath: e.YTDLP_PATH ?? "yt-dlp",
+    },
   };
 }
 
@@ -289,26 +293,4 @@ export function loadMigrationsDir(env: NodeJS.ProcessEnv): string | null {
 export function loadMigrateConfig(env: NodeJS.ProcessEnv): MigrateConfig {
   const e = parse(migrateSchema, env);
   return { databaseUrl: e.DATABASE_URL, migrationsDir: loadMigrationsDir(env) };
-}
-
-/** Configuration for the worker process. */
-export function loadWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
-  const e = parse(workerSchema, env);
-  return {
-    valkeyUrl: e.VALKEY_URL,
-    databaseUrl: e.DATABASE_URL,
-    storage: toStorageConfig(e),
-    downloads: toDownloadLimits(e),
-    workDir: e.UROBOROS_WORK_DIR ?? join(tmpdir(), "uroboros-work"),
-    cookiesFile: e.UROBOROS_YTDLP_COOKIES_FILE ?? null,
-    subtitles: {
-      langs:
-        e.UROBOROS_SUBTITLE_LANGS === undefined
-          ? DEFAULT_SUBTITLE_LANGS
-          : e.UROBOROS_SUBTITLE_LANGS || null,
-      automatic: e.UROBOROS_AUTO_SUBTITLES === "true",
-    },
-    concurrency: e.UROBOROS_WORKER_CONCURRENCY,
-    ytdlpPath: e.YTDLP_PATH ?? "yt-dlp",
-  };
 }

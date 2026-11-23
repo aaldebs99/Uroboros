@@ -161,13 +161,13 @@
       automerge: false,
     },
     {
-      // The worker image's pinned tools: yt-dlp with its hashes in scripts/image/requirements.txt
+      // The image's pinned tools: yt-dlp with its hashes in scripts/image/requirements.txt
       // (the pip_requirements manager below, which rewrites the hashes with the pin). A human
-      // looks first: `mise run ci` builds the worker image (so the hashes must install) but never
+      // looks first: `mise run ci` builds the image (so the hashes must install) but never
       // runs it, and the release smoke test that does run yt-dlp only happens after merge.
       // `build(image)`, never a `feat!`: a bundled tool's major is not a breaking change of
       // Uroboros. yt-dlp is the only downloader; no other is tracked.
-      description: "Image tools: the worker's pinned yt-dlp, reviewed",
+      description: "Image tools: the pinned yt-dlp, reviewed",
       matchManagers: ["pip_requirements"],
       matchDepNames: ["yt-dlp"],
       groupName: "image tools",
@@ -178,7 +178,7 @@
       automerge: false,
     },
     {
-      // The worker's ffmpeg: the mirror image built in the upstream-builder repository from yt-dlp's
+      // The image's ffmpeg: the mirror image built in the upstream-builder repository from yt-dlp's
       // static GPL build, the Dockerfile's `FROM <image>:<tag>@<digest> AS ffmpeg` (the dockerfile
       // manager moves tag and digest together). The registry is private: the lookup logs in with
       // the hostRule .github/workflows/renovate.yml builds from the environment. Its tags are
@@ -195,7 +195,7 @@
       // one is this window and the human-reviewed PR: upstream-builder mirrors on the 1st, so a PR
       // opened on the 4th or later comes at least 3 days after the upstream build, whose date the
       // tag name carries.
-      description: "The worker's ffmpeg mirror image, reviewed",
+      description: "The ffmpeg mirror image, reviewed",
       matchDatasources: ["docker"],
       matchDepNames: ["code.example.com/aaldebs99/ffmpeg-ytdlp"],
       versioning: "regex:^autobuild-(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})-(?<build>\\d{2})-(?<revision>\\d{2})$",
@@ -261,7 +261,7 @@
     },
   ],
 
-  // yt-dlp's pin and sha256 hashes for the worker image. Named explicitly (the default pattern
+  // yt-dlp's pin and sha256 hashes for the image. Named explicitly (the default pattern
   // would match too) so the file this manager owns is stated where the policy is.
   pip_requirements: {
     managerFilePatterns: ["/^scripts/image/requirements\\.txt$/"],

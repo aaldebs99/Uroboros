@@ -2,10 +2,8 @@ import { serve } from "@hono/node-server";
 import type { ServerType } from "@hono/node-server";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { Kysely } from "kysely";
-import { pino } from "pino";
 import type { Logger } from "pino";
 import pkg from "../../package.json" with { type: "json" };
-import { ConfigError, loadConfig } from "../config.ts";
 import type { Config } from "../config.ts";
 import { createDb } from "../db/kysely.ts";
 import type { Database } from "../db/schema.ts";
@@ -20,6 +18,7 @@ import { createDownloadQueues } from "../downloads/queues.ts";
 import { createEventHub } from "../downloads/sse.ts";
 import { createStore } from "../storage/index.ts";
 import { DEFAULT_PREFIX } from "../worker/queues.ts";
+import type { SharedResources } from "../worker/wiring.ts";
 import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
 import { startClaimsSync } from "../auth/claimsSync.ts";
 import { createOidcProvider } from "../auth/oidc/provider.ts";
@@ -39,16 +38,23 @@ export interface RunningApi {
    * ready.
    */
   attached: Promise<void>;
+  /**
+   * Resolves with the error when start-up fails for good: a migration, or job consumers that could
+   * not start. Never resolves otherwise.
+   */
+  crashed: Promise<{ err: unknown }>;
   /** Whether this replica holds the general leader lock. */
   leader: LeaderStatus;
   /**
-   * The longest `close()` may take: the drain grace, then up to `CLEANUP_MS` for the cut
-   * connections to close, then up to `CLEANUP_MS` for the pool, Valkey and the leader lock.
+   * The longest `close()` may take: the longer of the HTTP drain grace and the consumers' grace,
+   * then up to `CLEANUP_MS` for the cut connections to close, then up to `CLEANUP_MS` for the
+   * pool, Valkey and the leader lock.
    */
   shutdownBudgetMs: number;
   /**
-   * Stops accepting connections, gives up leadership, closes idle connections and waits up to
-   * `shutdownGraceMs` for in-flight requests. If they outlast it, cuts every connection and
+   * Stops accepting connections, gives up leadership, stops the job consumers (which wait for
+   * their running jobs up to their own grace, alongside the drain), closes idle connections and
+   * waits up to `shutdownGraceMs` for in-flight requests. If they outlast it, cuts every connection and
    * rejects (closing the cut connections is itself bounded by `CLEANUP_MS`). The database, Valkey
    * and the leader lock are released within `CLEANUP_MS` either way; a cleanup that overruns it
    * rejects too, so the caller can exit non-zero. All in all within `shutdownBudgetMs`.
@@ -56,11 +62,26 @@ export interface RunningApi {
   close(): Promise<void>;
 }
 
-/** Test seams. */
+/** The job consumers a server runs beside HTTP; `close` waits for running jobs. */
+export interface Consumers {
+  close(): Promise<void>;
+}
+
 export interface StartApiOptions {
-  /** Adds routes to the app before it listens (a slow route for the shutdown tests). */
+  /**
+   * The job consumers, started once the database is attached (so no job runs against an older
+   * schema), on this process's shared connections. `signal` aborts a start that is still waiting
+   * for Valkey. `graceMs` is how long their `close()` may take.
+   */
+  consumers?: {
+    start: (shared: SharedResources, signal: AbortSignal) => Promise<Consumers>;
+    graceMs: number;
+  };
+  /** Test seam: the BullMQ and event key prefix (default "uroboros"). */
+  prefix?: string;
+  /** Test seam: adds routes to the app before it listens (a slow route for the shutdown tests). */
   configure?: (app: OpenAPIHono, db: Kysely<Database>) => void;
-  /** How often a replica that does not lead tries the lock again (default 5 s). */
+  /** Test seam: how often a replica that does not lead tries the lock again (default 5 s). */
   leaderRetryMs?: number;
 }
 
@@ -98,18 +119,20 @@ export async function startApi(
   const push = createPushService(config.push, db, logger);
   const oidc =
     config.auth.oidc === null ? undefined : createOidcProvider(config.auth.oidc, { logger });
-  // Producers only (the workers consume); they share the api's Valkey connection.
-  const queues = createDownloadQueues(valkey, DEFAULT_PREFIX);
+  const prefix = opts.prefix ?? DEFAULT_PREFIX;
+  // The producers; the consumers (when this process runs them) share the same connection.
+  const queues = createDownloadQueues(valkey, prefix);
+  const store = createStore(config.storage);
   // One subscription per replica feeds every open download event stream.
   const downloadEvents = createEventHub(
     createValkey(config.valkeyUrl, "worker", logger),
-    DEFAULT_PREFIX,
+    prefix,
     logger,
   );
   const downloadContext = {
     db,
     valkey,
-    prefix: DEFAULT_PREFIX,
+    prefix,
     queues,
     limits: config.downloads,
     logger,
@@ -131,7 +154,7 @@ export async function startApi(
       },
       downloads: downloadContext,
       downloadEvents,
-      store: createStore(config.storage),
+      store,
     },
     {
       webDist: config.webDist,
@@ -153,6 +176,11 @@ export async function startApi(
   oidc?.start(stop.signal);
   const leader = new LeaderStatus();
   let leading: Promise<void> = Promise.resolve();
+  let consumers: Promise<Consumers | null> = Promise.resolve(null);
+  let crash: (failure: { err: unknown }) => void = () => undefined;
+  const crashed = new Promise<{ err: unknown }>((resolve) => {
+    crash = resolve;
+  });
   const attaching = (async () => {
     const [outcome] = await Promise.all([
       migrateOnStart({
@@ -193,9 +221,33 @@ export async function startApi(
       status: leader,
       logger,
     });
+    const starting = opts.consumers?.start({ db, valkey, queues, store }, stop.signal);
+    if (starting !== undefined) {
+      // In the background: Valkey down delays the consumers, never readiness. A start aborted by
+      // shutdown is no crash; any other failure is.
+      consumers = starting.catch((err: unknown) => {
+        if (!stop.signal.aborted) crash({ err });
+        return null;
+      });
+    }
   })();
-  // Observed through `attached`; this only keeps an unobserved failure from crashing the process.
-  attaching.catch(() => undefined);
+  attaching.catch((err: unknown) => {
+    crash({ err });
+  });
+
+  /** Closes the consumers, if any started; false when their drain failed or overran. */
+  const closeConsumers = async (): Promise<boolean> => {
+    await attaching.catch(() => undefined);
+    const running = await consumers;
+    if (running === null) return true;
+    try {
+      await running.close();
+      return true;
+    } catch (err) {
+      logger.error({ err }, "the job consumers did not drain");
+      return false;
+    }
+  };
 
   let closing: Promise<void> | undefined;
   const closeOnce = async () => {
@@ -204,7 +256,10 @@ export async function startApi(
     const released = attaching.catch(() => undefined).then(() => leading);
     // Event streams never finish on their own: end them so the drain does not wait them out.
     downloadEvents.close();
-    const drained = await drain(server, config.shutdownGraceMs);
+    const [drained, consumersClosed] = await Promise.all([
+      drain(server, config.shutdownGraceMs),
+      closeConsumers(),
+    ]);
     await settlesWithin(queues.close(), CLEANUP_MS);
     valkey.disconnect();
     const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), CLEANUP_MS);
@@ -213,6 +268,9 @@ export async function startApi(
         `api did not drain within ${String(config.shutdownGraceMs)} ms; connections cut`,
       );
     }
+    if (!consumersClosed) {
+      throw new Error("the job consumers did not drain in time; their running jobs were requeued");
+    }
     if (!cleaned) {
       throw new Error(`api cleanup did not finish within ${String(CLEANUP_MS)} ms`);
     }
@@ -220,8 +278,10 @@ export async function startApi(
   return {
     port,
     attached: attaching,
+    crashed,
     leader,
-    shutdownBudgetMs: config.shutdownGraceMs + 2 * CLEANUP_MS,
+    shutdownBudgetMs:
+      Math.max(config.shutdownGraceMs, opts.consumers?.graceMs ?? 0) + 2 * CLEANUP_MS,
     close() {
       closing ??= closeOnce();
       return closing;
@@ -263,7 +323,7 @@ export interface RunOptions {
  * Waits for SIGTERM or SIGINT, then closes `api`. Resolves 0 once it drained, 1 if the drain
  * timed out or failed, or if start-up failed first (then without waiting for a signal). A
  * shutdown that outlasts the api's budget plus a little ends the process with `exit(1)`, so a
- * hung cleanup never runs into the kubelet's SIGKILL.
+ * hung cleanup never runs into the container runtime's SIGKILL.
  */
 export async function runUntilSignal(
   api: RunningApi,
@@ -271,11 +331,7 @@ export async function runUntilSignal(
   opts: RunOptions = {},
 ): Promise<number> {
   const signals = nextSignal();
-  const startupFailed = api.attached.then(
-    () => new Promise<never>(() => undefined),
-    (err: unknown) => ({ err }),
-  );
-  const first = await Promise.race([signals.signal, startupFailed]);
+  const first = await Promise.race([signals.signal, api.crashed]);
   signals.dispose();
   if (typeof first !== "string") {
     logger.fatal({ err: first.err }, "startup failed; exiting");
@@ -305,24 +361,4 @@ export async function runUntilSignal(
   } finally {
     clearTimeout(hardExit);
   }
-}
-
-/**
- * Runs the API until SIGTERM/SIGINT; resolves with the exit code (0 clean, 1 failed start-up or
- * failed or timed-out shutdown, 2 config). bin/api.ts exits the process with it.
- */
-export async function main(_argv: string[] = []): Promise<number> {
-  const logger = pino({ name: "uroboros-api" });
-  let config: Config;
-  try {
-    config = loadConfig(process.env);
-  } catch (err) {
-    if (err instanceof ConfigError) {
-      logger.fatal(err.message);
-      return 2;
-    }
-    throw err;
-  }
-  const api = await startApi(config, logger);
-  return runUntilSignal(api, logger);
 }

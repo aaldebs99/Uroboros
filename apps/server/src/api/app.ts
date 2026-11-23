@@ -156,7 +156,7 @@ function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void 
 }
 
 export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
-  const logger = deps.logger ?? pino({ name: "uroboros-api" });
+  const logger = deps.logger ?? pino({ name: "uroboros" });
   const app = new OpenAPIHono({
     defaultHook: (result) => {
       if (!result.success) throw new ApiError("bad_request", "invalid request");
