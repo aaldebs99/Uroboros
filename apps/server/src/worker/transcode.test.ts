@@ -250,6 +250,44 @@ describe("transcode consumer", () => {
     expect(await trash()).toContain(`.transcodes/${id}/`);
   }, 15_000);
 
+  it("keeps going when a store write fails once", async () => {
+    const id = await copy();
+    const base = await h.transcodeDeps(twoSegments(2500), vp9);
+    let failed = false;
+    const flaky: MediaStore = {
+      ...base.store,
+      async put(key, file, type) {
+        if (!failed && key.endsWith("seg-00001.m4s")) {
+          failed = true;
+          throw new Error("S3 is restarting");
+        }
+        return base.store.put(key, file, type);
+      },
+    };
+    await run({ ...base, store: flaky }, id);
+    expect(failed).toBe(true);
+    expect(await row(id)).toMatchObject({ state: "done", ready_segments: 2 });
+  }, 15_000);
+
+  it("fails the copy, not the process, when the store keeps failing", async () => {
+    const id = await copy();
+    const base = await h.transcodeDeps(twoSegments(10_000), vp9);
+    const broken: MediaStore = {
+      ...base.store,
+      put() {
+        return Promise.reject(new Error("no space left on device"));
+      },
+    };
+    const started = Date.now();
+    await run({ ...base, store: broken }, id);
+    // Three failed ticks in a row stop ffmpeg, long before it would have finished.
+    expect(Date.now() - started).toBeLessThan(9000);
+    expect(await row(id)).toMatchObject({
+      state: "failed",
+      error_message: "no space left on device",
+    });
+  }, 20_000);
+
   it("records a failure with ffmpeg's message", async () => {
     const id = await copy();
     await run(

@@ -22,6 +22,9 @@ const TIMEOUT_MS = 6 * 60 * 60_000;
 /** Thrown when the copy's row went away mid-run (its source was reaped). */
 class CopyGone extends Error {}
 
+/** Ticks that fail in a row (storage or the database down) before the copy gives up. */
+const TICK_FAILURES = 3;
+
 const load = (deps: WorkerDeps, id: string) =>
   deps.db.selectFrom("transcodes").selectAll().where("id", "=", id).executeTakeFirst();
 
@@ -124,22 +127,36 @@ async function convert(r: Running): Promise<number> {
   );
   let seconds = 0;
   // An object, so the checks after the await see what the tick set.
-  const state = { gone: false };
+  const state: { gone: boolean; failures: number; error: unknown } = {
+    gone: false,
+    failures: 0,
+    error: null,
+  };
   let ticking = Promise.resolve();
   const tick = () => {
-    ticking = ticking.then(async () => {
-      const ready = await uploader.sync(out);
-      const progress = choice.duration ? Math.min(1, seconds / choice.duration) : 0;
-      const res = await deps.db
-        .updateTable("transcodes")
-        .set({ ready_segments: ready, progress })
-        .where("id", "=", row.id)
-        .executeTakeFirst();
-      if (res.numUpdatedRows === 0n) {
-        state.gone = true;
-        cut.abort(new CopyGone());
-      }
-    });
+    // Never rejects: an unhandled rejection would take the whole process down (downloads and
+    // HTTP with it). A failed tick is retried on the next one; enough in a row stop the copy.
+    ticking = ticking
+      .then(async () => {
+        const ready = await uploader.sync(out);
+        const progress = choice.duration ? Math.min(1, seconds / choice.duration) : 0;
+        const res = await deps.db
+          .updateTable("transcodes")
+          .set({ ready_segments: ready, progress })
+          .where("id", "=", row.id)
+          .executeTakeFirst();
+        state.failures = 0;
+        if (res.numUpdatedRows === 0n) {
+          state.gone = true;
+          cut.abort(new CopyGone());
+        }
+      })
+      .catch((err: unknown) => {
+        state.failures++;
+        state.error = err;
+        deps.logger.warn({ err, transcodeId: row.id }, "storing a playback copy's progress failed");
+        if (state.failures >= TICK_FAILURES) cut.abort(err);
+      });
   };
   const timer = setInterval(tick, TICK_MS);
   try {
@@ -165,6 +182,8 @@ async function convert(r: Running): Promise<number> {
     );
   } catch (err) {
     if (state.gone) throw new CopyGone();
+    // Stopped because storing kept failing: that failure is the copy's error, not ffmpeg's cut.
+    if (state.failures >= TICK_FAILURES) throw state.error;
     throw err;
   } finally {
     clearInterval(timer);
