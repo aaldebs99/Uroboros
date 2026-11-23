@@ -18,8 +18,7 @@
 #   static  cheap checks; installs the workspace for the ratchets, builds nothing
 #   node    the TypeScript workspace: lock, audit, licences, codegen drift, eslint, tsc, the
 #           vitest projects (with Postgres and Valkey containers) and the web build
-#   chart   helm lint and kubeconform over the chart
-#   images  docker build of both image targets (api, worker); nothing is pushed. The worker's
+#   images  docker build of the image; nothing is pushed. Its
 #           ffmpeg comes from a private registry image, so the job logs in first (skipped with a
 #           notice when the secret is unavailable, as on a fork's pull request, where the build
 #           then fails at the pull). The smoke test runs on release, in release.yml, before any
@@ -143,25 +142,9 @@ jobs:
           UROBOROS_TEST_S3_URL: http://127.0.0.1:9000
       - run: mise run build:ui
 
-  chart:
-    name: Helm chart
-    runs-on: small
-    timeout-minutes: 100
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Setup mise
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-        with:
-          version: 2026.9.14
-          github_token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
-      - run: mise run lint:chart
-
   images:
     name: Images
-    # Docker for the builds. Nothing is pushed; the registry is read for the worker's ffmpeg image
+    # Docker for the builds. Nothing is pushed; the registry is read for the image's ffmpeg
     # (the Dockerfile's ffmpeg stage). release.yml publishes.
     runs-on: big-dind
     env:
@@ -189,7 +172,7 @@ jobs:
           if [ -n "${REGISTRY}" ] && [ -n "${REGISTRY_TOKEN}" ]; then
             echo "login=true" >> "${GITHUB_OUTPUT}"
           else
-            echo "::notice::REGISTRY or REGISTRY_TOKEN is unavailable (a fork's pull request has no secrets): skipping the registry login. The worker image's ffmpeg is pulled from that private registry, so docker:build will fail at the pull."
+            echo "::notice::REGISTRY or REGISTRY_TOKEN is unavailable (a fork's pull request has no secrets): skipping the registry login. The image's ffmpeg is pulled from that private registry, so docker:build will fail at the pull."
           fi
       # big-dind mounts the runner's registry logins read-only at $DOCKER_CONFIG; log in to a
       # writable config directory instead, as release.yml does.
@@ -213,7 +196,7 @@ jobs:
   # and as "passed" on others.
   ci:
     name: CI
-    needs: [static, node, chart, images]
+    needs: [static, node, images]
     if: always()
     runs-on: small
     timeout-minutes: 95
@@ -222,13 +205,12 @@ jobs:
         env:
           STATIC: ${{ needs.static.result }}
           NODE: ${{ needs.node.result }}
-          CHART: ${{ needs.chart.result }}
           IMAGES: ${{ needs.images.result }}
         run: |
-          echo "static=$STATIC node=$NODE chart=$CHART images=$IMAGES"
-          for result in "$STATIC" "$NODE" "$CHART" "$IMAGES"; do
+          echo "static=$STATIC node=$NODE images=$IMAGES"
+          for result in "$STATIC" "$NODE" "$IMAGES"; do
             if [ "$result" != "success" ]; then
-              echo "::error::a CI job did not succeed (static=$STATIC node=$NODE chart=$CHART images=$IMAGES)"
+              echo "::error::a CI job did not succeed (static=$STATIC node=$NODE images=$IMAGES)"
               exit 1
             fi
           done

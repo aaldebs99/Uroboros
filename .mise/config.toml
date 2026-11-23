@@ -32,9 +32,6 @@ git-cliff = "2.14.2"
 # JSON for scripts/release/ and `check:licenses`. release-pr.yml installs only git-cliff and jq,
 # from the lock, by name.
 jq = "1.8.2"
-# Chart rendering and manifest validation for the Kubernetes deployment.
-helm = "4.3.2"
-"aqua:yannh/kubeconform" = "0.8.0"
 
 [env]
 # The hot-reload overlay (compose.dev.yaml) on top of the base stack (compose.yaml, project
@@ -122,70 +119,6 @@ if [ -z "$(git ls-files '*.sh')" ]; then
   exit 0
 fi
 git ls-files -z '*.sh' | xargs -0 shellcheck
-'''
-
-[tasks."lint:chart"]
-description = "helm lint + kubeconform over the chart, rendered with each ci/*-values.yaml (CI gate)"
-run = '''
-set -eu
-for f in chart/uroboros/ci/*-values.yaml; do
-  helm lint chart/uroboros -f "$f"
-  helm template uroboros chart/uroboros -f "$f" | kubeconform -strict -summary -kubernetes-version 1.30.0
-done
-# Negative check: the policy enabled with no Postgres or Valkey destination must refuse to render.
-if helm template uroboros chart/uroboros \
-  --set database.existingSecret=d --set valkey.existingSecret=v >/dev/null 2>&1; then
-  echo "expected render to fail: networkPolicy enabled with no postgres/valkey destination" >&2
-  exit 1
-fi
-echo "ok: misconfigured networkPolicy is rejected at render time"
-# Negative check: a VAPID private-key Secret without its public key must refuse to render.
-if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
-  --set push.vapid.existingSecret=v >/dev/null 2>&1; then
-  echo "expected render to fail: push.vapid.existingSecret without push.vapid.publicKey" >&2
-  exit 1
-fi
-echo "ok: half a VAPID pair is rejected at render time"
-# Negative check: half an OIDC setup (issuer without client id and secret) must refuse to render.
-if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
-  --set publicBaseUrl=https://u.example --set auth.oidc.issuer=https://sso.example/ >/dev/null 2>&1; then
-  echo "expected render to fail: auth.oidc.issuer without clientId and existingSecret" >&2
-  exit 1
-fi
-echo "ok: half an OIDC setup is rejected at render time"
-# Negative check: a termination grace period that leaves the api no time to drain must refuse to render.
-if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
-  --set api.terminationGracePeriodSeconds=31 >/dev/null 2>&1; then
-  echo "expected render to fail: api.terminationGracePeriodSeconds <= preStop + shutdown grace + 6" >&2
-  exit 1
-fi
-echo "ok: a termination grace period shorter than the drain is rejected at render time"
-# Negative check: publicBaseUrl is an origin; one with a path must refuse to render.
-if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
-  --set publicBaseUrl=https://h.example/uroboros >/dev/null 2>&1; then
-  echo "expected render to fail: publicBaseUrl with a path" >&2
-  exit 1
-fi
-echo "ok: a publicBaseUrl with a path is rejected at render time"
-# Negative checks: storage needs its settings for the chosen backend.
-if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
-  --set storage.s3.bucket= >/dev/null 2>&1; then
-  echo "expected render to fail: s3 storage without a bucket" >&2
-  exit 1
-fi
-if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
-  --set storage.kind=filesystem >/dev/null 2>&1; then
-  echo "expected render to fail: filesystem storage without a claim" >&2
-  exit 1
-fi
-echo "ok: storage without its required settings is rejected at render time"
-# One api pod gets no PodDisruptionBudget: minAvailable: 1 would block every node drain.
-if helm template uroboros chart/uroboros -f chart/uroboros/ci/default-values.yaml \
-  --set api.hpa.enabled=false --set api.replicas=1 | grep -q '^kind: PodDisruptionBudget'; then
-  echo "expected no PodDisruptionBudget for a single api replica" >&2
-  exit 1
-fi
-echo "ok: a single api replica renders no PodDisruptionBudget"
 '''
 
 [tasks."lint:renovate"]
@@ -461,6 +394,5 @@ depends = [
   "check:types",
   "test",
   "build:ui",
-  "lint:chart",
   "docker:build",
 ]

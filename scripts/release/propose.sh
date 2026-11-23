@@ -5,8 +5,8 @@
 #   1. Ask git-cliff for the next version from the conventional commits since the
 #      newest tag. Nothing to release -> exit 0.
 #   2. Rebuild the `release/next` branch from HEAD: stamp the version into every
-#      target (lib.sh: the server and root package.json, api/openapi.json and the
-#      chart's appVersion), prepend the new CHANGELOG section, one commit.
+#      target (lib.sh: the server and root package.json and api/openapi.json),
+#      prepend the new CHANGELOG section, one commit.
 #   3. Force-push it and open (or refresh) the `chore(release): X.Y.Z` PR.
 #
 # Everything the release touches lands in that ONE commit, so the PR is either
@@ -77,7 +77,7 @@ stamp_version "$in_tree" "$next"
 git-cliff --unreleased --tag "$next" --prepend CHANGELOG.md
 head -n 3 CHANGELOG.md | grep -q "^## \[${next//./\\.}\]" || die "CHANGELOG.md does not start with the ${next} section after prepend"
 
-git add "$SERVER_PKG" "$ROOT_PKG" "$OPENAPI_JSON" "$CHART_YAML" CHANGELOG.md
+git add "$SERVER_PKG" "$ROOT_PKG" "$OPENAPI_JSON" CHANGELOG.md
 if git diff --cached --quiet; then
   die "stamping ${next} produced no diff"
 fi
