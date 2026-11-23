@@ -68,11 +68,30 @@ async function parseBody<S extends z.ZodType>(
   return parsed.data;
 }
 
-/** Sends a request to the app's own API, asking for JSON. */
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** The CSRF token the server set as a readable cookie; writes echo it in a header. */
+function csrfToken(): string | null {
+  const match = /(?:^|;\s*)uroboros_csrf=([^;]+)/.exec(document.cookie);
+  return match?.[1] ?? null;
+}
+
+let onUnauthorized: (() => void) | null = null;
+
+/** Who hears about a 401 anywhere (the auth gate, which shows the sign-in page). */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
+/** Sends a request to the app's own API, asking for JSON; writes carry the CSRF header. */
 async function request(method: string, path: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers);
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
-  return fetch(path, { ...init, method, headers });
+  const csrf = SAFE_METHODS.has(method) ? null : csrfToken();
+  if (csrf !== null) headers.set("X-Uroboros-CSRF", csrf);
+  const res = await fetch(path, { ...init, method, headers });
+  if (res.status === 401) onUnauthorized?.();
+  return res;
 }
 
 /** The `ApiError` for a failed response, with the server's typed body when it sent one. */
@@ -132,6 +151,16 @@ export async function postJson<S extends z.ZodType>(
   return parseBody(res, `POST ${path}`, schema);
 }
 
+/** POST that sends JSON and expects no body back (204). */
+export async function postNoContent(path: string, body?: unknown): Promise<void> {
+  const res = await send("POST", path, {
+    ...(body === undefined
+      ? {}
+      : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+  });
+  await res.body?.cancel();
+}
+
 /** DELETE that expects no body back (204). */
 export async function deleteJson(path: string, init?: RequestInit): Promise<void> {
   const res = await send("DELETE", path, init);
@@ -168,6 +197,8 @@ export const queryKeys = {
   info: ["api", "info"] as const,
   readiness: ["api", "ready"] as const,
   myPush: ["api", "me", "push"] as const,
+  me: ["api", "me"] as const,
+  authMethods: ["api", "auth", "methods"] as const,
 };
 
 export function useInfo() {

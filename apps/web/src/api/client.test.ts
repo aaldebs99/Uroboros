@@ -6,8 +6,17 @@ import {
   type ApiErrorBody,
 } from "@uroboros/contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
-import { ApiError, deleteJson, errorText, getJson, getReadiness, postJson } from "./client";
+import {
+  ApiError,
+  deleteJson,
+  errorText,
+  getJson,
+  getReadiness,
+  postJson,
+  setUnauthorizedHandler,
+} from "./client";
 
 function respondWith(response: Response) {
   vi.stubGlobal(
@@ -199,5 +208,43 @@ describe("getReadiness", () => {
     const error: unknown = await getReadiness().catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).code).toBe("internal");
+  });
+});
+
+describe("auth plumbing", () => {
+  afterEach(() => {
+    document.cookie = "uroboros_csrf=; max-age=0; path=/";
+    setUnauthorizedHandler(null);
+  });
+
+  it("sends the CSRF cookie back as a header on writes, and not on reads", async () => {
+    document.cookie = "uroboros_csrf=abc123; path=/";
+    const seen: Headers[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        seen.push(new Headers(init?.headers));
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }),
+    );
+    await deleteJson("/api/x");
+    await getJson("/api/y", z.unknown()).catch(() => undefined);
+    expect(seen[0]?.get("x-uroboros-csrf")).toBe("abc123");
+    expect(seen[1]?.get("x-uroboros-csrf")).toBeNull();
+  });
+
+  it("tells the registered handler about any 401", async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({ code: "unauthorized", message: "sign in required" }, { status: 401 }),
+        ),
+      ),
+    );
+    await expect(getJson("/api/me/push", z.unknown())).rejects.toThrow();
+    expect(handler).toHaveBeenCalledOnce();
   });
 });

@@ -1,3 +1,4 @@
+import type { Me } from "@uroboros/contract";
 import { Outlet } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { useState } from "react";
@@ -15,13 +16,20 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthGate } from "@/auth/AuthGate";
+import { UserMenu } from "@/auth/UserMenu";
 import { usePushSync } from "@/push/usePushSync";
 
-/**
- * The app shell: fixed sidebar from `md` up, a sheet drawer below it, header with health + theme.
- * It also mends this browser's push subscription once per launch (`usePushSync`).
- */
+/** The whole app sits behind sign-in: the gate shows the sign-in page until someone is. */
 export function RootLayout() {
+  return <AuthGate>{(me) => <Shell me={me} />}</AuthGate>;
+}
+
+/**
+ * The app shell: fixed sidebar from `md` up, a sheet drawer below it, header with health, theme
+ * and the account menu. It also mends this browser's push subscription once per launch.
+ */
+function Shell({ me }: { me: Me }) {
   const [menuOpen, setMenuOpen] = useState(false);
   usePushSync();
   return (
@@ -59,6 +67,7 @@ export function RootLayout() {
           <div className="ml-auto flex items-center gap-2">
             <HealthBadge />
             <ThemeToggle />
+            <UserMenu me={me} />
           </div>
         </header>
         <main className="flex-1 px-4 py-8 md:px-8 md:py-10">

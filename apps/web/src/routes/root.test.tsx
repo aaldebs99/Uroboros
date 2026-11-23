@@ -22,6 +22,15 @@ beforeEach(() => {
   stubApi({
     "/api/ready": () => Response.json({ status: "ok", failing: [] }),
     "/api/info": () => Response.json({ name: "uroboros", version: "0.0.0" }),
+    "/api/me": () =>
+      Response.json({
+        id: "0190a3f2-7c1e-7000-8000-000000000001",
+        displayName: "Alice",
+        email: null,
+        role: "member",
+        method: "local",
+        isBootstrap: false,
+      }),
     "/api/me/push": () =>
       Response.json({ enabled: false, publicKey: null, devices: [], maxDevices: 10 }),
   });
