@@ -32,7 +32,7 @@ function StateLine({
   const percent = running?.percent == null ? null : Math.round(running.percent);
   const detail = running === null ? meta : detailOf(running) || meta;
   return (
-    <div className="grid gap-1.5">
+    <div className="grid grid-cols-1 gap-1.5">
       <div className="flex items-center gap-2.5">
         <DownloadBadge state={download.state} progress={running} />
         <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground tabular-nums">
@@ -101,7 +101,9 @@ export function QueueRow({
       <span className="grid aspect-video w-24 shrink-0 place-items-center rounded-[8px] bg-raised md:w-[120px]">
         <Film className="size-5 text-muted-foreground" aria-hidden />
       </span>
-      <div className="grid min-w-0 flex-1 content-start gap-1.5">
+      {/* grid-cols-1 (a minmax(0, 1fr) column) lets the title and state line truncate instead of
+          widening the row, and with it the page, on a phone. */}
+      <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-1.5">
         <p className="truncate font-medium">{title}</p>
         <StateLine download={download} progress={live} meta={meta} />
         {download.state === "failed" ? <Failure download={download} /> : null}
