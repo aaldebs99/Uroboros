@@ -8,7 +8,8 @@ import { addedAgo, VideoThumbnail } from "./VideoTile";
 /**
  * What to watch next, beside the player: for now the newest videos in the library, without the
  * one playing. Each row is one link: a 168px thumbnail with the title, channel and when it was
- * added beside it.
+ * added beside it. The rows flow into columns once there is room for two (a wide page, or under
+ * the details on a narrow one).
  */
 export function Suggestions({ currentId }: { currentId: string }) {
   const library = useLibrary();
@@ -34,7 +35,7 @@ export function Suggestions({ currentId }: { currentId: string }) {
       <h2 id="suggestions-heading" className="text-base font-bold">
         From your library
       </h2>
-      <ul className="grid gap-2">
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-x-4 gap-y-2">
         {list.map((e) => (
           <li key={e.id}>
             <Link

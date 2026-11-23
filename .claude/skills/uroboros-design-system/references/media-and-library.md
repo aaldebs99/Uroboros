@@ -63,15 +63,17 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
 `library/ItemPage.tsx`, after YouTube's watch page, across the whole page:
 
 - The side navigation is a [drawer](shell-and-navigation.md#side-navigation) here and the margins
-  are 24px, so the player starts at the left margin and takes the page's width less the
-  suggestions column (18 to 25rem) on the right, 24px away.
+  are 24px, so the player starts at the left margin. It takes 65% of the page and the suggestions
+  column the rest (at least 18rem), 24px away; the player isn't wider than that, because a
+  full-width player on a large screen is too much.
 - Under the player: the title (20/700), the channel row with the actions (Watched, Keep on a
   subscription's entry, Save, Remove, Open on the site), the clamped description, tags, the
   playlists it is in, and chapters.
 - The columns follow the page's width (`@container`, two columns from `@6xl`); on a narrower page
   the suggestions stack under the details.
 - The suggestions are "From your library" rows: a 168px thumbnail with the title, channel and
-  when it was added beside it.
+  when it was added beside it. The rows flow into columns (at least 20rem each) when the column is
+  wide enough for two, as on a large screen or under the details on a narrow page.
 
 ## Player
 

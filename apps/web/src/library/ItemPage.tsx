@@ -75,9 +75,9 @@ function Chapters({ item, onSeek }: { item: LibraryItem; onSeek: (time: number) 
 /**
  * One video, laid out like a watch page across the whole page: the player at the top left with its
  * details, description, tags and chapters below it, and suggestions in a column on the right. The
- * side navigation is a drawer here (the shell), so the player takes the page's full width less the
- * suggestions. The columns follow the width the page has (a container query), not the window: a
- * narrow page stacks the suggestions under the details.
+ * side navigation is a drawer here (the shell); the player takes 65% of the page and the
+ * suggestions the rest (at least 18rem). The columns follow the width the page has (a container
+ * query), not the window: a narrow page stacks the suggestions under the details.
  */
 export function ItemPage({ entryId }: { entryId: string }) {
   const item = useItem(entryId);
@@ -99,7 +99,7 @@ export function ItemPage({ entryId }: { entryId: string }) {
   };
   return (
     <div className="@container w-full">
-      <div className="grid gap-6 @6xl:grid-cols-[minmax(0,1fr)_minmax(18rem,25rem)]">
+      <div className="grid gap-6 @6xl:grid-cols-[minmax(0,13fr)_minmax(18rem,7fr)]">
         <article className="grid min-w-0 content-start gap-4">
           <Suspense fallback={<div className="aspect-video w-full rounded-[12px] bg-raised" />}>
             <Player
