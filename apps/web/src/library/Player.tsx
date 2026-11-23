@@ -5,11 +5,19 @@ import { useCreateTextTrack } from "@videojs/react";
 import { NeutralVideoSkin, Video, VideoPlayer } from "@videojs/react/video";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 
+import { readVolume, storeVolume } from "@/lib/playerPrefs";
+
 export interface PlayerProps {
   src: string;
   title: string;
   /** Where to start, in seconds (the saved position). */
   start: number;
+  /**
+   * Start playing as soon as the video can. Browsers allow it after a click in the app (opening a
+   * video from the library); on a cold page load they may refuse, and the player then waits for
+   * the play button.
+   */
+  autoPlay: boolean;
   /** A seek request; a new object seeks again even to the same time. */
   seek: { time: number } | null;
   /** Drawn on the timeline; the page also lists them. */
@@ -50,36 +58,53 @@ function ChapterTrack({ chapters }: { chapters: Chapter[] }) {
   return null;
 }
 
+/** Plays if the browser lets it; a refusal (autoplay policy) or a missing `play` just waits. */
+function tryPlay(v: HTMLVideoElement): void {
+  void Promise.resolve()
+    .then(() => v.play())
+    .catch(() => undefined);
+}
+
 /**
  * Video.js 10 (the Neutral video skin, in the app's accent): keyboard and touch controls, a
- * captions menu for the subtitle tracks, chapters on the timeline, resume and seek.
+ * captions menu for the subtitle tracks, chapters on the timeline, resume, seek, autoplay, and
+ * the volume and mute remembered in this browser.
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
-  /** The source already resumed: a later change to the saved position must not jump back. */
-  const resumedFor = useRef<string | null>(null);
-  // Resume: at once if the metadata is already in (it can load before React's listeners attach),
-  // otherwise when it arrives.
+  /** The source already started: a later change to the saved position must not jump back. */
+  const startedFor = useRef<string | null>(null);
+  // The remembered volume, before anything plays.
   useEffect(() => {
     const v = video.current;
-    if (v === null || p.start <= 0 || resumedFor.current === p.src) return;
-    const resume = () => {
-      resumedFor.current = p.src;
-      v.currentTime = p.start;
+    const saved = readVolume();
+    if (v === null || saved === null) return;
+    v.volume = saved.volume;
+    v.muted = saved.muted;
+  }, []);
+  // Start once per video: resume at the saved position, then play. At once if the metadata is
+  // already in (it can load before React's listeners attach), otherwise when it arrives.
+  useEffect(() => {
+    const v = video.current;
+    if (v === null || startedFor.current === p.src) return;
+    const begin = () => {
+      startedFor.current = p.src;
+      if (p.start > 0) v.currentTime = p.start;
+      if (p.autoPlay) tryPlay(v);
     };
     if (v.readyState >= HTMLMediaElement.HAVE_METADATA) {
-      resume();
+      begin();
       return;
     }
-    v.addEventListener("loadedmetadata", resume, { once: true });
+    v.addEventListener("loadedmetadata", begin, { once: true });
     return () => {
-      v.removeEventListener("loadedmetadata", resume);
+      v.removeEventListener("loadedmetadata", begin);
     };
-  }, [p.src, p.start]);
+  }, [p.src, p.start, p.autoPlay]);
   useEffect(() => {
     if (p.seek !== null && video.current !== null) {
       video.current.currentTime = p.seek.time;
-      void video.current.play().catch(() => undefined);
+      tryPlay(video.current);
     }
   }, [p.seek]);
   const at = (v: HTMLVideoElement) =>
@@ -102,6 +127,9 @@ export function Player(p: PlayerProps) {
           }}
           onEnded={(e) => {
             p.onEnded(...at(e.currentTarget));
+          }}
+          onVolumeChange={(e) => {
+            storeVolume({ volume: e.currentTarget.volume, muted: e.currentTarget.muted });
           }}
         >
           {p.subtitles.map((s, i) => (

@@ -104,6 +104,7 @@ export function ItemPage({ entryId }: { entryId: string }) {
               src={it.streamUrl}
               title={it.title}
               start={it.progress !== null && !it.progress.watched ? it.progress.position : 0}
+              autoPlay
               seek={seek}
               chapters={it.chapters}
               subtitles={it.subtitles}
