@@ -168,6 +168,32 @@
         ],
         "type": "object"
       },
+      "Backfill": {
+        "properties": {
+          "count": {
+            "default": null,
+            "maximum": 1000,
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/BackfillMode"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
+      "BackfillMode": {
+        "enum": [
+          "none",
+          "newest",
+          "all"
+        ],
+        "type": "string"
+      },
       "ChangePasswordBody": {
         "properties": {
           "currentPassword": {
@@ -547,6 +573,21 @@
           "cancelled"
         ],
         "type": "string"
+      },
+      "Feed": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
       },
       "FormatProfile": {
         "properties": {
@@ -1064,6 +1105,59 @@
         ],
         "type": "object"
       },
+      "NewSubscriptionBody": {
+        "properties": {
+          "backfill": {
+            "$ref": "#/components/schemas/Backfill"
+          },
+          "delayHours": {
+            "default": 0,
+            "maximum": 168,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "feeds": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SubscriptionFilters"
+          },
+          "intervalMinutes": {
+            "maximum": 10080,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "notify": {
+            "default": true,
+            "type": "boolean"
+          },
+          "profileId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "requestId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/Retention"
+          }
+        },
+        "required": [
+          "requestId",
+          "feeds",
+          "profileId",
+          "intervalMinutes"
+        ],
+        "type": "object"
+      },
       "PreviewEntry": {
         "properties": {
           "duration": {
@@ -1362,6 +1456,25 @@
         ],
         "type": "object"
       },
+      "Retention": {
+        "properties": {
+          "deleteWatchedAfterDays": {
+            "default": null,
+            "maximum": 3650,
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "keepLast": {
+            "default": null,
+            "maximum": 10000,
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Role": {
         "enum": [
           "admin",
@@ -1441,6 +1554,338 @@
           "music_offtopic"
         ],
         "type": "string"
+      },
+      "Subscription": {
+        "properties": {
+          "backfill": {
+            "$ref": "#/components/schemas/Backfill"
+          },
+          "channelKey": {
+            "nullable": true,
+            "type": "string"
+          },
+          "checking": {
+            "type": "boolean"
+          },
+          "counts": {
+            "properties": {
+              "filtered": {
+                "type": "integer"
+              },
+              "queued": {
+                "type": "integer"
+              },
+              "waiting": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "queued",
+              "filtered",
+              "waiting"
+            ],
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "delayHours": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "error": {
+            "nullable": true,
+            "properties": {
+              "kind": {
+                "$ref": "#/components/schemas/DownloadErrorKind"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "message"
+            ],
+            "type": "object"
+          },
+          "extractor": {
+            "type": "string"
+          },
+          "failures": {
+            "type": "integer"
+          },
+          "feeds": {
+            "items": {
+              "$ref": "#/components/schemas/Feed"
+            },
+            "type": "array"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SubscriptionFilters"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "intervalMinutes": {
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "channel",
+              "playlist"
+            ],
+            "type": "string"
+          },
+          "lastCheckedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "nextCheckAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "notify": {
+            "type": "boolean"
+          },
+          "profileId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/Retention"
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "tabs": {
+            "items": {
+              "$ref": "#/components/schemas/Feed"
+            },
+            "type": "array"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "warning": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "url",
+          "extractor",
+          "sourceId",
+          "channelKey",
+          "feeds",
+          "tabs",
+          "profileId",
+          "profileName",
+          "intervalMinutes",
+          "enabled",
+          "notify",
+          "filters",
+          "delayHours",
+          "backfill",
+          "retention",
+          "lastCheckedAt",
+          "nextCheckAt",
+          "checking",
+          "error",
+          "failures",
+          "warning",
+          "counts",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "SubscriptionFilters": {
+        "properties": {
+          "excludeLive": {
+            "default": false,
+            "type": "boolean"
+          },
+          "excludeShorts": {
+            "default": false,
+            "type": "boolean"
+          },
+          "maxDuration": {
+            "default": null,
+            "maximum": 1000000,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "minDuration": {
+            "default": null,
+            "maximum": 1000000,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "titleExclude": {
+            "default": null,
+            "maxLength": 500,
+            "minLength": 1,
+            "nullable": true,
+            "type": "string"
+          },
+          "titleInclude": {
+            "default": null,
+            "maxLength": 500,
+            "minLength": 1,
+            "nullable": true,
+            "type": "string"
+          },
+          "uploadedAfter": {
+            "default": null,
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SubscriptionItem": {
+        "properties": {
+          "downloadId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "entryId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "extractor": {
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/SubscriptionItemOutcome"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "seenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "videoId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "extractor",
+          "videoId",
+          "title",
+          "url",
+          "outcome",
+          "reason",
+          "seenAt",
+          "dueAt",
+          "downloadId",
+          "entryId"
+        ],
+        "type": "object"
+      },
+      "SubscriptionItemOutcome": {
+        "enum": [
+          "queued",
+          "filtered",
+          "existing",
+          "waiting"
+        ],
+        "type": "string"
+      },
+      "SubscriptionItemsPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionItem"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "SubscriptionPatch": {
+        "properties": {
+          "delayHours": {
+            "maximum": 168,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "feeds": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SubscriptionFilters"
+          },
+          "intervalMinutes": {
+            "maximum": 10080,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "notify": {
+            "type": "boolean"
+          },
+          "profileId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/Retention"
+          }
+        },
+        "type": "object"
       },
       "SubtitleTrack": {
         "properties": {
@@ -3733,6 +4178,330 @@
           }
         },
         "summary": "Readiness and dependency health"
+      }
+    },
+    "/api/subscriptions": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Subscription"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Subscriptions"
+          }
+        },
+        "summary": "The caller's subscriptions",
+        "tags": [
+          "subscriptions"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSubscriptionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description": "Subscribed"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An unknown tab or profile, an interval under the minimum, or a bad pattern"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Already subscribed, or the request is not a channel or playlist preview"
+          }
+        },
+        "summary": "Subscribe to a previewed channel or playlist; its first check runs at once",
+        "tags": [
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/subscriptions/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Unsubscribed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such subscription"
+          }
+        },
+        "summary": "Unsubscribe: its downloads not yet started are cancelled; its videos stay",
+        "tags": [
+          "subscriptions"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description": "The subscription"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such subscription"
+          }
+        },
+        "summary": "One of the caller's subscriptions",
+        "tags": [
+          "subscriptions"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description": "Edited"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An unknown tab or profile, an interval under the minimum, or a bad pattern"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such subscription"
+          }
+        },
+        "summary": "Edit, pause or resume a subscription; new filters reconsider what the old held back",
+        "tags": [
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/subscriptions/{id}/check": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description": "A check is queued"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such subscription"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The subscription is paused"
+          }
+        },
+        "summary": "Check a subscription now",
+        "tags": [
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/subscriptions/{id}/items": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionItemsPage"
+                }
+              }
+            },
+            "description": "A page of items"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not a cursor this server made"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such subscription"
+          }
+        },
+        "summary": "What a subscription has seen and what became of each, newest first",
+        "tags": [
+          "subscriptions"
+        ]
       }
     }
   }

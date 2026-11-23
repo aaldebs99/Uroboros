@@ -25,7 +25,7 @@ export async function downloadHarness(db: Kysely<Database>, limit = 3) {
     valkey,
     prefix,
     queues,
-    limits: { maxActivePerUser: limit, maxPlaylistEntries: 1000 },
+    limits: { maxActivePerUser: limit, maxPlaylistEntries: 1000, minCheckIntervalMinutes: 60 },
     logger,
   };
   const app = (s: SignedIn): OpenAPIHono =>

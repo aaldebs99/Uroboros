@@ -16,6 +16,7 @@ import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
 import { registerItemRoutes } from "../library/itemRoutes.ts";
 import type { MediaStore } from "../storage/index.ts";
+import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
@@ -215,6 +216,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerEventRoutes(app, deps.downloads, deps.downloadEvents);
   registerLibraryRoutes(app, deps.db, deps.store);
   registerItemRoutes(app, deps.db, deps.store);
+  registerSubscriptionRoutes(app, deps.downloads);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

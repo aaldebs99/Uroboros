@@ -86,6 +86,7 @@ describe("storage settings", () => {
     expect(loadConfig({ ...base, ...s3 }).downloads).toEqual({
       maxActivePerUser: 3,
       maxPlaylistEntries: 1000,
+      minCheckIntervalMinutes: 60,
     });
   });
 

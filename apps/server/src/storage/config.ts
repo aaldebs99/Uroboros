@@ -34,12 +34,15 @@ export type StorageConfig =
 export interface DownloadLimits {
   /** Downloads of one person dispatched to the download queue at once. */
   maxActivePerUser: number;
-  /** Entries kept per preview group. */
+  /** Entries kept per preview group, and listed per subscription feed. */
   maxPlaylistEntries: number;
+  /** The shortest check interval a subscription may have. */
+  minCheckIntervalMinutes: number;
 }
 
 const DEFAULT_MAX_ACTIVE_PER_USER = 3;
 const DEFAULT_MAX_PLAYLIST_ENTRIES = 1000;
+const DEFAULT_MIN_CHECK_INTERVAL_MINUTES = 60;
 
 const optional = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
 
@@ -76,6 +79,10 @@ export const storageEnvSchema = z.object({
   UROBOROS_MAX_PLAYLIST_ENTRIES: positive(
     "UROBOROS_MAX_PLAYLIST_ENTRIES",
     DEFAULT_MAX_PLAYLIST_ENTRIES,
+  ),
+  UROBOROS_MIN_CHECK_INTERVAL_MINUTES: positive(
+    "UROBOROS_MIN_CHECK_INTERVAL_MINUTES",
+    DEFAULT_MIN_CHECK_INTERVAL_MINUTES,
   ),
 });
 
@@ -161,5 +168,6 @@ export function toDownloadLimits(env: StorageEnv): DownloadLimits {
   return {
     maxActivePerUser: env.UROBOROS_MAX_ACTIVE_DOWNLOADS_PER_USER,
     maxPlaylistEntries: env.UROBOROS_MAX_PLAYLIST_ENTRIES,
+    minCheckIntervalMinutes: env.UROBOROS_MIN_CHECK_INTERVAL_MINUTES,
   };
 }
