@@ -155,7 +155,7 @@ read through `scripts/image/compose-image.sh`, so Renovate's one bump moves them
 **Task bodies are POSIX.** They run under `sh` (dash on Debian runners): no `[[ ]]`, no
 `<(...)`, no `pipefail`. Anything longer belongs in a script under `scripts/`.
 
-**Migrations stay compatible with the previous release.** Migrations are applied by the first new
+**Migrations stay compatible with the previous release (from the first release on).** Migrations are applied by the first new
 replica to start, while replicas from the previous release are still serving, and a rollback runs old code on the new schema, so
 every migration must work with the code of the release before it. Change a schema in steps across releases:
 expand (add the nullable column, the new table), migrate (code writes both, backfill), then
@@ -165,10 +165,14 @@ that cannot run in a transaction, such as `CREATE INDEX CONCURRENTLY`, are not s
 plain `CREATE INDEX` while the table is small, and add runner support before the first table
 large enough to need one.
 
-**Migrations are named `<YYYYMMDDHHMMSS>_<logical_name>.sql`:** a real UTC creation datetime
-plus a descriptive snake_case name, never sequential numbers. Create them with
-`mise run migration:new <name>`. They are forward-only: a shipped migration is never edited, and a
-change is always a new file.
+**Pre-release: one schema file, edited in place.** There are no deployed databases yet, so the whole
+schema lives in `migrations/20261122000000_schema.sql` and schema changes edit that file. Do not add
+migration files or expand/contract steps until the user says otherwise. After changing it, reset
+local databases: `mise run docker:down`, then `docker volume rm uroboros_postgres-data` (tests build
+a fresh database every run). From the first release on, the rules below apply: migrations are
+named `<YYYYMMDDHHMMSS>_<logical_name>.sql` (a real UTC creation datetime plus a descriptive
+snake_case name, never sequential numbers), created with `mise run migration:new <name>`, and a
+shipped migration is never edited.
 
 **yt-dlp is the only downloader.** Never youtube-dl, youtube-dlc or another fork, and no
 downloader setting or fallback. The api never spawns yt-dlp or ffmpeg; only workers do. The

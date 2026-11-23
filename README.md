@@ -76,10 +76,11 @@ replica does this; the runner's advisory lock makes them take turns, and the lat
 nothing to do. A failed migration is logged and the process exits 1 without ever being ready, so
 a rolling update stalls with the old pods still serving. A database ahead of the build (a
 rollback) is logged as a warning and the api starts anyway. `mise run migrate` applies them by
-hand, failing fast when the server cannot be reached. Add a migration with
-`mise run migration:new <snake_case_name>`, which writes `migrations/<YYYYMMDDHHMMSS>_<name>.sql`
-with the current UTC time. A migration is never edited once shipped: the runner refuses a file
-whose checksum changed after it was applied.
+hand, failing fast when the server cannot be reached. Until the first release the whole schema is
+one file, `migrations/20261122000000_schema.sql`, edited in place; after changing it, delete the
+local database (`mise run docker:down`, then `docker volume rm uroboros_postgres-data`), because
+the runner refuses a file whose checksum changed after it was applied. From the first release on,
+changes are new files made with `mise run migration:new <snake_case_name>`.
 
 `GET /api/health` is liveness: it checks nothing and answers 200 `{"status":"ok"}` while the
 process is up. `GET /api/ready` is readiness: 503 `{"status":"starting"}` until the migrations ran,
@@ -97,8 +98,8 @@ exactly once, so the leader is for singleton work to come (the media reaper, say
 ported from Djinn, is `apps/server/src/shared/leader.ts`, and every lock key is in
 `shared/lockKeys.ts`.
 
-Migrations are applied while replicas from the previous release are still serving, so each
-migration must work with the previous release's code: expand, migrate, then contract across
+From the first release on, migrations are applied while replicas from the previous release are
+still serving, so each migration must work with the previous release's code: expand, migrate, then contract across
 releases, never renaming or dropping what the running release still reads. Each file runs in one
 transaction, so `CREATE INDEX CONCURRENTLY` and other statements that refuse a transaction are not
 supported yet; use a plain `CREATE INDEX` while the table is small.

@@ -3,12 +3,13 @@ import { pino } from "pino";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { browserKeys, PushStub } from "../../test/pushStub.ts";
 import { TestDb } from "../../test/testDb.ts";
+import { insertUser } from "../../test/users.ts";
 import { listDevices, upsertDevice } from "./devices.ts";
 import { Pusher } from "./pusher.ts";
 import { createPushSender } from "./sender.ts";
 
-const USER = "0190a3f2-7c1e-7000-8000-00000000000a";
-const OTHER = "0190a3f2-7c1e-7000-8000-00000000000b";
+let USER: string;
+let OTHER: string;
 const keys = browserKeys();
 
 let testDb: TestDb;
@@ -18,6 +19,8 @@ let pusher: Pusher;
 beforeAll(async () => {
   testDb = await TestDb.create();
   stub = await PushStub.start();
+  USER = await insertUser(testDb.db, { username: "user" });
+  OTHER = await insertUser(testDb.db, { username: "other" });
   pusher = new Pusher({
     sender: createPushSender({ vapid: generateVAPIDKeys(), subject: "mailto:ops@u.example" }),
     db: testDb.db,

@@ -18,6 +18,17 @@ let stub: PushStub;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
+  // Until Task 3 swaps the placeholder principal for the session's user, the routes act as this id.
+  await testDb.db
+    .insertInto("users")
+    .values({
+      id: LOCAL_PRINCIPAL_ID,
+      username: "local",
+      password_hash: "x",
+      display_name: "Local",
+      role: "admin",
+    })
+    .execute();
   stub = await PushStub.start();
 });
 afterAll(async () => {
