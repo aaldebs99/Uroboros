@@ -229,6 +229,14 @@ check "worker carries the npm notices" docker run --rm --entrypoint sh "${WORKER
 # yt-dlp is the only downloader; none of its forks may be on the image.
 check "no youtube-dl or youtube-dlc on PATH" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
     '! command -v youtube-dl && ! command -v youtube-dlc'
+# A fresh named volume at /media (filesystem storage) takes the image directory's owner.
+check "worker can write /media (filesystem storage)" docker run --rm --entrypoint sh "${WORKER_IMAGE}" -c \
+    'touch /media/.probe && echo writable'
+check "api can write /media (filesystem storage)" docker run --rm \
+    --entrypoint /usr/local/bin/node "${API_IMAGE}" -e "
+      require('node:fs').writeFileSync('/media/.probe', '');
+      console.log('writable');
+    "
 
 docker run -d --name "${WORKER}" --network "${NETWORK}" -e VALKEY_URL="${VALKEY_URL}" \
     -e DATABASE_URL="${DATABASE_URL}" \

@@ -58,6 +58,9 @@ RUN pnpm licenses list --json --prod \
       --filter @uroboros/ytdlp > /tmp/licenses.json && \
     node apps/server/src/bin/notices.ts /tmp/licenses.json licenses/THIRD_PARTY_NOTICES.txt
 COPY migrations migrations
+# An empty /media for the api image (distroless has no shell to make one): a fresh named volume
+# mounted there takes this directory's owner, so the non-root api can read and write it.
+RUN install -d -o 65532 -g 65532 /media-root
 
 # --- node: the official image, only so the api stage can copy its binary (--from takes no ARG).
 FROM node:${NODE_VERSION}-trixie-slim AS node
@@ -84,7 +87,8 @@ RUN chmod +x /tmp/scripts/*.sh && \
     /tmp/scripts/install-pip-packages.sh /tmp/scripts/requirements.txt /opt/yt-dlp && \
     rm -rf /tmp/scripts /var/lib/apt/lists/* && \
     groupadd --gid 65532 uroboros && \
-    useradd --uid 65532 --gid uroboros --create-home --home-dir /home/uroboros --shell /usr/sbin/nologin uroboros
+    useradd --uid 65532 --gid uroboros --create-home --home-dir /home/uroboros --shell /usr/sbin/nologin uroboros && \
+    install -d -o 65532 -g 65532 /media
 COPY --from=ffmpeg /usr/local/bin/ffmpeg /usr/local/bin/ffprobe /usr/local/bin/
 COPY --from=ffmpeg /usr/share/licenses/ffmpeg/ /usr/share/licenses/ffmpeg/
 COPY --from=build /src/licenses/ /usr/share/licenses/uroboros/
@@ -123,6 +127,8 @@ WORKDIR /app
 COPY --from=build /src/apps/server/dist/ /app/
 COPY --from=build /src/migrations/ /app/migrations/
 COPY --from=build /src/apps/web/dist/ /app/web/
+# The filesystem storage mount point (UROBOROS_STORAGE_ROOT in compose), owned by the runtime user.
+COPY --from=build --chown=65532:65532 /media-root /media
 COPY --from=build /src/licenses/ /usr/share/licenses/uroboros/
 # Listen on all interfaces inside the container (the default is loopback). The api (and the manual
 # migrate) read the SQL files from UROBOROS_MIGRATIONS_DIR; without it, they look for the repo root.
