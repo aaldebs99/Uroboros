@@ -120,6 +120,10 @@ an S3-compatible bucket (RustFS locally) or in organized folders on a shared vol
 (`UROBOROS_STORAGE=filesystem`, layout in `UROBOROS_STORAGE_LAYOUT`). Admins manage the format
 profiles under Admin › Format profiles. `docs/downloads.md` has the design.
 
+The Library searches what you downloaded (the top bar's search), filters by watched state and tag,
+browses by channel and playlist, and plays videos in the browser with chapters and subtitles,
+resuming where you left off. `docs/library.md` has the design.
+
 ## Installable app and push notifications
 
 The UI is an installable web app: a static manifest, icons, and a service worker (vite-plugin-pwa,
