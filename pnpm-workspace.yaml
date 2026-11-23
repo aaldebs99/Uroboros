@@ -33,4 +33,4 @@ allowBuilds:
 #   the mute button; Uroboros opens it at once (both builds, dist/dev and dist/default). The skin
 #   has no prop or CSS setting for it. apps/web/src/library/playerSkin.test.ts checks it applied.
 patchedDependencies:
-  '@videojs/react': patches/@videojs__react.patch
+  "@videojs/react": patches/@videojs__react.patch
