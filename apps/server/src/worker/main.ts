@@ -2,11 +2,14 @@ import { hostname } from "node:os";
 import type { Processor } from "bullmq";
 import { pino } from "pino";
 import type { Logger } from "pino";
-import { ConfigError, loadWorkerConfig } from "../config.ts";
+import type { Redis } from "ioredis";
+import { ConfigError, loadWorkerConfig, type WorkerConfig } from "../config.ts";
+import type { DownloadWorkers } from "./downloadWorkers.ts";
 import { createValkey } from "../shared/valkey.ts";
 import { DEFAULT_PREFIX } from "./queues.ts";
 import { createSystemWorker } from "./system.ts";
 import { logToolVersions } from "./versions.ts";
+import { downloadWiring } from "./wiring.ts";
 
 const HEARTBEAT_EVERY_MS = 10_000;
 const HEARTBEAT_TTL_S = 30;
@@ -31,6 +34,8 @@ export interface StartWorkerOptions {
    * worker is closed within `shutdownGraceMs` and `startWorker` rejects with `StartupAborted`.
    */
   abort?: AbortSignal;
+  /** More consumers to start on the worker's connection once it is ready (the download queues). */
+  extraWorkers?: (connection: Redis) => Promise<DownloadWorkers>;
 }
 
 /** `startWorker` was aborted before the worker was ready. */
@@ -132,6 +137,7 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
     throw new StartupAborted();
   }
   await ready;
+  const extra = opts.extraWorkers === undefined ? null : await opts.extraWorkers(valkey);
   const timer = setInterval(() => void beat(), opts.heartbeatEveryMs ?? HEARTBEAT_EVERY_MS);
   log.info({ heartbeatKey, concurrency: opts.concurrency }, "worker started");
 
@@ -148,7 +154,8 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
       // The whole sequence, not just worker.close(), is bounded by the deadline: with Valkey
       // unreachable, every awaited call here can hang.
       const drain = (async () => {
-        await worker.close();
+        await Promise.all([worker.close(), ...(extra?.workers ?? []).map((w) => w.close())]);
+        await extra?.close();
         await bestEffort(valkey.del(heartbeatKey), 1000);
       })();
       drain.catch(() => undefined); // may settle after the deadline; the race reports the outcome
@@ -158,6 +165,7 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
         // blocking one) without awaiting. BullMQ's lock renewal timer keeps running after this, so
         // the process cannot exit by draining; bin/worker.ts calls process.exit.
         worker.disconnect().catch(() => undefined);
+        for (const w of extra?.workers ?? []) w.disconnect().catch(() => undefined);
         throw new Error(`worker did not drain within ${String(graceMs)} ms; force closed`);
       }
     } finally {
@@ -214,12 +222,10 @@ export async function main(
   overrides: Partial<StartWorkerOptions> = {},
 ): Promise<number> {
   const logger = pino({ name: "uroboros-worker" });
-  let valkeyUrl: string;
-  let concurrency: number;
-  let ytdlpPath: string;
+  let config: WorkerConfig;
   let testOverrides: Partial<StartWorkerOptions>;
   try {
-    ({ valkeyUrl, concurrency, ytdlpPath } = loadWorkerConfig(process.env));
+    config = loadWorkerConfig(process.env);
     testOverrides = testOverridesFromEnv(process.env);
   } catch (err) {
     if (err instanceof ConfigError) {
@@ -228,7 +234,13 @@ export async function main(
     }
     throw err;
   }
+  const { valkeyUrl, concurrency, ytdlpPath } = config;
   await logToolVersions(logger, { ytdlp: ytdlpPath });
+  const downloads = downloadWiring(
+    config,
+    overrides.prefix ?? testOverrides.prefix ?? DEFAULT_PREFIX,
+    logger,
+  );
   // Trapped before the worker starts: BullMQ begins taking jobs inside startWorker, so a SIGTERM
   // that lands before it returns must still drain them, not kill the process mid-job. A signal
   // before the worker is ready (Valkey unreachable) aborts the startup instead, and main returns 1
@@ -245,6 +257,7 @@ export async function main(
         valkeyUrl,
         concurrency,
         logger,
+        extraWorkers: (connection) => downloads.start(connection),
         ...testOverrides,
         ...overrides,
         abort: startup.signal,
@@ -268,6 +281,9 @@ export async function main(
     }
   } finally {
     signals.dispose();
+    await downloads.close().catch((err: unknown) => {
+      logger.warn({ err }, "closing the download connections failed");
+    });
   }
 }
 

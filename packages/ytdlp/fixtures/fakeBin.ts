@@ -19,6 +19,11 @@ export type Step =
 export interface Scenario {
   steps: Step[];
   exitCode?: number;
+  /**
+   * Alternatives chosen by argument: the first whose `whenArg` is one of the fake's arguments
+   * (a URL, say) replaces `steps` and `exitCode`, so one scenario can answer several calls.
+   */
+  variants?: { whenArg: string; steps: Step[]; exitCode?: number }[];
   ignoreSigterm?: boolean;
   /** The fake writes its own pid here (relative to its working directory) as it starts. */
   pidFile?: string;
@@ -70,8 +75,10 @@ async function main(): Promise<void> {
   const scenario = JSON.parse(readFileSync(scenarioFile, "utf8")) as Scenario;
   if (scenario.pidFile !== undefined) writeFileSync(resolve(scenario.pidFile), String(process.pid));
   if (scenario.ignoreSigterm === true) process.on("SIGTERM", () => undefined);
-  for (const step of scenario.steps) await run(step);
-  process.exitCode = scenario.exitCode ?? 0;
+  const args = process.argv.slice(2);
+  const chosen = scenario.variants?.find((v) => args.includes(v.whenArg)) ?? scenario;
+  for (const step of chosen.steps) await run(step);
+  process.exitCode = chosen.exitCode ?? 0;
 }
 
 await main();

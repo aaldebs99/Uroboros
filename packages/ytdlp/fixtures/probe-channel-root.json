@@ -1,0 +1,35 @@
+{
+  "_type": "playlist",
+  "id": "UCSMOQeBJ2RAnuFungnQOxLg",
+  "channel_id": "UCSMOQeBJ2RAnuFungnQOxLg",
+  "channel": "Blender",
+  "uploader": "Blender",
+  "title": "Blender",
+  "extractor": "youtube:tab",
+  "extractor_key": "YoutubeTab",
+  "webpage_url": "https://www.youtube.com/@BlenderOfficial",
+  "playlist_count": 3,
+  "entries": [
+    {
+      "_type": "url",
+      "ie_key": "YoutubeTab",
+      "id": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "url": "https://www.youtube.com/@BlenderOfficial/videos",
+      "title": "Blender - Videos"
+    },
+    {
+      "_type": "url",
+      "ie_key": "YoutubeTab",
+      "id": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "url": "https://www.youtube.com/@BlenderOfficial/shorts",
+      "title": "Blender - Shorts"
+    },
+    {
+      "_type": "url",
+      "ie_key": "YoutubeTab",
+      "id": "UCSMOQeBJ2RAnuFungnQOxLg",
+      "url": "https://www.youtube.com/@BlenderOfficial/streams",
+      "title": "Blender - Live"
+    }
+  ]
+}

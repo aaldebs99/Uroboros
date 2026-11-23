@@ -174,4 +174,22 @@ describe("ffprobe", () => {
     expect(error.exitCode).toBe(1);
     expect(error.stderrTail).toEqual(["/x/clip.mp4: No such file or directory"]);
   });
+
+  it("lets one fake scenario answer different URLs (test fixture)", async () => {
+    const run = await FakeRun.create({
+      steps: [{ stdout: await fixture("probe-video.json") }],
+      variants: [
+        {
+          whenArg: "https://example.org/list",
+          steps: [{ stdout: await fixture("probe-playlist.json") }],
+        },
+      ],
+    });
+    try {
+      expect((await probe("https://example.org/v", run.options)).kind).toBe("video");
+      expect((await probe("https://example.org/list", run.options)).kind).toBe("playlist");
+    } finally {
+      await run.close();
+    }
+  });
 });

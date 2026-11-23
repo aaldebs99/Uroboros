@@ -60,4 +60,5 @@ child process in its group, or ignoring SIGTERM. The JSON fixtures are real outp
 with yt-dlp 2026.08.19: the CC-BY Blender videos `aqz-KE-bpKQ`, a Blender playlist and the Blender
 channel's videos tab (formats and thumbnails trimmed, signed media URLs and the recording client's
 IP scrubbed), an unavailable video, and a download and ffprobe of a clip generated with ffmpeg and
-served from localhost.
+served from localhost. `probe-channel-root.json` (a channel's main URL listing its Videos, Shorts and Live tabs) is
+hand-built in the shape yt-dlp gives, not recorded.
