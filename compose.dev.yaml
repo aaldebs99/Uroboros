@@ -4,16 +4,18 @@
 #             running `tsx watch`, with apps/server/src, packages/contract/src, packages/ytdlp/src
 #             and ./migrations mounted over the image's copies, so an edit to any server code
 #             (downloads included) restarts both replicas. Only those directories are mounted: the
-#             image's node_modules stay in place. The SPA it serves is the one built into the
-#             image; `mise run dev:ui:docker` (Vite with HMR, proxying /api to this stack's Caddy on
-#             :18080) is the UI loop. Plain `dev:ui` proxies to a host-run `dev:server` on :18081.
-#             Migrations apply as a replica starts, reading ./migrations from the host, so a new
-#             file applies on the next restart (an edit under apps/server/src restarts it).
-#             A dependency or Dockerfile change needs `mise run docker:up:dev:build`.
-#   caddy     published on every interface (port 18080, UROBOROS_PORT), not only loopback as in
-#             compose.yaml, so phones and other machines on the network can reach the dev stack.
-#             Anyone who can reach the port can reach the sign-in page, and the dev bootstrap
-#             account is admin / admin.
+#             image's node_modules stay in place. Migrations apply as a replica starts, reading
+#             ./migrations from the host, so a new file applies on the next restart (an edit under
+#             apps/server/src restarts it). A dependency or Dockerfile change needs
+#             `mise run docker:up:dev:build`.
+#   web       the UI with hot reload: Vite from the same image, on :18173 inside the network,
+#             with apps/web's sources and packages/contract/src mounted, so an edit shows in the
+#             browser at once (HMR), no rebuild. Not published: Caddy fronts it.
+#   caddy     the one entrypoint, compose/Caddyfile.dev: /api to the replicas, everything else
+#             (the HMR websocket included) to `web`. Published on every interface (port 18080,
+#             UROBOROS_PORT), not only loopback as in compose.yaml, so phones and other machines
+#             on the network can reach the dev stack. Anyone who can reach the port can reach the
+#             sign-in page, and the dev bootstrap account is admin / admin.
 #   host ports on loopback for Postgres (15432), Valkey (16379) and RustFS (19000, console
 #             19001), which `mise run dev:deps` uses for a server run on the host. They stay on
 #             loopback because their credentials are fixed dev ones. Each has an env override
@@ -61,8 +63,46 @@ services:
       - ./packages/contract/src:/src/packages/contract/src:ro
       - ./packages/ytdlp/src:/src/packages/ytdlp/src:ro
 
+  # The UI with hot reload. The same image as the replicas (its build stage holds the installed
+  # workspace), so the build section matches theirs and the second build is all cache.
+  web:
+    build:
+      context: .
+      target: dev
+      args:
+        VERSION: 0.0.0-compose
+    image: uroboros:dev
+    restart: unless-stopped
+    working_dir: /src/apps/web
+    # --host: listen beyond loopback, for Caddy. vite.config.ts reads the port.
+    command: ["pnpm", "exec", "vite", "--host", "0.0.0.0"]
+    environment:
+      UROBOROS_UI_PORT: "18173"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:18173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    volumes:
+      - ./apps/web/src:/src/apps/web/src:ro
+      - ./apps/web/public:/src/apps/web/public:ro
+      - ./apps/web/index.html:/src/apps/web/index.html:ro
+      - ./apps/web/vite.config.ts:/src/apps/web/vite.config.ts:ro
+      - ./packages/contract/src:/src/packages/contract/src:ro
+
   caddy:
     # `!override` replaces compose.yaml's loopback mapping instead of adding a second one beside it
     # (two mappings of one host port would collide). No host address: every interface, IPv4 and IPv6.
     ports: !override
       - "${UROBOROS_PORT:-18080}:8080"
+    # The dev routing (compose/Caddyfile.dev) in place of the production one.
+    volumes: !override
+      - ./compose/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+    depends_on:
+      web:
+        condition: service_healthy

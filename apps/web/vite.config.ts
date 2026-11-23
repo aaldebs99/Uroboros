@@ -5,10 +5,11 @@ import { defineConfig, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 /**
- * `base: "/"` keeps deep links working on a hard refresh behind the server's SPA fallback. In dev,
- * `/api` is proxied to the API (`mise run dev:server`, on 127.0.0.1:18081). The dev server's own
- * port is 18173 (UROBOROS_UI_PORT), strict so a clash fails instead of silently moving to another
- * port. Tests live in `vitest.config.ts`.
+ * `base: "/"` keeps deep links working on a hard refresh behind the server's SPA fallback. In dev
+ * on the host (`mise run dev:ui`), `/api` is proxied to the API (`mise run dev:server`, on
+ * 127.0.0.1:18081); in the dev stack (`mise run docker:up:dev`) this runs as the `web` service and
+ * Caddy routes /api itself. The dev server's own port is 18173 (UROBOROS_UI_PORT), strict so a
+ * clash fails instead of silently moving to another port. Tests live in `vitest.config.ts`.
  */
 export const apiTarget = process.env["UROBOROS_API_URL"] ?? "http://127.0.0.1:18081";
 const uiPort = Number(process.env["UROBOROS_UI_PORT"] ?? "18173");
