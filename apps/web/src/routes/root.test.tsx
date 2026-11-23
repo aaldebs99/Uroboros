@@ -62,6 +62,19 @@ describe("app shell", () => {
     expect(screen.getByText("Coming soon")).toBeInTheDocument();
   });
 
+  it("puts the brand and the account menu in the top bar, and the nav below it", async () => {
+    await renderAt("/");
+
+    const header = screen.getByRole("banner");
+    expect(within(header).getByText("Uroboros")).toBeInTheDocument();
+    expect(
+      within(header).getByRole("button", { name: "Account menu for Alice" }),
+    ).toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(header).not.toContainElement(nav);
+    expect(within(nav).queryByText("Uroboros")).not.toBeInTheDocument();
+  });
+
   it("shows the health badge in the header", async () => {
     await renderAt("/settings");
 

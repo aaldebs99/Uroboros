@@ -1,7 +1,7 @@
 /**
  * The mark and wordmark. `/uroboros-tile.svg` is a copy of `assets/logos/uroboros.svg`, the logo
- * on its own navy tile (refreshed by `mise run icons`); the ring and glow keep the tile's edge
- * visible on the navy sidebar.
+ * on its own navy tile (refreshed by `mise run icons`). It leads the top bar and the mobile drawer;
+ * the ring and glow keep the tile's edge visible on the navy drawer.
  */
 export function Brand() {
   return (

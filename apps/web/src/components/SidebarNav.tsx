@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
 import { useInfo } from "@/api/client";
-import { Brand } from "@/components/Brand";
 import { ADMIN_ITEMS, NAV_ITEMS, type NavItem } from "@/nav";
 
 type SidebarNavProps = {
@@ -12,15 +11,15 @@ type SidebarNavProps = {
   onNavigate?: () => void;
 };
 
-/** Brand, primary navigation and the server version. Navy in both themes, like the logo tile. */
+/**
+ * Primary navigation and the server version, below the top bar. Navy in both themes, like the
+ * logo tile.
+ */
 export function SidebarNav({ label, isAdmin = false, onNavigate }: SidebarNavProps) {
   const info = useInfo();
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className="px-5 pt-6 pb-8">
-        <Brand />
-      </div>
-      <nav aria-label={label} className="flex flex-1 flex-col gap-1 px-3">
+      <nav aria-label={label} className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pt-5">
         {NAV_ITEMS.map((item) => (
           <NavLink key={item.to} item={item} onNavigate={onNavigate} />
         ))}

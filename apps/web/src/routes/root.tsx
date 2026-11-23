@@ -26,8 +26,9 @@ export function RootLayout() {
 }
 
 /**
- * The app shell: fixed sidebar from `md` up, a sheet drawer below it, header with health, theme
- * and the account menu. It also mends this browser's push subscription once per launch.
+ * The app shell: a full-width top bar (brand on the left; health, theme and the account menu on
+ * the right), and below it a fixed sidebar from `md` up or a sheet drawer under that. It also
+ * mends this browser's push subscription once per launch.
  */
 function Shell({ me }: { me: Me }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,53 +36,52 @@ function Shell({ me }: { me: Me }) {
   const isAdmin = me.role === "admin";
   usePushSync();
   return (
-    <div className="page-glow min-h-dvh md:pl-64">
-      <aside className="fixed inset-y-0 left-0 hidden w-64 border-r border-sidebar-border md:block">
-        <SidebarNav label="Primary" isAdmin={isAdmin} />
-      </aside>
-      <div className="flex min-h-dvh flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur md:px-8">
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
-                <Menu />
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-64 gap-0 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground"
-            >
-              <SheetTitle className="sr-only">Navigation</SheetTitle>
-              <SheetDescription className="sr-only">
-                Move between sections of Uroboros.
-              </SheetDescription>
-              <SidebarNav
-                label="Mobile"
-                isAdmin={isAdmin}
-                onNavigate={() => {
-                  setMenuOpen(false);
-                }}
-              />
-            </SheetContent>
-          </Sheet>
-          <div className="md:hidden">
-            <Brand />
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <HealthBadge />
-            <ThemeToggle />
-            <UserMenu
-              me={me}
-              onOpenAccount={() => {
-                void navigate({ to: "/account" });
+    <div className="page-glow min-h-dvh pt-14 md:pl-64">
+      <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur md:px-5">
+        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
+              <Menu />
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            side="left"
+            className="w-64 gap-0 border-sidebar-border bg-sidebar p-0 text-sidebar-foreground"
+          >
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <SheetDescription className="sr-only">
+              Move between sections of Uroboros.
+            </SheetDescription>
+            <div className="bg-sidebar px-5 pt-5 pb-2">
+              <Brand />
+            </div>
+            <SidebarNav
+              label="Mobile"
+              isAdmin={isAdmin}
+              onNavigate={() => {
+                setMenuOpen(false);
               }}
             />
-          </div>
-        </header>
-        <main className="flex-1 px-4 py-8 md:px-8 md:py-10">
-          <Outlet />
-        </main>
-      </div>
+          </SheetContent>
+        </Sheet>
+        <Brand />
+        <div className="ml-auto flex items-center gap-2">
+          <HealthBadge />
+          <ThemeToggle />
+          <UserMenu
+            me={me}
+            onOpenAccount={() => {
+              void navigate({ to: "/account" });
+            }}
+          />
+        </div>
+      </header>
+      <aside className="fixed top-14 bottom-0 left-0 z-20 hidden w-64 border-r border-sidebar-border md:block">
+        <SidebarNav label="Primary" isAdmin={isAdmin} />
+      </aside>
+      <main className="px-4 py-8 md:px-8 md:py-10">
+        <Outlet />
+      </main>
       <Toaster />
     </div>
   );
