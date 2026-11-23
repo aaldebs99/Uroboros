@@ -5,11 +5,11 @@ description: Use when building, changing or reviewing anything in Uroboros's web
 
 # Uroboros design system
 
-Uroboros looks like **YouTube drawn in the Uroboros logo's colours**: YouTube's shapes, chips,
-thumbnails, menus and mobile navigation, in navy, electric blue and ice instead of YouTube's red.
-The user picked every primitive from four rendered options in a mockup workshop on 2026-11-22.
-The picks are mostly YouTube for structure and media, and "today, refined" for colour, focus and
-elevation, at a **roomy** density: Roboto 14px, 44px controls. Both light and dark themes stay.
+Uroboros is a **media library drawn in the Uroboros logo's colours** (navy, electric blue and
+ice): bare 16:9 thumbnails with the details beneath, pill-shaped chips and search, flat
+page-coloured navigation, quiet menus, and bottom tabs on phones. The user picked every
+primitive from four rendered options in a mockup workshop on 2026-11-22. Colour, focus and
+elevation are today's look refined, at a **roomy** density: Roboto 14px, 44px controls. Both light and dark themes stay.
 
 ## Target, not today
 
@@ -46,7 +46,7 @@ skill, this skill wins. The existing files are listed in each reference.
 7. **Toasts report outcomes; notices persist.** What an action came to (queued, saved, failed)
    is a Sonner toast. A condition the page keeps (cookies expiring) is a notice. Never show a
    fake percentage.
-8. **One breakpoint, `md` (48rem).** Above it: the top bar and the guide. Below it: the slim top
+8. **One breakpoint, `md` (48rem).** Above it: the top bar and the side navigation. Below it: the slim top
    bar and the **bottom tab bar**, with no drawer. Nothing may widen a 375px page. Touch targets
    are at least 44px.
 9. **Show only real features.** No bell, Pause, watched bar, subscriber count or Create menu
@@ -54,14 +54,14 @@ skill, this skill wins. The existing files are listed in each reference.
 
 ## Where each primitive is
 
-| Primitive                                                                                       | Pick                                                                                  | Reference                                                        |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Palette, tokens, type, density, corners, focus, elevation                                       | Today's blues refined; Roboto 14/20; 44px; 10px controls, 16px cards; soft ring       | [foundations](references/foundations.md)                         |
-| Buttons, icon buttons, links, text fields, selects, menus, checkboxes, radios, switches, search | Glowing primary, tonal delete; YouTube links, outlined-label fields, pill search      | [actions-and-forms](references/actions-and-forms.md)             |
-| Top bar, guide, Create menu and download dialog, account menu, chips and tabs, page header      | YouTube's, except the page header (title, description, action right)                  | [shell-and-navigation](references/shell-and-navigation.md)       |
-| Video tile, list row, channel header, playlist tile, progress, queue row, preview picker        | YouTube's; progress is a thick glowing bar                                            | [media-and-library](references/media-and-library.md)             |
-| Toasts, status badges, notices, empty states, loading, settings sections, dialogs, tables       | Corner toast with timer line; outlined badges; YouTube empty, settings, dialog, table | [feedback-and-containers](references/feedback-and-containers.md) |
-| Phone shell, library feed, ⋮ sheet, download dialog                                             | YouTube mobile: bottom tabs, edge-to-edge feed, bottom sheet                          | [phone](references/phone.md)                                     |
+| Primitive                                                                                            | Pick                                                                                                                               | Reference                                                        |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Palette, tokens, type, density, corners, focus, elevation                                            | Today's blues refined; Roboto 14/20; 44px; 10px controls, 16px cards; soft ring                                                    | [foundations](references/foundations.md)                         |
+| Buttons, icon buttons, links, text fields, selects, menus, checkboxes, radios, switches, search      | Glowing primary, tonal delete; underline-on-hover links, label-inside fields, pill search                                          | [actions-and-forms](references/actions-and-forms.md)             |
+| Top bar, side navigation, Create menu and download dialog, account menu, chips and tabs, page header | Page-coloured bar and side navigation, a Create menu, inverted chips; header with action right                                     | [shell-and-navigation](references/shell-and-navigation.md)       |
+| Video tile, list row, channel header, playlist tile, progress, queue row, preview picker             | Bare thumbnail tiles, stacked playlist tiles, checkbox picker; thick glowing progress bar                                          | [media-and-library](references/media-and-library.md)             |
+| Toasts, status badges, notices, empty states, loading, settings sections, dialogs, tables            | Corner toast with timer line; outlined badges; circled-glyph empty state; flat settings rows, text-button dialogs, gridless tables | [feedback-and-containers](references/feedback-and-containers.md) |
+| Phone shell, library feed, ⋮ sheet, download dialog                                                  | Bottom tabs with a centred +, edge-to-edge feed, bottom sheet                                                                      | [phone](references/phone.md)                                     |
 
 Read the reference for the family you are touching before you write classes.
 
@@ -74,16 +74,16 @@ dialogs and toasts, `rounded-2xl` (16px) cards and sheets, `rounded-[4px]` durat
 
 ## Common mistakes
 
-| Mistake                                                        | Instead                                                                     |
-| -------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `variant="destructive"` solid red, or an outlined Cancel       | Tonal destructive; in dialogs, text-only pill actions                       |
-| A filled or dotted status badge (`bg-warning`, a coloured dot) | An outlined pill with tone text                                             |
-| A video in a bordered card with the title in a padded body     | YouTube's bare tile: thumbnail, then avatar, two-line title, meta, ⋮        |
-| A dashed box for an empty list                                 | `EmptyState`: a 96px circle with a glyph, a title, a line, one action       |
-| A `Sheet` drawer for phone navigation                          | The bottom tab bar with the centred "+"                                     |
-| A label above an input                                         | The outlined field with the label inside the box                            |
-| Geist or Bricolage, body text at 16px, `font-display`          | Roboto 14/20 body; titles are Roboto 700                                    |
-| A 6px flat `bg-primary` progress bar                           | An 8px pill bar with an accent gradient and glow, plus `role="progressbar"` |
-| `bg-black/75` on a duration badge                              | `bg-overlay text-overlay-foreground`                                        |
-| A navy sidebar (`bg-sidebar`)                                  | The guide on the canvas colour, with the current row filled `bg-raised`     |
-| A Pause button, a bell or a subscriber count                   | Only when the feature exists                                                |
+| Mistake                                                        | Instead                                                                       |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `variant="destructive"` solid red, or an outlined Cancel       | Tonal destructive; in dialogs, text-only pill actions                         |
+| A filled or dotted status badge (`bg-warning`, a coloured dot) | An outlined pill with tone text                                               |
+| A video in a bordered card with the title in a padded body     | A bare tile: thumbnail, then avatar, two-line title, meta, ⋮                  |
+| A dashed box for an empty list                                 | `EmptyState`: a 96px circle with a glyph, a title, a line, one action         |
+| A `Sheet` drawer for phone navigation                          | The bottom tab bar with the centred "+"                                       |
+| A label above an input                                         | The outlined field with the label inside the box                              |
+| Geist or Bricolage, body text at 16px, `font-display`          | Roboto 14/20 body; titles are Roboto 700                                      |
+| A 6px flat `bg-primary` progress bar                           | An 8px pill bar with an accent gradient and glow, plus `role="progressbar"`   |
+| `bg-black/75` on a duration badge                              | `bg-overlay text-overlay-foreground`                                          |
+| A navy sidebar (`bg-sidebar`)                                  | Side navigation on the canvas colour, with the current row filled `bg-raised` |
+| A Pause button, a bell or a subscriber count                   | Only when the feature exists                                                  |

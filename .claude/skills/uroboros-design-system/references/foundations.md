@@ -32,7 +32,7 @@ when writing `index.css`.
   light, `#15305c` in dark.
 - `--overlay` and `--scrim` stay the same in both themes because they sit on images or over the
   page. The watched bar's track is white at 35% on the image.
-- The `--sidebar-*` tokens are retired: the guide is the canvas colour.
+- The `--sidebar-*` tokens are retired: the side navigation is the canvas colour.
 - The brand tile `/uroboros-tile.svg` is the only navy element in light mode.
 - Accent blue marks actions, links, selection and focus. It never means success, warning or
   failure.
@@ -65,30 +65,30 @@ There is no negative letter-spacing, and no display font.
 | Outlined text field                     | 56px tall     |
 | Button side padding (compact)           | 20px (14px)   |
 | Icon button                             | 40px square   |
-| Guide row                               | 40px          |
+| Side navigation row                     | 40px          |
 | List row vertical padding               | 14px          |
 | Gap between sections / related controls | 16px / 8–12px |
 | Phone touch target                      | ≥ 44px        |
 
 ## Corners
 
-| Thing                                      | Radius                      |
-| ------------------------------------------ | --------------------------- |
-| Buttons, selects, icon buttons, guide rows | 10px                        |
-| Outlined text field                        | 8px                         |
-| Chips, avatars, switches, search, Create   | full                        |
-| Thumbnails                                 | 12px (none on phones' feed) |
-| Cards and panels                           | 16px                        |
-| Menus and dialogs (one dialog primitive)   | 12px                        |
-| Phone bottom sheet                         | 16px                        |
-| Duration and count badges                  | 4px                         |
+| Thing                                           | Radius                      |
+| ----------------------------------------------- | --------------------------- |
+| Buttons, selects, icon buttons, navigation rows | 10px                        |
+| Outlined text field                             | 8px                         |
+| Chips, avatars, switches, search, Create        | full                        |
+| Thumbnails                                      | 12px (none on phones' feed) |
+| Cards and panels                                | 16px                        |
+| Menus and dialogs (one dialog primitive)        | 12px                        |
+| Phone bottom sheet                              | 16px                        |
+| Duration and count badges                       | 4px                         |
 
 ## Focus and states
 
 - **Focus:** `focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45`,
   one class for both themes. An outlined field also turns its border `border-primary`.
 - **Hover:** `bg-raised` on ghost and quiet things, and `bg-accent text-primary` on icon buttons.
-- **Selected:** guide rows and menu items fill `bg-raised` or `bg-accent`. Chips invert.
+- **Selected:** navigation rows and menu items fill `bg-raised` or `bg-accent`. Chips invert.
 - **Disabled:** `disabled:opacity-45`, with the real `disabled` attribute.
 - Honour `prefers-reduced-motion`: no shimmer and no shrinking timer line.
 
@@ -96,7 +96,8 @@ There is no negative letter-spacing, and no display font.
 
 - Cards and panels (`bg-card`) use `shadow-card`.
 - Menus, popovers, toasts and dialogs use `shadow-menu`.
-- YouTube-shaped regions are flat: the top bar, the guide, settings sections and tables.
+- These regions are flat, with no shadow and no card: the top bar, the side navigation, settings
+  sections and tables.
 
 ## Today
 

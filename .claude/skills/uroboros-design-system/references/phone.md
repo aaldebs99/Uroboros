@@ -1,6 +1,6 @@
 # Phone (below `md`, 48rem)
 
-YouTube mobile. Today `root.tsx` opens a `Sheet` drawer from a menu button; the target has **no
+A slim top bar and bottom tabs. Today `root.tsx` opens a `Sheet` drawer from a menu button; the target has **no
 drawer**.
 
 ## Getting around
@@ -15,13 +15,13 @@ drawer**.
   - The "+" is a 40px circle with a 1.5px `border-foreground` and a 22px `Plus`.
   - Each tab is a 22px icon over a 10px label, with targets at least 44px wide.
   - The current tab is `text-foreground` with `aria-current="page"`; the others are muted.
-- **You** (YouTube's word for the Account destination, `/account`) leads to the account page, which also lists Settings and, for admins, the Admin pages
-  (Users, Format profiles).
+- The **You** tab opens the account page (`/account`), which also lists Settings and, for admins,
+  the Admin pages (Users, Format profiles).
 - Leave room for the tab bar at the bottom of the scroll area (`pb-[calc(58px+env(safe-area-inset-bottom))]`).
 
 ## Library feed
 
-YouTube's feed:
+A single-column feed:
 
 - Thumbnails run **edge to edge**, full width with no corners.
 - Under each: `px-3 pt-2.5`, a 36px avatar, the two-line title at 14/500, muted meta and a ghost
@@ -30,7 +30,7 @@ YouTube's feed:
 
 ## Menus: the ⋮ bottom sheet
 
-YouTube's:
+A sheet of action rows that slides up from the bottom:
 
 - On phones, ⋮ and other action menus open a bottom sheet instead of a dropdown.
 - Inset 8px from the edges, `bg-popover rounded-2xl`, with a grab handle (36×4, `bg-border`)

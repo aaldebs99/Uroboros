@@ -11,13 +11,13 @@ Every button shares a base: `inline-flex items-center justify-center gap-2 h-11 
 14/500 text, a lucide icon at 16–18px before the label, the focus ring, and 45% opacity when
 disabled.
 
-| Variant     | Classes (beyond the base)                                                                      | Use                               |
-| ----------- | ---------------------------------------------------------------------------------------------- | --------------------------------- |
-| Primary     | `bg-primary text-primary-foreground shadow-glow`                                               | The one main action in a region   |
-| Secondary   | `bg-card border border-border text-foreground shadow-[0_1px_2px_#0b1d330f]`                    | Other actions                     |
-| Quiet       | `text-primary bg-transparent hover:bg-raised`                                                  | Cancel, Select none, View all     |
-| Destructive | `bg-destructive/13 text-destructive hover:bg-destructive/20` (YouTube's tonal fill, no border) | Remove, Delete, Cancel a download |
-| Compact     | `h-9 px-3.5 text-[13px]`                                                                       | Rows, toasts, dense headers       |
+| Variant     | Classes (beyond the base)                                                              | Use                               |
+| ----------- | -------------------------------------------------------------------------------------- | --------------------------------- |
+| Primary     | `bg-primary text-primary-foreground shadow-glow`                                       | The one main action in a region   |
+| Secondary   | `bg-card border border-border text-foreground shadow-[0_1px_2px_#0b1d330f]`            | Other actions                     |
+| Quiet       | `text-primary bg-transparent hover:bg-raised`                                          | Cancel, Select none, View all     |
+| Destructive | `bg-destructive/13 text-destructive hover:bg-destructive/20` (a tonal fill, no border) | Remove, Delete, Cancel a download |
+| Compact     | `h-9 px-3.5 text-[13px]`                                                               | Rows, toasts, dense headers       |
 
 - A pending action keeps its label and changes it ("Saving…") with real `disabled`.
 - Destructive is never solid red.
@@ -34,12 +34,13 @@ disabled.
 
 ## Links
 
-YouTube's: `text-primary no-underline hover:underline focus-visible:underline`. Use the router
+Accent text with no underline at rest, underlined on hover and focus: `text-primary no-underline
+hover:underline focus-visible:underline`. Use the router
 `Link` for in-app destinations.
 
 ## Text fields
 
-YouTube Studio's outlined box with the label inside it:
+An outlined box, 56px tall, with the label inside it at the top left and the value beneath:
 
 ```tsx
 <div className="grid gap-1">
@@ -112,7 +113,8 @@ Radix `DropdownMenu` (`components/ui/dropdown-menu.tsx`):
 
 ## Search
 
-YouTube's pill joined to a button:
+A pill-shaped input joined on its right to a search button segment, so the two read as one
+control:
 
 ```tsx
 <form role="search" className="flex w-full max-w-xl">

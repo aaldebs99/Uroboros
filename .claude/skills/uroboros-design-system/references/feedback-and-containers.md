@@ -86,7 +86,8 @@ stays until its condition is gone.
 
 ## Empty states
 
-YouTube's. The target component is `EmptyState`, replacing `ComingSoon`'s dashed card.
+Centred: a large circled glyph, a title, one line and one action. The target component is
+`EmptyState`, replacing `ComingSoon`'s dashed card.
 
 ```tsx
 <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -118,7 +119,7 @@ B's shimmer:
 
 ## Settings sections
 
-YouTube's settings, with no card:
+Flat rows with no card: a label column on the left, and rules between rows.
 
 - A grid of `grid-cols-[200px_1fr] gap-5 py-4`, with a hairline `border-t border-border` between
   rows.
@@ -130,7 +131,8 @@ YouTube's settings, with no card:
 
 ## Dialogs
 
-YouTube's. Add `components/ui/alert-dialog.tsx` (radix `AlertDialog`) for confirmations and
+A plain panel with a title, muted text and text-button actions. Add
+`components/ui/alert-dialog.tsx` (radix `AlertDialog`) for confirmations and
 `components/ui/dialog.tsx` (radix `Dialog`) for form dialogs. Neither exists today; the library
 still uses `window.confirm`. Both share the panel below.
 
@@ -157,7 +159,7 @@ still uses `window.confirm`. Both share the panel below.
 
 ## Tables
 
-YouTube Studio's:
+A gridless table: hairlines between rows, quiet headers, and a hover fill.
 
 - Native `<table>`, with no grid.
 - Headers at 12/500 muted, `px-2.5 py-2.5`.

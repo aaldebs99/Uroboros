@@ -7,9 +7,10 @@ and `components/ThemeToggle.tsx`. The target below replaces their look; the beha
 
 ## Top bar (md and up)
 
-YouTube's. A `bg-background` bar, 56px tall, with no border, holding from left to right:
+A bar in the page colour (`bg-background`), 56px tall, with no border or shadow, holding from left
+to right:
 
-1. A ghost icon button with `Menu`, which toggles the guide between full and mini.
+1. A ghost icon button with `Menu`, which toggles the side navigation between full and mini.
 2. The brand: `Brand` (the tile and "Uroboros" in Roboto 700, 18px).
 3. The [search](actions-and-forms.md#search), centred and up to about 640px wide.
 4. **"+ Create"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500.
@@ -18,9 +19,9 @@ YouTube's. A `bg-background` bar, 56px tall, with no border, holding from left t
 The bell slot stays empty until an in-app notification list exists. There's no separate theme
 button: the theme lives in the account menu.
 
-## Guide (side navigation)
+## Side navigation
 
-YouTube's guide, below the top bar:
+A list of sections in the page colour, below the top bar, not a separate coloured panel:
 
 - It is 240px wide on `bg-background`, not a separate navy panel.
 - Rows are `h-10 rounded-[10px] px-3 gap-6`, with a 20px icon and a 14px label.
@@ -52,7 +53,7 @@ YouTube's guide, below the top bar:
 
 ## Account menu
 
-YouTube's, a Radix dropdown from the avatar:
+A Radix dropdown from the avatar, with a header about the person and ruled sections:
 
 1. **Header:** a 40px avatar (the initial on `bg-raised` until avatars exist), the display name
    at 500, `@username` muted (the email when there's no username, or nothing), and a "Manage your
@@ -67,7 +68,7 @@ Rules split the sections.
 
 ## Filter chips and tabs
 
-YouTube's.
+Filters are a row of pills; views are underlined text tabs.
 
 ```tsx
 <div role="toolbar" aria-label="Filter" className="flex gap-2 overflow-x-auto">

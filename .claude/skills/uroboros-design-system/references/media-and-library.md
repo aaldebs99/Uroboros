@@ -6,7 +6,7 @@ is `downloads/QueueRow.tsx` (a 6px flat bar and filled badges). The formatters l
 
 ## Video tile
 
-YouTube's tile:
+A bare tile with no card: the thumbnail, and the details under it beside a channel avatar.
 
 ```tsx
 <li className="grid gap-3">
@@ -60,7 +60,7 @@ YouTube's tile:
 
 ## List row
 
-YouTube's search-result row:
+A wide row: a large thumbnail at the left, the details beside it.
 
 - A 200px thumbnail with the same badge.
 - The title at 16/22 weight 500, then the meta line and one line of detail, all muted 12px.
@@ -69,7 +69,7 @@ YouTube's search-result row:
 
 ## Channel header
 
-YouTube's:
+A banner over a large avatar, with the details and actions beside it:
 
 - A banner (`h-[90px]` up to 16:5) with `rounded-[14px]`.
 - An 80px round avatar, then the name at 24/700.
@@ -80,7 +80,7 @@ YouTube's:
 
 ## Playlist tile
 
-YouTube's:
+A video tile that looks like a stack, with a count on the thumbnail:
 
 - Two layers peek above the thumbnail: 12px and 6px tall, inset, `bg-raised` at 60% and 85%.
 - A count badge at the bottom right (`bg-overlay`, a `ListVideo` icon and "14 videos").
