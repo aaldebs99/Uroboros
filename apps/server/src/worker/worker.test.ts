@@ -68,6 +68,18 @@ function start(
   });
 }
 
+/** The worker's required settings besides Valkey (a filesystem store; nothing connects to it). */
+const W = {
+  DATABASE_URL: "postgres://u:p@127.0.0.1:1/db",
+  UROBOROS_STORAGE: "filesystem",
+  UROBOROS_STORAGE_ROOT: "/tmp/uroboros-worker-test",
+};
+
+function stubWorkerEnv(valkeyUrl: string): void {
+  vi.stubEnv("VALKEY_URL", valkeyUrl);
+  for (const [k, v] of Object.entries(W)) vi.stubEnv(k, v);
+}
+
 describe("system queue", () => {
   it("answers ping with pong", async () => {
     const worker = track(await start(), (w) => w.close());
@@ -201,7 +213,7 @@ describe("main", () => {
   });
 
   it("runs until SIGTERM, then resolves 0 and removes its heartbeat", async () => {
-    vi.stubEnv("VALKEY_URL", TestValkey.url());
+    stubWorkerEnv(TestValkey.url());
     const queueName = `main-${randomUUID()}`;
     const running = main([], { prefix, queueName });
     const key = `${prefix}:worker:${hostname()}:${String(process.pid)}`;
@@ -229,6 +241,7 @@ describe("process", () => {
       stdio: "ignore",
       env: {
         ...process.env,
+        ...W,
         VALKEY_URL: TestValkey.url(),
         UROBOROS_WORKER_TEST_QUEUE: name,
         UROBOROS_WORKER_TEST_PREFIX: prefix,
@@ -298,7 +311,7 @@ describe("main before ready", () => {
   it("returns 1 within the grace period when SIGTERM lands before Valkey answers", async () => {
     // Nothing listens on port 1, and the worker connection retries forever, so startup never
     // reaches ready on its own.
-    vi.stubEnv("VALKEY_URL", "redis://127.0.0.1:1");
+    stubWorkerEnv("redis://127.0.0.1:1");
     const before = process.listenerCount("SIGTERM");
     const running = main([], {
       prefix,
@@ -323,7 +336,7 @@ describe("main before ready", () => {
 
 describe("test seam validation", () => {
   it("rejects a non-integer grace with exit 2", async () => {
-    vi.stubEnv("VALKEY_URL", TestValkey.url());
+    stubWorkerEnv(TestValkey.url());
     vi.stubEnv("UROBOROS_WORKER_TEST_QUEUE", "x");
     vi.stubEnv("UROBOROS_WORKER_TEST_GRACE_MS", "abc");
     try {
@@ -335,9 +348,10 @@ describe("test seam validation", () => {
 });
 
 describe("loadWorkerConfig", () => {
-  it("requires only VALKEY_URL", () => {
-    expect(loadWorkerConfig({ VALKEY_URL: "redis://x:1" })).toEqual({
+  it("requires VALKEY_URL, DATABASE_URL and storage", () => {
+    expect(loadWorkerConfig({ ...W, VALKEY_URL: "redis://x:1" })).toMatchObject({
       valkeyUrl: "redis://x:1",
+      databaseUrl: W.DATABASE_URL,
       concurrency: 4,
       ytdlpPath: "yt-dlp",
     });
@@ -345,20 +359,20 @@ describe("loadWorkerConfig", () => {
   });
 
   it("reads YTDLP_PATH, treating an empty one as unset", () => {
-    const env = { VALKEY_URL: "redis://x:1", YTDLP_PATH: "/opt/yt-dlp/bin/yt-dlp" };
+    const env = { ...W, VALKEY_URL: "redis://x:1", YTDLP_PATH: "/opt/yt-dlp/bin/yt-dlp" };
     expect(loadWorkerConfig(env).ytdlpPath).toBe("/opt/yt-dlp/bin/yt-dlp");
-    expect(loadWorkerConfig({ VALKEY_URL: "redis://x:1", YTDLP_PATH: "" }).ytdlpPath).toBe(
+    expect(loadWorkerConfig({ ...W, VALKEY_URL: "redis://x:1", YTDLP_PATH: "" }).ytdlpPath).toBe(
       "yt-dlp",
     );
   });
 
   it("reads UROBOROS_WORKER_CONCURRENCY", () => {
-    const env = { VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: "8" };
+    const env = { ...W, VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: "8" };
     expect(loadWorkerConfig(env).concurrency).toBe(8);
   });
 
   it.each(["0", "-1", "2.5", "abc", "", "4 "])("rejects concurrency %j", (bad) => {
-    const env = { VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: bad };
+    const env = { ...W, VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: bad };
     expect(() => loadWorkerConfig(env)).toThrow(ConfigError);
   });
 });

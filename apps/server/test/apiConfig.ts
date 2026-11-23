@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { pino } from "pino";
 import type { Logger } from "pino";
 import type { Config } from "../src/config.ts";
+import { DEFAULT_LAYOUT } from "../src/storage/config.ts";
 import { TestValkey } from "./testValkey.ts";
 
 /** The repo's real migrations. */
@@ -29,6 +30,8 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
       local: { enabled: true, bootstrap: null },
       oidc: null,
     },
+    storage: { kind: "filesystem", root: "/tmp/uroboros-api-test", layout: DEFAULT_LAYOUT },
+    downloads: { maxActivePerUser: 3, maxPlaylistEntries: 1000 },
     ...over,
   };
 }

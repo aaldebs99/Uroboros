@@ -279,6 +279,19 @@
         "terminationGracePeriodSeconds": {
           "type": "integer",
           "minimum": 26
+        },
+        "cookies": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -555,9 +568,88 @@
             "syncIntervalSecs": {
               "description": "0 turns the background sync off; otherwise at least 60",
               "type": "integer",
-              "anyOf": [{ "const": 0 }, { "minimum": 60 }]
+              "anyOf": [
+                {
+                  "const": 0
+                },
+                {
+                  "minimum": 60
+                }
+              ]
             }
           }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["s3", "filesystem"]
+        },
+        "s3": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "endpoint": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string",
+              "minLength": 1
+            },
+            "bucket": {
+              "type": "string"
+            },
+            "forcePathStyle": {
+              "type": "boolean"
+            },
+            "publicUrl": {
+              "type": "string"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "accessKeyIdKey": {
+              "type": "string",
+              "minLength": 1
+            },
+            "secretAccessKeyKey": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "filesystem": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "existingClaim": {
+              "type": "string"
+            },
+            "mountPath": {
+              "type": "string",
+              "pattern": "^/"
+            },
+            "layout": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "downloads": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxActivePerUser": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxPlaylistEntries": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     }

@@ -10,3 +10,9 @@ networkPolicy:
   valkey:
     podSelector:
       app.kubernetes.io/name: valkey
+storage:
+  kind: s3
+  s3:
+    endpoint: http://rustfs.storage.svc:9000
+    bucket: uroboros
+    existingSecret: uroboros-s3

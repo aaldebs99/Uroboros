@@ -13,7 +13,25 @@ x-server-build: &server-build
   args:
     VERSION: 0.0.0-compose
 
+# Media storage (docs/downloads.md), shared by the api and the workers. RustFS by default, with
+# the bucket the rustfs-init one-shot creates; UROBOROS_STORAGE=filesystem stores organized
+# folders on the media-data volume instead (mounted at /media in both).
+x-storage-env: &storage-env
+  UROBOROS_STORAGE: ${UROBOROS_STORAGE:-s3}
+  UROBOROS_S3_ENDPOINT: http://rustfs:9000
+  UROBOROS_S3_REGION: ${UROBOROS_S3_REGION:-}
+  UROBOROS_S3_BUCKET: uroboros
+  UROBOROS_S3_ACCESS_KEY_ID: uroboros
+  UROBOROS_S3_SECRET_ACCESS_KEY: uroboros-dev-secret
+  UROBOROS_S3_FORCE_PATH_STYLE: "true"
+  UROBOROS_S3_PUBLIC_URL: ${UROBOROS_S3_PUBLIC_URL:-}
+  UROBOROS_STORAGE_ROOT: /media
+  UROBOROS_STORAGE_LAYOUT: ${UROBOROS_STORAGE_LAYOUT:-}
+  UROBOROS_MAX_ACTIVE_DOWNLOADS_PER_USER: ${UROBOROS_MAX_ACTIVE_DOWNLOADS_PER_USER:-}
+  UROBOROS_MAX_PLAYLIST_ENTRIES: ${UROBOROS_MAX_PLAYLIST_ENTRIES:-}
+
 x-server-env: &server-env
+  <<: *storage-env
   DATABASE_URL: postgres://uroboros:uroboros@postgres:5432/uroboros
   VALKEY_URL: redis://valkey:6379
   # Web Push (docs/push.md), passed through from the shell; empty means unset. Push stays off
@@ -97,6 +115,22 @@ services:
       retries: 12
       start_period: 10s
 
+  # Creates the media bucket once (idempotent: RustFS answers 200 for a bucket that exists), with
+  # the RustFS image's own curl signing the request.
+  rustfs-init:
+    image: rustfs/rustfs:1.0.6@sha256:ee717072290bec9b11abfc0365f8310b00df1cd9b3639943edae47bdef05044a
+    restart: "no"
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        code=$$(curl -s -o /dev/null -w "%{http_code}" -X PUT --aws-sigv4 "aws:amz:us-east-1:s3"
+        --user uroboros:uroboros-dev-secret http://rustfs:9000/uroboros);
+        case "$$code" in 200|409) exit 0;; *) echo "bucket creation answered $$code"; exit 1;; esac
+    depends_on:
+      rustfs:
+        condition: service_healthy
+
   api:
     build: *server-build
     image: uroboros:local
@@ -104,6 +138,8 @@ services:
     deploy:
       replicas: 2
     environment: *server-env
+    volumes:
+      - media-data:/media
     # Above the api's 20 s drain plus 2 s for cut connections, 2 s cleanup and 2 s hard-exit
     # slack (26 s at most), so compose does not SIGKILL it mid-drain (the default is 10 s).
     stop_grace_period: 30s
@@ -125,6 +161,8 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      rustfs-init:
+        condition: service_completed_successfully
 
   worker:
     build:
@@ -137,10 +175,24 @@ services:
     deploy:
       replicas: 2
     environment:
+      <<: *storage-env
+      DATABASE_URL: postgres://uroboros:uroboros@postgres:5432/uroboros
       VALKEY_URL: redis://valkey:6379
+      UROBOROS_WORK_DIR: /work
+      UROBOROS_WORKER_CONCURRENCY: ${UROBOROS_WORKER_CONCURRENCY:-}
+      # A Netscape cookies file for yt-dlp; mount it and set the path to use one.
+      UROBOROS_YTDLP_COOKIES_FILE: ${UROBOROS_YTDLP_COOKIES_FILE:-}
+    volumes:
+      - media-data:/media
+    tmpfs:
+      - /work
     depends_on:
+      postgres:
+        condition: service_healthy
       valkey:
         condition: service_healthy
+      rustfs-init:
+        condition: service_completed_successfully
 
   # The one entrypoint, round-robin over both api replicas. `dynamic a` re-resolves the `api`
   # service name every two seconds, so replicas that restart or scale are picked up.
@@ -162,3 +214,4 @@ services:
 volumes:
   postgres-data:
   rustfs-data:
+  media-data:

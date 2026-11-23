@@ -147,8 +147,45 @@ api:
   affinity: {}
   extraEnv: []
 
+# Where downloaded media is stored (docs/downloads.md): "s3" (any S3-compatible service) or
+# "filesystem" (organized folders on a ReadWriteMany volume mounted into the api and the workers).
+storage:
+  kind: s3
+  s3:
+    # The endpoint the api and workers reach, e.g. http://rustfs.storage.svc:9000. Required for s3.
+    endpoint: ""
+    region: us-east-1
+    # The bucket, which must already exist. Required for s3.
+    bucket: ""
+    forcePathStyle: true
+    # An endpoint browsers can reach. Set, "save file" redirects to presigned URLs on it instead of
+    # streaming through the api.
+    publicUrl: ""
+    # Secret holding the access key pair. Required for s3.
+    existingSecret: ""
+    accessKeyIdKey: UROBOROS_S3_ACCESS_KEY_ID
+    secretAccessKeyKey: UROBOROS_S3_SECRET_ACCESS_KEY
+  filesystem:
+    # A ReadWriteMany PersistentVolumeClaim. Required for filesystem.
+    existingClaim: ""
+    mountPath: /media
+    # The folder layout; empty is the default,
+    # "{channel}/{upload_date} {title} [{id}]/{title} [{profile}].{ext}".
+    layout: ""
+
+downloads:
+  # Downloads of one person running at once; the rest wait their turn.
+  maxActivePerUser: 3
+  # Entries kept per playlist or channel-tab preview.
+  maxPlaylistEntries: 1000
+
 worker:
   replicas: 1
+  # A Secret holding a Netscape cookies file for yt-dlp (age-restricted or members-only videos).
+  # Mounted read-only; empty: no cookies.
+  cookies:
+    existingSecret: ""
+    key: cookies.txt
   # Parallel jobs per worker pod. Exported as UROBOROS_WORKER_CONCURRENCY.
   concurrency: 4
   resources:

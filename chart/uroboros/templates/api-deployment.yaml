@@ -57,6 +57,7 @@ spec:
             {{- include "uroboros.valkeyEnv" . | nindent 12 }}
             {{- include "uroboros.pushEnv" . | trim | nindent 12 }}
             {{- include "uroboros.authEnv" . | trim | nindent 12 }}
+            {{- include "uroboros.storageEnv" . | trim | nindent 12 }}
             - name: UROBOROS_BODY_LIMIT_BYTES
               value: {{ $a.bodyLimitBytes | int | quote }}
             - name: UROBOROS_SHUTDOWN_GRACE_MS
@@ -109,10 +110,12 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- include "uroboros.storageMount" . | nindent 12 }}
       volumes:
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi
+        {{- include "uroboros.storageVolume" . | nindent 8 }}
       {{- with .Values.api.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -5,6 +5,7 @@ import type { TestProject } from "vitest/node";
 import { createDb } from "../src/db/kysely.ts";
 import { runMigrations } from "../src/migrate/runner.ts";
 import { composeImage } from "./composeImage.ts";
+import { TEST_S3_KEY, TEST_S3_SECRET } from "./s3Credentials.ts";
 import { TEMPLATE_DB, withDatabase } from "./dbUrl.ts";
 import { withAdmin } from "./pgAdmin.ts";
 
@@ -42,8 +43,9 @@ async function buildTemplate(adminUrl: string): Promise<void> {
 }
 
 /**
- * Starts Postgres and Valkey once per run, unless UROBOROS_TEST_DATABASE_URL /
- * UROBOROS_TEST_VALKEY_URL point at existing ones (CI services). Testcontainers' Ryuk reaper
+ * Starts Postgres, Valkey and RustFS once per run, unless UROBOROS_TEST_DATABASE_URL /
+ * UROBOROS_TEST_VALKEY_URL / UROBOROS_TEST_S3_URL point at existing ones (CI services; RustFS must
+ * then use the credentials in s3Credentials.ts). Testcontainers' Ryuk reaper
  * removes the containers even if this process crashes.
  */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
@@ -66,6 +68,17 @@ export default async function setup(project: TestProject): Promise<() => Promise
     valkeyUrl = `redis://${valkey.getHost()}:${String(valkey.getMappedPort(6379))}`;
   }
 
+  let s3Url = process.env["UROBOROS_TEST_S3_URL"];
+  if (s3Url === undefined || s3Url === "") {
+    const rustfs = await new GenericContainer(composeImage("rustfs"))
+      .withEnvironment({ RUSTFS_ACCESS_KEY: TEST_S3_KEY, RUSTFS_SECRET_KEY: TEST_S3_SECRET })
+      .withExposedPorts(9000)
+      .withWaitStrategy(Wait.forHttp("/health", 9000).forStatusCode(200))
+      .start();
+    stops.push(() => rustfs.stop());
+    s3Url = `http://${rustfs.getHost()}:${String(rustfs.getMappedPort(9000))}`;
+  }
+
   try {
     await buildTemplate(postgresUrl);
   } catch (err) {
@@ -75,6 +88,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
 
   project.provide("postgresUrl", postgresUrl);
   project.provide("valkeyUrl", valkeyUrl);
+  project.provide("s3Url", s3Url);
   return async () => {
     await Promise.all(stops.map((stop) => stop()));
   };

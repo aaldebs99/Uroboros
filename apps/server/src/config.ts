@@ -1,8 +1,17 @@
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { z } from "zod";
 import { authEnvProblems, authEnvSchema, toAuthConfig, type AuthConfig } from "./auth/config.ts";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 import { vapidPairProblem } from "./push/keys.ts";
+import {
+  storageEnvProblems,
+  storageEnvSchema,
+  toDownloadLimits,
+  toStorageConfig,
+  type DownloadLimits,
+  type StorageConfig,
+} from "./storage/config.ts";
 import { DEFAULT_MAX_DEVICES, type PushSettings } from "./push/service.ts";
 
 /** Thrown for a bad environment; the message lists every offending variable. */
@@ -27,6 +36,9 @@ export interface Config {
   push: PushSettings;
   /** Sign-in: sessions, local accounts, OIDC (docs/auth.md). */
   auth: AuthConfig;
+  /** Where media is stored (docs/downloads.md). */
+  storage: StorageConfig;
+  downloads: DownloadLimits;
 }
 
 /** What the manual migrate command needs: the database and where the SQL files are. */
@@ -36,9 +48,16 @@ export interface MigrateConfig {
   migrationsDir: string | null;
 }
 
-/** What the worker needs for now: Valkey. It gains `databaseUrl` when job processors need it. */
+/** What the worker needs: Valkey, the database, storage, and the downloader's settings. */
 export interface WorkerConfig {
   valkeyUrl: string;
+  databaseUrl: string;
+  storage: StorageConfig;
+  downloads: DownloadLimits;
+  /** Scratch space for downloads in progress (`UROBOROS_WORK_DIR`; the chart's emptyDir). */
+  workDir: string;
+  /** A Netscape cookies file for yt-dlp (`UROBOROS_YTDLP_COOKIES_FILE`, a mounted Secret). */
+  cookiesFile: string | null;
   /** Parallel jobs per worker process. */
   concurrency: number;
   /** The yt-dlp to run: `YTDLP_PATH` (set in the worker image), else `yt-dlp` on PATH. */
@@ -152,8 +171,12 @@ const configSchema = z
       positiveInt("UROBOROS_PUSH_MAX_DEVICES").prefault(String(DEFAULT_MAX_DEVICES)),
     ),
     ...authEnvSchema.shape,
+    ...storageEnvSchema.shape,
   })
   .superRefine((env, ctx) => {
+    for (const [path, message] of storageEnvProblems(env)) {
+      ctx.addIssue({ code: "custom", path: [path], message });
+    }
     for (const [path, message] of authEnvProblems(env, env.UROBOROS_PUBLIC_BASE_URL)) {
       ctx.addIssue({ code: "custom", path: [path], message });
     }
@@ -185,13 +208,23 @@ const migrateSchema = z.object({
   ...migrationsDirSchema.shape,
 });
 
-const workerSchema = z.object({
-  VALKEY_URL: required("VALKEY_URL"),
-  UROBOROS_WORKER_CONCURRENCY: positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(
-    String(DEFAULT_WORKER_CONCURRENCY),
-  ),
-  YTDLP_PATH: unsetIfEmpty(z.string().optional()),
-});
+const workerSchema = z
+  .object({
+    VALKEY_URL: required("VALKEY_URL"),
+    DATABASE_URL: required("DATABASE_URL"),
+    UROBOROS_WORK_DIR: unsetIfEmpty(z.string().optional()),
+    UROBOROS_YTDLP_COOKIES_FILE: unsetIfEmpty(z.string().optional()),
+    ...storageEnvSchema.shape,
+    UROBOROS_WORKER_CONCURRENCY: positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(
+      String(DEFAULT_WORKER_CONCURRENCY),
+    ),
+    YTDLP_PATH: unsetIfEmpty(z.string().optional()),
+  })
+  .superRefine((env, ctx) => {
+    for (const [path, message] of storageEnvProblems(env)) {
+      ctx.addIssue({ code: "custom", path: [path], message });
+    }
+  });
 
 function parse<S extends z.ZodType>(schema: S, env: NodeJS.ProcessEnv): z.output<S> {
   const result = schema.safeParse(env);
@@ -225,6 +258,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       maxDevices: e.UROBOROS_PUSH_MAX_DEVICES,
     },
     auth: toAuthConfig(e, e.UROBOROS_PUBLIC_BASE_URL),
+    storage: toStorageConfig(e),
+    downloads: toDownloadLimits(e),
   };
 }
 
@@ -245,6 +280,11 @@ export function loadWorkerConfig(env: NodeJS.ProcessEnv): WorkerConfig {
   const e = parse(workerSchema, env);
   return {
     valkeyUrl: e.VALKEY_URL,
+    databaseUrl: e.DATABASE_URL,
+    storage: toStorageConfig(e),
+    downloads: toDownloadLimits(e),
+    workDir: e.UROBOROS_WORK_DIR ?? join(tmpdir(), "uroboros-work"),
+    cookiesFile: e.UROBOROS_YTDLP_COOKIES_FILE ?? null,
     concurrency: e.UROBOROS_WORKER_CONCURRENCY,
     ytdlpPath: e.YTDLP_PATH ?? "yt-dlp",
   };

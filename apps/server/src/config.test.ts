@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig, loadMigrateConfig, loadMigrationsDir } from "./config.ts";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 
-const base = { DATABASE_URL: "postgres://u:p@h/db", VALKEY_URL: "redis://h:6379" };
+const base = {
+  DATABASE_URL: "postgres://u:p@h/db",
+  VALKEY_URL: "redis://h:6379",
+  UROBOROS_STORAGE: "filesystem",
+  UROBOROS_STORAGE_ROOT: "/media",
+};
 
 describe("loadConfig", () => {
   it("lists every missing required var", () => {

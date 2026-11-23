@@ -213,3 +213,61 @@ defaults cover the rest. A VAPID public key and its private-key Secret come toge
   value: {{ $o.syncIntervalSecs | quote }}
 {{- end }}
 {{- end -}}
+
+{{- /* Storage settings for the api and the workers (docs/downloads.md). */ -}}
+{{- define "uroboros.storageEnv" -}}
+{{- $s := .Values.storage -}}
+- name: UROBOROS_STORAGE
+  value: {{ $s.kind | quote }}
+{{- if eq $s.kind "s3" }}
+- name: UROBOROS_S3_ENDPOINT
+  value: {{ required "storage.s3.endpoint is required for s3 storage" $s.s3.endpoint | quote }}
+- name: UROBOROS_S3_REGION
+  value: {{ $s.s3.region | quote }}
+- name: UROBOROS_S3_BUCKET
+  value: {{ required "storage.s3.bucket is required for s3 storage" $s.s3.bucket | quote }}
+- name: UROBOROS_S3_FORCE_PATH_STYLE
+  value: {{ $s.s3.forcePathStyle | quote }}
+{{- with $s.s3.publicUrl }}
+- name: UROBOROS_S3_PUBLIC_URL
+  value: {{ . | quote }}
+{{- end }}
+- name: UROBOROS_S3_ACCESS_KEY_ID
+  valueFrom:
+    secretKeyRef:
+      name: {{ required "storage.s3.existingSecret is required for s3 storage" $s.s3.existingSecret }}
+      key: {{ $s.s3.accessKeyIdKey }}
+- name: UROBOROS_S3_SECRET_ACCESS_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ $s.s3.existingSecret }}
+      key: {{ $s.s3.secretAccessKeyKey }}
+{{- else }}
+{{- $_ := required "storage.filesystem.existingClaim is required for filesystem storage" $s.filesystem.existingClaim }}
+- name: UROBOROS_STORAGE_ROOT
+  value: {{ $s.filesystem.mountPath | quote }}
+{{- with $s.filesystem.layout }}
+- name: UROBOROS_STORAGE_LAYOUT
+  value: {{ . | quote }}
+{{- end }}
+{{- end }}
+- name: UROBOROS_MAX_ACTIVE_DOWNLOADS_PER_USER
+  value: {{ .Values.downloads.maxActivePerUser | int | quote }}
+- name: UROBOROS_MAX_PLAYLIST_ENTRIES
+  value: {{ .Values.downloads.maxPlaylistEntries | int | quote }}
+{{- end -}}
+
+{{- define "uroboros.storageMount" -}}
+{{- if eq .Values.storage.kind "filesystem" }}
+- name: media
+  mountPath: {{ .Values.storage.filesystem.mountPath }}
+{{- end }}
+{{- end -}}
+
+{{- define "uroboros.storageVolume" -}}
+{{- if eq .Values.storage.kind "filesystem" }}
+- name: media
+  persistentVolumeClaim:
+    claimName: {{ .Values.storage.filesystem.existingClaim }}
+{{- end }}
+{{- end -}}

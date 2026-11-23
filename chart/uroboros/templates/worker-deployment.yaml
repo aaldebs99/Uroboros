@@ -36,9 +36,14 @@ spec:
           # The image CMD is `node /app/worker.mjs`.
           env:
             {{- include "uroboros.valkeyEnv" . | nindent 12 }}
-            # Not read yet: the worker needs only Valkey today. Passed now for the job processors
-            # that will record downloads, so turning them on needs no chart change.
             {{- include "uroboros.databaseEnv" . | nindent 12 }}
+            {{- include "uroboros.storageEnv" . | trim | nindent 12 }}
+            - name: UROBOROS_WORK_DIR
+              value: /scratch
+            {{- if .Values.worker.cookies.existingSecret }}
+            - name: UROBOROS_YTDLP_COOKIES_FILE
+              value: /secrets/cookies/{{ .Values.worker.cookies.key }}
+            {{- end }}
             - name: UROBOROS_WORKER_CONCURRENCY
               value: {{ .Values.worker.concurrency | quote }}
             - name: YTDLP_PATH
@@ -60,6 +65,12 @@ spec:
               mountPath: /home/uroboros
             - name: tmp
               mountPath: /tmp
+            {{- include "uroboros.storageMount" . | nindent 12 }}
+            {{- if .Values.worker.cookies.existingSecret }}
+            - name: cookies
+              mountPath: /secrets/cookies
+              readOnly: true
+            {{- end }}
       volumes:
         - name: scratch
           emptyDir:
@@ -70,6 +81,12 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 1Gi
+        {{- include "uroboros.storageVolume" . | nindent 8 }}
+        {{- with .Values.worker.cookies.existingSecret }}
+        - name: cookies
+          secret:
+            secretName: {{ . }}
+        {{- end }}
       {{- with .Values.worker.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

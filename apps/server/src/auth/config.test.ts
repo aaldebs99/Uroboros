@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "../config.ts";
 
-const base = { DATABASE_URL: "postgres://u:p@h/db", VALKEY_URL: "redis://h:6379" };
+const base = {
+  DATABASE_URL: "postgres://u:p@h/db",
+  VALKEY_URL: "redis://h:6379",
+  UROBOROS_STORAGE: "filesystem",
+  UROBOROS_STORAGE_ROOT: "/media",
+};
 const oidc = {
   UROBOROS_PUBLIC_BASE_URL: "https://uro.example",
   UROBOROS_OIDC_ISSUER: "https://sso.example/application/o/uroboros/",

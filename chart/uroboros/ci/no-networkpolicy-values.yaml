@@ -5,3 +5,7 @@ valkey:
   existingSecret: uroboros-valkey
 networkPolicy:
   enabled: false
+storage:
+  kind: filesystem
+  filesystem:
+    existingClaim: uroboros-media
