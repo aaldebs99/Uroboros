@@ -34,13 +34,7 @@ glob = [
   "*.yml",
   "*.toml",
 ]
-exclude = [
-  "api/openapi.json",
-  "CHANGELOG.md",
-  ".mise/mise.lock",
-  "pnpm-lock.yaml",
-  "assets/**",
-]
+exclude = ["api/openapi.json", "CHANGELOG.md", ".mise/mise.lock", "pnpm-lock.yaml", "assets/**"]
 run = "mise x -- oxfmt --no-error-on-unmatched-pattern {staged_files}"
 stage_fixed = true
 
