@@ -158,6 +158,11 @@ description = "Ratchet: per-file count of eslint-disable and @ts-* suppressions 
 depends = ["install"]
 run = "pnpm exec ratchet suppressions"
 
+[tasks."ratchet:pixels"]
+description = "Ratchet: hard-coded px values in apps/web/src (CSS, TS, TSX) may only fall; sizes are rem (CI gate)"
+depends = ["install"]
+run = "pnpm exec ratchet pixels"
+
 [tasks."ratchet:pins"]
 description = "Ratchet: node/pnpm pins and the 3-day supply-chain soak agree across files (CI gate)"
 depends = ["install"]
@@ -170,7 +175,13 @@ run = "pnpm -F @uroboros/ratchet test"
 
 [tasks.ratchet]
 description = "Run every ratchet"
-depends = ["ratchet:lines", "ratchet:complexity", "ratchet:suppressions", "ratchet:pins"]
+depends = [
+  "ratchet:lines",
+  "ratchet:complexity",
+  "ratchet:suppressions",
+  "ratchet:pixels",
+  "ratchet:pins",
+]
 
 # ── The gate list ─────────────────────────────────────────────────────────────────────────────
 
@@ -379,6 +390,7 @@ depends = [
   "ratchet:suppressions",
   "ratchet:complexity",
   "ratchet:pins",
+  "ratchet:pixels",
   "ci:parity",
   "ratchet:test",
   "check:lock",

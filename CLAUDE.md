@@ -43,7 +43,7 @@ The web UI follows the `uroboros-design-system` skill (`.claude/skills/uroboros-
 | `lint:workflows`, `lint:shell`, `lint:renovate`                    | actionlint + zizmor; shellcheck; Renovate's validator                          |
 | `check:lock`, `check:audit`, `check:licenses`, `check:gen`         | lockfile drift; `pnpm audit` (high); licence allowlist; OpenAPI drift          |
 | `test`                                                             | every vitest project (Docker for Postgres and Valkey)                          |
-| `ratchet`, `ratchet:{lines,complexity,suppressions,pins,test}`     | forward-only gates (`docs/ratchets.md`) and their own tests                    |
+| `ratchet`, `ratchet:{lines,complexity,suppressions,pixels,pins}`   | forward-only gates (`docs/ratchets.md`); `ratchet:test` tests them             |
 | `gen`                                                              | regenerate `api/openapi.json`                                                  |
 | `migrate`, `migration:new <name>`                                  | apply migrations by hand (every replica does on start); create a new migration |
 | `dev:deps`, `dev:server`, `dev:ui`                                 | Postgres :15432, Valkey :16379, RustFS :19000; the server :18081; Vite         |

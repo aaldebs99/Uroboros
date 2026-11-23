@@ -7,9 +7,9 @@
  * The UI's one size knob. Every size is rem (ratchet:pixels refuses hard-coded pixels; 1px
  * hairlines are the exception), so the root font size scales the whole UI: 100% of the reader's
  * own browser size on desktop, 110% on phones (below md; a media query's rem is the browser's
- * default, so 48rem stays the same 768px as Tailwind's md), times --ui-scale, the account menu's
- * Size (src/lib/uiScale.ts, applied before first paint by public/theme-init.js). A design pixel
- * figure is px / 16 rem.
+ * default, so 48rem stays the same 768 pixels as Tailwind's md), times --ui-scale, the account
+ * menu's Size (src/lib/uiScale.ts, applied before first paint by public/theme-init.js). A design
+ * pixel figure is px / 16 rem.
  */
 :root {
   --ui-scale: 1;

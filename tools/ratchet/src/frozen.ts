@@ -1,7 +1,7 @@
 /**
  * The shared forward-only ratchet policy: measured values against a cap and a frozen baseline.
  *
- * Every ratchet (lines, complexity, suppressions) reduces to the same question: for each thing
+ * Every ratchet (lines, complexity, suppressions, pixels) reduces to the same question: for each thing
  * measured, is its value within the cap, and if not, is it a known, frozen exception that has not
  * grown? This module answers that once, purely, so each ratchet only owns its collection step and
  * its wording.
@@ -215,7 +215,7 @@ export function scanFloor(report: Report, scanned: number, minScanned: number): 
   );
 }
 
-/** Builds a report, applies the floor and the frozen policy. Shared by lines and suppressions. */
+/** Builds a report, applies the floor and the frozen policy. Shared by lines, suppressions and pixels. */
 export function frozenReport(
   gate: string,
   summary: string,
@@ -231,8 +231,13 @@ export function frozenReport(
   return report;
 }
 
-/** The three frozen lists in `tools/ratchet/frozen.json`. */
-export type FrozenLists = { lines: Frozen[]; complexity: Frozen[]; suppressions: Frozen[] };
+/** The frozen lists in `tools/ratchet/frozen.json`, one per ratchet with a baseline. */
+export type FrozenLists = {
+  lines: Frozen[];
+  complexity: Frozen[];
+  suppressions: Frozen[];
+  pixels: Frozen[];
+};
 
 function isEntry(value: unknown): value is Frozen {
   if (typeof value !== "object" || value === null) {
@@ -274,6 +279,7 @@ export function parseFrozen(text: string): FrozenLists {
     lines: entries(record, "lines"),
     complexity: entries(record, "complexity"),
     suppressions: entries(record, "suppressions"),
+    pixels: entries(record, "pixels"),
   };
 }
 

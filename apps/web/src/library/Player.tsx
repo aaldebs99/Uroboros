@@ -43,7 +43,7 @@ const brand = {
   "--media-accent-color": "var(--primary)",
   "--media-accent-text-color": "var(--primary-foreground)",
   "--media-border-radius": "0.75rem",
-  // The skin sizes its controls, icons and text from this unit (16px by default); in rem they
+  // The skin sizes its controls, icons and text from this unit (16 pixels by default); in rem they
   // follow the UI's scale like everything else.
   "--media-scale-unit": "1rem",
   "--media-font-family": "inherit",

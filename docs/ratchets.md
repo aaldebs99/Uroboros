@@ -12,18 +12,19 @@ step) and run through mise:
 | `mise run ratchet:lines`        | no source file over 1000 lines                              |
 | `mise run ratchet:complexity`   | cognitive complexity: function <= 25, file **sum** <= 200   |
 | `mise run ratchet:suppressions` | per-file lint-suppression count may only fall               |
+| `mise run ratchet:pixels`       | no hard-coded pixel values in the web UI (sizes are rem)    |
 | `mise run ratchet:pins`         | toolchain pins and the supply-chain soak agree across files |
-| `mise run ratchet`              | all four                                                    |
+| `mise run ratchet`              | all five                                                    |
 | `mise run ratchet:test`         | the ratchets' own unit tests                                |
 | `mise run ci:parity`            | `ci.yml` and `[tasks.ci].depends` run the same set of tasks |
 
-The CLI is `ratchet <lines|complexity|suppressions|pins|ci-parity|all>` (`pnpm exec ratchet ...`
+The CLI is `ratchet <lines|complexity|suppressions|pixels|pins|ci-parity|all>` (`pnpm exec ratchet ...`
 from the repo root). Exit codes are the same for all of them: `0` pass, `1` violation, `2` layout or
 tool error (a missing file, an unparseable config). A layout error is never treated as a pass.
 
 ## The shared rules for frozen exceptions
 
-`lines`, `complexity` and `suppressions` share one policy (`tools/ratchet/src/frozen.ts`). An entry
+`lines`, `complexity`, `suppressions` and `pixels` share one policy (`tools/ratchet/src/frozen.ts`). An entry
 is `{ "key", "value", "reason" }` in the matching list of `tools/ratchet/frozen.json`, and **the only
 passing state for a frozen entry is "over the cap and exactly at its frozen number"**. Everything
 else fails:
@@ -47,7 +48,8 @@ ceiling.
 **Why stale fails.** An entry that outlives its fix would let the next change push that file back
 over the cap without anyone noticing.
 
-`frozen.json` ships with empty lists (`{ "lines": [], "complexity": [], "suppressions": [] }`).
+`frozen.json` ships with empty lists
+(`{ "lines": [], "complexity": [], "suppressions": [], "pixels": [] }`).
 Keep them that way where you can. Adding an entry should be rare enough that a reviewer asks about
 it.
 
@@ -62,7 +64,7 @@ The file set is `git ls-files --cached --others --exclude-standard`: what would 
 files, `lines`, `complexity` and `suppressions` govern `*.ts`, `*.tsx`, `*.js` and `*.mjs`, and skip
 anything under a `generated/` or `dist/` directory (nobody can act on a complaint about generated
 code). Test fixtures that must contain forbidden content live under `tools/ratchet/fixtures/` with a
-`.fixture` extension for the same reason.
+`.fixture` extension for the same reason. `pixels` has its own set: below.
 
 ## `ratchet:lines`
 
@@ -106,6 +108,26 @@ code). Test fixtures that must contain forbidden content live under `tools/ratch
   and say why, then freeze the file at its new count, with a reason. Removing a suppression means
   lowering the count in the same commit. Otherwise the gate fails on slack.
 
+## `ratchet:pixels`
+
+- **Why:** the UI has one size knob, the root font size in `apps/web/src/index.css` (110% on
+  phones, times `--ui-scale`, the account menu's Size), and every size is rem so the whole UI
+  follows it. A pixel value is a size the knob cannot reach. Ported from tyrfing's
+  `xtask ratchet css-px`.
+- **Governs:** `*.css`, `*.ts` and `*.tsx` under `apps/web/src/`, skipping tests (`.test.`,
+  `.spec.`, `__tests__/`) and generated code.
+- **Measures:** every `<number>px` token per file, in code and comments alike (Tailwind's
+  `w-[168px]`, `shadow-[0_0_12px]`, a CSS declaration, a `"12px"` string, prose in a comment).
+  The exact tokens `0px` and `1px` are allowed: hairlines are the one place a pixel is right. A line
+  carrying `px-allow: <reason>`, with a reason longer than 20 characters, is skipped, for a value
+  that truly must be device pixels. A bare number the gate cannot see as a length (Radix's
+  `sideOffset={6}`) is not counted.
+- **Cap:** zero per file.
+- **Exception list:** `pixels` in `tools/ratchet/frozen.json`, recording each file's exact count.
+- **Updating:** write a Tailwind spacing step when there is one (`w-42` for 168 pixels, `size-4.5`
+  for 18) and `px / 16` rem otherwise (`rounded-[0.75rem]`); in prose, say "a 12-pixel line". Prefer
+  that to the marker, and the marker to a frozen entry.
+
 ## `ratchet:pins`
 
 This one has no exception list. It is an equality check between files that each hold a copy of the
@@ -147,5 +169,6 @@ The `Dockerfile` is mandatory: a missing file (a symlink to one counts), or a mi
 ## Pre-push hook
 
 `.lefthook.toml` runs `mise run ratchet` before every push, so a too-long file, a new suppression, a
-too-complex function or a split pin fails locally instead of costing a CI round-trip. Skip it once
+too-complex function, a hard-coded pixel or a split pin fails locally instead of costing a CI
+round-trip. Skip it once
 with `LEFTHOOK_EXCLUDE=ratchets git push`.

@@ -22,7 +22,7 @@ describe("execute", () => {
   });
 
   it("exits 0 with an ok line on stdout when the gate passes", async () => {
-    const frozen = '{ "lines": [], "complexity": [], "suppressions": [] }';
+    const frozen = '{ "lines": [], "complexity": [], "suppressions": [], "pixels": [] }';
     const repo = tempRepo({ ...many(20), "tools/ratchet/frozen.json": frozen });
     const result = await execute(["lines"], repo);
     expect(result.code).toBe(0);
@@ -34,6 +34,7 @@ describe("execute", () => {
       lines: [{ key: "ghost.ts", value: 1200, reason: "a long enough justification here" }],
       complexity: [],
       suppressions: [],
+      pixels: [],
     });
     const repo = tempRepo({ ...many(20), "tools/ratchet/frozen.json": frozen });
     const result = await execute(["lines"], repo);

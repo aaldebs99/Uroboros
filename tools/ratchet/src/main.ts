@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `ratchet <lines|complexity|suppressions|pins|ci-parity|all>`: repository gates that are easier
+ * `ratchet <lines|complexity|suppressions|pixels|pins|ci-parity|all>`: repository gates that are easier
  * to express in code than in shell.
  *
  * Exit codes: 0 the gate passed, 1 the gate found violations, 2 the gate could not run (missing
@@ -13,6 +13,7 @@ import { runComplexity } from "./complexity.ts";
 import { loadFrozen } from "./frozen.ts";
 import { runLines } from "./lines.ts";
 import { runPins } from "./pins.ts";
+import { runPixels } from "./pixels.ts";
 import { isOk, renderFailure, renderOk, type Report } from "./report.ts";
 import { discover, repoRoot, type Repo } from "./repo.ts";
 import { runSuppressions } from "./suppressions.ts";
@@ -25,6 +26,7 @@ const GATES: Record<string, Gate> = {
   lines: (repo) => runLines(repo, loadFrozen(repo.root).lines),
   complexity: (repo) => runComplexity(repo, loadFrozen(repo.root).complexity),
   suppressions: (repo) => runSuppressions(repo, loadFrozen(repo.root).suppressions),
+  pixels: (repo) => runPixels(repo, loadFrozen(repo.root).pixels),
   pins: runPins,
   "ci-parity": runCiParity,
 };
