@@ -237,7 +237,7 @@ describe("GET /api/library", () => {
   });
 
   it("never shows another person's tags, progress or entries", async () => {
-    const all = (await page(alice, "?q=video")).entries;
+    const all = (await page(alice, "?tag=music")).entries;
     expect(all.find((e) => e.title === "Video 1")?.progress).toBeNull();
     expect(all.find((e) => e.title === "Video 0")?.progress).toMatchObject({ watched: true });
     expect(all.find((e) => e.title === "Video 0")?.tags).toEqual(["music"]);
