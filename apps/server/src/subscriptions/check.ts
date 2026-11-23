@@ -2,8 +2,10 @@ import type { DownloadErrorKind } from "@uroboros/contract";
 import { toDownloadError } from "../downloads/errors.ts";
 import type { FeedJson } from "../db/schema.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
+import { filterAll, type Known } from "./decisions.ts";
 import { releaseLease, renewLease, takeLease } from "./lease.ts";
 import { listFeed, type Candidate } from "./listing.ts";
+import { PatternTimeout } from "./patterns.ts";
 import type { CheckJob } from "./queue.ts";
 import { recordAndQueue, type Decision } from "./record.ts";
 import type { SubscriptionRow } from "./store.ts";
@@ -12,6 +14,7 @@ const keyOf = (c: { extractor: string; videoId: string }) => `${c.extractor}|${c
 
 /** What a failed check records. */
 export function checkFailure(err: unknown): { kind: DownloadErrorKind; message: string } {
+  if (err instanceof PatternTimeout) return { kind: "unknown", message: err.message };
   const failure = toDownloadError(err);
   return { kind: failure.kind, message: failure.message };
 }
@@ -75,18 +78,24 @@ function backfilled(c: Candidate, backfill: SubscriptionRow["backfill"], count: 
   return false;
 }
 
-/** Decides each new video: the backfill first, then (once step 6 lands) the filters. */
-function decideAll(
+/** Decides each new video: the backfill first, then the filters (`decisions.ts`). */
+async function decideAll(
+  deps: WorkerDeps,
   sub: SubscriptionRow,
   fresh: Candidate[],
   first: ReturnType<typeof firstCheckFeeds>,
-) {
-  return fresh.map((c): Decision => {
+  known: ReadonlyMap<string, Known>,
+): Promise<Decision[]> {
+  const existing: Decision[] = [];
+  const passing: Candidate[] = [];
+  for (const c of fresh) {
     if (first.feeds.has(c.feed) && !backfilled(c, first.backfill, sub.backfill_count)) {
-      return { c, outcome: "existing" };
+      existing.push({ c, outcome: "existing" });
+    } else {
+      passing.push(c);
     }
-    return { c, outcome: "queue" };
-  });
+  }
+  return [...existing, ...(await filterAll(deps, sub, passing, known, keyOf))];
 }
 
 async function runCheck(deps: WorkerDeps, sub: SubscriptionRow): Promise<FeedJson[]> {
@@ -97,7 +106,11 @@ async function runCheck(deps: WorkerDeps, sub: SubscriptionRow): Promise<FeedJso
     return k === undefined || k.outcome === "waiting";
   });
   const first = firstCheckFeeds(sub);
-  await recordAndQueue(deps, sub, decideAll(sub, fresh, first), first.feeds);
+  const waiting = new Map(
+    [...known].map(([k, r]) => [k, { seenAt: new Date(r.seen_at) }] as const),
+  );
+  const decisions = await decideAll(deps, sub, fresh, first, waiting);
+  await recordAndQueue(deps, sub, decisions, first.feeds);
   const now = new Date().toISOString();
   const feeds = sub.feeds.map((f) => ({ ...f, primedAt: f.primedAt ?? now }));
   await releaseLease(deps.db, sub.id, { ok: true, feeds, warning });

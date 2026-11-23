@@ -100,6 +100,19 @@ describe("lenient validation", () => {
     expect(info.entries[0]?.kind).toBe("playlist");
   });
 
+  it("keeps yt-dlp's media type on videos and listing entries", () => {
+    expect(VideoInfo.parse({ id: "a", media_type: "short" }).mediaType).toBe("short");
+    expect(VideoInfo.parse({ id: "a" }).mediaType).toBeNull();
+    const info = PlaylistInfo.parse({
+      _type: "playlist",
+      id: "PL1",
+      entries: [
+        { id: "a", _type: "url", url: "https://www.youtube.com/shorts/a", media_type: "short" },
+      ],
+    });
+    expect(info.entries[0]?.mediaType).toBe("short");
+  });
+
   it("still requires an id", () => {
     expect(() => parseInfo({ title: "no id" })).toThrow();
   });

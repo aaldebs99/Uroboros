@@ -38,7 +38,7 @@ function candidate(feed: string, position: number, e: PlaylistEntry, fallback: s
     liveStatus: e.liveStatus,
     availability: e.availability,
     uploadDate: yyyymmdd(e.timestamp),
-    mediaType: null,
+    mediaType: e.mediaType,
   };
 }
 

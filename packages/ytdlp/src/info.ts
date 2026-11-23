@@ -122,6 +122,7 @@ export const VideoInfo = z
     release_timestamp: num,
     live_status: str,
     availability: str,
+    media_type: str,
     age_limit: num,
     view_count: num,
     like_count: num,
@@ -145,6 +146,8 @@ export const VideoInfo = z
     uploadDate: raw.upload_date,
     liveStatus: raw.live_status,
     availability: raw.availability,
+    /** yt-dlp's `media_type` where the site says (YouTube: "video", "short", "livestream"). */
+    mediaType: raw.media_type,
     ageLimit: raw.age_limit,
     viewCount: raw.view_count,
     likeCount: raw.like_count,
@@ -180,6 +183,7 @@ export const PlaylistEntry = z
     channel_id: str,
     live_status: str,
     availability: str,
+    media_type: str,
     timestamp: num,
     thumbnails: list(Thumbnail),
   })
@@ -196,6 +200,7 @@ export const PlaylistEntry = z
     channelId: e.channel_id,
     liveStatus: e.live_status,
     availability: e.availability,
+    mediaType: e.media_type,
     timestamp: e.timestamp,
     thumbnails: e.thumbnails,
   }));

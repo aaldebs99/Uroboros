@@ -5,7 +5,8 @@ import { seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { FeedJson } from "../db/schema.ts";
-import { checkProcessor } from "./check.ts";
+import { checkFailure, checkProcessor } from "./check.ts";
+import { PatternTimeout } from "./patterns.ts";
 import { listing, sleep, type ListedVideo } from "../../test/listings.ts";
 import { takeLease } from "./lease.ts";
 
@@ -39,6 +40,8 @@ async function subscription(
     backfill: "none" | "newest" | "all";
     backfill_count: number;
     kind: "channel" | "playlist";
+    uploaded_after: string;
+    title_exclude: string;
   }> = {},
 ) {
   const row = await t.db
@@ -56,6 +59,8 @@ async function subscription(
       interval_minutes: 360,
       backfill: over.backfill ?? "none",
       backfill_count: over.backfill_count ?? null,
+      uploaded_after: over.uploaded_after ?? null,
+      title_exclude: over.title_exclude ?? null,
     })
     .returning("id")
     .executeTakeFirstOrThrow();
@@ -213,4 +218,80 @@ describe("subscription checks", () => {
     await check(id, { steps: [{ stdout: listing(url, vids("p", 3)) }] }, 3);
     expect((await row(id)).warning).toMatch(/first 3/);
   });
+
+  it("probes a video only when a filter needs it", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }], {
+      backfill: "all",
+      uploaded_after: "2026-11-01",
+    });
+    const watch = (v: string) => `https://www.youtube.com/watch?v=${v}`;
+    await check(id, {
+      steps: [],
+      variants: [
+        { whenArg: videos, steps: [{ stdout: listing(videos, vids("p", 2)) }] },
+        { whenArg: watch("p0"), steps: [{ stdout: video("p0", "20261115") }] },
+        { whenArg: watch("p1"), steps: [{ stdout: video("p1", "20261015") }] },
+      ],
+    });
+    expect(await items(id)).toEqual([
+      { video_id: "p0", outcome: "queued" },
+      { video_id: "p1", outcome: "filtered" },
+    ]);
+  });
+
+  it("does not probe for a title filter", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }], {
+      backfill: "all",
+      title_exclude: "\\ylive\\y",
+    });
+    await check(id, {
+      steps: [{ stderr: "ERROR: probed when it should not have\n" }],
+      exitCode: 1,
+      variants: [
+        {
+          whenArg: videos,
+          steps: [{ stdout: listing(videos, [{ id: "t0", title: "Live now!" }, { id: "t1" }]) }],
+        },
+      ],
+    });
+    expect(await items(id)).toEqual([
+      { video_id: "t0", outcome: "filtered" },
+      { video_id: "t1", outcome: "queued" },
+    ]);
+  });
+
+  it("stops probing at the budget and leaves the rest for next time", async () => {
+    const u = await user();
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }], {
+      backfill: "all",
+      uploaded_after: "2026-01-01",
+    });
+    await check(id, {
+      steps: [{ stdout: video("any", "20261115") }],
+      variants: [{ whenArg: videos, steps: [{ stdout: listing(videos, vids("b", 55)) }] }],
+    });
+    expect(await items(id)).toHaveLength(50);
+  }, 60_000);
+
+  it("fails the check when a pattern times out", () => {
+    expect(checkFailure(new PatternTimeout())).toEqual({
+      kind: "unknown",
+      message: "a title pattern took too long",
+    });
+  });
 });
+
+/** A full (not flat) probe of one video, uploaded on `uploadDate` (YYYYMMDD). */
+function video(id: string, uploadDate: string): string {
+  return JSON.stringify({
+    _type: "video",
+    id,
+    title: `Video ${id}`,
+    duration: 300,
+    upload_date: uploadDate,
+    extractor_key: "Youtube",
+    webpage_url: `https://www.youtube.com/watch?v=${id}`,
+  });
+}
