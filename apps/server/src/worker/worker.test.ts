@@ -371,7 +371,12 @@ describe("loadWorkerConfig", () => {
     expect(loadWorkerConfig(env).concurrency).toBe(8);
   });
 
-  it.each(["0", "-1", "2.5", "abc", "", "4 "])("rejects concurrency %j", (bad) => {
+  it("treats an empty UROBOROS_WORKER_CONCURRENCY as unset, as compose passes it", () => {
+    const env = { ...W, VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: "" };
+    expect(loadWorkerConfig(env).concurrency).toBe(4);
+  });
+
+  it.each(["0", "-1", "2.5", "abc", "4 "])("rejects concurrency %j", (bad) => {
     const env = { ...W, VALKEY_URL: "redis://x:1", UROBOROS_WORKER_CONCURRENCY: bad };
     expect(() => loadWorkerConfig(env)).toThrow(ConfigError);
   });
