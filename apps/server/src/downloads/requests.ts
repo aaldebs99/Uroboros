@@ -9,6 +9,7 @@ import { dispatchFor, queueDownload, type DownloadContext } from "./dispatch.ts"
 import { publishDownloadEvent } from "./events.ts";
 import { probeJobId } from "./fetchKey.ts";
 import { defaultProfile, getProfile } from "./profiles.ts";
+import { recordPlaylist } from "./sources.ts";
 
 type RequestRow = Selectable<DownloadRequestsTable>;
 
@@ -103,6 +104,19 @@ export async function queueSelection(
       if (out.outcome === "skipped") counts.skipped++;
       else counts.queued++;
       if (out.downloadId !== null) counts.ids.push(out.downloadId);
+    }
+    if (req.kind === "playlist" && req.source_extractor !== null && req.source_id !== null) {
+      await recordPlaylist(
+        tx,
+        req.user_id,
+        {
+          extractor: req.source_extractor,
+          sourceId: req.source_id,
+          title: req.title,
+          url: req.url,
+        },
+        toRequest(req).groups.flatMap((g) => g.entries),
+      );
     }
     await tx
       .updateTable("download_requests")

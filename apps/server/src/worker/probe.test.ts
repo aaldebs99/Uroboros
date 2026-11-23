@@ -84,6 +84,15 @@ describe("probe", () => {
     expect(req.groups[0]).toMatchObject({ ticked: true, truncated: false });
     expect(req.groups[0]?.entries[0]).toMatchObject({ extractor: "Youtube" });
     expect(req.groups[0]?.entries[0]?.url).toMatch(/^https:\/\//);
+    const row = await testDb.db
+      .selectFrom("download_requests")
+      .select(["source_extractor", "source_id"])
+      .where("id", "=", id)
+      .executeTakeFirstOrThrow();
+    expect(row).toEqual({
+      source_extractor: "youtubetab",
+      source_id: "PLa1F2ddGya_8NhFM-rx_xh5SlIGbHyrZZ",
+    });
   });
 
   it("groups a channel's main URL by tab, with only Videos ticked", async () => {

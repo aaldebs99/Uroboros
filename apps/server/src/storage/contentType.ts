@@ -11,6 +11,7 @@ const CONTENT_TYPES: Record<string, string> = {
   webp: "image/webp",
   png: "image/png",
   json: "application/json",
+  vtt: "text/vtt",
 };
 
 /** The media type for a file extension (without the dot). */

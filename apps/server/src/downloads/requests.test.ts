@@ -45,6 +45,8 @@ async function choosing(userId: string, ids: string[]): Promise<string> {
       entries: JSON.stringify([
         { name: "Videos", ticked: true, truncated: false, entries: ids.map(entry) },
       ]),
+      source_extractor: "youtubetab",
+      source_id: `PL-${ids.join("-")}`,
     })
     .returning("id")
     .executeTakeFirstOrThrow();
@@ -162,6 +164,53 @@ describe("POST /api/downloads/requests/{id}/queue", () => {
       .where("user_id", "=", carol.userId)
       .execute();
     expect(lib).toHaveLength(1);
+  });
+});
+
+describe("playlists", () => {
+  it("records a queued playlist, who queued it, and its order; a channel records nothing", async () => {
+    const id = await choosing(alice.userId, ["pl1", "pl2"]);
+    await post(h.app(alice), `/api/downloads/requests/${id}/queue`, { entryIds: ["pl2"] });
+    const source = await testDb.db
+      .selectFrom("sources")
+      .selectAll()
+      .where("source_id", "=", "PL-pl1-pl2")
+      .executeTakeFirstOrThrow();
+    expect(source).toMatchObject({
+      extractor: "youtubetab",
+      kind: "playlist",
+      title: "A playlist",
+    });
+    const owners = await testDb.db
+      .selectFrom("user_sources")
+      .select("user_id")
+      .where("source_id", "=", source.id)
+      .execute();
+    expect(owners.map((o) => o.user_id)).toEqual([alice.userId]);
+    const items = await testDb.db
+      .selectFrom("source_items")
+      .select(["video_id", "position"])
+      .where("source_id", "=", source.id)
+      .orderBy("position")
+      .execute();
+    expect(items).toEqual([
+      { video_id: "pl1", position: 0 },
+      { video_id: "pl2", position: 1 },
+    ]);
+    const ch = await choosing(alice.userId, ["ch1"]);
+    await testDb.db
+      .updateTable("download_requests")
+      .set({ kind: "channel" })
+      .where("id", "=", ch)
+      .execute();
+    await post(h.app(alice), `/api/downloads/requests/${ch}/queue`, { entryIds: ["ch1"] });
+    expect(
+      await testDb.db
+        .selectFrom("sources")
+        .select("id")
+        .where("source_id", "=", "PL-ch1")
+        .execute(),
+    ).toEqual([]);
   });
 });
 

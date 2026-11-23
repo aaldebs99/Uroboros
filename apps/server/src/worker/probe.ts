@@ -125,6 +125,9 @@ async function preview(deps: Deps, requestId: string, info: PlaylistInfo): Promi
       kind: isRoot ? "channel" : info.kind,
       title: info.title,
       entries: JSON.stringify(groups),
+      ...(isRoot || info.kind !== "playlist"
+        ? {}
+        : { source_extractor: (info.extractorKey ?? "generic").toLowerCase(), source_id: info.id }),
     })
     .where("id", "=", requestId)
     .execute();

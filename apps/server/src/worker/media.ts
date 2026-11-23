@@ -21,6 +21,9 @@ export async function upsertMedia(
     duration: info.duration,
     description: info.description,
     webpage_url: info.url,
+    chapters: JSON.stringify(
+      info.chapters.map((c) => ({ start: c.startTime, end: c.endTime, title: c.title })),
+    ),
     ...(extra.thumbnailKey === undefined ? {} : { thumbnail_key: extra.thumbnailKey }),
     ...(extra.infoKey === undefined ? {} : { info_key: extra.infoKey }),
   };

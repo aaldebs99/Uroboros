@@ -108,11 +108,23 @@ describe("storage settings", () => {
   });
 
   it("reads the subtitle settings: English by default, empty turns them off", () => {
-    expect(loadWorkerConfig({ ...base, ...s3 }).subtitles).toEqual({ langs: "en.*", automatic: false });
-    expect(loadWorkerConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "" }).subtitles.langs).toBeNull();
+    expect(loadWorkerConfig({ ...base, ...s3 }).subtitles).toEqual({
+      langs: "en.*",
+      automatic: false,
+    });
     expect(
-      loadWorkerConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "de,fr", UROBOROS_AUTO_SUBTITLES: "true" }).subtitles,
+      loadWorkerConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "" }).subtitles.langs,
+    ).toBeNull();
+    expect(
+      loadWorkerConfig({
+        ...base,
+        ...s3,
+        UROBOROS_SUBTITLE_LANGS: "de,fr",
+        UROBOROS_AUTO_SUBTITLES: "true",
+      }).subtitles,
     ).toEqual({ langs: "de,fr", automatic: true });
-    expect(() => loadWorkerConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "en; rm" })).toThrow(/UROBOROS_SUBTITLE_LANGS/);
+    expect(() => loadWorkerConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "en; rm" })).toThrow(
+      /UROBOROS_SUBTITLE_LANGS/,
+    );
   });
 });

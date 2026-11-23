@@ -7,11 +7,12 @@ import { StorageError, toDownloadError, type DownloadFailure } from "../download
 import { publishDownloadEvent } from "../downloads/events.ts";
 import { ytdlpArgsFor } from "../downloads/profiles.ts";
 import type { FetchJob } from "../downloads/queues.ts";
-import { renditionKey, sidecarKey, type MediaNames } from "../storage/index.ts";
+import { renditionKey, sidecarKey, subtitleKey, type MediaNames } from "../storage/index.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { upsertMedia } from "./media.ts";
 import { createProgressPublisher } from "./progress.ts";
+import { findSubtitles, subtitleArgs } from "./subtitles.ts";
 
 const ACTIVE = ["queued", "running"] as const;
 const DOWNLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
@@ -169,6 +170,26 @@ async function freeKey(
   return `${key.slice(0, key.length - ext.length)} [${own.revision.slice(0, 8)}]${ext}`;
 }
 
+/** Stores each subtitle file beside the media and records it (one per language and kind). */
+async function storeSubtitles(
+  deps: WorkerDeps,
+  mediaId: string,
+  names: MediaNames,
+  file: DownloadedFile,
+) {
+  for (const sub of await findSubtitles(file.path, file.info)) {
+    const key = subtitleKey(deps.storage, mediaId, names, sub.lang);
+    await put(deps, key, sub.path, "vtt");
+    await deps.db
+      .insertInto("subtitles")
+      .values({ media_id: mediaId, lang: sub.lang, automatic: sub.automatic, storage_key: key })
+      .onConflict((oc) =>
+        oc.columns(["media_id", "lang", "automatic"]).doUpdateSet({ storage_key: key }),
+      )
+      .execute();
+  }
+}
+
 /** Stores the downloaded file and its sidecars, and records the rendition. */
 async function store(
   deps: WorkerDeps,
@@ -216,6 +237,7 @@ async function store(
     thumbnailKey,
     infoKey,
   });
+  await storeSubtitles(deps, mediaId, names, file);
   await deps.db
     .insertInto("renditions")
     .values({
@@ -287,7 +309,8 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
       await rm(scratch, { recursive: true, force: true });
       await mkdir(scratch, { recursive: true });
       const progress = createProgressPublisher(deps.valkey, deps.prefix, data.fetchKey);
-      const { format, extraArgs } = ytdlpArgsFor(data.args);
+      const { format, extraArgs: profileArgs } = ytdlpArgsFor(data.args);
+      const extraArgs = [...profileArgs, ...subtitleArgs(deps.subtitles)];
       const result = await download(data.url, {
         binary: deps.ytdlp.binary,
         ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),

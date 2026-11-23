@@ -45,6 +45,7 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
           jsRuntime: "/usr/local/bin/node",
         },
         ffprobe: { binary: ffprobeRun.options.binary, env: ffprobeRun.options.env },
+        subtitles: { langs: "en.*", automatic: false },
       };
     },
     async close(): Promise<void> {

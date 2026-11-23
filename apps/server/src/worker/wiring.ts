@@ -37,6 +37,7 @@ export function downloadWiring(config: WorkerConfig, prefix: string, logger: Log
             jsRuntime: process.execPath,
           },
           ffprobe: { binary: "ffprobe" },
+          subtitles: config.subtitles,
         },
         { prefix, concurrency: config.concurrency },
       );

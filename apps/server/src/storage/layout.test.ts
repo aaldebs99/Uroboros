@@ -6,6 +6,7 @@ import {
   renditionKey,
   sanitizeSegment,
   sidecarKey,
+  subtitleKey,
   type MediaNames,
 } from "./layout.ts";
 
@@ -118,5 +119,15 @@ describe("keys", () => {
     expect(sidecarKey(fs, "m1", bunny, "info", "json")).toBe(
       "Blender/2008-05-20 Big Buck Bunny [aqz-KE-bpKQ]/Big Buck Bunny.info.json",
     );
+  });
+
+  it("names subtitle files per language, safely", () => {
+    expect(subtitleKey({ kind: "s3" }, "m1", bunny, "en")).toBe("media/m1/subs/en.vtt");
+    const fs = { kind: "filesystem", layout: DEFAULT_LAYOUT } as const;
+    expect(subtitleKey(fs, "m1", bunny, "en")).toBe(
+      "Blender/2008-05-20 Big Buck Bunny [aqz-KE-bpKQ]/Big Buck Bunny.en.vtt",
+    );
+    expect(subtitleKey(fs, "m1", bunny, "../x")).not.toContain("/../");
+    expect(subtitleKey({ kind: "s3" }, "m1", bunny, "../x")).toBe("media/m1/subs/_x.vtt");
   });
 });

@@ -173,6 +173,8 @@ export interface DownloadRequestsTable {
   entries: ColumnType<unknown, string | undefined, string>;
   error_kind: string | null;
   error_message: string | null;
+  source_extractor: string | null;
+  source_id: string | null;
   created_at: Created;
   expires_at: Defaulted<Date | string>;
 }

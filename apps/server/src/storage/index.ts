@@ -7,6 +7,7 @@ export type { MediaStore, OpenedFile } from "./store.ts";
 export {
   renditionKey,
   sidecarKey,
+  subtitleKey,
   sanitizeSegment,
   renderLayout,
   type MediaNames,

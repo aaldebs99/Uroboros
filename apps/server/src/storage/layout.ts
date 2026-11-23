@@ -142,3 +142,17 @@ export function sidecarKey(
   const base = sanitizeSegment(names.title ?? names.id);
   return `${dir}${base}${kind === "info" ? ".info" : ""}.${ext}`;
 }
+
+/** Where a media's subtitle file for `lang` goes: beside the media file on a filesystem. */
+export function subtitleKey(
+  config: KeyConfig,
+  mediaId: string,
+  names: MediaNames,
+  lang: string,
+): string {
+  const safe = sanitizeSegment(lang.replace(/[/\\]/g, "_"));
+  if (config.kind === "s3") return `media/${mediaId}/subs/${safe}.vtt`;
+  const media = renderLayout(config.layout, names);
+  const dir = media.includes("/") ? media.slice(0, media.lastIndexOf("/") + 1) : "";
+  return `${dir}${sanitizeSegment(`${sanitizeSegment(names.title ?? names.id)}.${safe}.vtt`)}`;
+}
