@@ -9,11 +9,24 @@ const Player = lazy(() => import("./Player").then((m) => ({ default: m.Player })
 
 type Shared = Omit<PlayerProps, "src" | "hls" | "title" | "chapters" | "subtitles">;
 
+/** What the watch player needs of a video: a library item, or a public link's item. */
+export type PlayableItem = Pick<
+  LibraryItem,
+  | "title"
+  | "chapters"
+  | "subtitles"
+  | "streamUrl"
+  | "container"
+  | "videoCodec"
+  | "audioCodec"
+  | "playbackUrl"
+>;
+
 /**
  * The watch page's player: the original file when this browser plays it, else (or when the person
  * asks) the compatible copy, with a switch between the two under it.
  */
-export function WatchPlayer({ item, ...shared }: Shared & { item: LibraryItem }) {
+export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }) {
   const plays = useMemo(() => canPlayOriginal(item), [item]);
   const native = useMemo(() => hasNativeHls(), []);
   const [compatible, setCompatible] = useState(!plays);
@@ -26,7 +39,7 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: LibraryItem })
   return (
     <div className="grid gap-1.5">
       {compatible ? (
-        <CompatiblePlayer {...props} entryId={item.id} native={native} />
+        <CompatiblePlayer {...props} playbackUrl={item.playbackUrl} native={native} />
       ) : (
         <Suspense fallback={<div className="aspect-video w-full rounded-[0.75rem] bg-raised" />}>
           <Player {...props} src={item.streamUrl} />

@@ -98,22 +98,21 @@ export const useDeleteProfile = () =>
   useProfileMutation((id: string) => deleteJson(profilePath(id)));
 
 export const itemKey = (id: string) => ["api", "library", "item", id] as const;
-export const playbackKey = (id: string) => ["api", "library", "item", id, "playback"] as const;
+/** A compatible copy's state, by the playback URL it is asked at (a library entry's, or a link's). */
+export const playbackKey = (url: string) => ["api", "playback", url] as const;
 
 /** While a compatible copy is being made, how often to look again. */
 const PLAYBACK_POLL_MS = 2000;
 
-/** Asks for the entry's compatible copy (made once, then kept). */
-export const requestPlayback = (id: string) =>
-  postJson(`/api/library/${encodeURIComponent(id)}/playback`, Playback);
+/** Asks for a compatible copy (made once, then kept) at `url` (an item's `playbackUrl`). */
+export const requestPlayback = (url: string) => postJson(url, Playback);
 
-/** The entry's compatible copy, polled while it is being made; off until `enabled`. */
-export function usePlayback(id: string, enabled: boolean) {
+/** The compatible copy at `url`, polled while it is being made; off until `enabled`. */
+export function usePlayback(url: string, enabled: boolean) {
   return useQuery({
-    queryKey: playbackKey(id),
+    queryKey: playbackKey(url),
     enabled,
-    queryFn: ({ signal }) =>
-      getJson(`/api/library/${encodeURIComponent(id)}/playback`, Playback, { signal }),
+    queryFn: ({ signal }) => getJson(url, Playback, { signal }),
     refetchInterval: (query) => {
       const state = query.state.data?.state;
       return state === "done" || state === "failed" ? false : PLAYBACK_POLL_MS;

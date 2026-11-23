@@ -15,6 +15,7 @@ import { ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/l
 import { RootLayout } from "./routes/root";
 import { NewSubscriptionRoute, SubscriptionRoute } from "./routes/subscriptions";
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
+import { PublicRoute } from "./routes/public";
 import { SharedPlaylistRoute } from "./routes/shared";
 import { SharedByMe } from "./sharing/SharedByMe";
 import { SharedPage } from "./sharing/SharedPage";
@@ -60,6 +61,7 @@ const routeTree = rootRoute.addChildren([
     path: "/subscriptions/$subscriptionId",
     component: SubscriptionRoute,
   }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/s/$code", component: PublicRoute }),
   createRoute({ getParentRoute: () => rootRoute, path: "/shared", component: SharedPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/shared/by-me", component: SharedByMe }),
   createRoute({

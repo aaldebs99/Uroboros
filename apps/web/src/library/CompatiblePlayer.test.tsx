@@ -29,7 +29,7 @@ const playback = (over: Record<string, unknown>) => ({
   ...over,
 });
 const props = {
-  entryId: ID,
+  playbackUrl: `/api/library/${ID}/playback`,
   title: "Big Buck Bunny",
   start: 0,
   autoPlay: true,

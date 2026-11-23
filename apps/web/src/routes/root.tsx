@@ -12,6 +12,7 @@ import { TabBar } from "@/components/TabBar";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthGate } from "@/auth/AuthGate";
+import { PublicLayout } from "@/sharing/PublicLayout";
 import { UserMenu } from "@/auth/UserMenu";
 import { DESKTOP_QUERY, useMediaQuery } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -20,8 +21,19 @@ import { usePushSync } from "@/push/usePushSync";
 
 import { readMini, storeMini } from "./miniNav";
 
-/** The whole app sits behind sign-in: the gate shows the sign-in page until someone is. */
+/**
+ * The whole app sits behind sign-in: the gate shows the sign-in page until someone is. A public
+ * link (`/s/<code>`) is the one exception: anyone may open it, in its own plain frame.
+ */
 export function RootLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname.startsWith("/s/")) {
+    return (
+      <PublicLayout>
+        <Outlet />
+      </PublicLayout>
+    );
+  }
   return <AuthGate>{(me) => <Shell me={me} />}</AuthGate>;
 }
 

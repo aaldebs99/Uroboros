@@ -50,22 +50,22 @@ function Preparing({ progress }: { progress: number }) {
  * while it is made, then plays it natively (`native`) or through Video.js's MSE engine.
  */
 export function CompatiblePlayer({
-  entryId,
+  playbackUrl,
   native,
   ...player
-}: Omit<PlayerProps, "src" | "hls"> & { entryId: string; native: boolean }) {
+}: Omit<PlayerProps, "src" | "hls"> & { playbackUrl: string; native: boolean }) {
   const client = useQueryClient();
   const [asked, setAsked] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   /** Bumped by "Try again": asks for the copy anew. */
   const [attempt, setAttempt] = useState(0);
-  const status = usePlayback(entryId, asked);
+  const status = usePlayback(playbackUrl, asked);
   useEffect(() => {
     let live = true;
-    requestPlayback(entryId)
+    requestPlayback(playbackUrl)
       .then((p) => {
         if (!live) return;
-        client.setQueryData(playbackKey(entryId), p);
+        client.setQueryData(playbackKey(playbackUrl), p);
         setAsked(true);
       })
       .catch((err: unknown) => {
@@ -74,7 +74,7 @@ export function CompatiblePlayer({
     return () => {
       live = false;
     };
-  }, [client, entryId, attempt]);
+  }, [client, playbackUrl, attempt]);
   const retry = () => {
     setProblem(null);
     setAttempt((n) => n + 1);
