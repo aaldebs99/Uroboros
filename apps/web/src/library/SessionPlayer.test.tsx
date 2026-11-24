@@ -100,7 +100,7 @@ describe("SessionPlayer", () => {
     expect(await screen.findByText("Starting…")).toBeInTheDocument();
   });
 
-  it("shows why a session failed, and tries again on request", async () => {
+  it("shows why a session failed once its own retry failed too, and tries again on request", async () => {
     let posts = 0;
     fakeApi({
       [`POST ${base}`]: () => {
@@ -112,10 +112,14 @@ describe("SessionPlayer", () => {
       [`GET ${url}`]: () => Response.json(session({ state: "failed", error: "libx264: broken" })),
     });
     renderWithQuery(<SessionPlayer {...props} />);
+    // The first failure starts a new session by itself; only the second one stays on screen.
+    await waitFor(() => {
+      expect(posts).toBe(2);
+    });
     expect(await screen.findByText(/couldn't be played: libx264: broken/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => {
-      expect(posts).toBe(2);
+      expect(posts).toBe(3);
     });
   });
 
