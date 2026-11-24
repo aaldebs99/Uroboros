@@ -62,6 +62,15 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
 - ⋮ opens the menu (a bottom sheet on phones). The whole tile is never a button.
 - The watched bar (a 4px `bg-primary` bar on a `bg-white/35` track along the thumbnail's bottom
   edge) appears only once watch progress is tracked.
+- **Hover preview** (`PreviewSurface` in `library/ThumbnailPreview.tsx`, `VideoThumbnail`'s
+  `preview`): a grid tile's thumbnail plays the video's preview clip (`previewUrl`: two seconds
+  from each fifth, or the whole of a short video) once a mouse rests on it for 300 ms, or after a
+  press and hold on a phone. It is muted, loops, covers the picture (`object-cover`) and fades in
+  over 150 ms once it plays (no fade with reduced motion), under the duration badge and watched
+  bar; it stops when the mouse leaves, another tile starts one, the tile scrolls away or a touch
+  lands elsewhere. One plays at a time. It is a plain `<video>`, never the player, so it reports
+  no progress. The small rows (suggestions, Up next, the playlist editor, the palette) have none:
+  a hover there means picking. A tile without a clip yet behaves as before.
 
 ## Watch page
 

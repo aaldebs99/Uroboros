@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ResponsiveMenu } from "@/components/ui/responsive-menu";
 import { formatBytes, formatDuration } from "@/downloads/format";
 
+import { PreviewSurface } from "./ThumbnailPreview";
+
 const added = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 /** "added today", "added 3 days ago": days are close enough for a library. */
@@ -16,8 +18,20 @@ export function addedAgo(iso: string): string {
   return `added ${added.format(days, "day")}`;
 }
 
-/** A video's 16:9 thumbnail with its duration badge and, once started, the watched bar. */
-export function VideoThumbnail({ entry, className }: { entry: LibraryEntry; className?: string }) {
+/**
+ * A video's 16:9 thumbnail with its duration badge and, once started, the watched bar. With
+ * `preview`, it plays the video's hover preview while a mouse rests on it or after a press and hold
+ * (`ThumbnailPreview.tsx`); the small rows leave it off, where a hover means picking.
+ */
+export function VideoThumbnail({
+  entry,
+  className,
+  preview = false,
+}: {
+  entry: LibraryEntry;
+  className?: string;
+  preview?: boolean;
+}) {
   const watched = entry.progress;
   const fraction =
     watched === null || watched.duration <= 0
@@ -26,7 +40,10 @@ export function VideoThumbnail({ entry, className }: { entry: LibraryEntry; clas
         ? 1
         : Math.min(1, watched.position / watched.duration);
   return (
-    <div className={cn("relative aspect-video overflow-hidden bg-raised", className)}>
+    <PreviewSurface
+      previewUrl={preview ? entry.previewUrl : null}
+      className={cn("relative aspect-video overflow-hidden bg-raised", className)}
+    >
       {entry.thumbnailUrl === null ? (
         <Film className="absolute inset-0 m-auto size-8 text-muted-foreground" aria-hidden />
       ) : (
@@ -45,7 +62,7 @@ export function VideoThumbnail({ entry, className }: { entry: LibraryEntry; clas
           />
         </span>
       )}
-    </div>
+    </PreviewSurface>
   );
 }
 
@@ -73,7 +90,7 @@ export function EntryTile({
         aria-hidden
         className="block max-md:-mx-4"
       >
-        <VideoThumbnail entry={entry} className="md:rounded-[0.75rem]" />
+        <VideoThumbnail entry={entry} className="md:rounded-[0.75rem]" preview />
       </Link>
       <div className="flex gap-3">
         <Avatar name={entry.channel} />

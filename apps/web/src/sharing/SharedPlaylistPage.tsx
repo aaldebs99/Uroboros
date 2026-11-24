@@ -23,7 +23,7 @@ function SharedTile({ entry, shareId }: { entry: LibraryEntry; shareId: string }
         search={{ share: shareId }}
         className="grid gap-3 rounded-[0.75rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
       >
-        <VideoThumbnail entry={entry} className="md:rounded-[0.75rem]" />
+        <VideoThumbnail entry={entry} className="md:rounded-[0.75rem]" preview />
         <span className="grid gap-0.5">
           <span className={tileTitle}>{entry.title}</span>
           {entry.channel === null ? null : <span className={tileMeta}>{entry.channel}</span>}

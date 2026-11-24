@@ -71,4 +71,8 @@ is a button there (phones have nothing to drag from).
 - Nothing widens a 375px page. Rows wrap, and flex children holding text get `min-w-0`.
 - Touch targets are at least 44px, and nothing is hover-only: actions revealed on hover stay
   visible under `(hover: none)`.
+- What a mouse gets by resting on something, a finger gets by a press and hold (400 ms, under the
+  phone's own link menu), never by a tap: a video tile's hover preview plays after a hold, keeps
+  playing once the finger lifts, and the hold's click and long-press menu are swallowed
+  (`library/ThumbnailPreview.tsx`). A tap still opens the video; a finger that moves is scrolling.
 - Tables become stacked blocks, and settings rows stack.
