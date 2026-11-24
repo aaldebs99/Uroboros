@@ -115,8 +115,8 @@ which is what CI does.
 
 ## Downloads and storage
 
-Paste a video, playlist or channel link on the Downloads page (or the top bar's quick add) and pick
-a format profile. A playlist or channel opens a preview (a channel grouped by tab, Shorts and Live
+Paste a video, playlist or channel link on the Downloads page (or the top bar's Add › Download) and
+pick a format profile. A playlist or channel opens a preview (a channel grouped by tab, Shorts and Live
 unticked) where you untick what you don't want. Each video is fetched once per profile, however
 many people ask for it, and lands in everyone's Library, where it can be saved. Media is stored in
 an S3-compatible bucket (RustFS locally) or in organized folders on a shared volume
@@ -124,7 +124,13 @@ an S3-compatible bucket (RustFS locally) or in organized folders on a shared vol
 built-in format profiles and manages their own under Settings › Profiles: changing a built-in
 changes it for them alone. `docs/downloads.md` has the design.
 
-The Library searches what you downloaded (the top bar's search), filters by watched state and tag,
+Add › Upload puts a video of your own in your library: a file, its title, description, creator,
+tags and a thumbnail (or a frame of the video), which you can edit later from its page. The browser
+sends it in 8 MiB parts straight into the store, so a reverse proxy in front must accept request
+bodies of 8 MiB (nginx's default is 1 MiB: `client_max_body_size 16m;`); files go up to
+`UROBOROS_UPLOAD_MAX_BYTES` (10 GiB). `docs/uploads.md` has the design.
+
+The Library searches what you downloaded or uploaded (the top bar's search), filters by watched state and tag,
 browses by channel and playlist, and plays videos in the browser with chapters and subtitles,
 resuming where you left off. `docs/library.md` has the design.
 

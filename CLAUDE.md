@@ -137,7 +137,11 @@ an entry asks `visibleEntry` (`src/sharing/access.ts`). A browser that can't pla
 viewer who picks a lower quality) gets a playback session, remuxed or transcoded on the fly on the
 CPU or a GPU, seekable anywhere, its segments made on demand by a runner on any replica
 (`docs/transcoding.md`); the fake ffmpeg's `stdoutBase64` step and `test/fmp4.ts` stand in for
-ffmpeg's fragmented MP4 in tests. People's saved site logins (Settings ›
+ffmpeg's fragmented MP4 in tests. People also upload their own videos
+(`docs/uploads.md`): the browser sends 8 MiB parts straight into the `MediaStore` (S3 multipart or
+a filesystem temp file), and the `upload` job files each as a media row of its own (extractor
+`upload`, `uploaded_by`) with a rendition that has no format profile; only the uploader edits its
+details. People's saved site logins (Settings ›
 Logins, `docs/downloads.md#site-logins`) are sealed with `UROBOROS_SECRETS_KEY` and reach yt-dlp only
 as a per-run private `.netrc`; a job signs in as the person it runs for (`withLoginsOf`), a shared
 fetch as its earliest waiter per site, and `mise run gen:login-sites` refreshes the site list after
