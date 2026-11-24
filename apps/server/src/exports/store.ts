@@ -38,7 +38,10 @@ function isCurrent(spans: readonly Span[], row: Described): boolean {
   const now = mergeCuts(segments.success ? segments.data : [], row.duration);
   return (
     now.length === spans.length &&
-    now.every((c, i) => c.start === spans[i].start && c.end === spans[i].end)
+    now.every((c, i) => {
+      const s = spans.at(i);
+      return s !== undefined && c.start === s.start && c.end === s.end;
+    })
   );
 }
 
