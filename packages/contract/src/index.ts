@@ -172,3 +172,4 @@ export {
   MAX_GROUPS_CREATED,
   NewGroupBody,
 } from "./groups.ts";
+export { InstanceSettings, InstanceSettingsPatch } from "./settings.ts";

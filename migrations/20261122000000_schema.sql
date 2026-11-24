@@ -137,6 +137,15 @@ CREATE TABLE vapid_keys (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- What an admin turns on or off for the whole instance at runtime (Admin › Server). One row
+-- (id = 1), upserted by the first change; until then every setting reads as its default.
+CREATE TABLE instance_settings (
+  id SMALLINT PRIMARY KEY CHECK (id = 1),
+  mcp_enabled BOOLEAN NOT NULL DEFAULT false,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by UUID REFERENCES users (id) ON DELETE SET NULL
+);
+
 -- Downloads and storage (docs/downloads.md). A format profile is an admin-defined yt-dlp preset;
 -- `revision` hashes the arguments that shape the file, so editing a profile makes new downloads
 -- fetch a fresh rendition instead of reusing one made with the old arguments.

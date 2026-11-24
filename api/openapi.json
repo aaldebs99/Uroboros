@@ -1214,6 +1214,25 @@
         ],
         "type": "object"
       },
+      "InstanceSettings": {
+        "properties": {
+          "mcpEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mcpEnabled"
+        ],
+        "type": "object"
+      },
+      "InstanceSettingsPatch": {
+        "properties": {
+          "mcpEnabled": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "ItemDownloadBody": {
         "properties": {
           "extractor": {
@@ -3965,6 +3984,84 @@
           }
         },
         "summary": "Delete any group (admins)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/settings": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceSettings"
+                }
+              }
+            },
+            "description": "Settings"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Admins only"
+          }
+        },
+        "summary": "The instance's settings (the MCP server's switch)",
+        "tags": [
+          "admin"
+        ]
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstanceSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceSettings"
+                }
+              }
+            },
+            "description": "The settings after the change"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Nothing to change"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Admins only"
+          }
+        },
+        "summary": "Change the instance's settings; takes effect on every replica at once",
         "tags": [
           "admin"
         ]

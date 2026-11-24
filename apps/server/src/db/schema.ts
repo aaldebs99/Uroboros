@@ -14,6 +14,7 @@ import type {
 import type { CaptionSegmentsTable } from "./captionsSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
 import type { NoticesTable } from "./noticesSchema.ts";
+import type { InstanceSettingsTable } from "./settingsSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
 import type { NotificationPrefsTable, SharePeopleTable, SharesTable } from "./sharingSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
@@ -418,6 +419,7 @@ export interface SiteLoginsTable {
 export interface Database {
   push_devices: PushDevicesTable;
   vapid_keys: VapidKeysTable;
+  instance_settings: InstanceSettingsTable;
   users: UsersTable;
   auth_sessions: AuthSessionsTable;
   auth_logins: AuthLoginsTable;
