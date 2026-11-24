@@ -305,7 +305,9 @@ The repository is hosted on a private, self-hosted Gitea and mirrored to
 https://github.com/aaldebs99/Uroboros, and the workflows in `.github/workflows` run on the
 forge's Actions runners (Actions are off on the mirror). `ci.yml` runs every gate as one
 `mise run <task>` step, and its `CI` job is the required status check. `pr-title.yml` requires a
-conventional-commit PR title.
+conventional-commit PR title. Its `mirror` job copies `main` and its tags to the GitHub mirror
+once every gate has passed, among them `ratchet:forge-host`, which reads the whole history for
+the forge's domain.
 
 Releases come from a PR. On every push to main, `release-pr.yml` proposes the next version as a
 `chore(release): X.Y.Z` PR from the `release/next` branch, with the version stamped into
@@ -317,14 +319,15 @@ both. `renovate.yml` runs a self-hosted Renovate twice a day.
 
 The repository needs these Actions variables and secrets:
 
-| Name                        | Kind     | For                                                                                                      |
-| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `REGISTRY`                  | variable | The forge's registry host the images are pushed to (kept out of the repository).                         |
-| `REGISTRY_TOKEN`            | secret   | An access token of the `aaldebs99` account scoped `write:package`, which `release.yml` pushes with.      |
-| `GHCR_TOKEN`                | secret   | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.      |
-| `RELEASE_PLEASE_TOKEN`      | secret   | The release bot's token, scoped `write:repository`, `write:issue` and `read:user`.                       |
-| `RENOVATE_TOKEN`            | secret   | The Renovate bot's token, scoped `write:repository`, `write:issue`, `read:user` and `read:organization`. |
-| `RENOVATE_GITHUB_COM_TOKEN` | secret   | A github.com token with no scopes, so Renovate can look up GitHub-hosted dependencies.                   |
+| Name                        | Kind     | For                                                                                                        |
+| --------------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `REGISTRY`                  | variable | The forge's registry host the images are pushed to (kept out of the repository).                           |
+| `REGISTRY_TOKEN`            | secret   | An access token of the `aaldebs99` account scoped `write:package`, which `release.yml` pushes with.        |
+| `GHCR_TOKEN`                | secret   | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.        |
+| `GH_MIRROR_TOKEN`           | secret   | A GitHub token with Contents and Workflows write on the mirror, which `ci.yml`'s `mirror` job pushes with. |
+| `RELEASE_PLEASE_TOKEN`      | secret   | The release bot's token, scoped `write:repository`, `write:issue` and `read:user`.                         |
+| `RENOVATE_TOKEN`            | secret   | The Renovate bot's token, scoped `write:repository`, `write:issue`, `read:user` and `read:organization`.   |
+| `RENOVATE_GITHUB_COM_TOKEN` | secret   | A github.com token with no scopes, so Renovate can look up GitHub-hosted dependencies.                     |
 
 The bots must be ordinary accounts with write access: anything a workflow's own token creates
 fires no workflow events, so a release PR opened with it would show no checks and a release

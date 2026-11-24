@@ -22,6 +22,7 @@
 #           public GHCR image, so a fork's pull request builds it too). The smoke test runs on
 #           release, in release.yml, before any tag is pushed.
 #   ci      one stable name to mark as the required status check in branch protection
+#   mirror  on a push to main, copies main and its tags to the GitHub mirror once `ci` passed
 #
 # Runner labels are the Gitea runner's (see .github/actionlint.yaml); `-dind` ones carry a Docker
 # daemon. Every timeout carries 90 extra minutes: the runner holds job pods Pending under the
@@ -51,6 +52,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The whole history: ratchet:forge-host reads every commit, and refuses a shallow clone.
+          fetch-depth: 0
           persist-credentials: false
       - name: Setup mise
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
@@ -185,3 +188,54 @@ jobs:
               exit 1
             fi
           done
+
+  # Copies main and its release tags to the GitHub mirror (https://github.com/aaldebs99/Uroboros),
+  # and only once every gate passed: ratchet:forge-host reads the whole history for the forge's
+  # domain, so nothing it would refuse reaches GitHub, where a pushed commit stays reachable. Not a
+  # gate (it runs no mise task). Without the GH_MIRROR_TOKEN secret (a GitHub token with Contents
+  # and Workflows write on the mirror; Gitea refuses secret names starting with GITHUB_) it says so
+  # and does nothing. The push is never forced, so the mirror's history only grows; a run that finds
+  # the mirror already holding this commit (a newer run went first) stops there.
+  mirror:
+    name: Mirror to GitHub
+    needs: [ci]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: small
+    timeout-minutes: 100
+    steps:
+      - name: Check for the mirror token
+        id: token
+        env:
+          GH_MIRROR_TOKEN: ${{ secrets.GH_MIRROR_TOKEN }}
+        run: |
+          if [ -n "${GH_MIRROR_TOKEN}" ]; then
+            echo "push=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "::notice::GH_MIRROR_TOKEN is not set: not mirroring to GitHub."
+          fi
+      - name: Checkout
+        if: steps.token.outputs.push == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Push main and its tags
+        if: steps.token.outputs.push == 'true'
+        env:
+          GH_MIRROR_TOKEN: ${{ secrets.GH_MIRROR_TOKEN }}
+        run: |
+          set -eu
+          remote="https://x-access-token:${GH_MIRROR_TOKEN}@github.com/aaldebs99/Uroboros.git"
+          if git fetch -q "${remote}" main 2>/dev/null && git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "the mirror already has $(git rev-parse --short HEAD)"
+            exit 0
+          fi
+          git push "${remote}" "HEAD:refs/heads/main"
+          # Only tags on main's history, which the gates just read.
+          set --
+          for tag in $(git tag --merged HEAD); do
+            set -- "$@" "refs/tags/${tag}"
+          done
+          if [ "$#" -gt 0 ]; then
+            git push "${remote}" "$@"
+          fi

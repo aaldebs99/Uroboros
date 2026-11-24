@@ -99,6 +99,13 @@ describe("evaluateForgeHost", () => {
     expect(renderFailure(evaluateForgeHost(repo, "code.duckforge.net"))).not.toMatch(/duckforge/i);
   });
 
+  it("lists what the history scan finds, given the label", () => {
+    const history = (label: string) => (label === "duckforge" ? ["commit abc1234: message"] : []);
+    const report = evaluateForgeHost(tempRepo(tree), "code.duckforge.net", history);
+    expect(isOk(report)).toBe(false);
+    expect(report.sections.map((s) => s.items)).toEqual([["commit abc1234: message"]]);
+  });
+
   it("skips files that are not text", () => {
     const repo = tempRepo({ ...tree, "icon.png": "\u0000PNG code.duckforge.net" });
     expect(isOk(evaluateForgeHost(repo, "code.duckforge.net"))).toBe(true);

@@ -7,13 +7,16 @@
  * instance's URL, or else from the `origin` remote. It then searches every listed file for the
  * host's distinctive label (`duckforge` of `code.duckforge.net`), case-insensitively and with dots
  * and dashes allowed as underscores, so other hosts of the same domain and the domain spelled into
- * a variable name (`RENOVATE_DOCKER_CODE_DUCKFORGE_NET_PASSWORD`) are caught too. It reports where,
- * never the domain itself. A GitHub clone has nothing to keep out, so the gate passes there with a
- * note, as it does when neither source names a host.
+ * a variable name (`RENOVATE_DOCKER_CODE_DUCKFORGE_NET_PASSWORD`) are caught too. The mirror carries
+ * the whole history, so it also checks every commit reachable from HEAD and every tag
+ * (`forgeHistory.ts`): their diffs, authors, committers and messages. It reports where, never the
+ * domain itself. A GitHub clone has nothing to keep out, so the gate passes there with a note, as it
+ * does when neither source names a host.
  */
 import { execFileSync } from "node:child_process";
 
 import { newReport, pushSection, section, type Report } from "./report.ts";
+import { historyMentions } from "./forgeHistory.ts";
 import { read, type Repo } from "./repo.ts";
 
 const GATE = "ratchet forge-host";
@@ -25,7 +28,7 @@ const SUFFIX_LABELS = new Set(["ac", "co", "com", "edu", "go", "gov", "ne", "net
 const MIN_LABEL_CHARS = 4;
 
 const ADVICE =
-  'The repository is mirrored to GitHub and the forge\'s domain stays private, the history included.\nSay "the forge", use the REGISTRY variable or a placeholder such as forge.example, and never paste the forge\'s URLs.\nA line that reached a pushed commit needs the history rewritten as well (CLAUDE.md, "Forge and release").';
+  'The repository is mirrored to GitHub and the forge\'s domain stays private, the history included.\nSay "the forge", use the REGISTRY variable or a placeholder such as forge.example, and never paste the forge\'s URLs.\nA commit that names it (its diff, author, committer or message) must not reach main: amend or rebase it out before pushing. One already pushed means rewriting the history (CLAUDE.md, "Forge and release").';
 
 /** The host of a git remote URL, `scheme://` or scp-like `user@host:path`; none for a local path. */
 export function hostOfRemote(url: string): string | undefined {
@@ -88,8 +91,18 @@ function mentions(repo: Repo, pattern: RegExp): string[] {
   return found;
 }
 
-/** Searches the tree for the forge's domain, given the forge's host. Pure apart from reading files. */
-export function evaluateForgeHost(repo: Repo, host: string | undefined): Report {
+/** Places in the history naming a label; the gate's default reads none (tests pass their own). */
+export type HistoryScan = (label: string) => string[];
+
+/**
+ * Searches the tree, and the history through `history`, for the forge's domain, given the forge's
+ * host. Pure apart from reading files and whatever `history` does.
+ */
+export function evaluateForgeHost(
+  repo: Repo,
+  host: string | undefined,
+  history: HistoryScan = () => [],
+): Report {
   const report = newReport(GATE, "nothing checked");
   if (host === undefined) {
     report.notes.push(
@@ -106,10 +119,14 @@ export function evaluateForgeHost(repo: Repo, host: string | undefined): Report 
     report.notes.push("this is a GitHub clone or run, with no forge domain to keep out");
     return report;
   }
-  report.summary = `no file names the forge's domain (${String(repo.files.length)} files searched)`;
+  report.summary = `nothing names the forge's domain (${String(repo.files.length)} files, and the history of HEAD)`;
   pushSection(
     report,
     section("line(s) naming the forge's domain", mentions(repo, labelPattern(label)), ADVICE),
+  );
+  pushSection(
+    report,
+    section("place(s) in the history naming the forge's domain", history(label), ADVICE),
   );
   return report;
 }
@@ -128,5 +145,9 @@ function originUrl(root: string): string | undefined {
 }
 
 export function runForgeHost(repo: Repo): Report {
-  return evaluateForgeHost(repo, forgeHostOf(process.env.GITHUB_SERVER_URL, originUrl(repo.root)));
+  return evaluateForgeHost(
+    repo,
+    forgeHostOf(process.env.GITHUB_SERVER_URL, originUrl(repo.root)),
+    (label) => historyMentions(repo.root, label),
+  );
 }

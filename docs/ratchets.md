@@ -14,7 +14,7 @@ step) and run through mise:
 | `mise run ratchet:suppressions` | per-file lint-suppression count may only fall               |
 | `mise run ratchet:pixels`       | no hard-coded pixel values in the web UI (sizes are rem)    |
 | `mise run ratchet:pins`         | toolchain pins and the supply-chain soak agree across files |
-| `mise run ratchet:forge-host`   | no file names the forge's domain (the repo is mirrored)     |
+| `mise run ratchet:forge-host`   | no file or commit names the forge's domain (it's mirrored)  |
 | `mise run ratchet`              | all six                                                     |
 | `mise run ratchet:test`         | the ratchets' own unit tests                                |
 | `mise run ci:parity`            | `ci.yml` and `[tasks.ci].depends` run the same set of tasks |
@@ -160,12 +160,19 @@ The `Dockerfile` is mandatory: a missing file (a symlink to one counts), or a mi
   distinctive label (`duckforge` of `code.duckforge.net`, the label before a public suffix such as
   `.net` or `.co.uk`), in any case and with dots and dashes also matched as underscores, so other
   hosts of the same domain and the domain spelled into a variable name are caught. Files with a
-  NUL byte are skipped as binary. The failure lists `path:line` only, never the domain.
+  NUL byte are skipped as binary. It also reads the history (`forgeHistory.ts`), because the
+  mirror carries all of it: every commit reachable from HEAD whose diff adds or removes such a
+  line (`git log -G`), whose author, committer or message names the domain (Gitea's
+  `Reviewed-on:` links, noreply addresses of web merges and bots), and every tag's tagger and
+  message. A shallow clone is a layout error (exit 2), so CI's static job checks out with
+  `fetch-depth: 0`. The failure lists `path:line`, `commit <sha>: <field>` or `tag <name>`, never
+  the domain.
 - **Passes without checking**, with a note, when the host is GitHub's (a clone of the mirror, or
   a run there), when neither source names a host, or when the host has no label of at least four
   characters to search for (an IP address, `localhost`).
-- **Why:** a mention that reaches a pushed commit reaches the mirror's history, and taking it out
-  again means rewriting the history and every clone.
+- **Why:** `ci.yml`'s `mirror` job pushes to GitHub only after every gate passed, so this gate is
+  what keeps the domain off GitHub, where a pushed commit stays reachable. A commit that names it
+  stops at the forge, and taking it out means rewriting main there.
 - **Updating:** there is nothing to freeze and no marker. Say "the forge", use the `REGISTRY`
   variable, or a placeholder such as `forge.example`.
 
