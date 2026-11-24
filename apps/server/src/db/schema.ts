@@ -250,7 +250,7 @@ export interface DownloadRequestsTable {
   user_id: string;
   url: string;
   profile_id: string;
-  intent: Defaulted<"download" | "subscribe">;
+  intent: Defaulted<"download" | "subscribe" | "search">;
   state: Defaulted<RequestStateValue>;
   kind: "video" | "playlist" | "channel" | null;
   title: string | null;

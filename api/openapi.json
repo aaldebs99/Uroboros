@@ -1485,6 +1485,19 @@
         ],
         "type": "object"
       },
+      "NewSearchBody": {
+        "properties": {
+          "query": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
       "NewSubscriptionBody": {
         "properties": {
           "backfill": {
@@ -4068,6 +4081,46 @@
           }
         },
         "summary": "Queue the ticked entries of a playlist or channel preview",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/search": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSearchBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadRequest"
+                }
+              }
+            },
+            "description": "Searching"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An empty or overlong search, or one with control characters"
+          }
+        },
+        "summary": "Search YouTube: a worker lists the top videos as a preview to download them from",
         "tags": [
           "downloads"
         ]

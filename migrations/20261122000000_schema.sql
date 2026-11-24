@@ -298,7 +298,7 @@ CREATE TABLE download_requests (
   profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE CASCADE,
   -- Why the link was pasted: to download it, or (Subscriptions › Add subscription) to subscribe,
   -- in which case a single video is refused (not_a_feed) rather than downloaded.
-  intent TEXT NOT NULL DEFAULT 'download' CHECK (intent IN ('download', 'subscribe')),
+  intent TEXT NOT NULL DEFAULT 'download' CHECK (intent IN ('download', 'subscribe', 'search')),
   state TEXT NOT NULL DEFAULT 'probing' CHECK (state IN ('probing', 'choosing', 'queued', 'failed')),
   kind TEXT CHECK (kind IN ('video', 'playlist', 'channel')),
   title TEXT,

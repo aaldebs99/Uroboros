@@ -33,14 +33,20 @@ export function toRequest(row: RequestRow): DownloadRequest {
   };
 }
 
-/** Records a pasted link and asks a worker to probe it. */
+/** YouTube's results page for `query`, videos only (`sp`), which yt-dlp lists as a playlist. */
+export function youtubeSearchUrl(query: string): string {
+  const params = new URLSearchParams({ search_query: query, sp: "EgIQAQ==" });
+  return `https://www.youtube.com/results?${params.toString()}`;
+}
+
+/** Records a pasted link (or a search's results page) and asks a worker to probe it. */
 export async function createRequest(
   ctx: DownloadContext,
   userId: string,
   body: {
     url: string;
     profileId?: string | undefined;
-    intent?: "download" | "subscribe" | undefined;
+    intent?: "download" | "subscribe" | "search" | undefined;
   },
 ): Promise<DownloadRequest> {
   const profile =
@@ -78,7 +84,10 @@ export async function findRequest(db: Kysely<Database>, principal: Principal, id
   return row;
 }
 
-/** Queues the ticked entries of a previewed playlist or channel. */
+/**
+ * Queues the ticked entries of a previewed playlist or channel. A search's preview stays open, so
+ * its results can be downloaded one by one.
+ */
 export async function queueSelection(
   ctx: DownloadContext,
   principal: Principal,
@@ -128,11 +137,13 @@ export async function queueSelection(
         toRequest(req).groups.flatMap((g) => g.entries),
       );
     }
-    await tx
-      .updateTable("download_requests")
-      .set({ state: "queued" })
-      .where("id", "=", req.id)
-      .execute();
+    if (req.intent !== "search") {
+      await tx
+        .updateTable("download_requests")
+        .set({ state: "queued" })
+        .where("id", "=", req.id)
+        .execute();
+    }
     return counts;
   });
   for (const downloadId of result.ids) {

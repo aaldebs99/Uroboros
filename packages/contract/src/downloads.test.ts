@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DOWNLOAD_ERROR_KINDS, DownloadEvent } from "./index.ts";
+import { DOWNLOAD_ERROR_KINDS, DownloadEvent, NewSearchBody } from "./index.ts";
 
 // A literal copy of @uroboros/ytdlp's YTDLP_ERROR_KINDS: the contract may not import the wrapper.
 const YTDLP_ERROR_KINDS = [
@@ -66,5 +66,15 @@ describe("downloads contract", () => {
     ).toBe("progress");
     expect(DownloadEvent.parse({ type: "removed", id: download.id }).type).toBe("removed");
     expect(() => DownloadEvent.parse({ type: "nope" })).toThrow();
+  });
+
+  it("takes a trimmed search of 1 to 200 characters with no control characters", () => {
+    expect(NewSearchBody.parse({ query: "  blender open movie " }).query).toBe(
+      "blender open movie",
+    );
+    expect(NewSearchBody.parse({ query: "x".repeat(200) }).query).toHaveLength(200);
+    for (const query of ["", "   ", "x".repeat(201), "a\nb", "a\u0000b"]) {
+      expect(NewSearchBody.safeParse({ query }).success).toBe(false);
+    }
   });
 });

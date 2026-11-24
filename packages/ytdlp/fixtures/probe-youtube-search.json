@@ -1,0 +1,123 @@
+{
+  "id": "blender open movie",
+  "title": "blender open movie",
+  "_type": "playlist",
+  "entries": [
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "WhWc3b3KhnY",
+      "url": "https://www.youtube.com/watch?v=WhWc3b3KhnY",
+      "title": "Spring - Blender Open Movie",
+      "description": "Produced by Blender Studio. Made in Blender 2.8. Get the production files, asset",
+      "duration": 465,
+      "channel_id": "UCz75RVbH8q2jdBJ4SnwuZZQ",
+      "channel": "Blender Studio",
+      "channel_url": "https://www.youtube.com/channel/UCz75RVbH8q2jdBJ4SnwuZZQ",
+      "uploader": "Blender Studio",
+      "uploader_id": "@BlenderStudio",
+      "uploader_url": "https://www.youtube.com/@BlenderStudio",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/WhWc3b3KhnY/hq720.jpg?sqp=-oaymwEgCOgCEMoBSFXyq4qpAxIIARUAAIhCGAFwAcABBrgC8xg=&rs=AOn4CLAEp6xIMGcSGKaxJhbss9dAb8bf2g",
+          "height": 202,
+          "width": 360
+        },
+        {
+          "url": "https://i.ytimg.com/vi/WhWc3b3KhnY/hq720.jpg?sqp=-oaymwEgCNAFEJQDSFXyq4qpAxIIARUAAIhCGAFwAcABBrgC8xg=&rs=AOn4CLB4EGIEojduidGGzy4I_JNPGdKm-w",
+          "height": 404,
+          "width": 720
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": 11005189,
+      "live_status": null,
+      "channel_is_verified": true
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "_cMxraX_5RE",
+      "url": "https://www.youtube.com/watch?v=_cMxraX_5RE",
+      "title": "Sprite Fright - Blender Open Movie",
+      "description": "[Rated PG] - Produced by Blender Studio. Made with Blender. Get the production f",
+      "duration": 630,
+      "channel_id": "UCz75RVbH8q2jdBJ4SnwuZZQ",
+      "channel": "Blender Studio",
+      "channel_url": "https://www.youtube.com/channel/UCz75RVbH8q2jdBJ4SnwuZZQ",
+      "uploader": "Blender Studio",
+      "uploader_id": "@BlenderStudio",
+      "uploader_url": "https://www.youtube.com/@BlenderStudio",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/_cMxraX_5RE/hq720.jpg?sqp=-oaymwEgCOgCEMoBSFXyq4qpAxIIARUAAIhCGAFwAcABBrgC8xg=&rs=AOn4CLCGMdrUFoEk7-BFhm-6Pu4uUkYmrg",
+          "height": 202,
+          "width": 360
+        },
+        {
+          "url": "https://i.ytimg.com/vi/_cMxraX_5RE/hq720.jpg?sqp=-oaymwEgCNAFEJQDSFXyq4qpAxIIARUAAIhCGAFwAcABBrgC8xg=&rs=AOn4CLC_Hl7oJyZQ4TIsI3uZRNtZ2BENsw",
+          "height": 404,
+          "width": 720
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": 9572349,
+      "live_status": null,
+      "channel_is_verified": true
+    },
+    {
+      "_type": "url",
+      "ie_key": "Youtube",
+      "id": "UXqq0ZvbOnk",
+      "url": "https://www.youtube.com/watch?v=UXqq0ZvbOnk",
+      "title": "CHARGE - Blender Open Movie",
+      "description": "CHARGE is an open movie, made entirely with Blender. Get the production files, a",
+      "duration": 263,
+      "channel_id": "UCz75RVbH8q2jdBJ4SnwuZZQ",
+      "channel": "Blender Studio",
+      "channel_url": "https://www.youtube.com/channel/UCz75RVbH8q2jdBJ4SnwuZZQ",
+      "uploader": "Blender Studio",
+      "uploader_id": "@BlenderStudio",
+      "uploader_url": "https://www.youtube.com/@BlenderStudio",
+      "thumbnails": [
+        {
+          "url": "https://i.ytimg.com/vi/UXqq0ZvbOnk/hq720.jpg?sqp=-oaymwEgCOgCEMoBSFXyq4qpAxIIARUAAIhCGAFwAcABBrgC8xg=&rs=AOn4CLDwLrltjmo9WX3si12WY7qYAMrokQ",
+          "height": 202,
+          "width": 360
+        },
+        {
+          "url": "https://i.ytimg.com/vi/UXqq0ZvbOnk/hq720.jpg?sqp=-oaymwEgCNAFEJQDSFXyq4qpAxIIARUAAIhCGAFwAcABBrgC8xg=&rs=AOn4CLBYurzi3VsvaxOWEi5LVl8p8s6vdg",
+          "height": 404,
+          "width": 720
+        }
+      ],
+      "timestamp": null,
+      "release_timestamp": null,
+      "availability": null,
+      "view_count": 2572369,
+      "live_status": null,
+      "channel_is_verified": true
+    }
+  ],
+  "webpage_url": "https://www.youtube.com/results?search_query=blender+open+movie&sp=EgIQAQ%3D%3D",
+  "original_url": "https://www.youtube.com/results?search_query=blender+open+movie&sp=EgIQAQ%3D%3D",
+  "webpage_url_basename": "results",
+  "webpage_url_domain": "youtube.com",
+  "extractor": "youtube:search_url",
+  "extractor_key": "YoutubeSearchURL",
+  "release_year": null,
+  "requested_entries": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "playlist_count": null,
+  "epoch": 1795490295,
+  "__files_to_move": {},
+  "_version": {
+    "version": "2026.10.26",
+    "current_git_head": null,
+    "release_git_head": "c91f8de0bfb3577894abad716eaaa01659e6bd14",
+    "repository": "yt-dlp/yt-dlp"
+  }
+}

@@ -116,6 +116,25 @@ export const NewDownloadBody = z
   .openapi("NewDownloadBody");
 export type NewDownloadBody = z.infer<typeof NewDownloadBody>;
 
+/** How many videos a YouTube search lists (`POST /api/downloads/search`). */
+export const YOUTUBE_SEARCH_RESULTS = 10;
+
+/**
+ * Search YouTube (the Ctrl+K palette's "Search YouTube for …"): a worker lists the top
+ * `YOUTUBE_SEARCH_RESULTS` videos as a preview whose entries download one by one.
+ */
+export const NewSearchBody = z
+  .object({
+    query: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !/\p{Cc}/u.test(value), "no control characters"),
+  })
+  .openapi("NewSearchBody");
+export type NewSearchBody = z.infer<typeof NewSearchBody>;
+
 /** One video in a playlist or channel preview. */
 export const PreviewEntry = z
   .object({

@@ -4,6 +4,7 @@ import {
   Download,
   DownloadRequest,
   NewDownloadBody,
+  NewSearchBody,
   QueueSelectionBody,
   QueueSelectionResult,
 } from "@uroboros/contract";
@@ -11,7 +12,13 @@ import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { requireAdmin } from "../auth/guard.ts";
 import { cancelDownload, retryDownload, type DownloadContext } from "./dispatch.ts";
-import { createRequest, findRequest, queueSelection, toRequest } from "./requests.ts";
+import {
+  createRequest,
+  findRequest,
+  queueSelection,
+  toRequest,
+  youtubeSearchUrl,
+} from "./requests.ts";
 import { downloadRows, toDownloads } from "./serialize.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
@@ -39,6 +46,18 @@ const createRequestRoute = createRoute({
   responses: {
     202: json(DownloadRequest, "Probing"),
     400: error("Not an http(s) URL, or no such profile"),
+  },
+});
+
+const searchRoute = createRoute({
+  method: "post",
+  path: "/api/downloads/search",
+  tags: ["downloads"],
+  summary: "Search YouTube: a worker lists the top videos as a preview to download them from",
+  request: body(NewSearchBody),
+  responses: {
+    202: json(DownloadRequest, "Searching"),
+    400: error("An empty or overlong search, or one with control characters"),
   },
 });
 
@@ -109,6 +128,14 @@ export function need(ctx: DownloadContext | undefined): DownloadContext {
 export function registerDownloadRoutes(app: OpenAPIHono, ctx: DownloadContext | undefined): void {
   app.openapi(createRequestRoute, async (c) => {
     const req = await createRequest(need(ctx), currentPrincipal(c).userId, c.req.valid("json"));
+    return c.json(req, 202);
+  });
+
+  app.openapi(searchRoute, async (c) => {
+    const req = await createRequest(need(ctx), currentPrincipal(c).userId, {
+      url: youtubeSearchUrl(c.req.valid("json").query),
+      intent: "search",
+    });
     return c.json(req, 202);
   });
 

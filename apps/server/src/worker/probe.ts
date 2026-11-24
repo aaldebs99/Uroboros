@@ -1,10 +1,12 @@
-import type { PreviewEntry, PreviewGroup } from "@uroboros/contract";
+import { YOUTUBE_SEARCH_RESULTS, type PreviewEntry, type PreviewGroup } from "@uroboros/contract";
+import type { Selectable } from "kysely";
 import { probe, type PlaylistEntry, type PlaylistInfo, type VideoInfo } from "@uroboros/ytdlp";
 import { dispatchFor, queueDownload } from "../downloads/dispatch.ts";
 import { toDownloadError } from "../downloads/errors.ts";
 import { publishDownloadEvent } from "../downloads/events.ts";
 import { getProfile } from "../downloads/profiles.ts";
 import type { ProbeJob } from "../downloads/queues.ts";
+import type { DownloadRequestsTable } from "../db/schema.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { withLoginsOf } from "./logins.ts";
 import { upsertMedia } from "./media.ts";
@@ -12,6 +14,7 @@ import { upsertMedia } from "./media.ts";
 const PROBE_TIMEOUT_MS = 120_000;
 
 type Deps = WorkerDeps;
+type RequestRow = Selectable<DownloadRequestsTable>;
 
 /**
  * yt-dlp's options for a flat probe with these deps (the subscription check lists with them),
@@ -185,6 +188,30 @@ async function preview(
     .execute();
 }
 
+/**
+ * A YouTube search (`POST /api/downloads/search`, its results page as the URL): the top videos as
+ * one group to download from, unticked. It records no playlist: a search is not one to keep.
+ */
+async function searchPreview(deps: Deps, req: { id: string; url: string }): Promise<void> {
+  const info = await probe(req.url, {
+    ...ytdlpOptions(deps),
+    extraArgs: [`--playlist-items=1:${String(YOUTUBE_SEARCH_RESULTS)}`],
+  });
+  const listed =
+    info.kind === "video" ? { entries: [info], extractorKey: info.extractorKey } : info;
+  const results = group("YouTube", req.url, false, listed, YOUTUBE_SEARCH_RESULTS);
+  await deps.db
+    .updateTable("download_requests")
+    .set({
+      state: "choosing",
+      kind: "playlist",
+      title: info.title,
+      entries: JSON.stringify([results]),
+    })
+    .where("id", "=", req.id)
+    .execute();
+}
+
 /** A link pasted to subscribe to that is one video: nothing to follow, and nothing downloaded. */
 async function refuseVideo(deps: Deps, requestId: string): Promise<void> {
   await deps.db
@@ -199,10 +226,26 @@ async function refuseVideo(deps: Deps, requestId: string): Promise<void> {
     .execute();
 }
 
+type ProbedRequest = Pick<RequestRow, "id" | "user_id" | "profile_id" | "url" | "intent">;
+
 /**
  * Resolves a pasted link: a video is queued (or, pasted to subscribe to, refused); a playlist or
- * channel becomes a preview.
+ * channel becomes a preview, as does a search.
  */
+async function resolve(deps: Deps, req: ProbedRequest): Promise<void> {
+  if (req.intent === "search") {
+    await searchPreview(deps, req);
+    return;
+  }
+  // The requester's own logins, for this probe and a channel's tab probes.
+  const signedIn = await withLoginsOf(deps, req.user_id);
+  const info = await probe(req.url, { ...ytdlpOptions(signedIn), extraArgs: previewArgs(deps) });
+  if (info.kind !== "video") await preview(signedIn, req, info);
+  else if (req.intent === "subscribe") await refuseVideo(deps, req.id);
+  else await queueVideo(signedIn, req, info);
+}
+
+/** The probe queue's consumer: resolves one request still probing, or records why it failed. */
 export function probeProcessor(deps: Deps) {
   return async (job: { data: ProbeJob }): Promise<void> => {
     const req = await deps.db
@@ -212,15 +255,7 @@ export function probeProcessor(deps: Deps) {
       .executeTakeFirst();
     if (req?.state !== "probing") return;
     try {
-      // The requester's own logins, for this probe and a channel's tab probes.
-      const signedIn = await withLoginsOf(deps, req.user_id);
-      const info = await probe(req.url, {
-        ...ytdlpOptions(signedIn),
-        extraArgs: previewArgs(deps),
-      });
-      if (info.kind !== "video") await preview(signedIn, req, info);
-      else if (req.intent === "subscribe") await refuseVideo(deps, req.id);
-      else await queueVideo(signedIn, req, info);
+      await resolve(deps, req);
     } catch (err) {
       const failure = toDownloadError(err);
       deps.logger.warn({ err, requestId: req.id }, "probe failed");

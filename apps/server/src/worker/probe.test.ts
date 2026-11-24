@@ -1,11 +1,11 @@
 import { fixture } from "@uroboros/ytdlp/testing";
-import type { DownloadRequest } from "@uroboros/contract";
+import { YOUTUBE_SEARCH_RESULTS, type DownloadRequest } from "@uroboros/contract";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
-import { toRequest } from "../downloads/requests.ts";
+import { toRequest, youtubeSearchUrl } from "../downloads/requests.ts";
 import { saveLogin } from "../siteLogins/store.ts";
 import { probeProcessor } from "./probe.ts";
 
@@ -26,7 +26,7 @@ afterAll(async () => {
 
 async function request(
   url: string,
-  intent: "download" | "subscribe" = "download",
+  intent: "download" | "subscribe" | "search" = "download",
 ): Promise<string> {
   const p = await seededDefault(testDb.db);
   const row = await testDb.db
@@ -163,6 +163,34 @@ describe("probe", () => {
     const argv = await h.lastArgv();
     expect(argv.at(-1)).toBe(base);
     expect(argv).toContain("--playlist-items=1:3");
+  });
+
+  it("lists a YouTube search's top videos as one unticked group, recording no playlist", async () => {
+    const url = youtubeSearchUrl("blender open movie");
+    const id = await request(url, "search");
+    await run(
+      id,
+      await h.deps({ steps: [{ stdout: await fixture("probe-youtube-search.json") }] }),
+    );
+    const req = await load(id);
+    expect(req).toMatchObject({ state: "choosing", kind: "playlist", title: "blender open movie" });
+    expect(req.groups.map((g) => [g.name, g.ticked, g.truncated, g.url])).toEqual([
+      ["YouTube", false, false, url],
+    ]);
+    expect(req.groups[0]?.entries.map((e) => [e.id, e.extractor, e.uploader])).toEqual([
+      ["WhWc3b3KhnY", "Youtube", "Blender Studio"],
+      ["_cMxraX_5RE", "Youtube", "Blender Studio"],
+      ["UXqq0ZvbOnk", "Youtube", "Blender Studio"],
+    ]);
+    const argv = await h.lastArgv();
+    expect(argv.at(-1)).toBe(url);
+    expect(argv).toContain(`--playlist-items=1:${String(YOUTUBE_SEARCH_RESULTS)}`);
+    const row = await testDb.db
+      .selectFrom("download_requests")
+      .select(["source_extractor", "source_id"])
+      .where("id", "=", id)
+      .executeTakeFirstOrThrow();
+    expect(row).toEqual({ source_extractor: null, source_id: null });
   });
 
   it("records channel ids and tab URLs", async () => {

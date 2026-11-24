@@ -50,6 +50,13 @@ request handler.
    replica's shutdown goes back to the queue without spending an attempt; storage keys are deterministic and the rendition
    and library inserts are idempotent, so a rerun never duplicates anything.
 
+**Searching YouTube** (the web's Ctrl+K palette) is a request too: `POST /api/downloads/search
+{query}` records one with `intent: "search"` whose URL is YouTube's results page for the query,
+videos only (`/results?search_query=…&sp=EgIQAQ%3D%3D`, which yt-dlp lists as a playlist). The
+probe lists its top `YOUTUBE_SEARCH_RESULTS` (10) with `--playlist-items=1:10` and no saved logins,
+into one unticked `YouTube` group, recording no playlist (`sources`). Queueing its entries leaves it
+`choosing`, so the results download one by one from the same search; it expires like any preview.
+
 A job can also vanish while downloads still wait on it: past BullMQ's stall limit, or when a cancel
 or a finished fetch races someone else's dispatch of the same key. The api leader's reconciler
 (`src/downloads/reconcile.ts`, every minute) adds the job back, from the row's snapshot, for every

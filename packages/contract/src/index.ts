@@ -44,6 +44,7 @@ export {
   LibraryEntry,
   NewDownloadBody,
   NewFormatProfileBody,
+  NewSearchBody,
   PreviewEntry,
   PreviewGroup,
   QueueSelectionBody,
@@ -52,6 +53,7 @@ export {
   SPONSORBLOCK_CATEGORIES,
   SponsorBlockCategory,
   WatchProgress,
+  YOUTUBE_SEARCH_RESULTS,
 } from "./downloads.ts";
 export {
   Chapter,
