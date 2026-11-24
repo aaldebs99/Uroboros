@@ -22,6 +22,7 @@ vi.mock("../library/Player", () => ({ Player: () => <div data-testid="player" />
 const id = (n: number) => `0190a3f2-7c1e-7000-8000-${String(n).padStart(12, "0")}`;
 const ENTRY = id(1);
 const BOB = id(50);
+const FAMILY = id(60);
 const SHARE = id(70);
 const PLAYLIST = id(80);
 
@@ -45,7 +46,7 @@ const link = (over: Record<string, unknown> = {}) => ({
 });
 const directory = {
   users: [{ id: BOB, name: "Bob", handle: "bob" }],
-  groups: [{ name: "family", members: 3 }],
+  groups: [{ id: FAMILY, name: "Family", members: 3 }],
 };
 
 const entry = (n: number) => ({
@@ -100,12 +101,12 @@ describe("the share dialog", () => {
       });
     });
     await userEvent.type(screen.getByLabelText("Add people or groups"), "fam");
-    await userEvent.click(await screen.findByRole("button", { name: /Add family/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Add Family/ }));
     await waitFor(() => {
       expect(calls.filter((c) => c.method === "PUT").at(-1)?.body).toEqual({
         people: [
           { kind: "user", id: BOB },
-          { kind: "group", name: "family" },
+          { kind: "group", id: FAMILY },
         ],
         expiresAt: null,
       });

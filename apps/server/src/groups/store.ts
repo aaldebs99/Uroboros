@@ -4,11 +4,14 @@ import {
   type AdminGroup,
   type GroupDetail,
   type GroupRole,
+  type GroupShare,
   type GroupSummary,
 } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { sharesToGroup } from "../sharing/access.ts";
+import { describeTarget } from "../sharing/targets.ts";
 import { lockKey } from "../shared/lockKeys.ts";
 
 /**
@@ -302,12 +305,50 @@ export async function removeMember(
         throw new ApiError("conflict", LAST_MANAGER);
       }
     }
+    // Their shares to the group end with their place in it (a share left with nobody ends too,
+    // by a trigger at commit).
+    await tx
+      .deleteFrom("share_people")
+      .where("group_id", "=", groupId)
+      .where("share_id", "in", (eb) =>
+        eb.selectFrom("shares").select("id").where("owner_id", "=", memberId),
+      )
+      .execute();
     await tx
       .deleteFrom("group_members")
       .where("group_id", "=", groupId)
       .where("user_id", "=", memberId)
       .execute();
   });
+}
+
+/** What the group's members share with it, live, newest change first; `mine` for the caller's. */
+export async function groupShares(db: Db, userId: string, groupId: string): Promise<GroupShare[]> {
+  const me = await db
+    .selectFrom("group_members")
+    .select("user_id")
+    .where("group_id", "=", groupId)
+    .where("user_id", "=", userId)
+    .executeTakeFirst();
+  if (me === undefined) throw new ApiError("not_found", NOT_FOUND);
+  const shares = await sharesToGroup(db, groupId);
+  return Promise.all(
+    shares.map(async (s) => {
+      const facts = await describeTarget(db, s.ownerId, s.target.kind, s.target.id);
+      return {
+        shareId: s.id,
+        kind: s.target.kind,
+        id: s.target.id,
+        title: facts.title,
+        thumbnailUrl: facts.thumbnailUrl,
+        count: facts.count,
+        owner: s.ownerName,
+        sharedAt: s.sharedAt.toISOString(),
+        expiresAt: s.expiresAt === null ? null : s.expiresAt.toISOString(),
+        mine: s.ownerId === userId,
+      };
+    }),
+  );
 }
 
 /** Every group, for admins: its name, enabled members and managers' names. */

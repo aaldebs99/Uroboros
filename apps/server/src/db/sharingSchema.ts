@@ -23,10 +23,11 @@ export interface SharesTable {
   updated_at: Defaulted<Date | string>;
 }
 
+/** `share_people`: who a people-share reaches, a user or one of the owner's groups. */
 export interface SharePeopleTable {
   share_id: string;
   user_id: string | null;
-  group_name: string | null;
+  group_id: string | null;
 }
 
 export interface NotificationPrefsTable {

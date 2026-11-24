@@ -157,6 +157,7 @@ export {
   GroupNameBody,
   GroupRole,
   GroupRoleBody,
+  GroupShare,
   GroupSummary,
   MAX_GROUP_MEMBERS,
   MAX_GROUPS_CREATED,

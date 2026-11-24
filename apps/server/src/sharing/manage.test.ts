@@ -14,17 +14,28 @@ let t: TestDb;
 let alice: SignedIn;
 let bob: SignedIn;
 let carol: SignedIn;
+let family: string;
+
+/** A group of these people. */
+async function group(name: string, members: string[]): Promise<string> {
+  const g = await t.db
+    .insertInto("groups")
+    .values({ name })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  await t.db
+    .insertInto("group_members")
+    .values(members.map((user_id) => ({ group_id: g.id, user_id })))
+    .execute();
+  return g.id;
+}
 
 beforeAll(async () => {
   t = await TestDb.create();
   alice = await signedIn(t.db, { username: "mgalice" });
   bob = await signedIn(t.db, { username: "mgbob" });
   carol = await signedIn(t.db, { username: "mgcarol" });
-  await t.db
-    .updateTable("users")
-    .set({ groups: JSON.stringify(["family"]) })
-    .where("id", "in", [bob.userId, carol.userId])
-    .execute();
+  family = await group("Family", [alice.userId, bob.userId, carol.userId]);
 });
 afterAll(async () => {
   await t.close();
@@ -50,7 +61,7 @@ describe("managing shares", () => {
       await send(alice, "PUT", `/api/shares/entry/${e.entryId}/people`, {
         people: [
           { kind: "user", id: bob.userId },
-          { kind: "group", name: "family" },
+          { kind: "group", id: family },
         ],
         expiresAt: null,
       }),
@@ -59,7 +70,7 @@ describe("managing shares", () => {
     expect(s.people?.people).toEqual(
       expect.arrayContaining([
         { kind: "user", id: bob.userId, name: "mgbob", handle: "mgbob" },
-        { kind: "group", name: "family", members: 2 },
+        { kind: "group", id: family, name: "Family", members: 3 },
       ]),
     );
     expect(s.people?.expired).toBe(false);
@@ -174,20 +185,36 @@ describe("managing shares", () => {
       expiresAt: null,
     });
     expect(first.newlyReached).toEqual([bob.userId]);
-    await t.db
-      .updateTable("users")
-      .set({ groups: JSON.stringify(["family"]) })
-      .where("id", "=", alice.userId)
-      .execute();
     const second = await setPeople(t.db, alice.userId, "entry", e.entryId, {
       people: [
         { kind: "user", id: bob.userId },
-        { kind: "group", name: "family" },
+        { kind: "group", id: family },
       ],
       expiresAt: null,
     });
     expect(second.newlyReached).toEqual([carol.userId]);
     expect(second.shareId).toBe(first.shareId);
-    await t.db.updateTable("users").set({ groups: "[]" }).where("id", "=", alice.userId).execute();
+  });
+
+  it("sharing with a group you're not in, or one that's gone, is 400", async () => {
+    const e = await seedEntry(t.db, alice.userId);
+    const theirs = await group("Theirs", [bob.userId]);
+    for (const id of [theirs, crypto.randomUUID()]) {
+      const res = await send(alice, "PUT", `/api/shares/entry/${e.entryId}/people`, {
+        people: [{ kind: "group", id }],
+        expiresAt: null,
+      });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { message: string }).message).toBe("no such group");
+    }
+  });
+
+  it("the sign-in provider's group names are no longer accepted", async () => {
+    const e = await seedEntry(t.db, alice.userId);
+    const res = await send(alice, "PUT", `/api/shares/entry/${e.entryId}/people`, {
+      people: [{ kind: "group", name: "family" }],
+      expiresAt: null,
+    });
+    expect(res.status).toBe(400);
   });
 });

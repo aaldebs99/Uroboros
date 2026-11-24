@@ -25,15 +25,21 @@ export interface LiveShare {
 const LIVE = sql<boolean>`(s.expires_at IS NULL OR s.expires_at > now())
   AND o.disabled_at IS NULL AND o.revoked_at IS NULL`;
 
-/** A people-share naming this user, or a group in their `users.groups`; never their own. */
+/**
+ * A people-share naming this user, or one of the owner's groups this user is in; never their own.
+ * A group counts only while the owner is still in it too (leaving ends their shares to it).
+ */
 const reachesUser = (userId: string) => sql<boolean>`s.mode = 'people'
   AND s.owner_id <> ${userId}
   AND EXISTS (
     SELECT 1 FROM share_people sp
     WHERE sp.share_id = s.id AND (
       sp.user_id = ${userId}
-      OR (sp.group_name IS NOT NULL
-        AND (SELECT u.groups FROM users u WHERE u.id = ${userId}) ? sp.group_name)))`;
+      OR (sp.group_id IS NOT NULL
+        AND EXISTS (SELECT 1 FROM group_members gm
+          WHERE gm.group_id = sp.group_id AND gm.user_id = ${userId})
+        AND EXISTS (SELECT 1 FROM group_members gm
+          WHERE gm.group_id = sp.group_id AND gm.user_id = s.owner_id))))`;
 
 const reachesCode = (code: string) => sql<boolean>`s.mode = 'link' AND s.code = ${code}`;
 
@@ -158,6 +164,23 @@ export function shareFor(
   shareId: string,
 ): Promise<LiveShare | undefined> {
   return findShare(db, sql<boolean>`s.id = ${shareId} AND ${reachesUser(viewer.userId)}`);
+}
+
+/**
+ * Every live people-share to this group by someone still in it, newest change first (the group's
+ * page), the viewer's own included.
+ */
+export async function sharesToGroup(db: Kysely<Database>, groupId: string): Promise<LiveShare[]> {
+  const rows = await sharesWhere(
+    db,
+    sql<boolean>`s.mode = 'people'
+      AND EXISTS (SELECT 1 FROM share_people sp WHERE sp.share_id = s.id AND sp.group_id = ${groupId})
+      AND EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id = ${groupId} AND gm.user_id = s.owner_id)`,
+  )
+    .orderBy("s.updated_at", "desc")
+    .orderBy("s.id")
+    .execute();
+  return rows.map(toLive);
 }
 
 /** The live public link with this code; undefined for a dead or unknown one. */

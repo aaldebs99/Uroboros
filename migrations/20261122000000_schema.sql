@@ -620,18 +620,35 @@ CREATE UNIQUE INDEX shares_source_key ON shares (owner_id, mode, source_id)
   WHERE source_id IS NOT NULL;
 CREATE INDEX shares_owner_idx ON shares (owner_id, updated_at DESC);
 
--- Who a people-share reaches: a user, or everyone whose `users.groups` holds the group name.
+-- Who a people-share reaches: a user, or everyone in one of the owner's groups (`groups`) at the
+-- moment they ask.
 CREATE TABLE share_people (
   share_id UUID NOT NULL REFERENCES shares ON DELETE CASCADE,
   user_id UUID REFERENCES users ON DELETE CASCADE,
-  group_name TEXT CHECK (char_length(group_name) BETWEEN 1 AND 256),
-  CHECK (num_nonnulls(user_id, group_name) = 1)
+  group_id UUID REFERENCES groups ON DELETE CASCADE,
+  CHECK (num_nonnulls(user_id, group_id) = 1)
 );
+CREATE INDEX share_people_share_idx ON share_people (share_id);
 CREATE UNIQUE INDEX share_people_user_key ON share_people (share_id, user_id)
   WHERE user_id IS NOT NULL;
-CREATE UNIQUE INDEX share_people_group_key ON share_people (share_id, group_name)
-  WHERE group_name IS NOT NULL;
+CREATE UNIQUE INDEX share_people_group_key ON share_people (share_id, group_id)
+  WHERE group_id IS NOT NULL;
 CREATE INDEX share_people_user_idx ON share_people (user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX share_people_group_idx ON share_people (group_id) WHERE group_id IS NOT NULL;
+
+-- A people-share with nobody left ends: its only group deleted, its only person's account
+-- deleted, or its owner out of the group it named. Checked at commit, so replacing a share's
+-- people in one transaction (delete, then insert) keeps it.
+CREATE FUNCTION end_empty_people_share() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM shares s
+  WHERE s.id = OLD.share_id AND s.mode = 'people'
+    AND NOT EXISTS (SELECT 1 FROM share_people sp WHERE sp.share_id = OLD.share_id);
+  RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER share_people_end_empty AFTER DELETE ON share_people
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION end_empty_people_share();
 
 -- Which kinds of push notification a person wants; no row means all of them.
 CREATE TABLE notification_prefs (

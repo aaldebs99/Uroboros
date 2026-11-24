@@ -153,11 +153,30 @@ describe("what is shared with me", () => {
     expect(page.entries.map((x) => x.id)).toEqual([e.entryId]);
   });
 
-  it("the directory lists enabled accounts and groups, without the caller", async () => {
+  it("the directory lists enabled accounts and the caller's own groups, without the caller", async () => {
+    // A provider group lists nothing any more; only groups the caller is in do.
     await t.db
       .updateTable("users")
       .set({ groups: JSON.stringify(["family"]) })
       .where("id", "=", carol.userId)
+      .execute();
+    const mine = await t.db
+      .insertInto("groups")
+      .values({ name: "Mine" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    const theirs = await t.db
+      .insertInto("groups")
+      .values({ name: "Theirs" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await t.db
+      .insertInto("group_members")
+      .values([
+        { group_id: mine.id, user_id: alice.userId },
+        { group_id: mine.id, user_id: carol.userId },
+        { group_id: theirs.id, user_id: carol.userId },
+      ])
       .execute();
     const dave = await signedIn(t.db, { username: "shdave" });
     await t.db
@@ -170,6 +189,6 @@ describe("what is shared with me", () => {
     expect(names).toEqual(expect.arrayContaining(["shbob", "shcarol"]));
     expect(names).not.toContain("shalice");
     expect(names).not.toContain("shdave");
-    expect(dir.groups).toEqual([{ name: "family", members: 1 }]);
+    expect(dir.groups).toEqual([{ id: mine.id, name: "Mine", members: 2 }]);
   });
 });

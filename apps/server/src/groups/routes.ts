@@ -6,6 +6,7 @@ import {
   GroupMembersBody,
   GroupNameBody,
   GroupRoleBody,
+  GroupShare,
   GroupSummary,
   NewGroupBody,
 } from "@uroboros/contract";
@@ -23,6 +24,7 @@ import {
   createGroup,
   deleteGroup,
   groupDetail,
+  groupShares,
   listAllGroups,
   listGroups,
   removeMember,
@@ -140,6 +142,15 @@ const removeRoute = createRoute({
   },
 });
 
+const sharesRoute = createRoute({
+  method: "get",
+  path: "/api/groups/{id}/shares",
+  tags,
+  summary: "What the group's members share with it, newest change first",
+  request: { params: groupParams },
+  responses: { 200: json(z.array(GroupShare), "Shared with the group"), 404: notIn },
+});
+
 const adminListRoute = createRoute({
   method: "get",
   path: "/api/admin/groups",
@@ -209,6 +220,9 @@ export function registerGroupRoutes(
     await removeMember(db, me(c), p.id, p.userId);
     return c.body(null, 204);
   });
+  app.openapi(sharesRoute, async (c) =>
+    c.json(await groupShares(db, me(c), c.req.valid("param").id), 200),
+  );
   app.openapi(adminListRoute, async (c) => {
     requireAdmin(currentPrincipal(c));
     return c.json(await listAllGroups(db), 200);

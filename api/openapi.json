@@ -372,6 +372,10 @@
           "groups": {
             "items": {
               "properties": {
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
                 "members": {
                   "type": "integer"
                 },
@@ -380,6 +384,7 @@
                 }
               },
               "required": [
+                "id",
                 "name",
                 "members"
               ],
@@ -1081,6 +1086,24 @@
           "role"
         ],
         "type": "object"
+      },
+      "GroupShare": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SharedWithMe"
+          },
+          {
+            "properties": {
+              "mine": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "mine"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "GroupSummary": {
         "properties": {
@@ -2824,6 +2847,10 @@
           },
           {
             "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
               "kind": {
                 "enum": [
                   "group"
@@ -2839,6 +2866,7 @@
             },
             "required": [
               "kind",
+              "id",
               "name",
               "members"
             ],
@@ -2869,21 +2897,20 @@
           },
           {
             "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
               "kind": {
                 "enum": [
                   "group"
                 ],
                 "type": "string"
-              },
-              "name": {
-                "maxLength": 256,
-                "minLength": 1,
-                "type": "string"
               }
             },
             "required": [
               "kind",
-              "name"
+              "id"
             ],
             "type": "object"
           }
@@ -4165,7 +4192,7 @@
             "description": "The directory"
           }
         },
-        "summary": "Who the caller can share with: the other accounts and the groups in use",
+        "summary": "Who the caller can share with: the other accounts and the caller's groups",
         "tags": [
           "sharing"
         ]
@@ -5303,6 +5330,50 @@
           }
         },
         "summary": "Make a member a manager, or a manager a member (managers)",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{id}/shares": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GroupShare"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Shared with the group"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such group, or the caller isn't in it"
+          }
+        },
+        "summary": "What the group's members share with it, newest change first",
         "tags": [
           "groups"
         ]
@@ -9035,7 +9106,7 @@
                 }
               }
             },
-            "description": "Yourself, or no such user"
+            "description": "Yourself, no such user, or a group the caller isn't in"
           },
           "404": {
             "content": {
@@ -9048,7 +9119,7 @@
             "description": "Not one of the caller's things"
           }
         },
-        "summary": "Share with these people and groups (an empty list stops sharing with people)",
+        "summary": "Share with these people and groups the caller is in (an empty list stops sharing with people)",
         "tags": [
           "sharing"
         ]

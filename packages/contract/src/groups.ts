@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { SharedWithMe } from "./sharing.ts";
 
 /**
  * Groups people make themselves (docs/sharing.md "Groups"): anyone creates one, its managers add
@@ -54,6 +55,10 @@ export const GroupDetail = z
   })
   .openapi("GroupDetail");
 export type GroupDetail = z.infer<typeof GroupDetail>;
+
+/** Something shared with a group (its page's "Shared with this group"); `mine` when the caller shared it. */
+export const GroupShare = SharedWithMe.extend({ mine: z.boolean() }).openapi("GroupShare");
+export type GroupShare = z.infer<typeof GroupShare>;
 
 /** Every group, for Admin › Groups (never what is shared with them). */
 export const AdminGroup = z

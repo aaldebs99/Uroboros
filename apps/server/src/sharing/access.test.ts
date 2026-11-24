@@ -44,8 +44,8 @@ async function share(
   for (const user_id of to.users ?? []) {
     await t.db.insertInto("share_people").values({ share_id: row.id, user_id }).execute();
   }
-  for (const group_name of to.groups ?? []) {
-    await t.db.insertInto("share_people").values({ share_id: row.id, group_name }).execute();
+  for (const group_id of to.groups ?? []) {
+    await t.db.insertInto("share_people").values({ share_id: row.id, group_id }).execute();
   }
   return row.id;
 }
@@ -79,6 +79,28 @@ const setGroups = (userId: string, groups: string[]) =>
     .where("id", "=", userId)
     .execute();
 
+/** A group of these people, named Family. */
+async function group(members: string[], name = "Family") {
+  const g = await t.db
+    .insertInto("groups")
+    .values({ name })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  await t.db
+    .insertInto("group_members")
+    .values(members.map((user_id) => ({ group_id: g.id, user_id })))
+    .execute();
+  return g.id;
+}
+const join = (groupId: string, userId: string) =>
+  t.db.insertInto("group_members").values({ group_id: groupId, user_id: userId }).execute();
+const leave = (groupId: string, userId: string) =>
+  t.db
+    .deleteFrom("group_members")
+    .where("group_id", "=", groupId)
+    .where("user_id", "=", userId)
+    .execute();
+
 describe("who may see an entry", () => {
   it("the owner sees their own", async () => {
     const e = await seedEntry(t.db, alice);
@@ -105,12 +127,30 @@ describe("who may see an entry", () => {
     expect(await sees({ userId: carol }, e.entryId)).toBeNull();
   });
 
-  it("a group share follows users.groups", async () => {
+  it("a group share reaches whoever is in the group when they ask", async () => {
     const e = await seedEntry(t.db, alice);
-    await share(alice, { entry_id: e.entryId }, { groups: ["family"] });
-    await setGroups(bob, ["family", "staff"]);
+    const g = await group([alice, bob]);
+    await share(alice, { entry_id: e.entryId }, { groups: [g] });
     expect(await sees({ userId: bob }, e.entryId)).not.toBeNull();
-    await setGroups(bob, []);
+    expect(await sees({ userId: carol }, e.entryId)).toBeNull();
+    await join(g, carol);
+    expect(await sees({ userId: carol }, e.entryId)).not.toBeNull();
+    await leave(g, bob);
+    expect(await sees({ userId: bob }, e.entryId)).toBeNull();
+  });
+
+  it("a group share whose owner is no longer in the group reaches nobody", async () => {
+    const e = await seedEntry(t.db, alice);
+    const g = await group([bob, carol]);
+    await share(alice, { entry_id: e.entryId }, { groups: [g] });
+    expect(await sees({ userId: bob }, e.entryId)).toBeNull();
+  });
+
+  it("the sign-in provider's groups grant nothing", async () => {
+    const e = await seedEntry(t.db, alice);
+    const g = await group([alice], "staff");
+    await share(alice, { entry_id: e.entryId }, { groups: [g] });
+    await setGroups(bob, ["staff", g]);
     expect(await sees({ userId: bob }, e.entryId)).toBeNull();
   });
 

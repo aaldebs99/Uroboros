@@ -17,8 +17,8 @@ import { notify } from "@/components/ui/sonner";
 import { ExpirySelect } from "./ExpirySelect";
 
 const refOf = (p: SharePerson): SharePersonRef =>
-  p.kind === "user" ? { kind: "user", id: p.id } : { kind: "group", name: p.name };
-const keyOf = (p: SharePersonRef) => (p.kind === "user" ? `u:${p.id}` : `g:${p.name}`);
+  p.kind === "user" ? { kind: "user", id: p.id } : { kind: "group", id: p.id };
+const keyOf = (p: SharePersonRef) => (p.kind === "user" ? `u:${p.id}` : `g:${p.id}`);
 const describe = (p: SharePerson) =>
   p.kind === "user"
     ? `${p.name}${p.handle === null ? "" : ` (${p.handle})`}`

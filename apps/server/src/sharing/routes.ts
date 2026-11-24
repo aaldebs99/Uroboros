@@ -62,11 +62,12 @@ const peopleRoute = createRoute({
   method: "put",
   path: "/api/shares/{kind}/{id}/people",
   tags,
-  summary: "Share with these people and groups (an empty list stops sharing with people)",
+  summary:
+    "Share with these people and groups the caller is in (an empty list stops sharing with people)",
   request: { params: target, ...body(PeopleShareBody) },
   responses: {
     200: json(ShareState, "Its sharing"),
-    400: error("Yourself, or no such user"),
+    400: error("Yourself, no such user, or a group the caller isn't in"),
     404: notYours,
   },
 });
@@ -156,7 +157,7 @@ const directoryRoute = createRoute({
   method: "get",
   path: "/api/directory",
   tags,
-  summary: "Who the caller can share with: the other accounts and the groups in use",
+  summary: "Who the caller can share with: the other accounts and the caller's groups",
   responses: { 200: json(Directory, "The directory") },
 });
 

@@ -51,14 +51,16 @@ async function peopleOf(db: Db, shareId: string): Promise<SharePerson[]> {
       .execute(),
     db
       .selectFrom("share_people as sp")
+      .innerJoin("groups as g", "g.id", "sp.group_id")
       .select([
-        "sp.group_name",
-        sql<string>`(SELECT count(*) FROM users u
-          WHERE u.disabled_at IS NULL AND u.groups ? sp.group_name)`.as("members"),
+        "g.id",
+        "g.name",
+        sql<string>`(SELECT count(*) FROM group_members m JOIN users u ON u.id = m.user_id
+          WHERE m.group_id = g.id AND u.disabled_at IS NULL)`.as("members"),
       ])
       .where("sp.share_id", "=", shareId)
-      .where("sp.group_name", "is not", null)
-      .orderBy("sp.group_name")
+      .orderBy("g.name")
+      .orderBy("g.id")
       .execute(),
   ]);
   return [
@@ -70,7 +72,8 @@ async function peopleOf(db: Db, shareId: string): Promise<SharePerson[]> {
     })),
     ...groups.map((g) => ({
       kind: "group" as const,
-      name: g.group_name ?? "",
+      id: g.id,
+      name: g.name,
       members: Number(g.members),
     })),
   ];
@@ -121,23 +124,54 @@ export async function shareState(
   };
 }
 
-/** Everyone a people-share reaches now: its users and its groups' members, enabled ones only. */
+/**
+ * Everyone a people-share reaches now, enabled ones only: its users, and the members of its groups
+ * the owner is still in.
+ */
 async function reached(db: Db, shareId: string): Promise<Set<string>> {
   const rows = await sql<{ id: string }>`
     SELECT u.id FROM users u
     WHERE u.disabled_at IS NULL AND EXISTS (
-      SELECT 1 FROM share_people sp
-      WHERE sp.share_id = ${shareId}
-        AND (sp.user_id = u.id OR (sp.group_name IS NOT NULL AND u.groups ? sp.group_name)))`.execute(
-    db,
-  );
+      SELECT 1 FROM share_people sp JOIN shares s ON s.id = sp.share_id
+      WHERE sp.share_id = ${shareId} AND (
+        sp.user_id = u.id
+        OR (sp.group_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM group_members gm
+            WHERE gm.group_id = sp.group_id AND gm.user_id = u.id)
+          AND EXISTS (SELECT 1 FROM group_members gm
+            WHERE gm.group_id = sp.group_id AND gm.user_id = s.owner_id))))`.execute(db);
   return new Set(rows.rows.map((r) => r.id));
+}
+
+/**
+ * The owner is in every group named. The groups are locked first (FOR KEY SHARE, in id order) so a
+ * leave or a delete of one waits for this share to commit, and its own check then sees the share;
+ * membership is read in a later statement, after any such change committed. Any miss is 400.
+ */
+async function checkGroups(tx: Db, ownerId: string, groupIds: string[]): Promise<void> {
+  if (groupIds.length === 0) return;
+  const locked = await tx
+    .selectFrom("groups")
+    .select("id")
+    .where("id", "in", groupIds)
+    .orderBy("id")
+    .forKeyShare()
+    .execute();
+  const inside = await tx
+    .selectFrom("group_members")
+    .select("group_id")
+    .where("user_id", "=", ownerId)
+    .where("group_id", "in", groupIds)
+    .execute();
+  if (locked.length !== groupIds.length || inside.length !== groupIds.length) {
+    throw new ApiError("bad_request", "no such group");
+  }
 }
 
 /** The named users exist, are enabled and are not the owner; groups are kept once each. */
 async function checkPeople(db: Db, ownerId: string, body: PeopleShareBody) {
   const userIds = [...new Set(body.people.flatMap((p) => (p.kind === "user" ? [p.id] : [])))];
-  const groups = [...new Set(body.people.flatMap((p) => (p.kind === "group" ? [p.name] : [])))];
+  const groups = [...new Set(body.people.flatMap((p) => (p.kind === "group" ? [p.id] : [])))];
   if (userIds.includes(ownerId))
     throw new ApiError("bad_request", "you cannot share with yourself");
   if (userIds.length > 0) {
@@ -167,6 +201,7 @@ export async function setPeople(
   await describeTarget(db, ownerId, kind, id);
   const { userIds, groups } = await checkPeople(db, ownerId, body);
   const result = await db.transaction().execute(async (tx) => {
+    await checkGroups(tx, ownerId, groups);
     const existing = await shareRow(tx, ownerId, kind, id, "people");
     const before = existing === undefined ? new Set<string>() : await reached(tx, existing.id);
     if (userIds.length === 0 && groups.length === 0) {
@@ -202,7 +237,7 @@ export async function setPeople(
       .insertInto("share_people")
       .values([
         ...userIds.map((user_id) => ({ share_id: shareId, user_id })),
-        ...groups.map((group_name) => ({ share_id: shareId, group_name })),
+        ...groups.map((group_id) => ({ share_id: shareId, group_id })),
       ])
       .execute();
     const after = await reached(tx, shareId);

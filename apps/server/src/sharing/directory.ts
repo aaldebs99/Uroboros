@@ -1,10 +1,11 @@
 import type { Directory } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { listGroups } from "../groups/store.ts";
 
 /**
  * Who the caller can share with: every other enabled account (name, and username or email), and
- * the sign-in provider's groups that enabled accounts are in, with their sizes.
+ * the groups the caller is in, each with its enabled members.
  */
 export async function listDirectory(db: Kysely<Database>, userId: string): Promise<Directory> {
   const [users, groups] = await Promise.all([
@@ -19,11 +20,7 @@ export async function listDirectory(db: Kysely<Database>, userId: string): Promi
       .where("id", "<>", userId)
       .orderBy("display_name")
       .execute(),
-    sql<{ name: string; members: string }>`
-      SELECT g AS name, count(*) AS members
-      FROM users u, jsonb_array_elements_text(u.groups) AS g
-      WHERE u.disabled_at IS NULL
-      GROUP BY g ORDER BY g`.execute(db),
+    listGroups(db, userId),
   ]);
-  return { users, groups: groups.rows.map((g) => ({ name: g.name, members: Number(g.members) })) };
+  return { users, groups: groups.map((g) => ({ id: g.id, name: g.name, members: g.members })) };
 }

@@ -7,10 +7,7 @@ import { PlaybackFacts } from "./playback.ts";
 export const ShareKind = z.enum(["entry", "playlist", "youtube"]).openapi("ShareKind");
 export type ShareKind = z.infer<typeof ShareKind>;
 
-/** A sign-in provider group's name (replaced by groups people make, docs/sharing.md). */
-const ProviderGroupName = z.string().trim().min(1).max(256);
-
-/** Someone a people-share reaches: one account, or everyone in a sign-in provider's group. */
+/** Someone a people-share reaches: one account, or everyone in one of the owner's groups. */
 export const SharePerson = z
   .discriminatedUnion("kind", [
     z.object({
@@ -20,7 +17,13 @@ export const SharePerson = z
       /** The username, or the email of an SSO account. */
       handle: z.string().nullable(),
     }),
-    z.object({ kind: z.literal("group"), name: z.string(), members: z.number().int() }),
+    z.object({
+      kind: z.literal("group"),
+      id: z.uuid(),
+      name: z.string(),
+      /** Its enabled members, the owner included. */
+      members: z.number().int(),
+    }),
   ])
   .openapi("SharePerson");
 export type SharePerson = z.infer<typeof SharePerson>;
@@ -28,7 +31,8 @@ export type SharePerson = z.infer<typeof SharePerson>;
 export const SharePersonRef = z
   .discriminatedUnion("kind", [
     z.object({ kind: z.literal("user"), id: z.uuid() }),
-    z.object({ kind: z.literal("group"), name: ProviderGroupName }),
+    /** One of the owner's groups (docs/sharing.md "Groups"). */
+    z.object({ kind: z.literal("group"), id: z.uuid() }),
   ])
   .openapi("SharePersonRef");
 export type SharePersonRef = z.infer<typeof SharePersonRef>;
@@ -108,11 +112,11 @@ export const SharedDetail = z
   .openapi("SharedDetail");
 export type SharedDetail = z.infer<typeof SharedDetail>;
 
-/** Who the caller can share with: the other enabled accounts, and the groups in use. */
+/** Who the caller can share with: the other enabled accounts, and the groups they are in. */
 export const Directory = z
   .object({
     users: z.array(z.object({ id: z.uuid(), name: z.string(), handle: z.string().nullable() })),
-    groups: z.array(z.object({ name: z.string(), members: z.number().int() })),
+    groups: z.array(z.object({ id: z.uuid(), name: z.string(), members: z.number().int() })),
   })
   .openapi("Directory");
 export type Directory = z.infer<typeof Directory>;

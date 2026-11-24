@@ -16,6 +16,7 @@ let h: Awaited<ReturnType<typeof downloadHarness>>;
 let alice: SignedIn;
 let bob: SignedIn;
 let carol: SignedIn;
+let family: string;
 
 beforeAll(async () => {
   t = await TestDb.create();
@@ -23,10 +24,15 @@ beforeAll(async () => {
   alice = await signedIn(t.db, { username: "snalice" });
   bob = await signedIn(t.db, { username: "snbob" });
   carol = await signedIn(t.db, { username: "sncarol" });
+  const g = await t.db
+    .insertInto("groups")
+    .values({ name: "Family" })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  family = g.id;
   await t.db
-    .updateTable("users")
-    .set({ groups: JSON.stringify(["family"]) })
-    .where("id", "in", [alice.userId, bob.userId, carol.userId])
+    .insertInto("group_members")
+    .values([alice, bob, carol].map((u) => ({ group_id: family, user_id: u.userId })))
     .execute();
 });
 afterAll(async () => {
@@ -76,7 +82,7 @@ describe("shared with you", () => {
         await put(alice, path, {
           people: [
             { kind: "user", id: bob.userId },
-            { kind: "group", name: "family" },
+            { kind: "group", id: family },
           ],
           expiresAt: null,
         })
