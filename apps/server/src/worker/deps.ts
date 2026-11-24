@@ -45,6 +45,8 @@ export interface WorkerDeps extends DownloadContext {
   playbackBus: PlaybackBus;
   /** Playback sessions' transcoder (docs/transcoding.md). */
   transcoder: Transcoder;
+  /** Whether new videos get hover preview clips (`UROBOROS_GENERATE_PREVIEWS`; docs/library.md). */
+  generatePreviews: boolean;
 }
 
 export interface Transcoder {

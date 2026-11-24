@@ -5,7 +5,8 @@ import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { downloadScenario, downloadStates, fetchJob, queuedFetch } from "../../test/fetchJobs.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
-import type { FetchJob } from "../downloads/queues.ts";
+import { queuedData } from "../../test/jobs.ts";
+import type { FetchJob, PreviewJob } from "../downloads/queues.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
 
@@ -75,6 +76,25 @@ describe("fetch", () => {
       .where("video_id", "=", "ok-2")
       .executeTakeFirstOrThrow();
     expect(next.dispatched_at).not.toBeNull();
+    // The video's hover preview is queued (docs/library.md).
+    expect(await queuedData<PreviewJob>(testDb.db, "preview")).toContainEqual({
+      mediaId: r.media_id,
+    });
+  });
+
+  it("queues no hover preview when they are off", async () => {
+    const data = await queued("no-preview", [await user()]);
+    const deps = { ...(await h.deps(await downloadScenario())), generatePreviews: false };
+    await fetchProcessor(deps, createCancelRegistry())(job(data));
+    const r = await testDb.db
+      .selectFrom("renditions")
+      .select("media_id")
+      .where("profile_id", "=", data.profileId)
+      .orderBy("created_at", "desc")
+      .executeTakeFirstOrThrow();
+    expect(await queuedData<PreviewJob>(testDb.db, "preview")).not.toContainEqual({
+      mediaId: r.media_id,
+    });
   });
 
   it("never overwrites another revision's file when a profile is edited (filesystem)", async () => {

@@ -138,6 +138,22 @@ const thumbnailRoute = createRoute({
   responses: { 200: binary("The image", "image/jpeg"), 404: error("No such entry or thumbnail") },
 });
 
+const previewRoute = createRoute({
+  method: "get",
+  path: "/api/library/{id}/preview",
+  tags: ["library"],
+  summary: "The entry's hover preview",
+  description:
+    "A short silent MP4 of snippets from across the video, or the whole of a short one (docs/library.md).",
+  request: { params: idParams },
+  responses: {
+    200: binary("The clip", "video/mp4"),
+    206: binary("A byte range of it", "video/mp4"),
+    404: error("No such entry, or no preview yet"),
+    416: { description: "The range is past the end" },
+  },
+});
+
 type Range = { start: number; end: number };
 
 /** A single `bytes=` range within `size`; "invalid" for one that cannot be served, null for none. */
@@ -242,5 +258,13 @@ export function registerLibraryRoutes(
       contentTypeOf(extname(entry.thumbnail_key).slice(1)),
       null,
     );
+  });
+
+  app.openapi(previewRoute, async (c) => {
+    const s = needStore(store);
+    const viewer = { userId: currentPrincipal(c).userId };
+    const entry = await visibleEntry(db, viewer, c.req.valid("param").id);
+    if (entry.preview_key === null) throw new ApiError("not_found", "no preview yet");
+    return serve(c, s, entry.preview_key, "video/mp4", null);
   });
 }

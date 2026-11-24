@@ -220,6 +220,10 @@ CREATE TABLE media (
   webpage_url TEXT,
   thumbnail_key TEXT,
   info_key TEXT,
+  -- The hover preview clip (docs/library.md "Hover previews"), once made; and when making it failed
+  -- for good, so the backfill leaves it be.
+  preview_key TEXT,
+  preview_failed_at TIMESTAMPTZ,
   -- Who uploaded it, for an uploaded video (docs/uploads.md): only they may edit its details.
   uploaded_by UUID REFERENCES users ON DELETE SET NULL,
   -- [{start, end, title}] from the .info.json.
@@ -741,7 +745,7 @@ CREATE TRIGGER playback_sessions_trash BEFORE DELETE ON playback_sessions
 -- can be used again once its job is done.
 CREATE TABLE jobs (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  queue TEXT NOT NULL CHECK (queue IN ('probe', 'download', 'notify', 'playback', 'automation', 'upload', 'export')),
+  queue TEXT NOT NULL CHECK (queue IN ('probe', 'download', 'notify', 'playback', 'automation', 'upload', 'export', 'preview')),
   name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 32),
   key TEXT CHECK (char_length(key) >= 1),
   data JSONB NOT NULL,

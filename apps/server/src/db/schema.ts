@@ -160,6 +160,10 @@ export interface MediaTable {
   webpage_url: string | null;
   thumbnail_key: string | null;
   info_key: string | null;
+  /** The hover preview clip, once made (docs/library.md "Hover previews"). */
+  preview_key: string | null;
+  /** When making the preview failed for good. */
+  preview_failed_at: Timestamp | null;
   /** Who uploaded it, for an uploaded video (docs/uploads.md). */
   uploaded_by: string | null;
   chapters: ColumnType<unknown, string | undefined, string>;

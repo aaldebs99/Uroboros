@@ -1245,6 +1245,10 @@
           "origin": {
             "$ref": "#/components/schemas/EntryOrigin"
           },
+          "previewUrl": {
+            "nullable": true,
+            "type": "string"
+          },
           "profileName": {
             "nullable": true,
             "type": "string"
@@ -1299,6 +1303,7 @@
           "uploadDate",
           "duration",
           "thumbnailUrl",
+          "previewUrl",
           "profileName",
           "origin",
           "sizeBytes",
@@ -3107,6 +3112,10 @@
           "owner": {
             "type": "string"
           },
+          "previewUrl": {
+            "nullable": true,
+            "type": "string"
+          },
           "shareId": {
             "format": "uuid",
             "type": "string"
@@ -3129,6 +3138,7 @@
           "id",
           "title",
           "thumbnailUrl",
+          "previewUrl",
           "count",
           "owner",
           "sharedAt",
@@ -6395,6 +6405,63 @@
           }
         },
         "summary": "init.mp4 or seg-N.m4s, made on demand if it isn't yet (the request waits)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/preview": {
+      "get": {
+        "description": "A short silent MP4 of snippets from across the video, or the whole of a short one (docs/library.md).",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The clip"
+          },
+          "206": {
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range of it"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry, or no preview yet"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "summary": "The entry's hover preview",
         "tags": [
           "library"
         ]

@@ -45,6 +45,7 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
         hwaccel: "none",
         vaapiDevice: "/dev/dri/renderD128",
       },
+      generatePreviews: true,
     },
     secretsKey: null,
     ...over,

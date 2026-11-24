@@ -106,7 +106,7 @@ async function sweepMediaOne(db: Kysely<Database>, id: string): Promise<boolean>
   return db.transaction().execute(async (tx) => {
     const m = await tx
       .selectFrom("media")
-      .select(["id", "extractor", "video_id", "thumbnail_key", "info_key"])
+      .select(["id", "extractor", "video_id", "thumbnail_key", "info_key", "preview_key"])
       .where("id", "=", id)
       .forUpdate()
       .executeTakeFirst();
@@ -130,7 +130,7 @@ async function sweepMediaOne(db: Kysely<Database>, id: string): Promise<boolean>
       .where("media_id", "=", id)
       .execute();
     await tx.deleteFrom("media").where("id", "=", id).execute();
-    const keys = [m.thumbnail_key, m.info_key, ...subs.map((s) => s.storage_key)];
+    const keys = [m.thumbnail_key, m.info_key, m.preview_key, ...subs.map((s) => s.storage_key)];
     await trash(
       tx,
       keys.filter((k): k is string => k !== null),

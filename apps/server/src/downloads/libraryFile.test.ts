@@ -18,7 +18,9 @@ let h: Awaited<ReturnType<typeof downloadHarness>>;
 let store: MediaStore;
 let alice: SignedIn;
 let bob: SignedIn;
+let carol: SignedIn;
 let entryId: string;
+let mediaId: string;
 const KEY = "Blender/2008-05-20 Big Buck Bunny [bbb]/Big Buck Bunny [Best available].mp4";
 
 beforeAll(async () => {
@@ -33,8 +35,10 @@ beforeAll(async () => {
   await writeFile(src, "0123456789");
   await store.put(KEY, src, "video/mp4");
   await store.put("thumb.jpg", src, "image/jpeg");
+  await store.put(".previews/clip.mp4", src, "video/mp4");
   alice = await signedIn(testDb.db, { username: "falice" });
   bob = await signedIn(testDb.db, { username: "fbob" });
+  carol = await signedIn(testDb.db, { username: "fcarol" });
   const p = await seededDefault(testDb.db);
   const media = await testDb.db
     .insertInto("media")
@@ -64,6 +68,16 @@ beforeAll(async () => {
     .returning("id")
     .executeTakeFirstOrThrow();
   entryId = e.id;
+  mediaId = media.id;
+  const share = await testDb.db
+    .insertInto("shares")
+    .values({ owner_id: alice.userId, entry_id: e.id, mode: "people" })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  await testDb.db
+    .insertInto("share_people")
+    .values({ share_id: share.id, user_id: carol.userId })
+    .execute();
 });
 afterAll(async () => {
   await h.close();
@@ -117,5 +131,30 @@ describe("GET /api/library/{id}/thumbnail", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/jpeg");
     expect((await app(bob).request(`/api/library/${entryId}/thumbnail`)).status).toBe(404);
+  });
+});
+
+describe("GET /api/library/{id}/preview", () => {
+  it("answers 404 until the preview is made", async () => {
+    const res = await app(alice).request(`/api/library/${entryId}/preview`);
+    expect(res.status).toBe(404);
+  });
+
+  it("serves the clip, in ranges, to the owner and whoever it is shared with", async () => {
+    await testDb.db
+      .updateTable("media")
+      .set({ preview_key: ".previews/clip.mp4" })
+      .where("id", "=", mediaId)
+      .execute();
+    const res = await app(alice).request(`/api/library/${entryId}/preview`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("video/mp4");
+    expect(res.headers.get("content-disposition")).toBeNull();
+    const part = await app(carol).request(`/api/library/${entryId}/preview`, {
+      headers: { range: "bytes=0-3" },
+    });
+    expect(part.status).toBe(206);
+    expect(await part.text()).toBe("0123");
+    expect((await app(bob).request(`/api/library/${entryId}/preview`)).status).toBe(404);
   });
 });

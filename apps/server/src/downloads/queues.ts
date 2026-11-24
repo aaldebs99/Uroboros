@@ -34,6 +34,11 @@ export interface ExportJob {
   exportId: string;
 }
 
+/** Make a video's hover preview clip (docs/library.md "Hover previews"). */
+export interface PreviewJob {
+  mediaId: string;
+}
+
 /** One push to all of a person's devices (`notify` queue; docs/push.md). */
 export interface NotifyJob {
   userId: string;
@@ -53,6 +58,8 @@ export interface DownloadQueues {
   upload: JobQueue<UploadJob>;
   /** Copies without SponsorBlock segments, re-encoded to save (docs/transcoding.md). */
   export: JobQueue<ExportJob>;
+  /** Hover preview clips (docs/library.md). */
+  preview: JobQueue<PreviewJob>;
 }
 
 /** The producer side of every queue (docs/jobs.md). */
@@ -65,5 +72,6 @@ export function createDownloadQueues(db: Kysely<Database>): DownloadQueues {
     playback: new JobQueue<PlaybackJob>(db, "playback"),
     upload: new JobQueue<UploadJob>(db, "upload"),
     export: new JobQueue<ExportJob>(db, "export"),
+    preview: new JobQueue<PreviewJob>(db, "preview"),
   };
 }

@@ -10,6 +10,8 @@ export interface TargetFacts {
   title: string;
   description: string | null;
   thumbnailUrl: string | null;
+  /** A video's hover preview (docs/library.md); null for a playlist, or until it is made. */
+  previewUrl: string | null;
   /** A playlist's videos (the owner's); null for one video. */
   count: number | null;
   /** The entry whose thumbnail stands for it, if any has one. */
@@ -31,7 +33,7 @@ export async function describeTarget(
     const row = await db
       .selectFrom("library_entries as e")
       .innerJoin("media as m", "m.id", "e.media_id")
-      .select(["m.title", "m.video_id", "m.description", "m.thumbnail_key"])
+      .select(["m.title", "m.video_id", "m.description", "m.thumbnail_key", "m.preview_key"])
       .where("e.id", "=", id)
       .where("e.user_id", "=", ownerId)
       .executeTakeFirst();
@@ -40,6 +42,7 @@ export async function describeTarget(
       title: row.title ?? row.video_id,
       description: row.description,
       thumbnailUrl: thumbnailUrl(`/api/library/${id}/thumbnail`, row.thumbnail_key),
+      previewUrl: thumbnailUrl(`/api/library/${id}/preview`, row.preview_key),
       count: null,
       coverEntryId: row.thumbnail_key === null ? null : id,
     };
@@ -52,6 +55,7 @@ export async function describeTarget(
     title: playlist.name,
     description: playlist.description,
     thumbnailUrl: playlist.coverThumbnailUrl,
+    previewUrl: null,
     count: playlist.count,
     coverEntryId: coverOf(playlist.coverThumbnailUrl),
   };

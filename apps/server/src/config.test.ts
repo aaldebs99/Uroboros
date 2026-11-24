@@ -279,8 +279,19 @@ describe("loadConfig transcoding", () => {
     ["UROBOROS_TRANSCODE_CONCURRENCY", "-1"],
     ["UROBOROS_TRANSCODE_HWACCEL", "qsv"],
     ["UROBOROS_TRANSCODE_VAAPI_DEVICE", "renderD128"],
+    ["UROBOROS_GENERATE_PREVIEWS", "no"],
   ])("rejects %s=%j", (name, bad) => {
     expect(() => loadConfig({ ...base, [name]: bad })).toThrow(ConfigError);
+  });
+
+  it("makes hover previews unless UROBOROS_GENERATE_PREVIEWS is false", () => {
+    expect(loadConfig(base).worker.generatePreviews).toBe(true);
+    expect(loadConfig({ ...base, UROBOROS_GENERATE_PREVIEWS: "" }).worker.generatePreviews).toBe(
+      true,
+    );
+    expect(
+      loadConfig({ ...base, UROBOROS_GENERATE_PREVIEWS: "false" }).worker.generatePreviews,
+    ).toBe(false);
   });
 });
 

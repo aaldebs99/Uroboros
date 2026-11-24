@@ -46,6 +46,7 @@ export function workerDeps(shared: SharedResources, config: Config, logger: Logg
     transcodeConcurrency: config.worker.transcode.concurrency,
     playbackBus: shared.playbackBus,
     transcoder: transcoderFor(config),
+    generatePreviews: config.worker.generatePreviews,
   };
 }
 

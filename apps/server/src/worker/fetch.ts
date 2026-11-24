@@ -18,6 +18,7 @@ import { upsertMedia } from "./media.ts";
 import { skipSegmentsFor } from "./skipSegments.ts";
 import { createProgressPublisher } from "./progress.ts";
 import { storeSubtitles, subtitleArgs } from "./subtitles.ts";
+import { queuePreview } from "../previews/queue.ts";
 
 const ACTIVE = ["queued", "running"] as const;
 const DOWNLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
@@ -282,6 +283,7 @@ async function store(
     infoKey,
   });
   await storeSubtitles(deps, mediaId, key, file);
+  const facts = renditionFacts(probed);
   await deps.db
     .insertInto("renditions")
     .values({
@@ -291,7 +293,7 @@ async function store(
       storage_key: key,
       size_bytes: size,
       container: ext,
-      ...renditionFacts(probed),
+      ...facts,
       skip_segments: JSON.stringify(skipSegmentsFor(data.args, info.sponsorSegments)),
     })
     .onConflict((oc) => oc.columns(["media_id", "profile_id", "profile_revision"]).doNothing())
@@ -299,6 +301,7 @@ async function store(
   const rendition = await existingRendition(deps, data);
   if (rendition === undefined) throw new StorageError("the rendition was not recorded");
   await indexKeyframes(deps, rendition.id, file.path, probed);
+  if (deps.generatePreviews && facts.video_codec !== null) await queuePreview(deps, mediaId);
   return rendition;
 }
 

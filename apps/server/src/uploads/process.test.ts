@@ -6,7 +6,8 @@ import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import type { Job } from "../jobs/queues.ts";
-import type { UploadJob } from "../downloads/queues.ts";
+import type { PreviewJob, UploadJob } from "../downloads/queues.ts";
+import { queuedData } from "../../test/jobs.ts";
 import { upsertMedia } from "../worker/media.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
 import { uploadProcessor } from "./process.ts";
@@ -161,6 +162,19 @@ describe("the upload job", () => {
       .where("upload_id", "=", id)
       .execute();
     expect(parts).toEqual([]);
+    expect(await queuedData<PreviewJob>(t.db, "preview")).toContainEqual({
+      mediaId: up.media_id,
+    });
+  });
+
+  it("queues no hover preview when they are off", async () => {
+    const id = await received("uppjob0");
+    await uploadProcessor({ ...deps, generatePreviews: false }).process(job(id));
+    const up = await uploadRow(id);
+    expect(up.state).toBe("done");
+    expect(await queuedData<PreviewJob>(t.db, "preview")).not.toContainEqual({
+      mediaId: up.media_id,
+    });
   });
 
   it("keeps the thumbnail its person sent", async () => {

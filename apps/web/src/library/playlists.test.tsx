@@ -44,6 +44,7 @@ const entry = (n: number) => ({
   uploadDate: "2008-05-20",
   duration: 596,
   thumbnailUrl: null,
+  previewUrl: null,
   profileName: "Best available",
   origin: "download",
   sizeBytes: 1024,

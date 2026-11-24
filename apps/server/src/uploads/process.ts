@@ -9,6 +9,7 @@ import { renditionFacts } from "../transcode/facts.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
 import { dayOf, uploadThumbnailKey } from "./keys.ts";
 import { FAILED_NO_VIDEO, FAILED_OTHERWISE, failUpload, type UploadRow } from "./store.ts";
+import { queuePreview } from "../previews/queue.ts";
 
 /**
  * The `upload` job (docs/uploads.md): puts a finished upload's parts together in the store, checks
@@ -177,6 +178,7 @@ async function fileUpload(deps: WorkerDeps, id: string, signal: AbortSignal): Pr
       .where("id", "=", id)
       .execute();
     await tx.deleteFrom("upload_parts").where("upload_id", "=", id).execute();
+    if (deps.generatePreviews) await queuePreview(deps, up.media_id, tx);
     return true;
   });
   if (!filed && frameKey !== null) await deps.store.delete(frameKey);

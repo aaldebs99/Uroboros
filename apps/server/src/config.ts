@@ -73,6 +73,11 @@ export interface WorkerSettings {
     /** The VA-API render node (`UROBOROS_TRANSCODE_VAAPI_DEVICE`). */
     vaapiDevice: string;
   };
+  /**
+   * Whether videos get hover preview clips (`UROBOROS_GENERATE_PREVIEWS`, on by default): off, none
+   * are made, new or backfilled; those already made still play.
+   */
+  generatePreviews: boolean;
 }
 
 const DEFAULT_WORKER_CONCURRENCY = 4;
@@ -175,6 +180,11 @@ const workerEnvSchema = z.object({
   UROBOROS_AUTO_SUBTITLES: unsetIfEmpty(
     z
       .enum(["true", "false"], { error: "UROBOROS_AUTO_SUBTITLES must be true or false" })
+      .optional(),
+  ),
+  UROBOROS_GENERATE_PREVIEWS: unsetIfEmpty(
+    z
+      .enum(["true", "false"], { error: "UROBOROS_GENERATE_PREVIEWS must be true or false" })
       .optional(),
   ),
   UROBOROS_TRANSCODE_CONCURRENCY: unsetIfEmpty(
@@ -322,6 +332,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
         hwaccel: e.UROBOROS_TRANSCODE_HWACCEL,
         vaapiDevice: e.UROBOROS_TRANSCODE_VAAPI_DEVICE,
       },
+      generatePreviews: e.UROBOROS_GENERATE_PREVIEWS !== "false",
     },
     secretsKey: e.UROBOROS_SECRETS_KEY ?? null,
   };

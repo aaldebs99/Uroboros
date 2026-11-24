@@ -76,6 +76,7 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
           gpuWorks: true,
           memo: new PipelineMemo(),
         },
+        generatePreviews: true,
       };
     },
     playbackBus,

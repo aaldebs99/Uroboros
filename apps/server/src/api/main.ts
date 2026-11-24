@@ -214,7 +214,9 @@ export async function startApi(
           sweeperDuty(db, logger)(signal),
           reconcileDuty(downloadContext)(signal),
           stallDuty(db, logger)(signal),
-          automationDuties(downloadContext, store)(signal),
+          automationDuties(downloadContext, store, {
+            generatePreviews: config.worker.generatePreviews,
+          })(signal),
         ]).then(() => undefined),
       shutdown: stop.signal,
       ...(opts.leaderRetryMs === undefined ? {} : { retryMs: opts.leaderRetryMs }),

@@ -90,6 +90,8 @@ export const SharedWithMe = z
     id: z.uuid(),
     title: z.string(),
     thumbnailUrl: z.string().nullable(),
+    /** A video's hover preview (docs/library.md); null for a playlist, or until it is made. */
+    previewUrl: z.string().nullable(),
     /** A playlist's videos; null for a single video. */
     count: z.number().int().nullable(),
     owner: z.string(),

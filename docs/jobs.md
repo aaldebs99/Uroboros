@@ -20,6 +20,7 @@ Background work runs as jobs in `src/jobs/`. Each job is a row in `jobs`, waitin
 | `automation` | a subscription check, or its "latest" | 30 s  | 1                           |
 | `upload`     | filing a finished upload              | 60 s  | 2                           |
 | `export`     | a copy without SponsorBlock segments  | 60 s  | 1                           |
+| `preview`    | a video's hover preview clip          | 60 s  | 1                           |
 
 **Adding.** `JobQueue.add(name, data, {key, delayMs, attempts, backoff}, on?)` inserts the row and
 wakes the workers on `uroboros_jobs`.

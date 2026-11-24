@@ -9,6 +9,7 @@ import { notifyProcessor } from "./notify.ts";
 import { probeProcessor } from "./probe.ts";
 import { uploadProcessor } from "../uploads/process.ts";
 import { exportProcessor } from "./exportRun.ts";
+import { previewProcessor } from "./previewRun.ts";
 
 /** Pushes sent at once per replica. */
 const NOTIFY_CONCURRENCY = 4;
@@ -16,6 +17,8 @@ const NOTIFY_CONCURRENCY = 4;
 const UPLOAD_CONCURRENCY = 2;
 /** Copies without sponsors re-encoded at once per transcoding replica: each takes a whole encoder. */
 const EXPORT_CONCURRENCY = 1;
+/** Hover previews cut at once per transcoding replica (docs/library.md): small, on the CPU. */
+const PREVIEW_CONCURRENCY = 1;
 
 export interface DownloadWorkers {
   /** The consumers of every queue (docs/jobs.md). */
@@ -56,6 +59,7 @@ export async function startDownloadWorkers(
   const automation = automationConsumers(deps);
   const uploads = uploadProcessor(deps);
   const exports = exportProcessor(deps);
+  const previews = previewProcessor(deps);
   const consumers: Consumer[] = [
     {
       queue: "probe",
@@ -78,13 +82,18 @@ export async function startDownloadWorkers(
       process: uploads.process as Consumer["process"],
     },
     ...automation.consumers,
-    // Copies are made where playback sessions are: replicas with a transcoder to spare.
+    // Copies and previews are made where playback sessions are: replicas with a transcoder to spare.
     ...(deps.transcodeConcurrency > 0
       ? [
           {
             queue: "export" as const,
             concurrency: EXPORT_CONCURRENCY,
             process: exports.process as Consumer["process"],
+          },
+          {
+            queue: "preview" as const,
+            concurrency: PREVIEW_CONCURRENCY,
+            process: previews.process as Consumer["process"],
           },
         ]
       : []),
@@ -96,6 +105,7 @@ export async function startDownloadWorkers(
       cancels.abortAll();
       uploads.abortAll();
       exports.abortAll();
+      previews.abortAll();
       automation.abortRunning();
     },
     close() {

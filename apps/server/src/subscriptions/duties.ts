@@ -5,15 +5,21 @@ import type { MediaStore } from "../storage/store.ts";
 import { reconcileSessions, SESSION_DUTY_EVERY_MS } from "../transcode/sessionDuties.ts";
 import { sweepUploads, UPLOAD_SWEEP_EVERY_MS } from "../uploads/sweep.ts";
 import { EXPORT_SWEEP_EVERY_MS, sweepExports } from "../exports/sweep.ts";
+import { PREVIEW_SWEEP_EVERY_MS, sweepPreviews } from "../previews/sweep.ts";
 import { checkDueSubscriptions, DUE_EVERY_MS } from "./due.ts";
 import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
 
 /**
  * The leader's automation duties: queue due checks every few seconds, apply retention hourly, run the reaper
  * every 15 minutes, and look after playback sessions (lost runs, abandoned and ended sessions),
- * uploads (lost jobs, abandoned and old uploads) and copies to save (lost jobs) every minute.
+ * uploads (lost jobs, abandoned and old uploads), copies to save (lost jobs) and, unless they are
+ * off, the hover previews still to make every minute.
  */
-export function automationDuties(ctx: DownloadContext, store: MediaStore) {
+export function automationDuties(
+  ctx: DownloadContext,
+  store: MediaStore,
+  opts: { generatePreviews: boolean },
+) {
   const due = periodicDuty(
     "due checks",
     DUE_EVERY_MS,
@@ -53,6 +59,14 @@ export function automationDuties(ctx: DownloadContext, store: MediaStore) {
     () => sweepExports(ctx),
     ctx.logger,
   );
+  const previews = periodicDuty(
+    "hover previews",
+    PREVIEW_SWEEP_EVERY_MS,
+    async () => {
+      await sweepPreviews(ctx);
+    },
+    ctx.logger,
+  );
   return async (signal: AbortSignal): Promise<void> => {
     await Promise.all([
       due(signal),
@@ -61,6 +75,7 @@ export function automationDuties(ctx: DownloadContext, store: MediaStore) {
       sessions(signal),
       uploads(signal),
       exports(signal),
+      ...(opts.generatePreviews ? [previews(signal)] : []),
     ]);
   };
 }

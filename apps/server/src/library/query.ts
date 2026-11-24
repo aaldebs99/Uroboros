@@ -271,6 +271,7 @@ export const ENTRY_COLUMNS = [
   "m.upload_date",
   "m.duration",
   "m.thumbnail_key",
+  "m.preview_key",
   "r.size_bytes",
   "r.container",
   "p.name as profile_name",
@@ -303,6 +304,7 @@ export interface EntryRow {
   upload_date: string | null;
   duration: number | null;
   thumbnail_key: string | null;
+  preview_key: string | null;
   size_bytes: string;
   container: string | null;
   profile_name: string | null;
@@ -339,6 +341,7 @@ export function toEntry(r: EntryRow, own = true): LibraryEntry {
     uploadDate: dashed(r.upload_date),
     duration: r.duration,
     thumbnailUrl: thumbnailUrl(`/api/library/${r.id}/thumbnail`, r.thumbnail_key),
+    previewUrl: thumbnailUrl(`/api/library/${r.id}/preview`, r.preview_key),
     profileName: r.profile_name,
     origin: originOf(r.extractor),
     sizeBytes: Number(r.size_bytes),

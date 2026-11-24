@@ -179,11 +179,12 @@ describe("the reaper", () => {
       `media/${m.id}/thumb.jpg`,
       `media/${m.id}/info.json`,
       `media/${m.id}/subs/en.vtt`,
+      `.previews/${m.id}.mp4`,
     ];
     for (const k of keys) await store.put(k, src, "application/octet-stream");
     await t.db
       .updateTable("media")
-      .set({ thumbnail_key: keys[0], info_key: keys[1] })
+      .set({ thumbnail_key: keys[0], info_key: keys[1], preview_key: keys[3] })
       .where("id", "=", m.id)
       .execute();
     await t.db

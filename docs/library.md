@@ -84,6 +84,36 @@ report from earlier in it (a rewatch, a late report) doesn't undo. `PUT /api/lib
 sets it by hand; unwatching also starts it over. Tiles show a watched bar; the item page resumes
 where the person left off.
 
+## Hover previews
+
+A video's tile plays a short preview while it is hovered with a mouse (after 300 ms), or after a
+press and hold of 400 ms on a touch screen: two seconds at the start, at 20%, 40%, 60% and 80%, or
+the whole of a video under 15 seconds. It is a clip the server makes once per media, so it starts
+at once, plays the same for every file the library holds, and costs a few hundred KB to watch:
+
+- **The clip** (`packages/ytdlp/src/previewArgs.ts`) is silent H.264 at 480p (the short side, never
+  scaled up), capped at 1 Mbit/s, in an MP4 with `+faststart`. Each snippet is its own input seeked
+  before it is opened, so only a little around each point is read and decoded; HDR is tone-mapped
+  to BT.709.
+- **The job** (`preview` queue, `src/worker/previewRun.ts`) reads the media's smallest stored video
+  of at least 480p (else its tallest), runs on replicas that run sessions, one at a time, on the
+  CPU with the transcoder's ffmpeg, and stores the clip at `.previews/<media id>.mp4`
+  (`media.preview_key`). Two attempts; one that fails for good sets `media.preview_failed_at`.
+- **What queues it:** a download that stored a video, a filed upload, and the leader's backfill
+  (`src/previews/sweep.ts`), which every minute queues up to 30 media with a stored video, no
+  preview, none failed and none waiting, so a library made before previews gets them at the
+  encoder's pace. Audio has none.
+- **Serving.** `previewUrl` on a `LibraryEntry` (and on a video in Shared › With me) is
+  `GET /api/library/{id}/preview`, which answers to whoever sees the entry and serves byte ranges,
+  cached for a day; null until the clip is made.
+- **Off.** `UROBOROS_GENERATE_PREVIEWS=false` makes none, new or backfilled; clips already made
+  still play. The reaper deletes a clip with its media.
+
+The preview is a plain muted `<video>` laid over the thumbnail, not the player: it reports no watch
+progress and never touches the remembered volume. Grid tiles have it (the library, search,
+channels, playlists, a shared playlist and Shared › With me); the small rows beside the player, the
+playlist editor, the search palette and public links don't.
+
 ## Keep and retention
 
 An entry a subscription brought carries it (`subscription`), and that subscription's retention may

@@ -13,6 +13,7 @@ export const itemFixture: LibraryItem = {
   uploadDate: "2008-05-20",
   duration: 596,
   thumbnailUrl: null,
+  previewUrl: null,
   profileName: "Best up to 1080p (MP4)",
   origin: "download",
   sizeBytes: 1024,

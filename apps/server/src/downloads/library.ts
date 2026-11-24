@@ -27,6 +27,7 @@ export function entryQuery(db: Kysely<Database>) {
       "m.upload_date",
       "m.duration",
       "m.thumbnail_key",
+      "m.preview_key",
       "r.storage_key",
       "r.size_bytes",
       "r.container",

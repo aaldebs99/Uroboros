@@ -29,6 +29,7 @@ export async function listSharedWithMe(db: Db, userId: string): Promise<SharedWi
         id: s.target.id,
         title: facts.title,
         thumbnailUrl: facts.thumbnailUrl,
+        previewUrl: facts.previewUrl,
         count: facts.count,
         owner: s.ownerName,
         sharedAt: s.sharedAt.toISOString(),

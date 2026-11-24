@@ -288,6 +288,11 @@ export const LibraryEntry = z
     uploadDate: z.string().nullable(),
     duration: z.number().nullable(),
     thumbnailUrl: z.string().nullable(),
+    /**
+     * The hover preview: a short silent MP4 of snippets from across the video (docs/library.md
+     * "Hover previews"); null until it is made, and for audio.
+     */
+    previewUrl: z.string().nullable(),
     /** The format profile it was downloaded with; null for an upload, or once the profile is gone. */
     profileName: z.string().nullable(),
     /** Downloaded from a site, or uploaded by someone (docs/uploads.md). */
