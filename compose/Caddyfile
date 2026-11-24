@@ -1,6 +1,6 @@
-# Caddy for the local compose stack: one entrypoint, round-robin over both uroboros replicas.
-# `dynamic a` re-resolves the `uroboros` service name every two seconds, so replicas that restart
-# or scale are picked up.
+# Caddy for the local compose stack: one entrypoint in front of uroboros. `dynamic a` re-resolves
+# the `uroboros` service name every two seconds, so a restarted container, or replicas added with
+# `docker compose up --scale uroboros=N`, are picked up and served round-robin.
 {
 	admin off
 	auto_https off

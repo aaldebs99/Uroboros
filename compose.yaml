@@ -1,7 +1,9 @@
-# Local stack, the shape of a production run: Postgres, Valkey and RustFS, and two uroboros
-# replicas behind Caddy on 127.0.0.1:18080 (UROBOROS_PORT overrides the host port). Every replica
-# serves HTTP and runs the download jobs, and applies pending migrations as it starts (one at a
-# time, under an advisory lock); one of them leads the singleton duties.
+# Local stack, the shape of a production run: Postgres, Valkey and RustFS, and one uroboros
+# behind Caddy on 127.0.0.1:18080 (UROBOROS_PORT overrides the host port). It serves HTTP, runs
+# the download jobs and applies pending migrations as it starts. More replicas work the same way
+# (`docker compose up --scale uroboros=2`): each serves and downloads, the migrations apply once
+# under an advisory lock, one replica leads the singleton duties, and Caddy picks them all up.
+# Settings come from the shell or a `.env` file beside this one (`.env.example` lists them all).
 # `mise run docker:up` builds the real images and starts it. The proxy is the only port this file
 # publishes. Everything dev-only (hot reload, loopback ports for Postgres, Valkey and RustFS,
 # which `mise run dev:deps` uses for a host-run server) is in compose.dev.yaml.
@@ -153,8 +155,6 @@ services:
     build: *server-build
     image: uroboros:local
     restart: unless-stopped
-    deploy:
-      replicas: 2
     environment: *server-env
     volumes:
       - media-data:/media
@@ -186,8 +186,8 @@ services:
       rustfs-init:
         condition: service_completed_successfully
 
-  # The one entrypoint, round-robin over both replicas. `dynamic a` re-resolves the `uroboros`
-  # service name every two seconds, so replicas that restart or scale are picked up.
+  # The one entrypoint. `dynamic a` re-resolves the `uroboros` service name every two seconds, so
+  # a restarted container, or replicas added with --scale, are picked up (round-robin).
   caddy:
     image: caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     restart: unless-stopped

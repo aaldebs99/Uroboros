@@ -186,6 +186,9 @@ Giving a replica a GPU in compose:
 - `compose/gpu/vaapi.yaml` passes the render node and the host's `render` group
   (`UROBOROS_RENDER_GID`).
 
+`.env.example` walks through both: the host setup, and `COMPOSE_FILE` in `.env`, which adds an
+overlay for `mise run docker:up`.
+
 Safari's native HLS, and VA-API on Intel, are built to spec but untested.
 
 ## Configuration

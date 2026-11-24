@@ -49,8 +49,9 @@ yt-dlp and ffmpeg on `PATH`; the compose stacks below have them.
 The image takes its ffmpeg from an image in a private registry, so the `docker:*` tasks
 (`docker:build`, `docker:smoke`, `docker:up`) need `docker login code.example.com` first.
 To run the real thing instead, `mise run docker:up` builds the image and starts Postgres, Valkey,
-RustFS and two replicas (each migrating as it starts, serving and downloading) behind Caddy on
-http://127.0.0.1:18080. `mise run docker:up:dev` is the same stack with both the server and the
+RustFS and one uroboros (migrating as it starts, serving and downloading) behind Caddy on
+http://127.0.0.1:18080; `docker compose up --scale uroboros=2` runs more replicas, which share the
+work. `mise run docker:up:dev` is the same stack with both the server and the
 UI hot-reloading from source (Vite behind the same Caddy, so an edit to the UI shows at once and
 one to the server restarts the replicas; `mise run docker:up:dev:build` after a dependency or
 Dockerfile change), listening on port 18080 on every interface so other devices on the network can
@@ -144,6 +145,11 @@ Every environment variable the code reads. The server and migrate processes read
 through `apps/server/src/config.ts`, which refuses a bad value at startup (exit 2) and treats an
 empty optional one as unset; the test and Vite variables at the bottom are read by the test setup,
 and `vite.config.ts`. The compose stack sets them for you.
+
+[`.env.example`](.env.example) lists every one of them with its default, says which ones compose
+passes through, and walks through the setups: the local stack, transcoding on an NVIDIA or AMD
+GPU, organized folders, a host-run server, and what to change before others use it. Copy it to
+`.env` (gitignored), which compose reads, and uncomment what you change.
 
 | Variable                                                     | Read by                       | Default                                                            | What it is                                                                                                                                                                                                                                                                           |
 | ------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

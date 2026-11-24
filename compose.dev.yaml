@@ -3,15 +3,15 @@
 #   uroboros  the Dockerfile's `dev` stage (node, pnpm, the installed workspace, yt-dlp and ffmpeg)
 #             running `tsx watch`, with apps/server/src, packages/contract/src, packages/ytdlp/src
 #             and ./migrations mounted over the image's copies, so an edit to any server code
-#             (downloads included) restarts both replicas. Only those directories are mounted: the
-#             image's node_modules stay in place. Migrations apply as a replica starts, reading
+#             (downloads included) restarts it. Only those directories are mounted: the
+#             image's node_modules stay in place. Migrations apply as the server starts, reading
 #             ./migrations from the host, so a new file applies on the next restart (an edit under
 #             apps/server/src restarts it). A dependency or Dockerfile change needs
 #             `mise run docker:up:dev:build`.
 #   web       the UI with hot reload: Vite from the same image, on :18173 inside the network,
 #             with apps/web's sources and packages/contract/src mounted, so an edit shows in the
 #             browser at once (HMR), no rebuild. Not published: Caddy fronts it.
-#   caddy     the one entrypoint, compose/Caddyfile.dev: /api to the replicas, everything else
+#   caddy     the one entrypoint, compose/Caddyfile.dev: /api to uroboros, everything else
 #             (the HMR websocket included) to `web`. Published on every interface (port 18080,
 #             UROBOROS_PORT), not only loopback as in compose.yaml, so phones and other machines
 #             on the network can reach the dev stack. Anyone who can reach the port can reach the
@@ -66,8 +66,8 @@ services:
       - ./packages/contract/src:/src/packages/contract/src:ro
       - ./packages/ytdlp/src:/src/packages/ytdlp/src:ro
 
-  # The UI with hot reload. The same image as the replicas (its build stage holds the installed
-  # workspace), so the build section matches theirs and the second build is all cache.
+  # The UI with hot reload. The same image as the server (its build stage holds the installed
+  # workspace), so the build section matches its own and the second build is all cache.
   web:
     build:
       context: .

@@ -1,9 +1,9 @@
 # Caddy for the dev stack (compose.dev.yaml mounts it in place of ./Caddyfile): one entrypoint on
-# :8080 where both halves hot-reload. /api goes round-robin to the uroboros replicas (tsx watch,
-# `dynamic a` re-resolving them every two seconds, as in the production Caddyfile); everything
-# else, the HMR websocket included, goes to the `web` service's Vite. The Host header is rewritten
-# for Vite, whose DNS-rebinding guard refuses a request for a name it doesn't know (a LAN host
-# name); it allows localhost.
+# :8080 where both halves hot-reload. /api goes to uroboros (tsx watch, `dynamic a` re-resolving
+# it every two seconds, round-robin over any replicas added with --scale, as in the production
+# Caddyfile); everything else, the HMR websocket included, goes to the `web` service's Vite. The
+# Host header is rewritten for Vite, whose DNS-rebinding guard refuses a request for a name it
+# doesn't know (a LAN host name); it allows localhost.
 {
 	admin off
 	auto_https off
