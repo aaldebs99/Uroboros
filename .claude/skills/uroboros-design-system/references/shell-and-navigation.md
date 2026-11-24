@@ -19,7 +19,8 @@ to right:
    empty it shows a `<kbd>` hint for the [search palette](#search-palette-ctrlk) ("Ctrl K", or "⌘K"
    on a Mac, from `paletteHint()`).
 4. **"+ Add"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500,
-   opening the [Add menu](#add-menu-and-its-dialogs).
+   opening the [Add menu](#add-menu-and-its-dialogs). On phones it is a 40px round "+" with no
+   label ([phone](phone.md#getting-around)).
 5. The account avatar, a 32px circle, which opens the [account menu](#account-menu).
 
 The bell slot stays empty until an in-app notification list exists. There's no separate theme

@@ -5,9 +5,10 @@ A slim top bar with a menu button, and bottom tabs.
 ## Getting around
 
 - **Top bar:** slim, about 48px, on `bg-background`. It holds a ghost menu button at the left,
-  the brand (tile and wordmark at 16px), a ghost search button that opens the
-  [search palette](shell-and-navigation.md#search-palette-ctrlk), and the 28px avatar (the account
-  menu).
+  the brand's tile alone (`<Brand home compact />`: the wordmark shows from `md` up), a ghost search
+  button that opens the [search palette](shell-and-navigation.md#search-palette-ctrlk), the Add
+  button (a 40px round "+" on `bg-raised`, `aria-label="Add"`; the "+ Add" pill from `md` up), and
+  the 28px avatar (the account menu).
 - **The menu button** opens the side navigation as a 240px drawer from the left
   (`components/NavDrawer.tsx`, a native `<dialog>` over the scrim, ported from Djinn), with its own
   menu button and brand where the top bar's sit. It holds everything the side navigation does on
@@ -58,7 +59,8 @@ A sheet of action rows that slides up from the bottom:
 
 ## Add: Download or Upload
 
-The **"+"** (`aria-label="Add"`) opens the Add menu as the bottom sheet above, with **Download**
+The top bar's **"+"** and the tab bar's (both `aria-label="Add"`) open the Add menu as the bottom
+sheet above, with **Download**
 and **Upload**. Each opens the same centred [dialog](feedback-and-containers.md#dialogs) as on
 desktop (Download a link, Upload a video), inset 24px from the sides; the upload dialog's file area
 is a button there (phones have nothing to drag from).

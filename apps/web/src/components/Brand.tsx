@@ -1,12 +1,15 @@
 import { Link } from "@tanstack/react-router";
 
+import { cn } from "@/lib/utils";
+
 /**
  * The mark and wordmark. `/uroboros-tile.svg` is a copy of `assets/logos/uroboros.svg`, the logo
  * on its own navy tile (refreshed by `mise run icons`), the only navy element in light mode. With
  * `home` (the top bar and the navigation drawer) it is a link to the library, the start page,
- * dropping any search or filter; without it (sign-in, a public link) it is only the mark.
+ * dropping any search or filter; without it (sign-in, a public link) it is only the mark. With
+ * `compact` (the top bar) a phone shows the tile alone, leaving the slim bar room for its buttons.
  */
-export function Brand({ home = false }: { home?: boolean }) {
+export function Brand({ home = false, compact = false }: { home?: boolean; compact?: boolean }) {
   const mark = (
     <>
       <img
@@ -14,7 +17,9 @@ export function Brand({ home = false }: { home?: boolean }) {
         alt=""
         className="size-7 rounded-[18.5%] shadow-[0_0_0.875rem_oklch(0.62_0.19_262/0.35)] md:size-8"
       />
-      <span className="text-base font-bold md:text-lg">Uroboros</span>
+      <span className={cn("text-base font-bold md:text-lg", compact && "hidden md:inline")}>
+        Uroboros
+      </span>
     </>
   );
   if (!home) return <div className="flex items-center gap-2.5">{mark}</div>;

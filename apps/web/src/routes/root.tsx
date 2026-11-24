@@ -112,7 +112,7 @@ function ShellFrame({ me }: { me: Me }) {
               <Menu className="size-5" />
             </Button>
           )}
-          <Brand home />
+          <Brand home compact />
         </div>
         <div className="hidden flex-1 justify-center md:flex">
           <SearchBar />
@@ -134,9 +134,14 @@ function ShellFrame({ me }: { me: Me }) {
             onDownload={openDownload}
             onUpload={openUpload}
             trigger={
-              <Button variant="icon" className="hidden h-9 rounded-full pr-4 pl-3 md:inline-flex">
+              // A round "+" on phones; the "+ Add" pill from md up.
+              <Button
+                variant="icon"
+                aria-label="Add"
+                className="size-10 rounded-full md:h-9 md:w-auto md:pr-4 md:pl-3"
+              >
                 <Plus className="size-5" aria-hidden />
-                Add
+                <span className="hidden md:inline">Add</span>
               </Button>
             }
           />
