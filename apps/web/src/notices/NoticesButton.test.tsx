@@ -127,6 +127,16 @@ describe("NoticesButton", () => {
     );
   });
 
+  it("asks again, when opened, for copies started elsewhere", async () => {
+    let copies: unknown[] = [];
+    api({ "GET /api/exports": () => Response.json(copies) });
+    await show();
+    await screen.findByRole("button", { name: "Notifications, 1 unread, 1 in progress" });
+    copies = [copyFixture()];
+    await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
+    expect(await screen.findByRole("progressbar", { name: /no sponsors/ })).toBeInTheDocument();
+  });
+
   it("follows a download as it finishes", async () => {
     api();
     await show();
