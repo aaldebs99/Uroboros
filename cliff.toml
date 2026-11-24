@@ -7,15 +7,18 @@
 # commit. That gate lives in scripts/release/propose.sh, not here.
 #
 # Tags are bare semver (`0.3.11`, never `v0.3.11`): `tag_pattern` decides what counts as a release
-# and scripts/release/lib.sh reads the same pattern. The link host is hardcoded on purpose: a
-# constant cannot go stale and needs no API access.
+# and scripts/release/lib.sh reads the same pattern. The links point at the GitHub mirror, a
+# constant that needs no API access: a plain mirror keeps every commit hash and tag, so commit and
+# compare links resolve there. They never point at the forge, whose domain stays out of the
+# repository (ratchet:forge-host). Pull-request numbers are the forge's and mean nothing on
+# GitHub, so a "(#140)" reference stays plain text.
 
 [changelog]
 # `--prepend` re-emits the header once and inserts the new section directly under it, so it must
 # match the first line of CHANGELOG.md exactly.
 header = "# Changelog\n\n"
 body = """
-{%- set repo = "https://code.example.com/aaldebs99/Uroboros" -%}
+{%- set repo = "https://github.com/aaldebs99/Uroboros" -%}
 {% if version -%}
 {% if previous.version -%}
 ## [{{ version }}]({{ repo }}/compare/{{ previous.version }}...{{ version }}) ({{ timestamp | date(format="%Y-%m-%d") }})
@@ -36,10 +39,6 @@ body = """
 """
 footer = ""
 trim = true
-# Turn "(#140)" PR references into links, the way release-please did.
-postprocessors = [
-  { pattern = '\(#(\d+)\)', replace = "([#${1}](https://code.example.com/aaldebs99/Uroboros/pulls/${1}))" },
-]
 
 [git]
 conventional_commits = true
