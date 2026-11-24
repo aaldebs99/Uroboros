@@ -65,7 +65,8 @@ function ExportRow({ copy }: { copy: Export }) {
   };
   return (
     <li className="flex gap-3 border-t border-border py-3.5 first:border-t-0 md:gap-4">
-      <span className="grid aspect-video w-24 shrink-0 place-items-center rounded-[0.5rem] bg-raised md:w-30">
+      {/* Phones give the title the room instead. */}
+      <span className="hidden aspect-video w-30 shrink-0 place-items-center rounded-[0.5rem] bg-raised md:grid">
         <Scissors className="size-5 text-muted-foreground" aria-hidden />
       </span>
       <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-1.5">
@@ -83,9 +84,9 @@ function ExportRow({ copy }: { copy: Export }) {
       </div>
       <div className="flex shrink-0 items-start gap-1">
         {copy.fileUrl === null ? null : (
-          <Button variant="secondary" size="compact" asChild>
+          <Button variant="secondary" size="compact" className="max-md:size-10 max-md:px-0" asChild>
             <a href={copy.fileUrl} download aria-label={`Save ${copy.title}`}>
-              <Download aria-hidden /> Save
+              <Download aria-hidden /> <span className="hidden md:inline">Save</span>
             </a>
           </Button>
         )}
