@@ -175,4 +175,10 @@ export {
   NewGroupBody,
 } from "./groups.ts";
 export { InstanceSettings, InstanceSettingsPatch } from "./settings.ts";
-export { MCP_PATH } from "./mcp.ts";
+export {
+  MAX_TRANSCRIPT_LINES,
+  MCP_PATH,
+  Transcript,
+  TranscriptLine,
+  TranscriptTrack,
+} from "./mcp.ts";
