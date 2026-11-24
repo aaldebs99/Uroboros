@@ -184,21 +184,39 @@ describe("schema: downloads, media and profiles", () => {
       fetch_key: fetchKey,
     });
 
-  it("seeds the three profiles with Best available as default", async () => {
-    expect(await profiles()).toEqual([
-      { id: expect.any(String) as string, name: "Audio only (Opus)", is_default: false },
-      { id: expect.any(String) as string, name: "Best available", is_default: true },
-      { id: expect.any(String) as string, name: "Best up to 1080p (MP4)", is_default: false },
-    ]);
+  it("seeds the built-in profiles with Best available as default", async () => {
+    expect(await profiles()).toEqual(
+      [
+        "Archive (MKV, uncut)",
+        "Audio only (Opus)",
+        "Best available",
+        "Best up to 1080p (MP4)",
+        "Music (MP3)",
+        "Podcasts (M4A)",
+        "Up to 720p (MP4)",
+      ].map((name) => ({
+        id: expect.any(String) as string,
+        name,
+        is_default: name === "Best available",
+      })),
+    );
   });
 
-  it("seeds every profile cutting sponsors, self-promotion and interaction reminders", async () => {
+  it("seeds the built-ins' SponsorBlock cuts: the usual three, music's non-music too, none for the archive", async () => {
     const rows = await t.db
       .selectFrom("format_profiles")
       .select(["name", "sponsorblock_remove"])
+      .where("user_id", "is", null)
       .execute();
+    const usual = ["interaction", "selfpromo", "sponsor"];
     for (const row of rows) {
-      expect(row.sponsorblock_remove, row.name).toEqual(["interaction", "selfpromo", "sponsor"]);
+      const expected =
+        row.name === "Music (MP3)"
+          ? ["interaction", "music_offtopic", "selfpromo", "sponsor"]
+          : row.name === "Archive (MKV, uncut)"
+            ? []
+            : usual;
+      expect(row.sponsorblock_remove, row.name).toEqual(expected);
     }
   });
 

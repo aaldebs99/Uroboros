@@ -52,9 +52,13 @@ describe("format profiles", () => {
   it("seeds built-ins whose revisions profileRevision reproduces, listed for everyone", async () => {
     const builtIns = (await list()).filter((p) => p.builtIn);
     expect(builtIns.map((p) => p.name)).toEqual([
+      "Archive (MKV, uncut)",
       "Audio only (Opus)",
       "Best available",
       "Best up to 1080p (MP4)",
+      "Music (MP3)",
+      "Podcasts (M4A)",
+      "Up to 720p (MP4)",
     ]);
     for (const p of builtIns) expect(p.revision).toBe(profileRevision(p));
     expect((await list(admin)).filter((p) => p.builtIn)).toEqual(builtIns);
@@ -139,6 +143,25 @@ describe("format profiles", () => {
 });
 
 describe("ytdlpArgsFor", () => {
+  it("runs the Music built-in as best-quality MP3 with its cover, cutting non-music sections", async () => {
+    const music = (await list()).find((p) => p.name === "Music (MP3)");
+    expect(music).toBeDefined();
+    if (music === undefined) return;
+    expect(ytdlpArgsFor(music)).toEqual({
+      format: "ba/b",
+      extraArgs: [
+        "--extract-audio",
+        "--audio-format=mp3",
+        "--write-thumbnail",
+        "--convert-thumbnails=jpg",
+        "--sponsorblock-remove=interaction,music_offtopic,selfpromo,sponsor",
+        "--audio-quality=0",
+        "--embed-metadata",
+        "--embed-thumbnail",
+      ],
+    });
+  });
+
   it("extracts audio, writes a jpg thumbnail, and keeps the profile's own arguments last", () => {
     expect(
       ytdlpArgsFor({

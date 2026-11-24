@@ -177,20 +177,33 @@ CREATE TABLE user_default_profiles (
   profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE CASCADE
 );
 
--- The built-ins. Revisions are profileRevision() of each row's arguments
--- (apps/server/src/downloads/profiles.ts; its test pins these literals). "Best available" is the
--- default, and every one cuts SponsorBlock's sponsor, self-promotion and interaction-reminder
--- segments.
+-- The built-ins. Revisions are profileRevision() of each row's arguments, extra arguments in the
+-- order given (apps/server/src/downloads/profiles.ts; its test pins these literals). "Best
+-- available" is the default. All but the archive cut SponsorBlock's sponsor, self-promotion and
+-- interaction-reminder segments; music also cuts non-music sections; the archive keeps the original
+-- whole, with subtitles, chapters, metadata and cover embedded in MKV. Music is MP3 at VBR best
+-- with metadata and cover art; podcasts are AAC with chapters; 720p is the smaller MP4.
 INSERT INTO format_profiles
-  (name, format, merge_format, audio_only, audio_format, sponsorblock_remove, is_default, revision)
+  (name, format, merge_format, audio_only, audio_format, extra_args, sponsorblock_remove,
+   is_default, revision)
 VALUES
   ('Best up to 1080p (MP4)',
    'bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba/b[height<=1080]',
-   'mp4', false, NULL, '{interaction,selfpromo,sponsor}', false, '51218d6e714b'),
-  ('Best available', 'bv*+ba/b', NULL, false, NULL, '{interaction,selfpromo,sponsor}', true,
+   'mp4', false, NULL, '{}', '{interaction,selfpromo,sponsor}', false, '51218d6e714b'),
+  ('Best available', 'bv*+ba/b', NULL, false, NULL, '{}', '{interaction,selfpromo,sponsor}', true,
    '425e43de8e2a'),
-  ('Audio only (Opus)', 'ba/b', NULL, true, 'opus', '{interaction,selfpromo,sponsor}', false,
-   '10ef9f0d7ccc');
+  ('Audio only (Opus)', 'ba/b', NULL, true, 'opus', '{}', '{interaction,selfpromo,sponsor}', false,
+   '10ef9f0d7ccc'),
+  ('Up to 720p (MP4)',
+   'bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/bv*[height<=720]+ba/b[height<=720]',
+   'mp4', false, NULL, '{}', '{interaction,selfpromo,sponsor}', false, 'b9d7be37e099'),
+  ('Music (MP3)', 'ba/b', NULL, true, 'mp3', '{--audio-quality=0,--embed-metadata,--embed-thumbnail}',
+   '{interaction,music_offtopic,selfpromo,sponsor}', false, '4be16d1e85b2'),
+  ('Podcasts (M4A)', 'ba[ext=m4a]/ba/b', NULL, true, 'm4a', '{--embed-metadata,--embed-chapters}',
+   '{interaction,selfpromo,sponsor}', false, 'e2370ecd26d0'),
+  ('Archive (MKV, uncut)', 'bv*+ba/b', 'mkv', false, NULL,
+   '{--embed-metadata,--embed-chapters,--embed-subs,--embed-thumbnail}', '{}', false,
+   '48abbab81015');
 
 -- One row per extractor and video id, shared by every user.
 CREATE TABLE media (

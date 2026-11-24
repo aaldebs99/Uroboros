@@ -157,22 +157,23 @@ describe("personal format profiles", () => {
 
   it("keeps a built-in a person's subscriptions follow, and their last profile (409)", async () => {
     const gus = await signedIn(testDb.db, { username: "ppgus" });
-    const [first, second, third] = await list(gus);
+    const [followed, ...others] = await list(gus);
+    const last = others.pop();
     await insertSubscription(testDb.db, {
       userId: gus.userId,
-      profileId: first?.id ?? "",
+      profileId: followed?.id ?? "",
       feeds: [{ name: "Videos", url: "https://www.youtube.com/@g/videos" }],
       sourceId: `UC-${randomUUID()}`,
     });
-    expect((await send(gus, "DELETE", `/api/format-profiles/${first?.id ?? ""}`)).status).toBe(409);
-    expect((await send(gus, "DELETE", `/api/format-profiles/${second?.id ?? ""}`)).status).toBe(
-      204,
-    );
+    const remove = async (p: FormatProfile | undefined) =>
+      (await send(gus, "DELETE", `/api/format-profiles/${p?.id ?? ""}`)).status;
+    expect(await remove(followed)).toBe(409);
+    for (const p of others) expect(await remove(p)).toBe(204);
     await testDb.db.deleteFrom("subscriptions").where("user_id", "=", gus.userId).execute();
-    expect((await send(gus, "DELETE", `/api/format-profiles/${first?.id ?? ""}`)).status).toBe(204);
+    expect(await remove(followed)).toBe(204);
     // One left: it stays, and it is what they download with.
-    expect((await send(gus, "DELETE", `/api/format-profiles/${third?.id ?? ""}`)).status).toBe(409);
-    expect((await list(gus)).map((p) => [p.id, p.isDefault])).toEqual([[third?.id, true]]);
+    expect(await remove(last)).toBe(409);
+    expect((await list(gus)).map((p) => [p.id, p.isDefault])).toEqual([[last?.id, true]]);
   });
 
   it("refuses someone else's profile as a default (404)", async () => {

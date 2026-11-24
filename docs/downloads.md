@@ -96,13 +96,22 @@ again when the job runs). `revision` hashes the file-shaping arguments, and rend
 profile and revision, so editing a profile makes new downloads fetch a fresh file instead of
 reusing one made with the old arguments; files already in libraries stay.
 
-- **Built-ins** (`user_id` null) are everyone's to start with: "Best available" (the default),
-  "Best up to 1080p (MP4)" and "Audio only (Opus)", each cutting SponsorBlock's `sponsor`,
-  `selfpromo` and `interaction` segments (docs/automation.md). A person may change them, for
-  themselves alone (`src/downloads/profileEdits.ts`): editing one makes it a profile of their own
-  (copy-on-write: a new row, the built-in hidden from them in `hidden_profiles`, their
-  subscriptions and default moved to the copy), and deleting one hides it from them. Everyone who
-  keeps a built-in shares its fetches and files.
+- **Built-ins** (`user_id` null) are everyone's to start with. All but the archive cut
+  SponsorBlock's `sponsor`, `selfpromo` and `interaction` segments (docs/automation.md):
+  - "Best available" (the default), "Best up to 1080p (MP4)" and "Up to 720p (MP4)", the smaller
+    one for phones and tight storage;
+  - "Audio only (Opus)";
+  - "Music (MP3)": VBR best (`--audio-quality=0`) with metadata and cover art embedded, also
+    cutting `music_offtopic` (the non-music sections of a music video);
+  - "Podcasts (M4A)": AAC with metadata and chapters embedded;
+  - "Archive (MKV, uncut)": the best quality in MKV with subtitles, chapters, metadata and cover
+    embedded, and nothing cut.
+
+  A person may change them, for themselves alone (`src/downloads/profileEdits.ts`): editing one
+  makes it a profile of their own (copy-on-write: a new row, the built-in hidden from them in
+  `hidden_profiles`, their subscriptions and default moved to the copy), and deleting one hides it
+  from them. Everyone who keeps a built-in shares its fetches and files.
+
 - **Personal profiles** belong to one person, who alone sees and uses them (Settings › Profiles);
   anyone else's, or a built-in someone hid, is 404 on the profile routes and 400 as a download's or
   subscription's profile. A name is unique among the profiles a person sees; two people may share
