@@ -595,7 +595,7 @@ CREATE TABLE jobs (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   queue TEXT NOT NULL CHECK (queue IN ('probe', 'download', 'notify', 'playback', 'automation')),
   name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 32),
-  key TEXT CHECK (char_length(key) BETWEEN 1 AND 1000),
+  key TEXT CHECK (char_length(key) >= 1),
   data JSONB NOT NULL,
   state TEXT NOT NULL DEFAULT 'queued' CHECK (state IN ('queued', 'running')),
   run_at TIMESTAMPTZ NOT NULL DEFAULT now(),

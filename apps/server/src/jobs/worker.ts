@@ -48,6 +48,8 @@ const DEFAULT_POLL_MS = 5000;
 const BUSY_MS = 250;
 const FIRST_ERROR_BACKOFF_MS = 1000;
 const MAX_ERROR_BACKOFF_MS = 30_000;
+/** A job claimed while its old run here still winds down waits this long before running again. */
+const RECLAIM_DELAY_MS = 1000;
 
 export function startJobWorker(o: JobWorkerOptions): JobWorker {
   const runners = o.consumers.map(
@@ -77,6 +79,8 @@ export function startJobWorker(o: JobWorkerOptions): JobWorker {
 
 interface Running extends Held {
   done: Promise<void>;
+  /** Aborted when the run lost its job. */
+  lost: AbortController;
   /** Its outcome is being written: a renewal that misses it is no lost lease. */
   settling: boolean;
 }
@@ -198,10 +202,23 @@ class QueueRunner {
   }
 
   #launch(job: ClaimedJob): void {
+    const stale = this.#running.get(job.id);
+    if (stale !== undefined) {
+      // Its old run here lost the job (its lease lapsed while it ran on) and is still going: stop
+      // it, and put this claim back, unspent, until it has.
+      stale.lost.abort();
+      void requeue(this.#db, { id: job.id, token: job.locked_by }, RECLAIM_DELAY_MS).catch(
+        (err: unknown) => {
+          this.#log.warn({ err, key: job.key }, "could not put back a job its old run still holds");
+        },
+      );
+      return;
+    }
     const entry: Running = {
       id: job.id,
       token: job.locked_by,
       done: Promise.resolve(),
+      lost: new AbortController(),
       settling: false,
     };
     entry.done = this.#runOne(job, entry)
@@ -209,7 +226,8 @@ class QueueRunner {
         this.#log.error({ err, name: job.name, key: job.key }, "a job's outcome was not recorded");
       })
       .finally(() => {
-        this.#running.delete(job.id);
+        // Only its own entry: a later run of the job has one of its own.
+        if (this.#running.get(job.id) === entry) this.#running.delete(job.id);
         this.wake();
       });
     this.#running.set(job.id, entry);
@@ -224,6 +242,7 @@ class QueueRunner {
       data: job.data,
       attemptsMade: job.attempts - 1,
       opts: { attempts: job.max_attempts },
+      signal: entry.lost.signal,
     };
     let failure: { err: unknown } | undefined;
     try {
@@ -263,7 +282,8 @@ class QueueRunner {
       for (const h of held) {
         const entry = this.#running.get(h.id);
         if (!renewed.has(h.id) && entry !== undefined && !entry.settling) {
-          this.#log.warn({ id: h.id }, "a running job lost its lease");
+          this.#log.warn({ id: h.id }, "a running job lost its lease; stopping it");
+          entry.lost.abort();
         }
       }
     } catch (err) {

@@ -32,6 +32,11 @@ export class ShutdownAbort extends Error {
   }
 }
 
+/** The run lost its job (its lease lapsed and another run has it): stop, recording nothing. */
+class LeaseLost extends Error {
+  override readonly name = "LeaseLost";
+}
+
 /** Aborts running fetches: one by key (a cancel), or all of them (shutdown). */
 export function createCancelRegistry() {
   const running = new Map<string, AbortController>();
@@ -60,6 +65,8 @@ export interface FetchJobLike {
   data: FetchJob;
   attemptsMade: number;
   opts: { attempts?: number | undefined };
+  /** Aborts when the run lost its job to another. */
+  signal?: AbortSignal;
 }
 
 /** How long a fetch cut by shutdown waits before another replica may take it. */
@@ -357,6 +364,13 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
     const stored = await existingRendition(deps, data);
     if (stored !== undefined && (await settleDone(deps, data, stored))) return;
     const controller = cancels.start(data.fetchKey);
+    job.signal?.addEventListener(
+      "abort",
+      () => {
+        controller.abort(new LeaseLost());
+      },
+      { once: true },
+    );
     const scratch = join(deps.workDir, encodeURIComponent(data.fetchKey));
     try {
       await markRunning(deps, job);
@@ -368,6 +382,11 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
         // Back to the queue as it was: no failure, no cancel, and no attempt spent.
         deps.logger.info({ fetchKey: data.fetchKey }, "fetch cut by shutdown; requeued");
         throw new RequeueError(SHUTDOWN_REQUEUE_DELAY_MS, { cause: err });
+      }
+      if (controller.signal.reason instanceof LeaseLost) {
+        // Another run has the job now: it records how the fetch ends.
+        deps.logger.warn({ fetchKey: data.fetchKey }, "fetch lost its job to another run; stopped");
+        return;
       }
       if (controller.signal.aborted) {
         // Someone may have started waiting while the cancel was on its way; their dispatch found

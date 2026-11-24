@@ -46,6 +46,11 @@ export interface Job<T> {
   /** Runs of this job that failed before this one. */
   attemptsMade: number;
   opts: { attempts: number };
+  /**
+   * Aborts when this run no longer holds the job (its lease lapsed and the job went back to its
+   * queue): the run should stop, since whatever it records now is dropped.
+   */
+  signal: AbortSignal;
 }
 
 /** Runs one job; resolves when it is done, throws to retry, fail or go back (errors.ts). */

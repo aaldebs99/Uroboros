@@ -15,6 +15,8 @@ const SHUTDOWN_REQUEUE_DELAY_MS = 1000;
 /** The job, as much of it as the processor uses. */
 interface PlaybackJobLike {
   data: PlaybackJob;
+  /** Aborts when the run lost its job to another (which runs the session now). */
+  signal?: AbortSignal;
 }
 
 const keysOf = (deps: WorkerDeps) => ({ db: deps.db });
@@ -158,7 +160,10 @@ export function sessionProcessor(
       .where("id", "=", sid)
       .where("state", "=", "queued")
       .execute();
-    const end = await runSession(deps, row, token, t, shutdown);
+    const stop = job.signal === undefined ? shutdown : AbortSignal.any([shutdown, job.signal]);
+    const end = await runSession(deps, row, token, t, stop);
+    // Lost to another run: that one has the session now, so this one leaves it be.
+    if (job.signal?.aborted === true) return;
     if (end.kind === "shutdown") return requeue(deps, sid);
     if (end.kind === "fenced") return;
     await finish(deps, sid, end);

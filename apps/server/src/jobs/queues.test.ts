@@ -90,4 +90,9 @@ describe("JobQueue", () => {
       1,
     );
   });
+  it("takes a long key (a fetch key of a long direct link)", async () => {
+    const key = `fetch|generic|${"%E6%97%A5".repeat(400)}|p|r`;
+    expect(await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key })).toBe(true);
+    expect((await liveJobs(t.db, "download")).map((j) => j.key)).toEqual([key]);
+  });
 });

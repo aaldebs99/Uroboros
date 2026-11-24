@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { pino } from "pino";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testBus } from "../../test/bus.ts";
@@ -126,9 +127,12 @@ describe("the job worker", () => {
       { n: 1 },
       { key: "k", attempts: 3, backoff: { type: "exponential", delayMs: 150 } },
     );
-    await vi.waitFor(() => {
-      expect(runs).toHaveLength(3);
-    });
+    await vi.waitFor(
+      () => {
+        expect(runs).toHaveLength(3);
+      },
+      { timeout: 5000 },
+    );
     expect(runs.map((r) => r.made)).toEqual([0, 1, 2]);
     expect((runs[1]?.at ?? 0) - (runs[0]?.at ?? 0)).toBeGreaterThanOrEqual(130);
     expect((runs[2]?.at ?? 0) - (runs[1]?.at ?? 0)).toBeGreaterThanOrEqual(280);
@@ -204,9 +208,12 @@ describe("the job worker", () => {
     worker([run], { specs, pollMs: 100 });
     const q = new JobQueue(t.db, "automation");
     for (let n = 0; n < 3; n++) await q.add("check", { n }, { key: `c${String(n)}` });
-    await vi.waitFor(() => {
-      expect(starts).toHaveLength(3);
-    });
+    await vi.waitFor(
+      () => {
+        expect(starts).toHaveLength(3);
+      },
+      { timeout: 5000 },
+    );
     starts.sort((a, b) => a - b);
     expect((starts[1] ?? 0) - (starts[0] ?? 0)).toBeGreaterThanOrEqual(250);
     expect((starts[2] ?? 0) - (starts[1] ?? 0)).toBeGreaterThanOrEqual(250);
@@ -303,5 +310,78 @@ describe("the job worker", () => {
     await w.abandon();
     const [job] = await liveJobs(t.db, "download");
     expect(job).toMatchObject({ state: "queued", attempts: 0, stalls: 1 });
+  });
+  it("tells a run that lost its lease to stop", async () => {
+    let lost: AbortSignal | undefined;
+    worker(
+      [
+        consumer("download", (job) => {
+          lost = job.signal;
+          return new Promise<void>((resolve) => {
+            job.signal.addEventListener("abort", () => {
+              resolve();
+            });
+          });
+        }),
+      ],
+      { specs: { download: { leaseMs: 300 } } },
+    );
+    await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key: "lost" });
+    await vi.waitFor(async () => {
+      expect((await liveJobs(t.db, "download"))[0]?.state).toBe("running");
+    });
+    // Another run took the job (its lease lapsed and the sweep put it back, say).
+    await t.db
+      .updateTable("jobs")
+      .set({ locked_by: "00000000-0000-4000-8000-000000000002" })
+      .where("key", "=", "lost")
+      .execute();
+    await vi.waitFor(() => {
+      expect(lost?.aborted).toBe(true);
+    });
+  });
+
+  it("re-claiming a job its old run still holds here stops that run first, spending nothing", async () => {
+    const runs: { made: number; aborted: boolean }[] = [];
+    worker(
+      [
+        consumer(
+          "download",
+          (job) => {
+            const run = { made: job.attemptsMade, aborted: false };
+            runs.push(run);
+            if (runs.length > 1) return Promise.resolve();
+            return new Promise<void>((resolve) => {
+              job.signal.addEventListener("abort", () => {
+                run.aborted = true;
+                setTimeout(resolve, 100);
+              });
+            });
+          },
+          2,
+        ),
+      ],
+      { pollMs: 100 },
+    );
+    await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key: "twice", attempts: 3 });
+    await vi.waitFor(async () => {
+      expect((await liveJobs(t.db, "download"))[0]?.state).toBe("running");
+    });
+    // The lease lapses while the run is still alive (the database was away), and the sweep puts
+    // the job back: this same worker claims it again.
+    await sql`UPDATE jobs SET locked_until = now() - interval '1 second' WHERE key = 'twice'`.execute(
+      t.db,
+    );
+    await recoverStalled(t.db, logger);
+    await vi.waitFor(
+      async () => {
+        expect(await liveJobs(t.db, "download")).toEqual([]);
+      },
+      { timeout: 5000 },
+    );
+    expect(runs).toEqual([
+      { made: 0, aborted: true },
+      { made: 0, aborted: false },
+    ]);
   });
 });

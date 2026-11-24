@@ -258,6 +258,22 @@ describe("shutdown", () => {
     const [row] = await states("shutdown-1");
     expect(row?.state).toBe("running");
   });
+
+  it("stops quietly, recording nothing, when its run lost the job to another", async () => {
+    const u = await user();
+    const data = await queued("lost-1", [u]);
+    const lost = new AbortController();
+    const running = fetchProcessor(
+      await h.deps(await downloadScenario([{ sleepMs: 10_000 }])),
+      createCancelRegistry(),
+    )({ ...job(data), signal: lost.signal });
+    await vi.waitFor(async () => {
+      expect((await states("lost-1"))[0]?.state).toBe("running");
+    });
+    lost.abort();
+    await running;
+    expect(await states("lost-1")).toMatchObject([{ state: "running", error_kind: null }]);
+  });
 });
 
 describe("cancel races", () => {

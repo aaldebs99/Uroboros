@@ -212,6 +212,19 @@ describe("a playback session's runner", () => {
     expect(stops).toContain(sid);
   });
 
+  it("stops without requeueing or recording when its run lost the job to another", async () => {
+    const d = await deps({ steps: [stream([0]), { hang: true }] });
+    const sid = await newSession();
+    const lost = new AbortController();
+    const run = sessionProcessor(d, new AbortController().signal, FAST);
+    const done = run({ data: { sessionId: sid }, signal: lost.signal });
+    await until(async () => stored(sid, -1));
+    lost.abort();
+    await done;
+    expect((await row(sid)).state).toBe("running");
+    await leave(sid);
+  });
+
   it("goes back to the queue, unrecorded, when the replica shuts down", async () => {
     const d = await deps({ steps: [stream([0]), { hang: true }] });
     const sid = await newSession();
