@@ -1,5 +1,7 @@
 import type { Scenario } from "@uroboros/ytdlp/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { queuedData } from "../../test/jobs.ts";
+import type { NotifyJob } from "../downloads/queues.ts";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
 import { insertSubscription, listing } from "../../test/listings.ts";
@@ -86,8 +88,8 @@ const items = (id: string) =>
     .execute();
 
 async function notices(userId: string) {
-  const jobs = await h.queues.notify.getJobs(["waiting", "delayed", "prioritized"]);
-  return jobs.filter((j) => j.data.userId === userId);
+  const jobs = await queuedData<NotifyJob>(t.db, "notify");
+  return jobs.filter((d) => d.userId === userId);
 }
 
 const ids = (prefix: string, count: number) =>

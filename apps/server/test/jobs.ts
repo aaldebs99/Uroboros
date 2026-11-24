@@ -30,3 +30,8 @@ export async function liveJobs(db: Kysely<Database>, queue: QueueName): Promise<
     runAt: r.run_at,
   }));
 }
+
+/** The data of the jobs waiting or running on `queue`, oldest first. */
+export async function queuedData<T>(db: Kysely<Database>, queue: QueueName): Promise<T[]> {
+  return (await liveJobs(db, queue)).map((j) => j.data as T);
+}

@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { queuedData } from "../../test/jobs.ts";
+import type { NotifyJob } from "../downloads/queues.ts";
 import { signedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
 import { insertSubscription, listing } from "../../test/listings.ts";
@@ -25,8 +27,8 @@ const videos = "https://www.youtube.com/@BlenderOfficial/videos";
 const sub = { id: "s1", title: "Blender" };
 
 async function notices(userId: string) {
-  const jobs = await h.queues.notify.getJobs(["waiting", "delayed", "prioritized"]);
-  return jobs.filter((j) => j.data.userId === userId).map((j) => j.data);
+  const jobs = await queuedData<NotifyJob>(t.db, "notify");
+  return jobs.filter((d) => d.userId === userId);
 }
 
 describe("subscription notices", () => {

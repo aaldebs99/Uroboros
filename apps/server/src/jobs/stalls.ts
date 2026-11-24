@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import type { Logger } from "pino";
 import type { Database } from "../db/schema.ts";
+import { periodicDuty } from "../shared/periodic.ts";
 import { stallBack } from "./store.ts";
 
 /** How often the leader looks for runs whose worker vanished. */
@@ -25,4 +26,14 @@ export async function recoverStalled(
     } else logger.info(job, "a job whose worker vanished went back to its queue");
   }
   return { requeued: stalled.length - dropped, dropped };
+}
+
+/** The leader's stall sweep, every 15 s while it leads. */
+export function stallDuty(db: Kysely<Database>, logger: Logger) {
+  return periodicDuty(
+    "job stall sweep",
+    STALL_SWEEP_EVERY_MS,
+    () => recoverStalled(db, logger),
+    logger,
+  );
 }

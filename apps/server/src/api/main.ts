@@ -26,6 +26,7 @@ import { startClaimsSync } from "../auth/claimsSync.ts";
 import { createOidcProvider } from "../auth/oidc/provider.ts";
 import { sweeperDuty } from "../auth/sweeper.ts";
 import { reconcileDuty } from "../downloads/reconcile.ts";
+import { stallDuty } from "../jobs/stalls.ts";
 import { automationDuties } from "../subscriptions/duties.ts";
 import { createApp } from "./app.ts";
 import { CLEANUP_MS, drain, settlesWithin } from "./drain.ts";
@@ -124,7 +125,7 @@ export async function startApi(
     config.auth.oidc === null ? undefined : createOidcProvider(config.auth.oidc, { logger });
   const prefix = opts.prefix ?? DEFAULT_PREFIX;
   // The producers; the consumers (when this process runs them) share the same connection.
-  const queues = createDownloadQueues(valkey, prefix);
+  const queues = createDownloadQueues(valkey, prefix, db);
   const store = createStore(config.storage);
   // One listener connection per replica (started once the database is migrated) carries the
   // download events every open stream hears, fetch cancels and job wakes.
@@ -214,9 +215,9 @@ export async function startApi(
     if (oidc !== undefined) {
       startClaimsSync({ db, provider: oidc, databaseUrl: config.databaseUrl, logger }, stop.signal);
     }
-    // The leader sweeps expired sessions and pending sign-ins hourly, re-adds lost fetch jobs and
-    // keeps the subscription schedulers in step. The schedules themselves never need it: BullMQ's
-    // job schedulers already run each repeatable job exactly once.
+    // The leader sweeps expired sessions, sign-ins and short-lived rows hourly, re-adds lost fetch
+    // jobs, puts back jobs whose worker vanished, queues the subscriptions' due checks, and looks
+    // after retention, the reaper and playback sessions.
     leading = leadAndRun({
       lock: new PgLeaderLock(config.databaseUrl, URO_LEAD, { logger }),
       name: "leader",
@@ -224,6 +225,7 @@ export async function startApi(
         Promise.all([
           sweeperDuty(db, logger)(signal),
           reconcileDuty(downloadContext)(signal),
+          stallDuty(db, logger)(signal),
           automationDuties(downloadContext, store)(signal),
         ]).then(() => undefined),
       shutdown: stop.signal,

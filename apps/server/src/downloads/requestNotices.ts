@@ -1,5 +1,5 @@
-import type { Queue } from "bullmq";
 import { sql, type Kysely } from "kysely";
+import type { JobQueue } from "../jobs/queues.ts";
 import type { Database } from "../db/schema.ts";
 import type { Message } from "../push/pusher.ts";
 import { wantsNotice } from "../push/prefs.ts";
@@ -94,7 +94,7 @@ async function claim(db: Kysely<Database>, requestId: string) {
   return res.rows[0];
 }
 
-async function noticeOne(db: Kysely<Database>, notify: Queue<NotifyJob>, requestId: string) {
+async function noticeOne(db: Kysely<Database>, notify: JobQueue<NotifyJob>, requestId: string) {
   const r = await claim(db, requestId);
   if (r === undefined) return;
   const rows = await db
@@ -126,7 +126,7 @@ async function noticeOne(db: Kysely<Database>, notify: Queue<NotifyJob>, request
  * (no request) send nothing here.
  */
 export async function noticeFinishedRequests(
-  deps: { db: Kysely<Database>; queues: { notify: Queue<NotifyJob> } },
+  deps: { db: Kysely<Database>; queues: { notify: JobQueue<NotifyJob> } },
   downloadIds: readonly string[],
 ): Promise<void> {
   if (downloadIds.length === 0) return;

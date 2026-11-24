@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { randomUUID } from "node:crypto";
 import { DownloadRequest, QueueSelectionResult } from "@uroboros/contract";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -68,7 +69,26 @@ describe("POST /api/downloads", () => {
     const req = DownloadRequest.parse(await res.json());
     expect(req).toMatchObject({ state: "probing", kind: null, groups: [] });
     expect(req.profileId).toBe((await seededDefault(testDb.db)).id);
-    expect(await h.queues.probe.getJob(`probe|${req.id}`)).toBeDefined();
+    expect(await h.queues.probe.get(`probe|${req.id}`)).toBeDefined();
+  });
+
+  it("records the request and its probe job together, or neither", async () => {
+    // The jobs table refuses probe jobs for a moment: the request must not be left behind.
+    await sql`ALTER TABLE jobs ADD CONSTRAINT refuse_probe CHECK (queue <> 'probe') NOT VALID`.execute(
+      testDb.db,
+    );
+    try {
+      const before = await testDb.db.selectFrom("download_requests").select("id").execute();
+      const res = await post(h.app(alice), "/api/downloads", {
+        url: "https://www.youtube.com/watch?v=refused",
+      });
+      expect(res.status).toBe(500);
+      expect(await testDb.db.selectFrom("download_requests").select("id").execute()).toEqual(
+        before,
+      );
+    } finally {
+      await sql`ALTER TABLE jobs DROP CONSTRAINT refuse_probe`.execute(testDb.db);
+    }
   });
 
   it("records why the link was pasted: to download (the default) or to subscribe", async () => {

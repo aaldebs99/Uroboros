@@ -1,5 +1,5 @@
-import type { Queue } from "bullmq";
 import type { NotifyJob } from "../downloads/queues.ts";
+import type { JobQueue } from "../jobs/queues.ts";
 import type { Message } from "../push/pusher.ts";
 import type { Urgency } from "../push/sender.ts";
 
@@ -32,14 +32,10 @@ export function failingNotice(sub: Named, message: string): Message {
 
 /** Queues one push for the `notify` consumer (one attempt: the sender retries on its own). */
 export async function enqueueNotice(
-  q: Queue<NotifyJob>,
+  q: JobQueue<NotifyJob>,
   userId: string,
   message: Message,
   urgency: Urgency,
 ): Promise<void> {
-  await q.add(
-    "notify",
-    { userId, message, urgency },
-    { attempts: 1, removeOnComplete: true, removeOnFail: true },
-  );
+  await q.add("notify", { userId, message, urgency });
 }

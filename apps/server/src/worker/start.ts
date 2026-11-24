@@ -161,7 +161,11 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
       // The whole sequence, not just worker.close(), is bounded by the deadline: with Valkey
       // unreachable, every awaited call here can hang.
       const drain = (async () => {
-        await Promise.all([worker.close(), ...(extra?.workers ?? []).map((w) => w.close())]);
+        await Promise.all([
+          worker.close(),
+          ...(extra?.workers ?? []).map((w) => w.close()),
+          extra?.jobs.drain(),
+        ]);
         await extra?.close();
         await bestEffort(valkey.del(heartbeatKey), 1000);
       })();
@@ -173,6 +177,8 @@ export async function startWorker(opts: StartWorkerOptions): Promise<RunningWork
         // the process cannot exit by draining; bin/server.ts calls process.exit.
         worker.disconnect().catch(() => undefined);
         for (const w of extra?.workers ?? []) w.disconnect().catch(() => undefined);
+        // Jobs on Postgres still running go back at once, as stalls, for another replica.
+        if (extra !== null) await bestEffort(extra.jobs.abandon(), 1000);
         throw new Error(`worker did not drain within ${String(graceMs)} ms; force closed`);
       }
     } finally {

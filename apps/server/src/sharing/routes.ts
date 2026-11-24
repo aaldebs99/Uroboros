@@ -1,4 +1,5 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
+import type { JobQueue } from "../jobs/queues.ts";
 import {
   ApiErrorBody,
   Directory,
@@ -12,7 +13,6 @@ import {
   ShareKind,
   ShareState,
 } from "@uroboros/contract";
-import type { Queue } from "bullmq";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
@@ -169,7 +169,7 @@ const me = (c: Context) => currentPrincipal(c).userId;
 export function registerSharingRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
-  notify?: Queue<NotifyJob>,
+  notify?: JobQueue<NotifyJob>,
 ): void {
   app.openapi(mineRoute, async (c) => c.json(await listMyShares(db, me(c)), 200));
   app.openapi(stateRoute, async (c) => {

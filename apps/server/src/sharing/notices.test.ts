@@ -1,6 +1,8 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { queuedData } from "../../test/jobs.ts";
+import type { NotifyJob } from "../downloads/queues.ts";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness } from "../../test/downloads.ts";
 import { seedEntry } from "../../test/library.ts";
@@ -48,8 +50,8 @@ const put = (s: SignedIn, path: string, json: unknown) =>
   });
 
 async function notices(userId: string) {
-  const jobs = await h.queues.notify.getJobs(["waiting", "delayed", "prioritized"]);
-  return jobs.filter((j) => j.data.userId === userId).map((j) => j.data);
+  const jobs = await queuedData<NotifyJob>(t.db, "notify");
+  return jobs.filter((d) => d.userId === userId);
 }
 
 describe("shared with you", () => {

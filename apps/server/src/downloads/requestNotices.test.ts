@@ -1,5 +1,7 @@
 import type { Insertable } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { queuedData } from "../../test/jobs.ts";
+import type { NotifyJob } from "./queues.ts";
 import { signedIn } from "../../test/auth.ts";
 import { downloadHarness, seededDefault } from "../../test/downloads.ts";
 import { seedEntry } from "../../test/library.ts";
@@ -26,8 +28,8 @@ let n = 0;
 const deps = () => ({ db: t.db, queues: h.queues });
 
 async function notices(userId: string) {
-  const jobs = await h.queues.notify.getJobs(["waiting", "delayed", "prioritized"]);
-  return jobs.filter((j) => j.data.userId === userId).map((j) => j.data);
+  const jobs = await queuedData<NotifyJob>(t.db, "notify");
+  return jobs.filter((d) => d.userId === userId);
 }
 
 async function request(userId: string, title: string | null = "Blender shorts") {

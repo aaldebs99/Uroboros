@@ -1,15 +1,23 @@
 import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import type { PgBus } from "../db/notifications.ts";
-import { DOWNLOAD_QUEUE, PROBE_QUEUE, type FetchJob, type ProbeJob } from "../downloads/queues.ts";
+import { DOWNLOAD_QUEUE, type FetchJob } from "../downloads/queues.ts";
+import { startJobWorker } from "../jobs/worker.ts";
+import type { Consumer, JobWorker } from "../jobs/worker.ts";
+import { notifyProcessor } from "./notify.ts";
 import { startAutomationWorkers } from "./automationWorkers.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
 import { probeProcessor } from "./probe.ts";
 import { selfTest } from "../transcode/hwaccel.ts";
 
+/** Pushes sent at once per replica. */
+const NOTIFY_CONCURRENCY = 4;
+
 export interface DownloadWorkers {
   workers: Worker[];
+  /** The consumers of the queues on Postgres (docs/jobs.md). */
+  jobs: JobWorker;
   /** Aborts every running fetch for shutdown; each goes back to the queue unrecorded. */
   abortRunning(): void;
   /** Stops listening for cancels (the workers are closed by the caller with the others). */
@@ -35,11 +43,6 @@ export async function startDownloadWorkers(
       deps.logger.warn({ err }, "ignoring a malformed cancel message");
     }
   });
-  const probe = new Worker<ProbeJob>(PROBE_QUEUE, probeProcessor(deps), {
-    connection,
-    prefix: opts.prefix,
-    concurrency: Math.max(4, opts.concurrency),
-  });
   const download = new Worker<FetchJob>(DOWNLOAD_QUEUE, fetchProcessor(deps, cancels), {
     connection,
     prefix: opts.prefix,
@@ -48,7 +51,7 @@ export async function startDownloadWorkers(
     lockDuration: 60_000,
     maxStalledCount: 2,
   });
-  for (const w of [probe, download]) {
+  for (const w of [download]) {
     w.on("error", (err) => {
       deps.logger.error({ err, queue: w.name }, "worker error");
     });
@@ -64,8 +67,22 @@ export async function startDownloadWorkers(
     });
   }
   const automation = startAutomationWorkers(connection, deps, { prefix: opts.prefix });
+  const consumers: Consumer[] = [
+    {
+      queue: "probe",
+      concurrency: Math.max(4, opts.concurrency),
+      process: probeProcessor(deps) as Consumer["process"],
+    },
+    {
+      queue: "notify",
+      concurrency: NOTIFY_CONCURRENCY,
+      process: notifyProcessor(deps.push, deps.logger) as Consumer["process"],
+    },
+  ];
+  const jobs = startJobWorker({ db: deps.db, bus: opts.bus, logger: deps.logger, consumers });
   return {
-    workers: [probe, download, ...automation.workers],
+    workers: [download, ...automation.workers],
+    jobs,
     abortRunning() {
       cancels.abortAll();
       automation.abortRunning();

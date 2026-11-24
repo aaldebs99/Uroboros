@@ -68,7 +68,7 @@ describe("POST /api/downloads/search", () => {
       .where("id", "=", req.id)
       .executeTakeFirstOrThrow();
     expect(row.intent).toBe("search");
-    expect(await h.queues.probe.getJob(`probe|${req.id}`)).toBeDefined();
+    expect(await h.queues.probe.get(`probe|${req.id}`)).toBeDefined();
   });
 
   it("encodes what was typed, so it can't add parameters of its own", () => {

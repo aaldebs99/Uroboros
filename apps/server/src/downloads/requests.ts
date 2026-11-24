@@ -54,21 +54,26 @@ export async function createRequest(
       ? await defaultProfile(ctx.db)
       : await getProfile(ctx.db, body.profileId);
   if (profile === undefined) throw new ApiError("bad_request", "no such format profile");
-  const row = await ctx.db
-    .insertInto("download_requests")
-    .values({
-      user_id: userId,
-      url: body.url,
-      profile_id: profile.id,
-      intent: body.intent ?? "download",
-    })
-    .returningAll()
-    .executeTakeFirstOrThrow();
-  await ctx.queues.probe.add(
-    "probe",
-    { requestId: row.id },
-    { jobId: probeJobId(row.id), attempts: 1, removeOnComplete: true, removeOnFail: true },
-  );
+  // The request and its probe job commit together: a request is never left probing with no job.
+  const row = await ctx.db.transaction().execute(async (tx) => {
+    const created = await tx
+      .insertInto("download_requests")
+      .values({
+        user_id: userId,
+        url: body.url,
+        profile_id: profile.id,
+        intent: body.intent ?? "download",
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    await ctx.queues.probe.add(
+      "probe",
+      { requestId: created.id },
+      { key: probeJobId(created.id) },
+      tx,
+    );
+    return created;
+  });
   return toRequest(row);
 }
 

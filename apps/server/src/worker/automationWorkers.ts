@@ -1,19 +1,16 @@
 import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
-import { NOTIFY_QUEUE, type NotifyJob } from "../downloads/queues.ts";
 import { checkProcessor } from "../subscriptions/check.ts";
 import { latestProcessor } from "../subscriptions/latest.ts";
 import { AUTOMATION_QUEUE, type CheckJob } from "../subscriptions/queue.ts";
 import { PLAYBACK_QUEUE, type PlaybackJob } from "../transcode/sessionQueue.ts";
 import type { WorkerDeps } from "./deps.ts";
-import { notifyProcessor } from "./notify.ts";
 import { sessionProcessor } from "./session.ts";
 
 /** Checks at once per replica; few, so a burst of schedules never hammers a site. */
 export const CHECK_CONCURRENCY = 2;
 /** Across every replica, at most one check starts per this many ms (BullMQ's queue-wide limiter). */
 export const CHECK_START_EVERY_MS = 2000;
-const NOTIFY_CONCURRENCY = 4;
 
 export interface AutomationWorkers {
   workers: Worker[];
@@ -21,7 +18,7 @@ export interface AutomationWorkers {
   abortRunning(): void;
 }
 
-/** The `automation` (subscription checks), `notify` and `playback` consumers on `connection`. */
+/** The `automation` (subscription checks) and `playback` consumers on `connection`. */
 export function startAutomationWorkers(
   connection: Redis,
   deps: WorkerDeps,
@@ -39,11 +36,6 @@ export function startAutomationWorkers(
     concurrency: CHECK_CONCURRENCY,
     limiter: { max: 1, duration: CHECK_START_EVERY_MS },
   });
-  const notify = new Worker<NotifyJob>(NOTIFY_QUEUE, notifyProcessor(deps.push, deps.logger), {
-    connection,
-    prefix: opts.prefix,
-    concurrency: NOTIFY_CONCURRENCY,
-  });
   // Playback sessions: none on a replica told to take none (so only GPU replicas need to).
   const playback =
     deps.transcodeConcurrency > 0
@@ -58,13 +50,13 @@ export function startAutomationWorkers(
           }),
         ]
       : [];
-  for (const w of [check, notify, ...playback]) {
+  for (const w of [check, ...playback]) {
     w.on("error", (err) => {
       deps.logger.error({ err, queue: w.name }, "worker error");
     });
   }
   return {
-    workers: [check, notify, ...playback],
+    workers: [check, ...playback],
     abortRunning() {
       stop.abort();
     },

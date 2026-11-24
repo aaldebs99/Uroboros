@@ -19,7 +19,7 @@ export async function downloadHarness(db: Kysely<Database>, limit = 3) {
   const prefix = `t-${randomUUID()}`;
   const valkey: Redis = createValkey(TestValkey.url(), "api", logger);
   await waitReady(valkey, 5000);
-  const queues = createDownloadQueues(valkey, prefix);
+  const queues = createDownloadQueues(valkey, prefix, db);
   const ctx: DownloadContext = {
     db,
     valkey,

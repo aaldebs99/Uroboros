@@ -1,5 +1,5 @@
 import type { ShareKind } from "@uroboros/contract";
-import type { Queue } from "bullmq";
+import type { JobQueue } from "../jobs/queues.ts";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import type { NotifyJob } from "../downloads/queues.ts";
@@ -27,7 +27,7 @@ export function sharedNotice(
 /** Tells each person a share newly reaches, unless they turned shared-with-me notices off. */
 export async function noticeShared(
   db: Kysely<Database>,
-  notify: Queue<NotifyJob>,
+  notify: JobQueue<NotifyJob>,
   people: readonly string[],
   message: Message,
 ): Promise<void> {
