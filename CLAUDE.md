@@ -257,10 +257,18 @@ committed; do not `git add` anything under them.
 
 ## Forge and release
 
-The repository lives on a self-hosted Forgejo (the `origin` remote) and is mirrored to
-https://github.com/aaldebs99/Uroboros, where Actions are off. The forge's domain is never
-written into a tracked file, the history included: say "the forge", or use the `REGISTRY`
-variable. The workflows
+The repository lives on a self-hosted Gitea (the `origin` remote) and is mirrored to
+https://github.com/aaldebs99/Uroboros, where Actions are off. The forge's domain never appears
+in the repository, the history included: say "the forge", or use the `REGISTRY` variable.
+`ratchet:forge-host` reads every file and every commit (diff, author, committer, message) and
+tag, so CI checks out the whole history. Only `ci.yml`'s `mirror` job pushes to GitHub (`main`
+and its tags, never forced), after every gate passed; never set up a forge push mirror, which
+would copy every branch before CI could object. Commits the forge makes itself must not name it
+either: `.gitea/default_merge_message/` keeps Gitea's `Reviewed-on:` links out of merge
+messages, and the accounts that merge or open pull requests (the owner, the release bot,
+Renovate) need emails off the domain. A commit that names the forge reaches main only as a
+red CI and a stopped mirror; take it out by rewriting main before anything else lands. The
+workflows
 run on Forgejo Actions with the Gitea runner's labels (`small`, `big`, `big-dind` and so on,
 listed in `.github/actionlint.yaml`). They carry no `permissions:` blocks, because Forgejo ignores
 the field and warns about it; zizmor's audit of it is off in `.github/zizmor.yml` for that reason.
@@ -280,11 +288,12 @@ Every push to main also publishes `:main` to both, without the smoke test. Only 
 cut a release, so tooling changes belong under ci, chore or build. PR titles must be
 conventional commits (`pr-title.yml`), because the squash subject feeds the changelog.
 
-| Name                        | Kind     | Used by          | What it is                                                                                                           |
-| --------------------------- | -------- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `REGISTRY`                  | variable | `release.yml`    | The forge's registry host the images go to (kept out of the repository).                                             |
-| `REGISTRY_TOKEN`            | secret   | `release.yml`    | An access token of `aaldebs99` scoped `write:package`; only the namespace owner may push.                            |
-| `GHCR_TOKEN`                | secret   | `release.yml`    | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.                  |
-| `RELEASE_PLEASE_TOKEN`      | secret   | `release-pr.yml` | The release bot's token (`write:repository`, `write:issue`, `read:user`), so its PRs and releases trigger workflows. |
-| `RENOVATE_TOKEN`            | secret   | `renovate.yml`   | The Renovate bot's token (`write:repository`, `write:issue`, `read:user`, `read:organization`).                      |
-| `RENOVATE_GITHUB_COM_TOKEN` | secret   | `renovate.yml`   | A github.com token with no scopes, for looking up GitHub-hosted actions and tools.                                   |
+| Name                        | Kind     | Used by          | What it is                                                                                                            |
+| --------------------------- | -------- | ---------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `REGISTRY`                  | variable | `release.yml`    | The forge's registry host the images go to (kept out of the repository).                                              |
+| `REGISTRY_TOKEN`            | secret   | `release.yml`    | An access token of `aaldebs99` scoped `write:package`; only the namespace owner may push.                             |
+| `GHCR_TOKEN`                | secret   | `release.yml`    | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.                   |
+| `GH_MIRROR_TOKEN`           | secret   | `ci.yml`         | A GitHub token with Contents and Workflows write on the mirror, for the `mirror` job (Gitea refuses `GITHUB_` names). |
+| `RELEASE_PLEASE_TOKEN`      | secret   | `release-pr.yml` | The release bot's token (`write:repository`, `write:issue`, `read:user`), so its PRs and releases trigger workflows.  |
+| `RENOVATE_TOKEN`            | secret   | `renovate.yml`   | The Renovate bot's token (`write:repository`, `write:issue`, `read:user`, `read:organization`).                       |
+| `RENOVATE_GITHUB_COM_TOKEN` | secret   | `renovate.yml`   | A github.com token with no scopes, for looking up GitHub-hosted actions and tools.                                    |

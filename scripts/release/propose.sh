@@ -66,10 +66,12 @@ section=$(git-cliff --unreleased --tag "$next" --strip all)
 IFS=$'\t' read -r bot_login bot_email < <(bot_identity)
 [ -n "$bot_login" ] || die "could not read the bot's login from ${FORGE_API}/user"
 if [ -z "$(git config user.email || true)" ]; then
-  forge_host=${FORGE_API#*://}
-  forge_host=${forge_host%%/*}
+  # The repository is mirrored to GitHub, which must never see the forge's domain, so there is no
+  # made-up noreply address on it: the bot's account needs an email of its own, off that domain.
+  # (ratchet:forge-host would refuse such a commit on main anyway, and the mirror would stop.)
+  [ -n "$bot_email" ] || die "the bot account ${bot_login} has no email: give it one that is not on the forge's domain"
   git config user.name "$bot_login"
-  git config user.email "${bot_email:-${bot_login}@noreply.${forge_host}}"
+  git config user.email "$bot_email"
 fi
 
 git checkout -q -B "$BRANCH"
