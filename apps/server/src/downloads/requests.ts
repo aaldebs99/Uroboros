@@ -28,6 +28,7 @@ export function toRequest(row: RequestRow): DownloadRequest {
     groups: groups.success ? groups.data : [],
     errorKind: kind.success ? kind.data : null,
     errorMessage: row.error_message,
+    stderrTail: row.stderr_tail,
     createdAt: row.created_at.toISOString(),
   };
 }

@@ -7,6 +7,7 @@ const YTDLP_ERROR_KINDS = [
   "private",
   "geo_blocked",
   "age_restricted",
+  "login_required",
   "rate_limited",
   "network",
   "unsupported_url",

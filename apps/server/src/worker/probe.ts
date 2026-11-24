@@ -180,7 +180,12 @@ export function probeProcessor(deps: Deps) {
       deps.logger.warn({ err, requestId: req.id }, "probe failed");
       await deps.db
         .updateTable("download_requests")
-        .set({ state: "failed", error_kind: failure.kind, error_message: failure.message })
+        .set({
+          state: "failed",
+          error_kind: failure.kind,
+          error_message: failure.message,
+          stderr_tail: failure.stderrTail,
+        })
         .where("id", "=", req.id)
         .execute();
     }

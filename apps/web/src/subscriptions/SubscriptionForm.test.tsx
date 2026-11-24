@@ -53,6 +53,7 @@ const request = (kind: "channel" | "playlist") => ({
       : [group("Open movies", "https://www.youtube.com/playlist?list=PL1", true)],
   errorKind: null,
   errorMessage: null,
+  stderrTail: [],
   createdAt: "2026-11-23T08:00:00.000Z",
 });
 

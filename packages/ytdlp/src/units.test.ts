@@ -81,6 +81,16 @@ describe("classifyFailure", () => {
       "ERROR: [youtube] abc: Unable to download API page: HTTP Error 503: Service Unavailable",
       "network",
     ],
+    // yt-dlp's raise_login_required: Vimeo's page needs an account since 2025.
+    [
+      "ERROR: [vimeo] 753580183: The web client only works when logged-in. Use --cookies, --cookies-from-browser, --username and --password, --netrc-cmd, or --netrc (vimeo) to provide account credentials. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies",
+      "login_required",
+    ],
+    [
+      "ERROR: [patreon] 123: This video is only available for registered users. Use --cookies-from-browser or --cookies for the authentication.",
+      "login_required",
+    ],
+    ["ERROR: [twitter] 456: Login is required to access this content", "login_required"],
     ["ERROR: Unsupported URL: https://example.com/", "unsupported_url"],
     ["ERROR: [generic] x: Unable to download webpage: HTTP Error 404: Not Found", "unavailable"],
     ["ERROR: something nobody has seen before", "unknown"],

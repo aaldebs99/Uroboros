@@ -39,6 +39,7 @@ function request(overrides: Partial<DownloadRequest>): DownloadRequest {
     groups: [],
     errorKind: null,
     errorMessage: null,
+    stderrTail: [],
     createdAt: "2026-11-23T04:00:00.000Z",
     ...overrides,
   };
@@ -191,5 +192,27 @@ describe("DownloadDialog", () => {
     await userEvent.type(await openLine(), `${URL_TO_PASTE}{Enter}`);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("This video is private");
+  });
+
+  it("names a login wall and keeps yt-dlp's own words in a collapsed disclosure", async () => {
+    const line = "ERROR: [vimeo] 753580183: The web client only works when logged-in.";
+    setup({
+      "POST /api/downloads": () =>
+        Response.json(
+          request({
+            state: "failed",
+            errorKind: "login_required",
+            errorMessage: "the site needs a signed-in account",
+            stderrTail: [line],
+          }),
+          { status: 202 },
+        ),
+    });
+    await userEvent.type(await openLine(), `${URL_TO_PASTE}{Enter}`);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("wants a signed-in account");
+    expect(screen.getByText(line)).not.toBeVisible();
+    await userEvent.click(screen.getByText("yt-dlp output"));
+    expect(screen.getByText(line)).toBeVisible();
   });
 });

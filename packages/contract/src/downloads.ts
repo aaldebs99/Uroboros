@@ -9,6 +9,7 @@ export const DOWNLOAD_ERROR_KINDS = [
   "private",
   "geo_blocked",
   "age_restricted",
+  "login_required",
   "rate_limited",
   "network",
   "unsupported_url",
@@ -150,6 +151,8 @@ export const DownloadRequest = z
     groups: z.array(PreviewGroup),
     errorKind: DownloadErrorKind.nullable(),
     errorMessage: z.string().nullable(),
+    /** A failed probe's last stderr lines from yt-dlp, redacted, for a Details disclosure. */
+    stderrTail: z.array(z.string()),
     createdAt: z.iso.datetime(),
   })
   .openapi("DownloadRequest");

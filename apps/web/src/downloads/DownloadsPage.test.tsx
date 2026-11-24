@@ -78,6 +78,7 @@ const choosingRequest = {
   ],
   errorKind: null,
   errorMessage: null,
+  stderrTail: [],
   createdAt: T,
 };
 
@@ -156,6 +157,24 @@ describe("DownloadsPage", () => {
     );
   });
 
+  it("explains a link whose check failed, with yt-dlp's output collapsed under it", async () => {
+    const line = "ERROR: [vimeo] 753580183: The web client only works when logged-in.";
+    const failed = {
+      ...choosingRequest,
+      state: "failed" as const,
+      groups: [],
+      errorKind: "login_required" as const,
+      errorMessage: "the site needs a signed-in account",
+      stderrTail: [line],
+    };
+    api({ [`GET /api/downloads/requests/${failed.id}`]: () => Response.json(failed) });
+    await renderInRouter(<DownloadsPage me={member} requestId={failed.id} />);
+    expect(await screen.findByText(/wants a signed-in account/)).toBeInTheDocument();
+    expect(screen.getByText(line)).not.toBeVisible();
+    await userEvent.click(screen.getByText("yt-dlp output"));
+    expect(screen.getByText(line)).toBeVisible();
+  });
+
   it("disables queueing when nothing is ticked", async () => {
     api({
       [`GET /api/downloads/requests/${choosingRequest.id}`]: () => Response.json(choosingRequest),
@@ -177,7 +196,7 @@ describe("DownloadsPage", () => {
     });
     renderWithQuery(<DownloadsPage me={member} requestId={null} />);
     expect(await screen.findByText("This video is private.")).toBeInTheDocument();
-    await userEvent.click(screen.getByText("Details"));
+    await userEvent.click(screen.getByText("yt-dlp output"));
     expect(screen.getByText("ERROR: Private video")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => {

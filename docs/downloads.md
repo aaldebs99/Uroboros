@@ -16,7 +16,11 @@ request handler.
    - a **channel's main URL** lists its tabs; each tab is probed and becomes a group (Videos
      ticked, Shorts and Live unticked);
    - a group is cut at `UROBOROS_MAX_PLAYLIST_ENTRIES` (1000), and says so;
-   - a failure marks the request `failed` with its error kind.
+   - a failure marks the request `failed` with its error kind and yt-dlp's redacted stderr tail,
+     which the web shows collapsed ("yt-dlp output") under the error's plain words, as it does
+     for a failed download. A site that wants a signed-in account (yt-dlp's login wall: Vimeo's
+     own video pages need one with current yt-dlp) is `login_required`; the server can sign in
+     with a cookies file (`UROBOROS_YTDLP_COOKIES_FILE`).
 3. `POST /api/downloads/requests/{id}/queue {entryIds}` turns the ticked entries into downloads.
    Entries the person already has, or is already getting, are skipped and counted. A preview
    nobody queues expires after a day (the leader's sweeper deletes it).

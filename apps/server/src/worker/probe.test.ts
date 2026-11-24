@@ -177,4 +177,18 @@ describe("probe", () => {
     );
     expect(await load(id)).toMatchObject({ state: "failed", errorKind: "unavailable" });
   });
+
+  it("names a login wall and keeps yt-dlp's own lines for the error's Details", async () => {
+    const id = await request("https://vimeo.com/753580183");
+    const line =
+      "ERROR: [vimeo] 753580183: The web client only works when logged-in. Use --cookies, --cookies-from-browser, --username and --password, --netrc-cmd, or --netrc (vimeo) to provide account credentials.";
+    await run(id, await h.deps({ steps: [{ stderr: `${line}\n` }], exitCode: 1 }));
+    const req = await load(id);
+    expect(req).toMatchObject({
+      state: "failed",
+      errorKind: "login_required",
+      errorMessage: "the site needs a signed-in account",
+    });
+    expect(req.stderrTail).toContain(line);
+  });
 });

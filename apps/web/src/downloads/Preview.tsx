@@ -13,6 +13,7 @@ import { notify } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 import { DOWNLOAD_ERROR_TEXT } from "./errorText";
+import { YtDlpDetails } from "./YtDlpDetails";
 import { formatDuration } from "./format";
 
 function initiallyTicked(groups: PreviewGroup[]): Set<string> {
@@ -218,7 +219,12 @@ function PanelBody({
     );
   }
   if (data.state === "failed") {
-    return <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[data.errorKind ?? "unknown"]}</p>;
+    return (
+      <div className="grid gap-1">
+        <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[data.errorKind ?? "unknown"]}</p>
+        <YtDlpDetails lines={data.stderrTail} />
+      </div>
+    );
   }
   return null;
 }

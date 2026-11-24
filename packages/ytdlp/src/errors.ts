@@ -10,6 +10,7 @@ export const YTDLP_ERROR_KINDS = [
   "private",
   "geo_blocked",
   "age_restricted",
+  "login_required",
   "rate_limited",
   "network",
   "unsupported_url",
@@ -65,6 +66,12 @@ const RULES: readonly (readonly [YtDlpErrorKind, RegExp])[] = [
   [
     "private",
     /\bprivate video\b|\bvideo is private\b|\bplaylist is private\b|members[- ]only|been granted access/i,
+  ],
+  // yt-dlp's raise_login_required, once the kinds above (whose messages also suggest cookies) have
+  // passed: the site wants a signed-in account (Vimeo's own pages do since 2025).
+  [
+    "login_required",
+    /only works when logged[- ]in|\blog(?:ged)?[- ]?in (?:is )?required|registered users|account credentials|--cookies/i,
   ],
   // Before `unavailable`, so "HTTP Error 503: Service Unavailable" is a network failure.
   ["network", /HTTP Error 5\d\d/i],

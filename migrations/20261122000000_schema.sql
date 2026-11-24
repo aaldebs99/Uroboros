@@ -279,6 +279,8 @@ CREATE TABLE download_requests (
   entries JSONB NOT NULL DEFAULT '[]',
   error_kind TEXT,
   error_message TEXT,
+  -- A failed probe's last stderr lines from yt-dlp, redacted, shown under the error.
+  stderr_tail TEXT[] NOT NULL DEFAULT '{}',
   -- A playlist's own id, so queueing it records the playlist (docs/library.md).
   source_extractor TEXT,
   source_id TEXT,

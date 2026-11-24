@@ -17,6 +17,7 @@ const KINDS: Record<YtDlpErrorKind, KindInfo> = {
   private: { retry: false, message: "the video is private" },
   geo_blocked: { retry: false, message: "the video is blocked in the server's country" },
   age_restricted: { retry: false, message: "the video needs an age-verified account" },
+  login_required: { retry: false, message: "the site needs a signed-in account" },
   rate_limited: { retry: true, message: "the site is limiting requests" },
   network: { retry: true, message: "the site could not be reached" },
   unsupported_url: { retry: false, message: "yt-dlp does not support this link" },

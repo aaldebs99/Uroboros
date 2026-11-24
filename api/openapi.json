@@ -431,6 +431,7 @@
           "private",
           "geo_blocked",
           "age_restricted",
+          "login_required",
           "rate_limited",
           "network",
           "unsupported_url",
@@ -593,6 +594,12 @@
           "state": {
             "$ref": "#/components/schemas/RequestState"
           },
+          "stderrTail": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "title": {
             "nullable": true,
             "type": "string"
@@ -611,6 +618,7 @@
           "groups",
           "errorKind",
           "errorMessage",
+          "stderrTail",
           "createdAt"
         ],
         "type": "object"

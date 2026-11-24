@@ -6,6 +6,8 @@ export const DOWNLOAD_ERROR_TEXT = {
   private: "This video is private.",
   geo_blocked: "This video isn't available in the server's country.",
   age_restricted: "This video needs a signed-in, age-verified account (add cookies).",
+  login_required:
+    "The site wants a signed-in account for this. The server can sign in with a cookies file (UROBOROS_YTDLP_COOKIES_FILE).",
   rate_limited: "The site is limiting requests. It will retry.",
   network: "The site couldn't be reached. It will retry.",
   unsupported_url: "yt-dlp doesn't support this link.",

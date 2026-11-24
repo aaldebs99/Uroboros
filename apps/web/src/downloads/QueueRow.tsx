@@ -5,6 +5,7 @@ import { DownloadBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 
 import { DOWNLOAD_ERROR_TEXT } from "./errorText";
+import { YtDlpDetails } from "./YtDlpDetails";
 import { formatBytes, formatDuration } from "./format";
 
 /** "12.4 MB/s · 38 s left", from whatever the progress knows. */
@@ -65,14 +66,7 @@ function Failure({ download }: { download: Download }) {
   return (
     <div className="grid gap-1">
       <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[download.errorKind ?? "unknown"]}</p>
-      {download.stderrTail.length > 0 ? (
-        <details>
-          <summary className="cursor-pointer text-xs text-muted-foreground">Details</summary>
-          <pre className="mt-1 max-h-48 overflow-auto rounded-[0.5rem] bg-raised p-2 font-mono text-xs whitespace-pre-wrap">
-            {download.stderrTail.join("\n")}
-          </pre>
-        </details>
-      ) : null}
+      <YtDlpDetails lines={download.stderrTail} />
     </div>
   );
 }

@@ -271,6 +271,8 @@ export interface DownloadRequestsTable {
   entries: ColumnType<unknown, string | undefined, string>;
   error_kind: string | null;
   error_message: string | null;
+  /** A failed probe's last stderr lines from yt-dlp, redacted. */
+  stderr_tail: Defaulted<string[]>;
   source_extractor: string | null;
   source_id: string | null;
   created_at: Created;

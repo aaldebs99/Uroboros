@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Field, SelectField } from "@/components/ui/field";
 import { notify } from "@/components/ui/sonner";
+import { DOWNLOAD_ERROR_TEXT } from "@/downloads/errorText";
+import { YtDlpDetails } from "@/downloads/YtDlpDetails";
 
 /**
  * "Download a link", opened from the Create menu (the top bar's pill, or the phone's "+"): a form
@@ -73,6 +75,8 @@ function QuickDownloadForm({ onDone }: { onDone: () => void }) {
   /** "" means the server's default profile. */
   const [profileId, setProfileId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /** yt-dlp's own lines when the link's check failed, for the collapsed details under the field. */
+  const [ytdlp, setYtdlp] = useState<readonly string[]>([]);
 
   const open = (request: DownloadRequest) => {
     void navigate({ href: requestHref(request) });
@@ -83,7 +87,12 @@ function QuickDownloadForm({ onDone }: { onDone: () => void }) {
     onSuccess: (request) => {
       switch (request.state) {
         case "failed":
-          setError(request.errorMessage ?? "That link cannot be downloaded.");
+          setError(
+            request.errorKind === null
+              ? (request.errorMessage ?? "That link cannot be downloaded.")
+              : DOWNLOAD_ERROR_TEXT[request.errorKind],
+          );
+          setYtdlp(request.stderrTail);
           return;
         case "choosing":
           // A playlist or channel: the person picks its entries on the Downloads page.
@@ -138,8 +147,10 @@ function QuickDownloadForm({ onDone }: { onDone: () => void }) {
         onChange={(event) => {
           setUrl(event.target.value);
           setError(null);
+          setYtdlp([]);
         }}
       />
+      <YtDlpDetails lines={ytdlp} />
       <SelectField
         label="Format"
         value={profileId}
