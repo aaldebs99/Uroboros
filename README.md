@@ -1,7 +1,41 @@
-# Uroboros
+<p align="center"><img src="assets/logos/uroboros-transparent.svg" alt="" width="200"></p>
 
-A self-hosted web UI, API and downloader for media, replacing ytdl-material: one server process,
-run as several replicas. It ships with:
+<h1 align="center">Uroboros</h1>
+
+<p align="center">Your own video library: save videos from YouTube and hundreds of other sites, and watch them anywhere.</p>
+
+Uroboros is a self-hosted video library. Paste a link to a video, a playlist or a whole channel,
+and it downloads to your own server, into a library you can search and watch from any browser, or
+from your phone as an app. It replaces [ytdl-material](https://github.com/Tzahi12345/YoutubeDL-Material).
+
+## What it does
+
+- **Saving**: videos, playlists and channels from YouTube and the other sites
+  [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports, in the quality you pick.
+- **Subscriptions**: follow a channel or a playlist, and its new videos arrive on their own.
+- **Watching**: picks up where you left off, with chapters, subtitles and SponsorBlock skips, and a
+  preview when you hover over a video. A file your browser can't play is converted as you watch.
+- **Uploads**: your own videos, beside the ones you saved.
+- **Sharing**: with people, with groups you set up, or by a public link.
+- **Notifications** on your phone when a download finishes or something is shared with you.
+- **Accounts** for everyone in the household, with single sign-on if you run one.
+- **Automation**: an API for scripts, and an MCP server so AI tools such as Claude Code can search
+  your library ([docs/mcp.md](docs/mcp.md)).
+
+## The name
+
+Uroboros is named after the Mask of Uroboros in The Witcher 3. The logo is a mask too.
+
+## Pull requests and issues
+
+This GitHub repository is a mirror. Uroboros is developed on a private forge, and every push there
+is copied here, which would replace anything merged on GitHub, so pull requests are turned off. Bug
+reports and ideas are welcome as [issues](https://github.com/aaldebs99/Uroboros/issues).
+
+## Under the hood
+
+For developers: one server process serves the web app and its API and runs the downloads, and
+several of them can run side by side. It is built from:
 
 - **API**: [Hono](https://hono.dev) with `GET /api/health` (liveness), `GET /api/ready`
   (readiness), `GET /api/info`, OpenAPI generated from the routes and Swagger UI, typed
