@@ -2,9 +2,7 @@
 
 <h1 align="center">Uroboros</h1>
 
-<p align="center">Your own video library: save videos from YouTube and hundreds of other sites, and watch them anywhere.</p>
-
-Uroboros is a self-hosted video library. Paste a link to a video, a playlist or a whole channel,
+Uroboros is a cloud-native self-hosted video library. Paste a link to a video, a playlist or a whole channel,
 and it downloads to your own server, into a library you can search and watch from any browser, or
 from your phone as an app. It replaces [ytdl-material](https://github.com/Tzahi12345/YoutubeDL-Material).
 
@@ -22,14 +20,10 @@ from your phone as an app. It replaces [ytdl-material](https://github.com/Tzahi1
 - **Automation**: an API for scripts, and an MCP server so AI tools such as Claude Code can search
   your library ([docs/mcp.md](docs/mcp.md)).
 
-## The name
-
-Uroboros is named after the Mask of Uroboros in The Witcher 3. The logo is a mask too.
-
 ## Pull requests and issues
 
-This GitHub repository is a mirror. Uroboros is developed on a private forge, and every push there
-is copied here, which would replace anything merged on GitHub, so pull requests are turned off. Bug
+**This GitHub repository is a public mirror.** Uroboros is developed on a private forge, and every push
+there is copied here, which would replace anything merged on GitHub, so pull requests are turned off. Bug
 reports and ideas are welcome as [issues](https://github.com/aaldebs99/Uroboros/issues).
 
 ## Under the hood
@@ -68,6 +62,66 @@ several of them can run side by side. It is built from:
 
 ## Quickstart
 
+### Run it with Docker Compose
+
+You need Docker with Compose. Save this as `compose.yaml` in a folder of its own, choose a database
+password and an admin password (at least 12 characters), and start it with `docker compose up -d`:
+
+```yaml
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: uroboros
+      POSTGRES_PASSWORD: a-database-password
+      POSTGRES_DB: uroboros
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  uroboros:
+    image: ghcr.io/aaldebs99/uroboros:latest
+    restart: unless-stopped
+    depends_on: [postgres]
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://uroboros:a-database-password@postgres:5432/uroboros
+      UROBOROS_STORAGE: filesystem
+      UROBOROS_STORAGE_ROOT: /media
+      UROBOROS_BOOTSTRAP_USERNAME: admin
+      UROBOROS_BOOTSTRAP_PASSWORD: an-admin-password
+    volumes:
+      - media:/media
+    # Lets a running download finish or move to another replica when the container stops.
+    stop_grace_period: 35s
+
+volumes:
+  postgres-data:
+  media:
+```
+
+Then open http://localhost:8080 and sign in as `admin`. Uroboros creates that account on its first
+start and puts its password back on every start, so change it in this file rather than in the app.
+To update, run `docker compose pull && docker compose up -d`: the server applies any database
+changes itself as it starts.
+
+- **Releases:** none is out yet, so `:latest` doesn't exist until the first one. Until then, use
+  `:main`, which follows every push to main.
+- **Your files** are kept in organized folders on the `media` volume. To keep them in a folder you
+  can see (for Jellyfin, say), mount that folder at `/media` instead and give it to the container's
+  user: `sudo chown -R 65532:65532 /path/to/folder`.
+- **Saved site logins**, for sites you must be signed in to, need `UROBOROS_SECRETS_KEY`: 32 random
+  bytes from `openssl rand -base64 32`.
+- **Behind a reverse proxy**, set `UROBOROS_TRUST_PROXY: "true"`, and set `UROBOROS_PUBLIC_BASE_URL`
+  to its https address, which also turns on push notifications. The proxy must accept request
+  bodies of 8 MiB for uploads.
+- **Every other setting** is in [Configuration](#configuration). The repository's own
+  `compose.yaml` is the fuller stack: S3 storage on RustFS, several replicas behind Caddy, and GPU
+  transcoding (`compose/gpu/`).
+
+### Develop
+
 You need [mise](https://mise.jdx.dev), which installs everything else, and Docker for the local
 stack and the tests.
 
@@ -84,8 +138,6 @@ read `DATABASE_URL`, which defaults to the `dev:deps` database,
 `postgres://uroboros:uroboros@127.0.0.1:15432/uroboros`. Downloads from a host-run server need
 yt-dlp and ffmpeg on `PATH`; the compose stacks below have them.
 
-The image takes its ffmpeg from an image in a private registry, so the `docker:*` tasks
-(`docker:build`, `docker:smoke`, `docker:up`) need `docker login code.example.com` first.
 To run the real thing instead, `mise run docker:up` builds the image and starts Postgres,
 RustFS and one uroboros (migrating as it starts, serving and downloading) behind Caddy on
 http://127.0.0.1:18080; `docker compose up --scale uroboros=2` runs more replicas, which share the
@@ -261,22 +313,18 @@ Releases come from a PR. On every push to main, `release-pr.yml` proposes the ne
 section prepended. Merging it publishes the release, and `release.yml` then builds the image,
 smoke-tests it, and pushes `:X.Y.Z`, `:X.Y` and `:latest` to both `<REGISTRY>/aaldebs99/uroboros`
 and `ghcr.io/aaldebs99/uroboros`, one build with one digest. Pushes to main publish `:main` to
-both. `renovate.yml` runs a self-hosted Renovate twice a day. It looks up the ffmpeg image's tags in the
-private registry with `RENOVATE_DOCKER_CODE_example_COM_USERNAME` and `_PASSWORD`, user-scope secrets under
-`aaldebs99` (a token with `read:package`) that this repository inherits.
+both. `renovate.yml` runs a self-hosted Renovate twice a day.
 
 The repository needs these Actions variables and secrets:
 
-| Name                        | Kind     | For                                                                                                                        |
-| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `REGISTRY`                  | variable | The forge's registry host the images are pushed to (kept out of the repository).                                           |
-| `REGISTRY_TOKEN`            | secret   | An access token of the `aaldebs99` account scoped `write:package` (`release.yml` pushes, `ci.yml` pulls the ffmpeg image). |
-| `GHCR_TOKEN`                | secret   | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.                        |
-| `RELEASE_PLEASE_TOKEN`      | secret   | The release bot's token, scoped `write:repository`, `write:issue` and `read:user`.                                         |
-| `RENOVATE_TOKEN`            | secret   | The Renovate bot's token, scoped `write:repository`, `write:issue`, `read:user` and `read:organization`.                   |
-| `RENOVATE_GITHUB_COM_TOKEN` | secret   | A github.com token with no scopes, so Renovate can look up GitHub-hosted dependencies.                                     |
-
-Accepted risk: `REGISTRY_TOKEN` can write packages, yet `ci.yml` uses it to pull, so builds of same-repository pull requests, Renovate's branches included, can read a write-capable registry token; a read-only token would remove that risk. Pull requests from forks get no secrets, so their `images` job always fails at the ffmpeg pull.
+| Name                        | Kind     | For                                                                                                      |
+| --------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `REGISTRY`                  | variable | The forge's registry host the images are pushed to (kept out of the repository).                         |
+| `REGISTRY_TOKEN`            | secret   | An access token of the `aaldebs99` account scoped `write:package`, which `release.yml` pushes with.      |
+| `GHCR_TOKEN`                | secret   | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.      |
+| `RELEASE_PLEASE_TOKEN`      | secret   | The release bot's token, scoped `write:repository`, `write:issue` and `read:user`.                       |
+| `RENOVATE_TOKEN`            | secret   | The Renovate bot's token, scoped `write:repository`, `write:issue`, `read:user` and `read:organization`. |
+| `RENOVATE_GITHUB_COM_TOKEN` | secret   | A github.com token with no scopes, so Renovate can look up GitHub-hosted dependencies.                   |
 
 The bots must be ordinary accounts with write access: anything a workflow's own token creates
 fires no workflow events, so a release PR opened with it would show no checks and a release
@@ -296,3 +344,8 @@ scripts/image/                           image tooling and the image smoke test
 scripts/release/                         release PR and release cut
 .mise/config.toml                        tool pins and every task
 ```
+
+## What Does The Name Mean?
+
+Uroboros is named after the [Mask of Uroboros](https://witcher.fandom.com/wiki/Mask_of_Uroboros) from The Witcher 3 game.
+In the game, the mask is used to "rewatch" incidents of magic cataclysms.
