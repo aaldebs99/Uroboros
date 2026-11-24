@@ -344,6 +344,8 @@ CREATE TABLE library_entries (
 CREATE INDEX library_entries_subscription_idx ON library_entries (subscription_id)
   WHERE subscription_id IS NOT NULL;
 CREATE INDEX library_entries_user_idx ON library_entries (user_id, added_at DESC);
+-- Who has a media in their library (its preview's nudges, docs/library.md), and the cascade when it goes.
+CREATE INDEX library_entries_media_idx ON library_entries (media_id);
 
 -- A pasted link: probed by a worker, then (playlists and channels) previewed in `entries`.
 CREATE TABLE download_requests (

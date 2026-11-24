@@ -69,7 +69,7 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   over 150 ms once it plays (no fade with reduced motion), under the duration badge and watched
   bar; it stops when the mouse leaves, another tile starts one, the tile scrolls away or a touch
   lands elsewhere. One plays at a time. It is a plain `<video>`, never the player, so it reports
-  no progress. The small rows (suggestions, Up next, the playlist editor, the palette) have none:
+  no progress. The rows (suggestions, Up next, the playlist editor, the palette) have none:
   a hover there means picking. A tile without a clip yet behaves as before.
 
 ## Watch page

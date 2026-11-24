@@ -20,7 +20,7 @@ export function Suggestions({ currentId }: { currentId: string }) {
     return (
       <div aria-busy="true" aria-label="Loading suggestions" className="grid gap-2">
         {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} aria-hidden className="flex gap-2">
+          <div key={i} aria-hidden className="flex gap-3">
             <Skeleton className={cn("aspect-video", thumb)} />
             <div className="grid flex-1 content-start gap-2 pt-1">
               <Skeleton className="h-3 w-[90%]" />

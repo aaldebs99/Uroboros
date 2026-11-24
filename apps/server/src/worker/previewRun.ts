@@ -54,20 +54,32 @@ export function previewProcessor(deps: WorkerDeps): PreviewProcessor {
       const dir = join(deps.workDir, `preview-${mediaId}`);
       try {
         await makePreview(deps, mediaId, dir, AbortSignal.any([job.signal, cut.signal]));
-        await announcePreview(deps.db, mediaId);
       } catch (err) {
         if (cut.signal.aborted) throw new RequeueError(SHUTDOWN_REQUEUE_DELAY_MS, { cause: err });
         if (job.signal.aborted) throw err;
         const last = err instanceof UnrecoverableError || job.attemptsMade + 1 >= job.opts.attempts;
         if (last) await failPreview(deps, mediaId, err);
-        await announcePreview(deps.db, mediaId);
+        await tell(deps, mediaId);
         throw err;
       } finally {
         running.delete(cut);
         await rm(dir, { recursive: true, force: true });
       }
+      await tell(deps, mediaId);
     },
   };
+}
+
+/**
+ * Nudges the people with the video, so their bells ask again: best effort, since a lost nudge
+ * costs only a late bell (it asks every 15 s while previews wait), never the preview itself.
+ */
+async function tell(deps: WorkerDeps, mediaId: string): Promise<void> {
+  try {
+    await announcePreview(deps.db, mediaId);
+  } catch (err) {
+    deps.logger.warn({ err, mediaId }, "could not tell people about a hover preview");
+  }
 }
 
 /** Marks the media so the backfill leaves it be. */
@@ -104,7 +116,7 @@ async function makePreview(deps: WorkerDeps, mediaId: string, dir: string, signa
     .executeTakeFirst();
   if (media === undefined || media.preview_key !== null) return;
   // Its people's bells show it being made.
-  await announcePreview(deps.db, mediaId);
+  await tell(deps, mediaId);
   const source = await sourceOf(deps, mediaId);
   if (source === undefined) throw new UnrecoverableError("the media has no stored video");
   const input = await readInput(deps, source.storage_key).catch((err: unknown) => {

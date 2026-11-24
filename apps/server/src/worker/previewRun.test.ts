@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fixture, type FakeRun, type Scenario } from "@uroboros/ytdlp/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
+import { testBus } from "../../test/bus.ts";
 import { seedEntry } from "../../test/library.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
@@ -131,6 +132,33 @@ describe("making a hover preview", () => {
       "no stored video",
     );
     expect((await mediaOf(audio.mediaId)).preview_failed_at).not.toBeNull();
+  });
+
+  it("tells the video's people when it starts and when it ends, made or failed", async () => {
+    const owner = (id: string) =>
+      t.db
+        .selectFrom("library_entries")
+        .select("user_id")
+        .where("media_id", "=", id)
+        .executeTakeFirstOrThrow();
+    const bus = testBus(t);
+    await bus.ready;
+    const heard: string[] = [];
+    bus.on("uroboros_downloads", (payload) => {
+      const e = JSON.parse(payload) as { kind: string; userIds?: string[] };
+      if (e.kind === "previews") heard.push(...(e.userIds ?? []));
+    });
+    const made = await storedVideo();
+    const userId = (await owner(made)).user_id;
+    const ok = await depsFor({ steps: [{ writeFile: output(made), content: "clip" }] });
+    await previewProcessor(ok.deps).process(job(made));
+    await expect.poll(() => heard.filter((u) => u === userId).length).toBe(2);
+    const failed = await storedVideo();
+    const other = await owner(failed);
+    const bad = await depsFor({ steps: [{ stderr: "boom\n" }], exitCode: 1 });
+    await expect(previewProcessor(bad.deps).process(job(failed))).rejects.toThrow();
+    await expect.poll(() => heard.filter((u) => u === other.user_id).length).toBe(2);
+    await bus.close();
   });
 
   it("takes the clip back when the media went while it was cut", async () => {

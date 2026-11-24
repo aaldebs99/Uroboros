@@ -102,6 +102,9 @@ download.
   plus left) for several. Queueing, starting and finishing a preview publishes
   `{ kind: "previews", userIds }` (everyone with the video, a hundred to a message), and the stream
   sends them a `previews` event, on which the web app asks again (and every 15 s while any wait).
+  While previews are stalled (some overdue by 5 minutes and none being made: no replica runs
+  sessions, so none makes them; `src/previews/stall.ts`) none counts as in progress, so the bell
+  doesn't turn for work nothing will do; the leader's backfill queues no more and warns once.
 
 ## How a push is sent
 

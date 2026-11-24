@@ -1,12 +1,14 @@
 import type { PreviewWork } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { hasStoredVideo, previewsStalled } from "./stall.ts";
 
 /**
  * A person's hover previews being made (docs/library.md "Hover previews"), for the bell: over the
  * stored videos in their library, how many wait on a live `preview` job, how many are made and
  * how many are left, and the one being made (else the next). A job still finishing for a video
- * that has its preview (or failed for good) no longer counts.
+ * that has its preview (or failed for good) no longer counts, and none waits while previews are
+ * stalled (`previewsStalled`).
  */
 export async function previewWork(db: Kysely<Database>, userId: string): Promise<PreviewWork> {
   const pending = sql<boolean>`m.preview_key IS NULL AND m.preview_failed_at IS NULL`;
@@ -24,23 +26,16 @@ export async function previewWork(db: Kysely<Database>, userId: string): Promise
           .where("e.user_id", "=", userId),
       ),
     )
-    .where((eb) =>
-      eb.exists(
-        eb
-          .selectFrom("renditions as r")
-          .select("r.id")
-          .whereRef("r.media_id", "=", "m.id")
-          .where("r.video_codec", "is not", null)
-          .where("r.orphaned_at", "is", null),
-      ),
-    )
+    .where(hasStoredVideo)
     .select([
       sql<string>`count(j.id) FILTER (WHERE ${pending})`.as("queued"),
       sql<string>`count(*) FILTER (WHERE ${pending})`.as("left"),
       sql<string>`count(*) FILTER (WHERE m.preview_key IS NOT NULL)`.as("made"),
     ])
     .executeTakeFirstOrThrow();
-  const queued = Number(counts.queued);
+  // Stalled previews (no replica makes them) are not in progress: nothing would ever finish them.
+  const queued =
+    Number(counts.queued) > 0 && !(await previewsStalled(db)) ? Number(counts.queued) : 0;
   const next =
     queued === 0
       ? undefined
@@ -51,6 +46,7 @@ export async function previewWork(db: Kysely<Database>, userId: string): Promise
           .where("j.queue", "=", "preview")
           .where("e.user_id", "=", userId)
           .where(pending)
+          .where(hasStoredVideo)
           .select([
             "e.id as entry_id",
             sql<string>`coalesce(m.title, m.video_id)`.as("title"),

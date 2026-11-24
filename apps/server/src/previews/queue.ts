@@ -30,6 +30,8 @@ export async function announcePreview(db: Kysely<Database>, mediaId: string): Pr
     .select("user_id")
     .distinct()
     .where("media_id", "=", mediaId)
+    // In order, so the same people make the same payload (folded within a transaction).
+    .orderBy("user_id")
     .execute();
   const events: InternalEvent[] = [];
   for (let i = 0; i < people.length; i += ANNOUNCE_CHUNK) {

@@ -1,8 +1,8 @@
 import { DownloadEvent } from "@uroboros/contract";
 
 /**
- * The caller's live events (`/api/downloads/events`: download changes and the notice nudge), one
- * connection per browser. A browser allows about six HTTP/1.1 connections to one origin, so an
+ * The caller's live events (`/api/downloads/events`: download changes, and the notice and previews
+ * nudges), one connection per browser. A browser allows about six HTTP/1.1 connections to one origin, so an
  * event stream in every tab would use them up with a few tabs open: the tab holding the Web Lock
  * streams and passes every message to the others over a BroadcastChannel, and when it closes the
  * next tab takes over. Without locks or channels each tab streams on its own.

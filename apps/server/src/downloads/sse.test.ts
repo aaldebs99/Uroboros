@@ -169,20 +169,25 @@ describe("GET /api/downloads/events", () => {
 
   it("nudges only the people who have a video when its preview is queued", async () => {
     const [a, b] = [await user(), await user()];
-    const e = await seedEntry(testDb.db, a.userId);
-    const [mine, theirs] = await Promise.all([
-      collect(
-        await app(a).request("/api/downloads/events"),
-        () => queuePreview(h.ctx, e.mediaId),
-        (got) => got.length >= 1,
-      ),
-      collect(
-        await app(b).request("/api/downloads/events"),
-        () => publishDownloadEvent(testDb.db, { kind: "notice", userId: b.userId }),
-        (got) => got.length >= 1,
-      ),
-    ]);
+    const [first, second] = [
+      await seedEntry(testDb.db, a.userId),
+      await seedEntry(testDb.db, a.userId),
+    ];
+    const mine = await collect(
+      await app(a).request("/api/downloads/events"),
+      () => queuePreview(h.ctx, first.mediaId),
+      (got) => got.length >= 1,
+    );
     expect(mine).toEqual([{ type: "previews" }]);
+    // Then, in order: a's nudge, and b's own notice. b's stream hears only the notice.
+    const theirs = await collect(
+      await app(b).request("/api/downloads/events"),
+      async () => {
+        await queuePreview(h.ctx, second.mediaId);
+        await publishDownloadEvent(testDb.db, { kind: "notice", userId: b.userId });
+      },
+      (got) => got.length >= 1,
+    );
     expect(theirs).toEqual([{ type: "notice" }]);
   });
 
