@@ -8,8 +8,7 @@ import { ApiError } from "../api/errors.ts";
 import { needStore, serve } from "../downloads/libraryRoutes.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import { sanitizeSegment, type MediaStore } from "../storage/index.ts";
-import type { PlaybackContext } from "../transcode/playback.ts";
-import { registerPlaybackScope } from "../transcode/routes.ts";
+import { registerSessionScope, type SessionContext } from "../transcode/sessionRoutes.ts";
 import { itemBase, linkEntry, publicItem, publicShare } from "./public.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
@@ -109,7 +108,7 @@ export function registerPublicRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
   store: MediaStore | undefined,
-  playback: PlaybackContext | undefined,
+  playback: SessionContext | undefined,
 ): void {
   // Before the routes, so it wraps them: a link's pages are never for search engines.
   app.use("/api/public/*", async (c, next) => {
@@ -165,7 +164,7 @@ export function registerPublicRoutes(
     if (sub === undefined) throw new ApiError("not_found", "no such subtitle");
     return serve(c, s, sub.storage_key, "text/vtt", null);
   });
-  registerPlaybackScope(
+  registerSessionScope(
     app,
     {
       path: "/api/public/s/{code}/items/{id}/playback",
@@ -182,6 +181,5 @@ export function registerPublicRoutes(
       },
     },
     playback,
-    store,
   );
 }

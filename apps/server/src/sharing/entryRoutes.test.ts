@@ -2,7 +2,7 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import { EntryRef, LibraryItem, Playback } from "@uroboros/contract";
+import { EntryRef, LibraryItem, PlaybackSession } from "@uroboros/contract";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
@@ -11,7 +11,10 @@ import { seedEntry, type SeededEntry } from "../../test/library.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 import { DEFAULT_LAYOUT } from "../storage/config.ts";
+import { createValkey } from "../shared/valkey.ts";
 import { createStore, type MediaStore } from "../storage/index.ts";
+import { createPlaybackBus, type PlaybackBus } from "../transcode/bus.ts";
+import { TestValkey } from "../../test/testValkey.ts";
 
 const logger = pino({ level: "silent" });
 let t: TestDb;
@@ -21,10 +24,19 @@ let alice: SignedIn;
 let bob: SignedIn;
 let carol: SignedIn;
 let shared: SeededEntry;
+let bus: PlaybackBus;
+/** A playback request any browser could make. */
+const PLAY = { quality: "original", start: 0, copyVideo: true, copyAudio: true };
 
 beforeAll(async () => {
   t = await TestDb.create();
   h = await downloadHarness(t.db);
+  bus = createPlaybackBus(
+    createValkey(TestValkey.url(), "worker", logger),
+    h.ctx.valkey,
+    h.prefix,
+    logger,
+  );
   store = createStore({
     kind: "filesystem",
     root: await mkdtemp(join(tmpdir(), "uroboros-share-")),
@@ -54,6 +66,7 @@ beforeAll(async () => {
   await t.db.insertInto("share_people").values({ share_id: s.id, user_id: bob.userId }).execute();
 });
 afterAll(async () => {
+  bus.close();
   await h.close();
   await t.close();
 });
@@ -68,7 +81,7 @@ const app = (s: SignedIn): OpenAPIHono =>
         logger,
         downloads: h.ctx,
         store,
-        transcodeEncoder: "libx264",
+        playbackBus: bus,
       },
       { webDist: null },
     ),
@@ -125,11 +138,11 @@ describe("a video shared with people", () => {
     ).toBe(204);
   });
 
-  it("asks for a compatible copy on the recipient's behalf", async () => {
-    const res = await send(bob, "POST", `/api/library/${shared.entryId}/playback`);
-    expect(res.status).toBe(200);
-    expect(Playback.parse(await res.json()).masterUrl).toBe(
-      `/api/library/${shared.entryId}/playback/master.m3u8`,
+  it("starts a playback session on the recipient's behalf", async () => {
+    const res = await send(bob, "POST", `/api/library/${shared.entryId}/playback`, PLAY);
+    expect(res.status).toBe(201);
+    expect(PlaybackSession.parse(await res.json()).masterUrl).toMatch(
+      new RegExp(`^/api/library/${shared.entryId}/playback/sessions/[0-9a-f-]+/master\\.m3u8$`),
     );
   });
 
@@ -141,7 +154,10 @@ describe("a video shared with people", () => {
       ["GET", "/thumbnail"],
       ["POST", "/playback"],
     ] as const) {
-      expect((await send(carol, method, `/api/library/${shared.entryId}${path}`)).status).toBe(404);
+      const body = method === "POST" ? PLAY : undefined;
+      expect(
+        (await send(carol, method, `/api/library/${shared.entryId}${path}`, body)).status,
+      ).toBe(404);
     }
     const progress = await send(carol, "PUT", `/api/library/${shared.entryId}/progress`, {
       position: 1,

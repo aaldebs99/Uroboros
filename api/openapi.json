@@ -1509,53 +1509,113 @@
         ],
         "type": "object"
       },
-      "Playback": {
+      "PlaybackEncoder": {
+        "enum": [
+          "copy",
+          "libx264",
+          "nvenc",
+          "vaapi",
+          null
+        ],
+        "nullable": true,
+        "type": "string"
+      },
+      "PlaybackMode": {
+        "enum": [
+          "remux",
+          "encode",
+          "audio"
+        ],
+        "type": "string"
+      },
+      "PlaybackReason": {
+        "enum": [
+          "picked",
+          "container",
+          "audio_unsupported",
+          "video_unsupported",
+          "video_not_copyable"
+        ],
+        "type": "string"
+      },
+      "PlaybackRequest": {
         "properties": {
+          "copyAudio": {
+            "type": "boolean"
+          },
+          "copyVideo": {
+            "type": "boolean"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/Quality"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "quality",
+          "start",
+          "copyVideo",
+          "copyAudio"
+        ],
+        "type": "object"
+      },
+      "PlaybackSession": {
+        "properties": {
+          "encoder": {
+            "$ref": "#/components/schemas/PlaybackEncoder"
+          },
           "error": {
             "nullable": true,
+            "type": "string"
+          },
+          "height": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
             "type": "string"
           },
           "masterUrl": {
             "type": "string"
           },
           "mode": {
-            "enum": [
-              "encode",
-              "remux",
-              "audio",
-              null
-            ],
-            "nullable": true,
-            "type": "string"
+            "$ref": "#/components/schemas/PlaybackMode"
           },
-          "progress": {
-            "type": "number"
+          "quality": {
+            "$ref": "#/components/schemas/Quality"
           },
-          "readySegments": {
-            "type": "integer"
+          "reason": {
+            "$ref": "#/components/schemas/PlaybackReason"
           },
           "state": {
-            "$ref": "#/components/schemas/PlaybackState"
+            "$ref": "#/components/schemas/SessionState"
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "nullable": true,
+            "type": "integer"
           }
         },
         "required": [
+          "id",
           "state",
           "mode",
-          "readySegments",
-          "progress",
+          "quality",
+          "encoder",
+          "width",
+          "height",
+          "reason",
+          "url",
           "masterUrl",
           "error"
         ],
         "type": "object"
-      },
-      "PlaybackState": {
-        "enum": [
-          "queued",
-          "running",
-          "done",
-          "failed"
-        ],
-        "type": "string"
       },
       "PlaylistDetail": {
         "allOf": [
@@ -2099,6 +2159,18 @@
         ],
         "type": "object"
       },
+      "Quality": {
+        "enum": [
+          "360",
+          "480",
+          "720",
+          "1080",
+          "1440",
+          "2160",
+          "original"
+        ],
+        "type": "string"
+      },
       "QueueSelectionBody": {
         "properties": {
           "entryIds": {
@@ -2203,6 +2275,16 @@
         "enum": [
           "admin",
           "member"
+        ],
+        "type": "string"
+      },
+      "SessionState": {
+        "enum": [
+          "queued",
+          "starting",
+          "running",
+          "stopped",
+          "failed"
         ],
         "type": "string"
       },
@@ -4437,45 +4519,6 @@
       }
     },
     "/api/library/{id}/playback": {
-      "get": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Playback"
-                }
-              }
-            },
-            "description": "The copy"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorBody"
-                }
-              }
-            },
-            "description": "No such entry, or no copy asked for"
-          }
-        },
-        "summary": "How far along the entry's compatible copy is",
-        "tags": [
-          "library"
-        ]
-      },
       "post": {
         "parameters": [
           {
@@ -4488,16 +4531,25 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybackRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Playback"
+                  "$ref": "#/components/schemas/PlaybackSession"
                 }
               }
             },
-            "description": "The copy and how far along it is"
+            "description": "The session, queued"
           },
           "404": {
             "content": {
@@ -4508,47 +4560,6 @@
               }
             },
             "description": "No such entry"
-          }
-        },
-        "summary": "Ask for a copy of the entry this browser can play (made once, then kept)",
-        "tags": [
-          "library"
-        ]
-      }
-    },
-    "/api/library/{id}/playback/master.m3u8": {
-      "get": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/vnd.apple.mpegurl": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "The playlist"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorBody"
-                }
-              }
-            },
-            "description": "No such entry or copy"
           },
           "409": {
             "content": {
@@ -4558,16 +4569,67 @@
                 }
               }
             },
-            "description": "The copy has not started yet"
+            "description": "The video's length is unknown"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A public link already plays on its limit of screens"
           }
         },
-        "summary": "The copy's multivariant HLS playlist",
+        "summary": "Play the entry other than directly: remuxed or transcoded on the fly, from a position",
         "tags": [
           "library"
         ]
       }
     },
-    "/api/library/{id}/playback/{attempt}/index.m3u8": {
+    "/api/library/{id}/playback/sessions/{sid}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Stopped"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such session"
+          }
+        },
+        "summary": "Stop a playback session",
+        "tags": [
+          "library"
+        ]
+      },
       "get": {
         "parameters": [
           {
@@ -4581,10 +4643,60 @@
           },
           {
             "in": "path",
-            "name": "attempt",
+            "name": "sid",
             "required": true,
             "schema": {
-              "pattern": "^\\d{1,6}$",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackSession"
+                }
+              }
+            },
+            "description": "The session"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such session"
+          }
+        },
+        "summary": "A playback session's state; asking keeps it alive",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/playback/sessions/{sid}/index.m3u8": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           }
@@ -4608,16 +4720,26 @@
                 }
               }
             },
-            "description": "Not stored, or another attempt"
+            "description": "No such live session"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The session is still preparing"
           }
         },
-        "summary": "The copy's media playlist, which grows as segments are stored",
+        "summary": "The session's media playlist: the whole video, every segment, ended",
         "tags": [
           "library"
         ]
       }
     },
-    "/api/library/{id}/playback/{attempt}/{file}": {
+    "/api/library/{id}/playback/sessions/{sid}/master.m3u8": {
       "get": {
         "parameters": [
           {
@@ -4631,10 +4753,60 @@
           },
           {
             "in": "path",
-            "name": "attempt",
+            "name": "sid",
             "required": true,
             "schema": {
-              "pattern": "^\\d{1,6}$",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.apple.mpegurl": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such live session"
+          }
+        },
+        "summary": "The session's multivariant HLS playlist",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/playback/sessions/{sid}/{file}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           },
@@ -4666,10 +4838,20 @@
                 }
               }
             },
-            "description": "No such file"
+            "description": "No such file or session"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not made in time; ask again"
           }
         },
-        "summary": "One of the copy's files: init.mp4 or seg-NNNNN.m4s",
+        "summary": "init.mp4 or seg-N.m4s, made on demand if it isn't yet (the request waits)",
         "tags": [
           "library"
         ]
@@ -6335,55 +6517,6 @@
       }
     },
     "/api/public/s/{code}/items/{id}/playback": {
-      "get": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "code",
-            "required": true,
-            "schema": {
-              "pattern": "^[A-Za-z0-9_-]{1,64}$",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Playback"
-                }
-              }
-            },
-            "description": "The copy"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorBody"
-                }
-              }
-            },
-            "description": "No such entry, or no copy asked for"
-          }
-        },
-        "security": [],
-        "summary": "How far along the entry's compatible copy is",
-        "tags": [
-          "public links"
-        ]
-      },
       "post": {
         "parameters": [
           {
@@ -6405,16 +6538,25 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybackRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Playback"
+                  "$ref": "#/components/schemas/PlaybackSession"
                 }
               }
             },
-            "description": "The copy and how far along it is"
+            "description": "The session, queued"
           },
           "404": {
             "content": {
@@ -6425,57 +6567,6 @@
               }
             },
             "description": "No such entry"
-          }
-        },
-        "security": [],
-        "summary": "Ask for a copy of the entry this browser can play (made once, then kept)",
-        "tags": [
-          "public links"
-        ]
-      }
-    },
-    "/api/public/s/{code}/items/{id}/playback/master.m3u8": {
-      "get": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "code",
-            "required": true,
-            "schema": {
-              "pattern": "^[A-Za-z0-9_-]{1,64}$",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/vnd.apple.mpegurl": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "description": "The playlist"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorBody"
-                }
-              }
-            },
-            "description": "No such entry or copy"
           },
           "409": {
             "content": {
@@ -6485,17 +6576,78 @@
                 }
               }
             },
-            "description": "The copy has not started yet"
+            "description": "The video's length is unknown"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A public link already plays on its limit of screens"
           }
         },
         "security": [],
-        "summary": "The copy's multivariant HLS playlist",
+        "summary": "Play the entry other than directly: remuxed or transcoded on the fly, from a position",
         "tags": [
           "public links"
         ]
       }
     },
-    "/api/public/s/{code}/items/{id}/playback/{attempt}/index.m3u8": {
+    "/api/public/s/{code}/items/{id}/playback/sessions/{sid}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Stopped"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such session"
+          }
+        },
+        "security": [],
+        "summary": "Stop a playback session",
+        "tags": [
+          "public links"
+        ]
+      },
       "get": {
         "parameters": [
           {
@@ -6518,10 +6670,70 @@
           },
           {
             "in": "path",
-            "name": "attempt",
+            "name": "sid",
             "required": true,
             "schema": {
-              "pattern": "^\\d{1,6}$",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackSession"
+                }
+              }
+            },
+            "description": "The session"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such session"
+          }
+        },
+        "security": [],
+        "summary": "A playback session's state; asking keeps it alive",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/playback/sessions/{sid}/index.m3u8": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           }
@@ -6545,17 +6757,27 @@
                 }
               }
             },
-            "description": "Not stored, or another attempt"
+            "description": "No such live session"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The session is still preparing"
           }
         },
         "security": [],
-        "summary": "The copy's media playlist, which grows as segments are stored",
+        "summary": "The session's media playlist: the whole video, every segment, ended",
         "tags": [
           "public links"
         ]
       }
     },
-    "/api/public/s/{code}/items/{id}/playback/{attempt}/{file}": {
+    "/api/public/s/{code}/items/{id}/playback/sessions/{sid}/master.m3u8": {
       "get": {
         "parameters": [
           {
@@ -6578,10 +6800,70 @@
           },
           {
             "in": "path",
-            "name": "attempt",
+            "name": "sid",
             "required": true,
             "schema": {
-              "pattern": "^\\d{1,6}$",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.apple.mpegurl": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The playlist"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such live session"
+          }
+        },
+        "security": [],
+        "summary": "The session's multivariant HLS playlist",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/items/{id}/playback/sessions/{sid}/{file}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "format": "uuid",
               "type": "string"
             }
           },
@@ -6613,11 +6895,21 @@
                 }
               }
             },
-            "description": "No such file"
+            "description": "No such file or session"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not made in time; ask again"
           }
         },
         "security": [],
-        "summary": "One of the copy's files: init.mp4 or seg-NNNNN.m4s",
+        "summary": "init.mp4 or seg-N.m4s, made on demand if it isn't yet (the request waits)",
         "tags": [
           "public links"
         ]

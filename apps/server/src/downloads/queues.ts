@@ -4,6 +4,7 @@ import type { Message } from "../push/pusher.ts";
 import type { Urgency } from "../push/sender.ts";
 import { AUTOMATION_QUEUE, type CheckJob } from "../subscriptions/queue.ts";
 import { TRANSCODE_QUEUE, type TranscodeJob } from "../transcode/queue.ts";
+import { PLAYBACK_QUEUE, type PlaybackJob } from "../transcode/sessionQueue.ts";
 import type { ProfileArgs } from "./profiles.ts";
 
 export const PROBE_QUEUE = "probe";
@@ -43,6 +44,8 @@ export interface DownloadQueues {
   notify: Queue<NotifyJob>;
   /** Compatible playback copies (docs/transcoding.md). */
   transcode: Queue<TranscodeJob>;
+  /** Playback sessions' runs (docs/transcoding.md). */
+  playback: Queue<PlaybackJob>;
   close(): Promise<void>;
 }
 
@@ -53,14 +56,18 @@ export function createDownloadQueues(connection: Redis, prefix: string): Downloa
   const automation = new Queue<CheckJob>(AUTOMATION_QUEUE, { connection, prefix });
   const notify = new Queue<NotifyJob>(NOTIFY_QUEUE, { connection, prefix });
   const transcode = new Queue<TranscodeJob>(TRANSCODE_QUEUE, { connection, prefix });
+  const playback = new Queue<PlaybackJob>(PLAYBACK_QUEUE, { connection, prefix });
   return {
     probe,
     download,
     automation,
     notify,
     transcode,
+    playback,
     async close() {
-      await Promise.all([probe, download, automation, notify, transcode].map((q) => q.close()));
+      await Promise.all(
+        [probe, download, automation, notify, transcode, playback].map((q) => q.close()),
+      );
     },
   };
 }

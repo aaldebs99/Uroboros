@@ -6,6 +6,7 @@ import type { Database } from "../db/schema.ts";
 import type { DownloadQueues } from "../downloads/queues.ts";
 import type { PushService } from "../push/service.ts";
 import type { MediaStore } from "../storage/index.ts";
+import type { PlaybackBus } from "../transcode/bus.ts";
 import type { WorkerDeps } from "./deps.ts";
 
 /** The connections a server process opens once and shares between HTTP and its job consumers. */
@@ -16,6 +17,8 @@ export interface SharedResources {
   queues: DownloadQueues;
   store: MediaStore;
   push: PushService;
+  /** The replica's playback sessions bus (want/ready/stop). */
+  playbackBus: PlaybackBus;
 }
 
 /** What the probe and fetch processors run with, on the process's shared connections. */

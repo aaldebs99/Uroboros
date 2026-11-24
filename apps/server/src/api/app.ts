@@ -24,12 +24,17 @@ import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
 import { registerSiteLoginRoutes } from "../siteLogins/routes.ts";
-import { registerPlaybackRoutes } from "../transcode/routes.ts";
+import type { PlaybackBus } from "../transcode/bus.ts";
+import {
+  registerPlaybackSessionRoutes,
+  SEGMENT_WAIT_MS,
+  type SessionContext,
+} from "../transcode/sessionRoutes.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
 import { registerSessionRoutes } from "../auth/sessionRoutes.ts";
 import { registerTokenRoutes, resolveToken } from "../auth/tokens.ts";
-import type { Database, TranscodeEncoder } from "../db/schema.ts";
+import type { Database } from "../db/schema.ts";
 import { disabledPush, type PushService } from "../push/service.ts";
 import { registerDocs } from "./docs.ts";
 import { ApiError, errorHandler, errorResponse } from "./errors.ts";
@@ -60,8 +65,10 @@ export interface Deps {
   store?: MediaStore;
   /** The replica's download event subscription; without it the event stream answers 503. */
   downloadEvents?: EventHub;
-  /** The encoder new playback copies are made with (`UROBOROS_TRANSCODE_HWACCEL`). */
-  transcodeEncoder?: TranscodeEncoder;
+  /** The replica's playback bus; without it (or downloads or a store) playback answers 503. */
+  playbackBus?: PlaybackBus;
+  /** How long a segment request waits for its runner (tests shorten it). */
+  playbackWaitMs?: number;
   /** `UROBOROS_SECRETS_KEY`, for saved site logins; without it none can be saved. */
   secretsKey?: Buffer | null;
 }
@@ -125,6 +132,19 @@ export interface AppOptions {
   mediaOrigins?: string[];
   /** `UROBOROS_PUBLIC_BASE_URL`: absolute links in public link previews (else the request's origin). */
   publicBaseUrl?: string | null;
+}
+
+/** What playback sessions need; without downloads, a store or the bus they answer 503. */
+function playbackContext(deps: Deps): SessionContext | undefined {
+  if (deps.downloads === undefined || deps.store === undefined || deps.playbackBus === undefined) {
+    return undefined;
+  }
+  return {
+    ...deps.downloads,
+    store: deps.store,
+    bus: deps.playbackBus,
+    waitMs: deps.playbackWaitMs ?? SEGMENT_WAIT_MS,
+  };
 }
 
 function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void {
@@ -235,11 +255,8 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerNotificationPrefRoutes(app, deps.db);
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
-  const playback =
-    deps.downloads === undefined
-      ? undefined
-      : { ...deps.downloads, encoder: deps.transcodeEncoder ?? "libx264" };
-  registerPlaybackRoutes(app, playback, deps.store);
+  const playback = playbackContext(deps);
+  registerPlaybackSessionRoutes(app, playback);
   registerPublicRoutes(app, deps.db, deps.store, playback);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   registerSecuritySchemes(app);

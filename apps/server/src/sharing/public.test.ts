@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Playback, PublicItem, PublicShare } from "@uroboros/contract";
+import { PublicItem, PublicShare } from "@uroboros/contract";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
@@ -50,7 +50,6 @@ const anon = (path: string, init?: RequestInit) =>
       logger,
       downloads: h.ctx,
       store,
-      transcodeEncoder: "libx264",
     },
     { webDist: null },
   ).request(path, init);
@@ -161,13 +160,6 @@ describe("public links", () => {
 
   it("public playback URLs stay under the code", async () => {
     const code = await link({ entry_id: film.entryId });
-    const res = await anon(`/api/public/s/${code}/items/${film.entryId}/playback`, {
-      method: "POST",
-    });
-    expect(res.status).toBe(200);
-    expect(Playback.parse(await res.json()).masterUrl).toBe(
-      `/api/public/s/${code}/items/${film.entryId}/playback/master.m3u8`,
-    );
     const item = PublicItem.parse(
       await (await anon(`/api/public/s/${code}/items/${film.entryId}`)).json(),
     );

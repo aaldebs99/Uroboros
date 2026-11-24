@@ -16,6 +16,7 @@ import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createDownloadQueues } from "../downloads/queues.ts";
 import { createEventHub } from "../downloads/sse.ts";
+import { createPlaybackBus } from "../transcode/bus.ts";
 import { createStore } from "../storage/index.ts";
 import { DEFAULT_PREFIX } from "../worker/queues.ts";
 import type { SharedResources } from "../worker/wiring.ts";
@@ -130,6 +131,13 @@ export async function startApi(
     prefix,
     logger,
   );
+  // One subscription per replica carries the playback sessions' want/ready/stop messages.
+  const playbackBus = createPlaybackBus(
+    createValkey(config.valkeyUrl, "worker", logger),
+    valkey,
+    prefix,
+    logger,
+  );
   const downloadContext = {
     db,
     valkey,
@@ -156,7 +164,7 @@ export async function startApi(
       downloads: downloadContext,
       downloadEvents,
       store,
-      transcodeEncoder: config.worker.transcode.encoder,
+      playbackBus,
       secretsKey: config.secretsKey,
     },
     {
@@ -230,7 +238,10 @@ export async function startApi(
       status: leader,
       logger,
     });
-    const starting = opts.consumers?.start({ db, valkey, queues, store, push }, stop.signal);
+    const starting = opts.consumers?.start(
+      { db, valkey, queues, store, push, playbackBus },
+      stop.signal,
+    );
     if (starting !== undefined) {
       // In the background: Valkey down delays the consumers, never readiness. A start aborted by
       // shutdown is no crash; any other failure is.
@@ -265,6 +276,7 @@ export async function startApi(
     const released = attaching.catch(() => undefined).then(() => leading);
     // Event streams never finish on their own: end them so the drain does not wait them out.
     downloadEvents.close();
+    playbackBus.close();
     const [drained, consumersClosed] = await Promise.all([
       drain(server, config.shutdownGraceMs),
       closeConsumers(),
