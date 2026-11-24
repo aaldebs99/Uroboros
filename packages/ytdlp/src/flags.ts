@@ -76,6 +76,9 @@ const FLAGS: Readonly<Record<string, RegExp | null>> = {
   "write-thumbnail": null,
   "embed-thumbnail": null,
   "sub-langs": /^[\w.,*+\-!^$|()]{1,200}$/,
+  // The server's own subtitle arguments skip YouTube's machine translations of a video's subtitles
+  // (apps/server/src/worker/subtitles.ts); no other extractor argument.
+  "extractor-args": /^youtube:skip=translated_subs$/,
   "sub-format": FORMATS,
   "convert-subs": WORD,
   "convert-thumbnails": CONVERSIONS,

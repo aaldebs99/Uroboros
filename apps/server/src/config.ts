@@ -169,11 +169,12 @@ const workerEnvSchema = z.object({
     positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(String(DEFAULT_WORKER_CONCURRENCY)),
   ),
   YTDLP_PATH: unsetIfEmpty(z.string().optional()),
-  // Unset: English; empty: no subtitles (so this one is not unsetIfEmpty).
+  // Unset: English; empty: no subtitles (so this one is not unsetIfEmpty). At most 190 characters,
+  // so the ",-.*-orig" automatic captions add stays within yt-dlp's allowlist (worker/subtitles.ts).
   UROBOROS_SUBTITLE_LANGS: z
     .string()
     .regex(
-      /^$|^[\w.,*+\-!^$|()]{1,200}$/,
+      /^$|^[\w.,*+\-!^$|()]{1,190}$/,
       "UROBOROS_SUBTITLE_LANGS must be yt-dlp --sub-langs values, comma-separated",
     )
     .optional(),

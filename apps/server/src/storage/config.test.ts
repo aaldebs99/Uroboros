@@ -134,5 +134,13 @@ describe("storage settings", () => {
     expect(() => loadConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "en; rm" })).toThrow(
       /UROBOROS_SUBTITLE_LANGS/,
     );
+    // Room for the ",-.*-orig" automatic captions add, within yt-dlp's 200 characters.
+    expect(
+      loadConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "x".repeat(190) }).worker.subtitles
+        .langs,
+    ).toHaveLength(190);
+    expect(() => loadConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "x".repeat(191) })).toThrow(
+      /UROBOROS_SUBTITLE_LANGS/,
+    );
   });
 });

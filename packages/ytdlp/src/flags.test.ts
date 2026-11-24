@@ -49,6 +49,12 @@ describe("normalizeExtraArgs", () => {
     expect(normalizeExtraArgs([])).toEqual([]);
   });
 
+  it("takes one extractor argument only: skipping YouTube's machine-translated subtitles", () => {
+    expect(normalizeExtraArgs(["--extractor-args", "youtube:skip=translated_subs"])).toEqual([
+      "--extractor-args=youtube:skip=translated_subs",
+    ]);
+  });
+
   it("keeps a value that starts with a dash glued to its flag", () => {
     expect(normalizeExtraArgs(["--download-sections", "-5:00-inf"])).toEqual([
       "--download-sections=-5:00-inf",

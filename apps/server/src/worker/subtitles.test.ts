@@ -1,3 +1,4 @@
+import { normalizeExtraArgs } from "@uroboros/ytdlp";
 import { describe, expect, it } from "vitest";
 import { subtitleArgs } from "./subtitles.ts";
 
@@ -26,6 +27,10 @@ describe("subtitleArgs", () => {
         "--sub-langs=en.*,-.*-orig",
       ]),
     );
+    // yt-dlp's runs check every argument against the allowlist, the longest setting included.
+    for (const langs of ["en.*", "x".repeat(190)]) {
+      expect(() => normalizeExtraArgs(subtitleArgs({ langs, automatic: true }))).not.toThrow();
+    }
     // Unless the setting asks for the originals itself.
     expect(subtitleArgs({ langs: "de-orig,en", automatic: true })).toContain(
       "--sub-langs=de-orig,en",

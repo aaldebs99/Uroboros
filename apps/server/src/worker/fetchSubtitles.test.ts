@@ -169,6 +169,23 @@ describe("subtitles and chapters", () => {
     expect((await states("subfail-1"))[0]?.state).toBe("done");
   });
 
+  it("downloads with the default subtitle settings, automatic captions included", async () => {
+    const u = await user();
+    const data = await queued("subdefault-1", [u]);
+    const deps = await h.deps(await downloadScenario());
+    // The settings a server has unless told otherwise (config.ts).
+    deps.subtitles = { langs: "en.*", automatic: true };
+    await fetchProcessor(deps, createCancelRegistry())(job(data));
+    expect((await states("subdefault-1"))[0]?.state).toBe("done");
+    expect(await h.lastArgv()).toEqual(
+      expect.arrayContaining([
+        "--write-auto-subs",
+        "--extractor-args=youtube:skip=translated_subs",
+        "--sub-langs=en.*,-.*-orig",
+      ]),
+    );
+  });
+
   it("fetches the video without subtitles when the site refuses them", async () => {
     const u = await user();
     const data = await queued("sub429-1", [u]);
