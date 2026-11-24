@@ -143,7 +143,10 @@ describe("LibraryPage", () => {
     await renderInRouter(<LibraryPage filters={{ q: "dragon" }} />);
     const timed = await screen.findByRole("link", { name: /Captions · 12:35/ });
     expect(timed).toHaveAttribute("href", `/library/${said.id}?t=754`);
-    expect(timed.querySelector("mark")?.textContent).toBe("dragon");
+    const mark = timed.querySelector("mark");
+    expect(mark?.textContent).toBe("dragon");
+    // Body text on the soft accent: the accent's own text colour on it is under AA at this size.
+    expect(mark?.className).toMatch(/\btext-foreground\b/);
     const described = screen.getByText(/Description/);
     expect(described.closest("a")).toBeNull();
     expect(described.closest("p")?.textContent).toBe("Description · …met a dragon");

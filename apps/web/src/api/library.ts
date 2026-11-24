@@ -19,6 +19,7 @@ import {
 import { z } from "zod";
 
 import {
+  ApiError,
   deleteJson,
   getJson,
   patchJson,
@@ -58,11 +59,22 @@ export function libraryQuery(f: LibraryFilters, cursor: string | null): string {
   return text === "" ? "" : `?${text}`;
 }
 
+/**
+ * Whether to try a library query once more: never a search the server refused (400) or cut short
+ * (503, too long or too many at once; docs/library.md "Search"), which would only add to the load.
+ */
+export function retryLibrary(f: LibraryFilters) {
+  return (failures: number, err: unknown): boolean =>
+    failures < 1 &&
+    !(f.q !== undefined && err instanceof ApiError && (err.status === 400 || err.status === 503));
+}
+
 /** The caller's library, filtered, a page (60) at a time; `fetchNextPage` loads the next. */
 export function useLibraryPages(f: LibraryFilters, enabled = true) {
   return useInfiniteQuery({
     queryKey: [...libraryKey, "pages", f],
     enabled,
+    retry: retryLibrary(f),
     initialPageParam: null as string | null,
     queryFn: ({ signal, pageParam }) =>
       getJson(`/api/library${libraryQuery(f, pageParam)}`, LibraryPage, { signal }),
@@ -78,6 +90,7 @@ export function useLibraryLookup(f: LibraryFilters, enabled: boolean) {
   return useQuery({
     queryKey: [...libraryKey, "lookup", f],
     enabled,
+    retry: retryLibrary(f),
     queryFn: ({ signal }) =>
       getJson(`/api/library${libraryQuery(f, null)}`, LibraryPage, { signal }),
     placeholderData: keepPreviousData,

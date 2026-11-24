@@ -23,7 +23,7 @@ export function MatchSnippet({ match }: { match: SearchMatch }) {
     <>
       {match.snippet.map((part, i) =>
         part.mark ? (
-          <mark key={i} className="rounded-[0.125rem] bg-accent text-accent-foreground">
+          <mark key={i} className="rounded-[0.125rem] bg-accent text-foreground">
             {part.text}
           </mark>
         ) : (
