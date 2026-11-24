@@ -1,0 +1,28 @@
+﻿WEBVTT - a manual track
+
+STYLE
+::cue { color: yellow }
+
+REGION
+id:fred width:40%
+
+NOTE this is
+a comment
+
+1
+00:00:01.000 --> 00:00:03.500 region:fred align:left
+<v Roger Bingham>We are in New York City
+
+intro-2
+00:00:03.500 --> 00:00:06,250
+<i>Fish &amp; chips</i> &lt;3 &#39;n&#x2019; more&nbsp;&nbsp;here
+second line
+
+00:01:00.000 --> 00:01:02.000
+♪ ♪
+
+00:01:02.000 --> 00:01:04.000
+[LAUGHTER]
+
+00:01:04.000 --> 00:01:06.000
+Back again
