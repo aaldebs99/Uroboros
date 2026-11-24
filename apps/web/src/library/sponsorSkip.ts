@@ -35,20 +35,17 @@ export function skipSpans(segments: readonly SkipSegment[]): SkipSpan[] {
 
 /**
  * The span playback ran into between two moments, `from` then `to`, to jump past: one whose start
- * lies between them (short of its last moment), unless the viewer undid it. Only playback reaches
- * a span: from a seek into one (`from` already inside it) it plays out.
+ * lies between them (short of its last moment). Only playback reaches a span: from a seek into one
+ * (`from` already inside it, or at its start) it plays out.
  */
 export function spanReached(
   spans: readonly SkipSpan[],
   from: number,
   to: number,
-  undone: ReadonlySet<number>,
 ): SkipSpan | undefined {
   const step = to - from;
   if (step < 0 || step > MAX_STEP) return undefined;
-  return spans.find(
-    (s) => from < s.start && s.start <= to && to < s.end - TAIL && !undone.has(s.start),
-  );
+  return spans.find((s) => from < s.start && s.start <= to && to < s.end - TAIL);
 }
 
 const LABELS: Record<SponsorBlockCategory, string> = {
@@ -62,7 +59,7 @@ const LABELS: Record<SponsorBlockCategory, string> = {
   music_offtopic: "non-music section",
 };
 
-/** What the toast says was skipped: "Skipped sponsor", "Skipped sponsor and self-promotion". */
+/** A span's cue on the timeline: "Skipped sponsor", "Skipped sponsor and self-promotion". */
 export function skippedTitle(span: SkipSpan): string {
   const names = span.categories.map((c) => LABELS[c]);
   const listed =

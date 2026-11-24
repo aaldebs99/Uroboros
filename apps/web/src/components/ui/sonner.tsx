@@ -19,7 +19,7 @@ type NotifyOptions = {
   /** At most one action ("View", "Undo"). */
   action?: { label: string; onClick: () => void };
   duration?: number;
-  /** False keeps it out of the bell's "Earlier in this tab" (a passing notice, such as a skip). */
+  /** False keeps it out of the bell's "Earlier in this tab" (a passing notice, such as clearing that list failing). */
   log?: boolean;
 };
 

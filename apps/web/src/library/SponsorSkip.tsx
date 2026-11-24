@@ -1,17 +1,15 @@
 import type { SkipSegment } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
-
-import { notify } from "@/components/ui/sonner";
+import { useEffect, useMemo, type RefObject } from "react";
 
 import { skippedTitle, skipSpans, spanReached } from "./sponsorSkip";
 
 /**
  * The SponsorBlock segments a video keeps (a video profile marks them rather than cutting them,
  * docs/automation.md#sponsorblock): drawn as bands on the timeline (a metadata track labelled
- * "skip", which the patched skin's time slider draws), and jumped over when playback runs into
- * one, with a toast whose Undo goes back and plays that one through. A segment the viewer seeks
- * into plays out: only playing up to a segment's start skips it.
+ * "skip", which the patched skin's time slider draws), and jumped over without a word when playback
+ * runs into one. A segment the viewer seeks into plays out, so seeking back to one's start watches
+ * it: only playing up to a segment's start skips it.
  */
 export function SponsorSkip({
   video,
@@ -31,8 +29,6 @@ export function SponsorSkip({
     [spans],
   );
   useCreateTextTrack(track);
-  /** The spans (by start) the viewer chose to watch: never skipped again in this view. */
-  const undone = useRef(new Set<number>());
   useEffect(() => {
     const v = video.current;
     if (v === null || spans.length === 0) return;
@@ -48,24 +44,12 @@ export function SponsorSkip({
         last = now;
         return;
       }
-      const span = spanReached(spans, last, now, undone.current);
+      const span = spanReached(spans, last, now);
       last = now;
       if (span === undefined) return;
       const end = Number.isFinite(v.duration) ? Math.min(span.end, v.duration) : span.end;
       v.currentTime = end;
       last = end;
-      notify.info(skippedTitle(span), {
-        // An Undo means nothing once the moment has passed: kept out of the bell's list.
-        log: false,
-        action: {
-          label: "Undo",
-          onClick: () => {
-            undone.current.add(span.start);
-            v.currentTime = span.start;
-            last = span.start;
-          },
-        },
-      });
     };
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("seeked", onSeeked);

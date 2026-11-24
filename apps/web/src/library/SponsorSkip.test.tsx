@@ -69,17 +69,19 @@ function renderPlayer() {
 }
 
 describe("SponsorSkip", () => {
-  it("jumps over a segment playback runs into, and Undo plays that one through", async () => {
+  it("jumps over a segment playback runs into without a toast, and a seek back watches it", async () => {
     const { video, playTo, seekTo } = renderPlayer();
     seekTo(48);
     playTo(48.5);
     expect(video.currentTime).toBe(48.5);
     playTo(49.1);
     expect(video.currentTime).toBe(69);
-    expect(await screen.findByText("Skipped sponsor")).toBeInTheDocument();
-    // A plain click: jsdom has no pointer capture for the toast's swipe handling.
-    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-    expect(video.currentTime).toBe(49.04);
+    // Long enough for a toast to have rendered.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(document.querySelector("[data-sonner-toast]")).toBeNull();
+    expect(screen.queryByText(/Skipped/)).toBeNull();
+    // Seeking back to its start plays the segment through.
+    seekTo(49.04);
     playTo(49.3);
     playTo(50);
     expect(video.currentTime).toBe(50);
@@ -104,12 +106,11 @@ describe("SponsorSkip", () => {
     expect(video.currentTime).toBe(88.45);
   });
 
-  it("jumps over overlapping segments at once, naming each", async () => {
+  it("jumps over overlapping segments at once", () => {
     const { video, playTo, seekTo } = renderPlayer();
     seekTo(77.5);
     playTo(77.8);
     expect(video.currentTime).toBe(88.45);
-    expect(await screen.findByText("Skipped self-promotion and sponsor")).toBeInTheDocument();
   });
 
   it("goes to the end for a segment that runs to it, and skips nothing while paused", () => {
