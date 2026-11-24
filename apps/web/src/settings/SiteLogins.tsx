@@ -1,5 +1,5 @@
 import { LOGIN_SITES, type LoginSite, type SiteLoginView } from "@uroboros/contract";
-import { KeyRound } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState, type SubmitEvent } from "react";
 
 import { errorText } from "@/api/client";
@@ -67,13 +67,23 @@ function Credentials({
   );
 }
 
-/** Adds a login: the site from yt-dlp's list (less those already saved), then the credentials. */
-function AddLogin({ saved }: { saved: ReadonlySet<string> }) {
+/**
+ * Adds a login, or replaces a saved one, in a form dialog: the site (yt-dlp's list, less those
+ * already saved; fixed when changing one), the username and the password, then Save.
+ */
+function LoginDialog({
+  login,
+  choices,
+  onClose,
+}: {
+  login: SiteLoginView | null;
+  choices: readonly LoginSite[];
+  onClose: () => void;
+}) {
   const save = useSaveSiteLogin();
-  const [site, setSite] = useState<LoginSite | "">("");
-  const [username, setUsername] = useState("");
+  const [site, setSite] = useState<LoginSite | "">(login?.site ?? "");
+  const [username, setUsername] = useState(login?.username ?? "");
   const [password, setPassword] = useState("");
-  const choices = LOGIN_SITES.filter((s) => !saved.has(s));
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (site === "") return;
@@ -82,65 +92,6 @@ function AddLogin({ saved }: { saved: ReadonlySet<string> }) {
       {
         onSuccess: () => {
           notify.success(`Saved your ${site} login.`);
-          setSite("");
-          setUsername("");
-          setPassword("");
-        },
-        onError: (error) => {
-          notify.error(`Could not save the login: ${errorText(error)}`);
-        },
-      },
-    );
-  };
-  return (
-    <form aria-label="Add a login" className="grid gap-3" onSubmit={submit}>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <SelectField
-          id="site-login-site"
-          label="Service"
-          required
-          value={site}
-          onChange={(e) => {
-            setSite(e.target.value as LoginSite | "");
-          }}
-        >
-          <option value="" disabled>
-            Choose a service
-          </option>
-          {choices.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </SelectField>
-        <Credentials
-          idPrefix="site-login"
-          username={username}
-          password={password}
-          onUsername={setUsername}
-          onPassword={setPassword}
-        />
-      </div>
-      <Button type="submit" className="w-fit" disabled={save.isPending}>
-        <KeyRound aria-hidden />
-        {save.isPending ? "Saving…" : "Save login"}
-      </Button>
-    </form>
-  );
-}
-
-/** Replaces a saved login's username and password, in a form dialog. */
-function ChangeLogin({ login, onClose }: { login: SiteLoginView; onClose: () => void }) {
-  const save = useSaveSiteLogin();
-  const [username, setUsername] = useState(login.username);
-  const [password, setPassword] = useState("");
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    save.mutate(
-      { site: login.site, username: username.trim(), password },
-      {
-        onSuccess: () => {
-          notify.success(`Saved your ${login.site} login.`);
           onClose();
         },
         onError: (error) => {
@@ -157,11 +108,37 @@ function ChangeLogin({ login, onClose }: { login: SiteLoginView; onClose: () => 
       }}
     >
       <DialogContent>
-        <DialogTitle>Change your {login.site} login</DialogTitle>
-        <DialogDescription>Enter the password again; the old one is replaced.</DialogDescription>
+        <DialogTitle>
+          {login === null ? "Add a login" : `Change your ${login.site} login`}
+        </DialogTitle>
+        <DialogDescription>
+          {login === null
+            ? "For a site yt-dlp signs in to. The password is kept encrypted and never shown again."
+            : "Enter the password again; the old one is replaced."}
+        </DialogDescription>
         <form className="grid gap-3" onSubmit={submit}>
+          {login === null ? (
+            <SelectField
+              id="site-login-site"
+              label="Site"
+              required
+              value={site}
+              onChange={(e) => {
+                setSite(e.target.value as LoginSite | "");
+              }}
+            >
+              <option value="" disabled>
+                Choose a site
+              </option>
+              {choices.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </SelectField>
+          ) : null}
           <Credentials
-            idPrefix="site-login-change"
+            idPrefix="site-login"
             username={username}
             password={password}
             onUsername={setUsername}
@@ -228,15 +205,17 @@ function LoginRow({
 }
 
 /**
- * The caller's logins for sites yt-dlp signs in to (Settings › Logins): add one by picking the
- * service, change or remove a saved one. Passwords are write-only: the server keeps them sealed
- * and never sends them back, so a row shows the username and whether the password still opens.
+ * The caller's logins for sites yt-dlp signs in to (Settings › Logins): Add login opens a dialog
+ * for the site and the credentials; a saved one can be changed (the same dialog) or removed.
+ * Passwords are write-only: the server keeps them sealed and never sends them back, so a row shows
+ * the username and whether the password still opens.
  */
 export function SiteLogins() {
   const logins = useSiteLogins();
   const remove = useRemoveSiteLogin();
   const confirm = useConfirm();
-  const [changing, setChanging] = useState<SiteLoginView | null>(null);
+  // The login in the dialog: "new" while adding one, a saved one while changing it.
+  const [editing, setEditing] = useState<SiteLoginView | "new" | null>(null);
   if (logins.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (logins.isError) {
     return (
@@ -246,6 +225,8 @@ export function SiteLogins() {
     );
   }
   const { enabled, logins: saved } = logins.data;
+  const taken = new Set<string>(saved.map((l) => l.site));
+  const choices = LOGIN_SITES.filter((s) => !taken.has(s));
   const ask = (login: SiteLoginView) => {
     confirm.ask({
       title: `Remove your ${login.site} login?`,
@@ -265,7 +246,16 @@ export function SiteLogins() {
   return (
     <div className="grid grid-cols-1 gap-4">
       {enabled ? (
-        <AddLogin saved={new Set(saved.map((l) => l.site))} />
+        <Button
+          className="w-fit"
+          disabled={choices.length === 0}
+          onClick={() => {
+            setEditing("new");
+          }}
+        >
+          <Plus aria-hidden />
+          Add login
+        </Button>
       ) : (
         <Notice tone="warning" title="Saving logins is off on this server">
           It needs UROBOROS_SECRETS_KEY to keep passwords encrypted. Ask whoever runs it to set one.
@@ -281,7 +271,7 @@ export function SiteLogins() {
               login={login}
               canChange={enabled}
               onChange={() => {
-                setChanging(login);
+                setEditing(login);
               }}
               onRemove={() => {
                 ask(login);
@@ -290,11 +280,12 @@ export function SiteLogins() {
           ))}
         </ul>
       )}
-      {changing === null ? null : (
-        <ChangeLogin
-          login={changing}
+      {editing === null ? null : (
+        <LoginDialog
+          login={editing === "new" ? null : editing}
+          choices={choices}
           onClose={() => {
-            setChanging(null);
+            setEditing(null);
           }}
         />
       )}
