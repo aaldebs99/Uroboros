@@ -94,7 +94,7 @@ function AddLogin({ saved }: { saved: ReadonlySet<string> }) {
   };
   return (
     <form aria-label="Add a login" className="grid gap-3" onSubmit={submit}>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <SelectField
           id="site-login-site"
           label="Service"
@@ -261,8 +261,9 @@ export function SiteLogins() {
       },
     });
   };
+  // One shrinkable column: a long username truncates in its row instead of widening the page.
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       {enabled ? (
         <AddLogin saved={new Set(saved.map((l) => l.site))} />
       ) : (
