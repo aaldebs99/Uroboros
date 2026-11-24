@@ -1,4 +1,5 @@
 import type { ColumnType, Generated } from "kysely";
+import type { JobLimitsTable, JobsTable } from "./jobsSchema.ts";
 import type { PlaybackSessionsTable, RenditionKeyframesTable } from "./playbackSchema.ts";
 
 export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts";
@@ -431,4 +432,6 @@ export interface Database {
   shares: SharesTable;
   share_people: SharePeopleTable;
   notification_prefs: NotificationPrefsTable;
+  jobs: JobsTable;
+  job_limits: JobLimitsTable;
 }

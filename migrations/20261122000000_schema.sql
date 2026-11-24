@@ -564,3 +564,43 @@ CREATE TABLE storage_trash (
 
 CREATE TRIGGER playback_sessions_trash BEFORE DELETE ON playback_sessions
   FOR EACH ROW EXECUTE FUNCTION trash_playback_session();
+
+-- The job queue (docs/jobs.md): a row per job, waiting (`queued`, due at run_at) or running (held by
+-- the run whose random token is locked_by, until locked_until, which its worker renews). A finished
+-- job's row is deleted, so every row is live: a second job with a live key is refused, and a key
+-- can be used again once its job is done.
+CREATE TABLE jobs (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  queue TEXT NOT NULL CHECK (queue IN ('probe', 'download', 'notify', 'playback', 'automation')),
+  name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 32),
+  key TEXT CHECK (char_length(key) BETWEEN 1 AND 1000),
+  data JSONB NOT NULL,
+  state TEXT NOT NULL DEFAULT 'queued' CHECK (state IN ('queued', 'running')),
+  run_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Runs started, counted when a worker claims the job; a run put back unfinished gives its back.
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  max_attempts INTEGER NOT NULL DEFAULT 1 CHECK (max_attempts >= 1),
+  backoff TEXT NOT NULL DEFAULT 'fixed' CHECK (backoff IN ('fixed', 'exponential')),
+  backoff_ms INTEGER NOT NULL DEFAULT 0 CHECK (backoff_ms >= 0),
+  -- Runs whose worker vanished (its lease lapsed); past max_stalls the job is dropped.
+  stalls INTEGER NOT NULL DEFAULT 0 CHECK (stalls >= 0),
+  max_stalls INTEGER NOT NULL CHECK (max_stalls >= 0),
+  locked_by UUID,
+  locked_until TIMESTAMPTZ,
+  -- The worker process (host:pid) running it, for logs and pg_stat_activity.
+  worker TEXT,
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK ((state = 'running') = (locked_by IS NOT NULL)),
+  CHECK ((locked_by IS NULL) = (locked_until IS NULL))
+);
+CREATE UNIQUE INDEX jobs_live_key ON jobs (queue, key) WHERE key IS NOT NULL;
+CREATE INDEX jobs_due ON jobs (queue, run_at, id) WHERE state = 'queued';
+CREATE INDEX jobs_leases ON jobs (locked_until) WHERE state = 'running';
+
+-- When a rate-limited queue may start its next job, across every replica. Unlogged: a crash that
+-- empties it only lets one job start early.
+CREATE UNLOGGED TABLE job_limits (
+  queue TEXT PRIMARY KEY,
+  next_start_at TIMESTAMPTZ NOT NULL
+);
