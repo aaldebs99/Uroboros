@@ -131,8 +131,9 @@ transaction. Progress and state go over one Postgres LISTEN/NOTIFY channel to `G
 every replica; every replica also consumes the queues. The library (`docs/library.md`)
 searches with Postgres full-text (`media.search`, `websearch_to_tsquery`), pages with keyset
 cursors, and keeps per-person tags, watch progress and queued playlists. Playlists of two kinds, sharing with
-people or by a public link (`/api/public/s/{code}`, outside the guard, each route checking its
-code), and the download and share notifications are in `docs/sharing.md`; every route that serves
+people, with groups people make and run themselves (`src/groups/`; the provider's groups decide
+only the admin role), or by a public link (`/api/public/s/{code}`, outside the guard, each route
+checking its code), and the download, share and group notifications are in `docs/sharing.md`; every route that serves
 an entry asks `visibleEntry` (`src/sharing/access.ts`). A browser that can't play a file (or a
 viewer who picks a lower quality) gets a playback session, remuxed or transcoded on the fly on the
 CPU or a GPU, seekable anywhere, its segments made on demand by a runner on any replica

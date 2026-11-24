@@ -36,7 +36,7 @@ A list of sections in the page colour, below the top bar, not a separate coloure
 - Groups are split by a hairline rule (`border-t border-border mx-1 my-2`), with headings at
   12/500 muted (`px-3 pt-3.5 pb-1.5`).
 - Groups today: the primary group (Library, Downloads, Subscriptions, Shared, Settings), then
-  **Admin** for admins (Users).
+  **Admin** for admins (Users, Groups).
 - **A section's views are indented under it** (`SECTIONS` in `components/SidebarNav.tsx`, the
   lists in `nav.ts`): Library's Videos, Channels and Playlists, and Settings' Notifications,
   Logins and Profiles, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
@@ -166,7 +166,7 @@ Filters are a row of pills; views are underlined text tabs.
 - **Tabs:** text at 500, muted; the current tab is `text-foreground` with a 2px `border-foreground`
   underline over a hairline (`border-b border-border`). Use `role="tablist"` only for real
   tabpanels; links between routes stay links with `aria-current`. A page whose views each have
-  an address (Shared's With me and By me, Settings' Notifications and Logins) uses
+  an address (Shared's With me, By me and Groups, Settings' Notifications and Logins) uses
   `components/ui/route-tabs.tsx`; add the view's route to its `RouteTab` union.
 
 ## Page header

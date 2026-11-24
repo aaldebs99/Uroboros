@@ -40,13 +40,16 @@ own optional expiry. `PUT /api/shares/{kind}/{id}/people` and `…/link` set the
 them, `GET /api/shares/{kind}/{id}` says how a thing is shared, and `GET /api/shares` lists
 everything the caller shares (Shared › By me), expired ones included and marked.
 
-**With people** (`share_people`): named accounts, and groups. A group is a name from the sign-in
-provider's groups claim, as stored on each SSO account (`users.groups`, refreshed at sign-in and by
-the claims sync); a share reaches everyone whose groups hold it at the moment they ask, so joining
-or leaving a group in the provider applies without touching shares. Local accounts belong to no
-group. Naming yourself, an unknown or a disabled account is 400. `GET /api/directory` lists the
-other enabled accounts and the groups in use for the share dialog, so every member can see the
-account list (a household or small team).
+**With people** (`share_people`): named accounts, and the owner's [groups](#groups). A share to a
+group reaches everyone in it at the moment they ask, never the owner, so someone added later sees
+what was already shared and someone who leaves stops seeing it; it counts only while the owner is
+still in the group, and leaving (or being removed) ends your shares to it. A people-share left
+with nobody (its only group deleted, its only person's account deleted) ends, by a deferred
+trigger. Naming yourself, an unknown or a disabled account, or a group you are not in is 400; the
+group check runs under a lock on the groups (`FOR KEY SHARE`), so a leave or a delete at the same
+moment can't slip past it. `GET /api/directory` lists the other enabled accounts and the caller's
+groups for the share dialog, so every member can see the account list (a household or small team).
+The sign-in provider's groups (`users.groups`) decide only the admin role ([auth.md](auth.md)).
 
 **By public link**: a code of 128 random bits in base64url, stored as it is so the owner can copy
 the link again at any time. Turning the link off deletes it; turning it on again makes a new code,
@@ -75,6 +78,32 @@ playlist of them in order.
 **Retention**: a video in one of its owner's manual playlists, or shared on its own, is exempt like
 Keep. A video reached only through a shared YouTube playlist is not, so a subscribed playlist with
 "keep the newest N" still trims.
+
+## Groups
+
+Anyone signed in makes a group (`groups`, `group_members`; `src/groups/`): a name of 1–100
+characters, not unique (two households can each have "Family"). Its maker is its first manager.
+
+- **Members** see the group, everyone in it (who manages it, who is disabled) and what its members
+  share with it (`GET /api/groups/{id}/shares`, theirs marked `mine`), share with it themselves,
+  and leave. Someone outside a group gets 404 for it, the same as for one that doesn't exist.
+- **Managers** rename it, add enabled accounts (who join at once and get "_Name_ added you to
+  _group_" if their Groups notices are on; anyone already in is skipped), make members managers and
+  back, remove people (which ends that person's shares to the group) and delete it (which ends
+  what was shared only with it). A member who isn't a manager gets 403.
+- **A group keeps an enabled manager**: the last one can't leave or step down while another
+  enabled member remains (409). When a manager's account is deleted or disabled, the earliest-added
+  enabled member becomes one (`ensure_group_manager`, from triggers on `group_members` and on
+  `users.disabled_at`), and the last member going deletes the group. A disabled member stays in it
+  but isn't reached by its shares and can't be made a manager.
+- **Caps**: 500 people per group, and 50 groups made per person, counting only those they are
+  still in (under `lockKey("GRPS", userId)`). Every change locks the group's row first, so the caps
+  and the manager rule hold when two people act at once.
+- **Admins** list every group (`GET /api/admin/groups`: name, members, managers) and delete any;
+  they never see what is shared with one.
+
+The web app lists them under Shared › Groups, each with its own page; Admin › Groups is the admin
+view.
 
 ## Public links
 
@@ -118,6 +147,8 @@ Notifications (`GET` and `PUT /api/me/notifications`, all on by default):
 - **Shared with me**: "_Name_ shared _title_ with you" (or "the playlist _title_") to each person a
   people-share newly reaches when it is made or gains people, never the owner and never someone it
   already reached.
+- **Groups**: "_Name_ added you to _group_", opening the group, to each person a manager adds.
+  Joining a group sends no "shared with you" for what was already shared with it.
 
 ## The API document
 

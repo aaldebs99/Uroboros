@@ -15,7 +15,8 @@ groups" always mean one thing. Djinn allows both on one row; Uroboros does not.
 Roles are `admin` and `member`. An SSO user's role is derived from the groups claim at every
 sign-in and by the claims sync: membership in any of `UROBOROS_OIDC_ADMIN_GROUPS` (default
 `authentik Admins`) makes them an admin. Admins cannot override an SSO user's role. A local user's
-role is set by an admin. Admission is the provider's job: anyone the provider lets through gets an
+role is set by an admin. The provider's groups decide only this role: sharing with a group means
+one of the groups people make in Uroboros ([sharing.md](sharing.md#groups)). Admission is the provider's job: anyone the provider lets through gets an
 account on first sign-in (just-in-time), as in Djinn.
 
 Local accounts are created, renamed, given a role, disabled, re-enabled, reset and deleted in
