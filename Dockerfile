@@ -69,13 +69,14 @@ RUN pnpm licenses list --json --prod \
 COPY migrations migrations
 
 # --- ffmpeg: yt-dlp's static GPL ffmpeg and ffprobe, from the mirror image built in the
-# upstream-builder repository (apps/ffmpeg-ytdlp), pinned by tag and index digest. The registry is
-# private: building needs `docker login code.example.com`. The image is FROM scratch and holds
+# upstream-builder repository (apps/ffmpeg-ytdlp), pinned by tag and digest. This is its public
+# copy on GHCR, so building needs no login (the forge's registry holds the same build). The image is
+# FROM scratch and holds
 # /usr/local/bin/{ffmpeg,ffprobe}, their licences and notices under /usr/share/licenses/ffmpeg/
 # and the complete corresponding source in /usr/src/ffmpeg-ytdlp/, which the image does not copy:
 # it stays in this pinned image (THIRD_PARTY.md). Renovate bumps the tag and digest together
 # (.renovaterc.json5).
-FROM code.example.com/aaldebs99/ffmpeg-ytdlp:autobuild-2026-10-31-18-18@sha256:929ec76e4767e6e925b264743d2640ce3d4e0989a482c8cdebf7bac57ab8e748 AS ffmpeg
+FROM ghcr.io/aaldebs99/ffmpeg-ytdlp:autobuild-2026-10-31-18-18@sha256:91ef3d3072f6b494907f98a7fec1ad1b8f4a4180a6d985202071a2a024003168 AS ffmpeg
 
 # --- jellyfin-ffmpeg: the transcoder's package, fetched once and checked against its pinned
 # sha256. The stages below install it from a bind mount, so the .deb never lands in a layer. It

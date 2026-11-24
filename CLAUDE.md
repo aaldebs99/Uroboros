@@ -239,11 +239,10 @@ shipped migration is never edited.
 downloader setting or fallback. Only the job consumers spawn yt-dlp and ffmpeg (never a request
 handler); the HTTP side only checks profiles against `@uroboros/ytdlp/flags`. The image pins yt-dlp with hashes in `scripts/image/requirements.txt`, and the smoke test
 fails if any other downloader is on the image. Its ffmpeg is yt-dlp's GPL build, taken
-from the mirror image `code.example.com/aaldebs99/ffmpeg-ytdlp` (built in the upstream-builder
-repo), pinned by tag and index digest in the Dockerfile's `ffmpeg` stage and bumped by Renovate
-(`.renovaterc.json5`, and the registry credentials in `renovate.yml`). The registry is private:
-the `docker:*` tasks need `docker login code.example.com`, and `ci.yml`'s `images` job logs in
-with `REGISTRY_TOKEN`. The image ships the licences and notices under
+from the mirror image `ghcr.io/aaldebs99/ffmpeg-ytdlp` (built in the upstream-builder repo, which
+pushes the same build to the forge's registry and, public, to GHCR), pinned by tag and digest in
+the Dockerfile's `ffmpeg` stage and bumped by Renovate (`.renovaterc.json5`). Pulling it needs no
+login, so neither the `docker:*` tasks nor CI log in for it. The image ships the licences and notices under
 `/usr/share/licenses/ffmpeg/`; the source stays in the mirror (`/usr/src/ffmpeg-ytdlp/`), and
 `THIRD_PARTY.md` says what that means for distributing the image. Do not swap the build without
 updating both. Playback sessions transcode with a second ffmpeg, jellyfin-ffmpeg (its Debian
@@ -281,13 +280,11 @@ Every push to main also publishes `:main` to both, without the smoke test. Only 
 cut a release, so tooling changes belong under ci, chore or build. PR titles must be
 conventional commits (`pr-title.yml`), because the squash subject feeds the changelog.
 
-| Name                        | Kind     | Used by                 | What it is                                                                                                                                |
-| --------------------------- | -------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `REGISTRY`                  | variable | `release.yml`           | The forge's registry host the images go to (kept out of the repository).                                                                  |
-| `REGISTRY_TOKEN`            | secret   | `release.yml`, `ci.yml` | An access token of `aaldebs99` scoped `write:package`; only the namespace owner may push. `ci.yml` reads the ffmpeg mirror image with it. |
-| `GHCR_TOKEN`                | secret   | `release.yml`           | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.                                       |
-| `RELEASE_PLEASE_TOKEN`      | secret   | `release-pr.yml`        | The release bot's token (`write:repository`, `write:issue`, `read:user`), so its PRs and releases trigger workflows.                      |
-| `RENOVATE_TOKEN`            | secret   | `renovate.yml`          | The Renovate bot's token (`write:repository`, `write:issue`, `read:user`, `read:organization`).                                           |
-| `RENOVATE_GITHUB_COM_TOKEN` | secret   | `renovate.yml`          | A github.com token with no scopes, for looking up GitHub-hosted actions and tools.                                                        |
-
-Accepted risk: `REGISTRY_TOKEN` can write packages, yet `ci.yml` uses it to pull, so builds of same-repository pull requests, Renovate's branches included, can read a write-capable registry token; a read-only token would remove that risk. Fork PRs get no secrets, so their `images` job always fails at the ffmpeg pull.
+| Name                        | Kind     | Used by          | What it is                                                                                                           |
+| --------------------------- | -------- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `REGISTRY`                  | variable | `release.yml`    | The forge's registry host the images go to (kept out of the repository).                                             |
+| `REGISTRY_TOKEN`            | secret   | `release.yml`    | An access token of `aaldebs99` scoped `write:package`; only the namespace owner may push.                            |
+| `GHCR_TOKEN`                | secret   | `release.yml`    | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.                  |
+| `RELEASE_PLEASE_TOKEN`      | secret   | `release-pr.yml` | The release bot's token (`write:repository`, `write:issue`, `read:user`), so its PRs and releases trigger workflows. |
+| `RENOVATE_TOKEN`            | secret   | `renovate.yml`   | The Renovate bot's token (`write:repository`, `write:issue`, `read:user`, `read:organization`).                      |
+| `RENOVATE_GITHUB_COM_TOKEN` | secret   | `renovate.yml`   | A github.com token with no scopes, for looking up GitHub-hosted actions and tools.                                   |

@@ -180,24 +180,24 @@
     {
       // The image's ffmpeg: the mirror image built in the upstream-builder repository from yt-dlp's
       // static GPL build, the Dockerfile's `FROM <image>:<tag>@<digest> AS ffmpeg` (the dockerfile
-      // manager moves tag and digest together). The registry is private: the lookup logs in with
-      // the hostRule .github/workflows/renovate.yml builds from the environment. Its tags are
+      // manager moves tag and digest together). It is the public GHCR copy, looked up without
+      // credentials (the forge's registry holds the same build). Its tags are
       // `autobuild-YYYY-MM-DD-HH-MM`, which no built-in scheme orders, hence the regex: year as
       // major, then month, day, hour and minute, compared as numbers (`revision` is the minute).
       // Reviewed, like yt-dlp's pin: `build(image)`, never a `feat!`, as a bundled tool's major is
       // not a breaking change of Uroboros.
       //
       // No soak here (`minimumReleaseAge: null`), and a schedule instead. The docker datasource
-      // takes a release timestamp only from Docker Hub's `tag_last_pushed`, so for this registry
-      // every tag and every digest-only rebuild would stay pending forever under the top-level
-      // soak (as for GHCR below). The soak exists for exposure to third-party releases; the mirror
+      // takes a release timestamp only from Docker Hub's `tag_last_pushed`, so on GHCR every tag
+      // and every digest-only rebuild would stay pending forever under the top-level soak (as for
+      // Renovate's own GHCR image below). The soak exists for exposure to third-party releases; the mirror
       // is the owner's own repackaging, and upstream-builder has no soak of its own. What enforces
       // one is this window and the human-reviewed PR: upstream-builder mirrors on the 1st, so a PR
       // opened on the 4th or later comes at least 3 days after the upstream build, whose date the
       // tag name carries.
       description: "The ffmpeg mirror image, reviewed",
       matchDatasources: ["docker"],
-      matchDepNames: ["code.example.com/aaldebs99/ffmpeg-ytdlp"],
+      matchDepNames: ["ghcr.io/aaldebs99/ffmpeg-ytdlp"],
       versioning: "regex:^autobuild-(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})-(?<build>\\d{2})-(?<revision>\\d{2})$",
       semanticCommitType: "build",
       semanticCommitScope: "image",

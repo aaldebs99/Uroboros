@@ -37,9 +37,9 @@ ships (the fonts' OFL text among them). Uroboros' own licence is beside it as `L
 
 `/usr/local/bin/ffmpeg` and `/usr/local/bin/ffprobe` are yt-dlp's static, patched GPL build from
 https://github.com/yt-dlp/FFmpeg-Builds, copied unmodified from a mirror image published from the
-`apps/ffmpeg-ytdlp` directory of the upstream-builder repository
-(`code.example.com/aaldebs99/ffmpeg-ytdlp`). The Dockerfile pins that image by tag and index
-digest in its `ffmpeg` stage. The build links its libraries statically except the C library and
+`apps/ffmpeg-ytdlp` directory of the upstream-builder repository and published publicly as
+`ghcr.io/aaldebs99/ffmpeg-ytdlp` (the forge's registry holds the same build). The Dockerfile pins
+that image by tag and digest in its `ffmpeg` stage. The build links its libraries statically except the C library and
 libgcc_s, which the image's Debian base provides; run `ffmpeg -version` in the image to see the
 configuration.
 
@@ -54,12 +54,13 @@ The image contains, under `/usr/share/licenses/ffmpeg/`, what the mirror image h
 The image is therefore linux/amd64 only: the mirror carries yt-dlp's linux64 build and no arm64 one.
 
 Corresponding source: the complete corresponding source of the binaries is at
-`/usr/src/ffmpeg-ytdlp/` inside the pinned mirror image, which lives in the same private registry
-as the Uroboros image; the image does not copy it. That directory holds the FFmpeg source,
+`/usr/src/ffmpeg-ytdlp/` inside the pinned mirror image, which is published beside the Uroboros
+image, on the forge's registry and publicly on GHCR; the image does not copy it. That directory holds the FFmpeg source,
 the build scripts, the source each library stage downloads, the build recipe and a manifest of
-checksums. Distributing the Uroboros image outside that registry means making that source
-available alongside it on the same terms, for instance by distributing the pinned mirror image
-too. Building the image needs a login to the registry (`docker login code.example.com`).
+checksums. Both registries the release pushes the Uroboros image to carry the pinned mirror image as well,
+and anyone can pull it from GHCR without logging in. Distributing the Uroboros image anywhere else
+means making that source available alongside it on the same terms, for instance by distributing
+the pinned mirror image too.
 
 ### jellyfin-ffmpeg
 
