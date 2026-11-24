@@ -22,6 +22,13 @@ export {
   type Pipeline,
   type RunPlan,
 } from "./ffmpegArgs.ts";
+export {
+  chaptersMetadata,
+  exportArgs,
+  exportFilterGraph,
+  progressSeconds,
+  type ExportPlan,
+} from "./exportArgs.ts";
 export { checkEncoder, type EncoderCheck, type EncoderCheckOptions } from "./encoderCheck.ts";
 export { probeKeyframes, type KeyframeOptions } from "./keyframes.ts";
 export {

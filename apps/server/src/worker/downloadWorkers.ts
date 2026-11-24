@@ -8,16 +8,19 @@ import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
 import { notifyProcessor } from "./notify.ts";
 import { probeProcessor } from "./probe.ts";
 import { uploadProcessor } from "../uploads/process.ts";
+import { exportProcessor } from "./exportRun.ts";
 
 /** Pushes sent at once per replica. */
 const NOTIFY_CONCURRENCY = 4;
 /** Uploads filed at once per replica (docs/uploads.md): each mostly waits on ffprobe. */
 const UPLOAD_CONCURRENCY = 2;
+/** Copies without sponsors re-encoded at once per transcoding replica: each takes a whole encoder. */
+const EXPORT_CONCURRENCY = 1;
 
 export interface DownloadWorkers {
   /** The consumers of every queue (docs/jobs.md). */
   jobs: JobWorker;
-  /** Cuts every running fetch, upload and playback run for shutdown; each goes back to its queue. */
+  /** Cuts every running fetch, upload, copy and playback run for shutdown; each goes back to its queue. */
   abortRunning(): void;
   /** Stops listening for cancels (the job worker is drained by the caller first). */
   close(): Promise<void>;
@@ -52,6 +55,7 @@ export async function startDownloadWorkers(
   }
   const automation = automationConsumers(deps);
   const uploads = uploadProcessor(deps);
+  const exports = exportProcessor(deps);
   const consumers: Consumer[] = [
     {
       queue: "probe",
@@ -74,6 +78,16 @@ export async function startDownloadWorkers(
       process: uploads.process as Consumer["process"],
     },
     ...automation.consumers,
+    // Copies are made where playback sessions are: replicas with a transcoder to spare.
+    ...(deps.transcodeConcurrency > 0
+      ? [
+          {
+            queue: "export" as const,
+            concurrency: EXPORT_CONCURRENCY,
+            process: exports.process as Consumer["process"],
+          },
+        ]
+      : []),
   ];
   const jobs = startJobWorker({ db: deps.db, bus: opts.bus, logger: deps.logger, consumers });
   return {
@@ -81,6 +95,7 @@ export async function startDownloadWorkers(
     abortRunning() {
       cancels.abortAll();
       uploads.abortAll();
+      exports.abortAll();
       automation.abortRunning();
     },
     close() {

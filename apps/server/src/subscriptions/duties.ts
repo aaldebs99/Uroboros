@@ -4,13 +4,14 @@ import { reapOnce, REAPER_EVERY_MS } from "../storage/reaper.ts";
 import type { MediaStore } from "../storage/store.ts";
 import { reconcileSessions, SESSION_DUTY_EVERY_MS } from "../transcode/sessionDuties.ts";
 import { sweepUploads, UPLOAD_SWEEP_EVERY_MS } from "../uploads/sweep.ts";
+import { EXPORT_SWEEP_EVERY_MS, sweepExports } from "../exports/sweep.ts";
 import { checkDueSubscriptions, DUE_EVERY_MS } from "./due.ts";
 import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
 
 /**
  * The leader's automation duties: queue due checks every few seconds, apply retention hourly, run the reaper
- * every 15 minutes, and look after playback sessions (lost runs, abandoned and ended sessions) and
- * uploads (lost jobs, abandoned and old uploads) every minute.
+ * every 15 minutes, and look after playback sessions (lost runs, abandoned and ended sessions),
+ * uploads (lost jobs, abandoned and old uploads) and copies to save (expired, lost) every minute.
  */
 export function automationDuties(ctx: DownloadContext, store: MediaStore) {
   const due = periodicDuty(
@@ -46,6 +47,12 @@ export function automationDuties(ctx: DownloadContext, store: MediaStore) {
     () => sweepUploads(ctx, store),
     ctx.logger,
   );
+  const exports = periodicDuty(
+    "copies to save",
+    EXPORT_SWEEP_EVERY_MS,
+    () => sweepExports(ctx),
+    ctx.logger,
+  );
   return async (signal: AbortSignal): Promise<void> => {
     await Promise.all([
       due(signal),
@@ -53,6 +60,7 @@ export function automationDuties(ctx: DownloadContext, store: MediaStore) {
       reaper(signal),
       sessions(signal),
       uploads(signal),
+      exports(signal),
     ]);
   };
 }

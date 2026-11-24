@@ -641,7 +641,7 @@ CREATE TRIGGER playback_sessions_trash BEFORE DELETE ON playback_sessions
 -- can be used again once its job is done.
 CREATE TABLE jobs (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  queue TEXT NOT NULL CHECK (queue IN ('probe', 'download', 'notify', 'playback', 'automation', 'upload')),
+  queue TEXT NOT NULL CHECK (queue IN ('probe', 'download', 'notify', 'playback', 'automation', 'upload', 'export')),
   name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 32),
   key TEXT CHECK (char_length(key) >= 1),
   data JSONB NOT NULL,
@@ -737,3 +737,43 @@ CREATE TABLE upload_parts (
   checksum TEXT,
   PRIMARY KEY (upload_id, n)
 );
+
+-- Copies of a video without its SponsorBlock segments, made to save to a device (docs/transcoding.md
+-- "Saving without SponsorBlock segments"): the `export` job re-encodes the entry's file with `cuts`
+-- (the merged spans removed, on the file's timeline) taken out, and stores it at `storage_key`
+-- (`.exports/<id>.mp4`). Each person's own; the leader's sweep deletes one a day after it finished,
+-- and deleting the row (also through its person, entry or file going) trashes the file.
+CREATE TABLE exports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  entry_id UUID NOT NULL REFERENCES library_entries ON DELETE CASCADE,
+  rendition_id UUID NOT NULL REFERENCES renditions ON DELETE CASCADE,
+  cuts JSONB NOT NULL,
+  state TEXT NOT NULL DEFAULT 'queued' CHECK (state IN ('queued', 'running', 'done', 'failed')),
+  -- How far the encode is, 0 to 1, while it runs.
+  progress REAL CHECK (progress BETWEEN 0 AND 1),
+  -- The encoder it ran on (libx264, nvenc or vaapi).
+  encoder TEXT,
+  storage_key TEXT UNIQUE,
+  size_bytes BIGINT CHECK (size_bytes >= 0),
+  -- Why it failed, in words for its person.
+  error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  finished_at TIMESTAMPTZ,
+  CHECK ((state = 'done') = (storage_key IS NOT NULL AND size_bytes IS NOT NULL)),
+  CHECK ((state IN ('done', 'failed')) = (finished_at IS NOT NULL))
+);
+CREATE INDEX exports_user ON exports (user_id, created_at);
+CREATE INDEX exports_finished ON exports (finished_at) WHERE finished_at IS NOT NULL;
+
+CREATE FUNCTION trash_export() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF OLD.storage_key IS NOT NULL THEN
+    INSERT INTO storage_trash (key) VALUES (OLD.storage_key) ON CONFLICT (key) DO NOTHING;
+  END IF;
+  RETURN OLD;
+END
+$$;
+
+CREATE TRIGGER exports_trash BEFORE DELETE ON exports
+  FOR EACH ROW EXECUTE FUNCTION trash_export();

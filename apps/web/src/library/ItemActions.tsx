@@ -1,7 +1,7 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Download, ExternalLink, LibraryBig, ListPlus, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, LibraryBig, ListPlus, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -18,6 +18,7 @@ import { ShareButton } from "../sharing/ShareDialog";
 import { AddToPlaylist } from "./AddToPlaylist";
 import { EditDetailsDialog } from "./EditDetailsDialog";
 import { removeDescription } from "./removeText";
+import { SaveFile } from "./SaveFile";
 
 function ChannelLine({ item }: { item: LibraryItem }) {
   // A real basis (not flex-1's zero): when the row is short the actions wrap below, rather than
@@ -134,16 +135,6 @@ function AddToMine({ item }: { item: LibraryItem }) {
       }}
     >
       <LibraryBig aria-hidden /> Add to my library
-    </Button>
-  );
-}
-
-function SaveFile({ item }: { item: LibraryItem }) {
-  return (
-    <Button variant="secondary" asChild>
-      <a href={`/api/library/${item.id}/file`} download>
-        <Download aria-hidden /> Save
-      </a>
     </Button>
   );
 }

@@ -202,6 +202,36 @@ Safari's native HLS, and VA-API on Intel, are built to spec but untested.
 A paused viewer's session holds its slot while their tab is open, but its run is paused, so it
 costs nothing.
 
+## Saving without SponsorBlock segments
+
+A video keeps its SponsorBlock segments ([automation.md](automation.md#sponsorblock)), so the file
+Save gives has them. Save on a video with segments is a menu: **Original file**, or **Without
+sponsors**, a copy with the segments cut out, made by the server and saved from Downloads ›
+**Copies to save**. Cutting without re-encoding could only start each kept part at a keyframe,
+which leaves part of a sponsor in or puts the sound out of step, so the copy is re-encoded:
+
+- **Asking** (`POST /api/library/{id}/export`, any entry the person sees) records an `exports` row
+  with the cuts (the segments joined as the player joins them, `src/exports/cuts.ts`) and adds an
+  `export` job. Asking again for the same entry and cuts, while that copy is waiting, being made or
+  ready, answers with it; a failed one is asked again. A video with no segments is refused.
+- **The job** (`src/worker/exportRun.ts`) runs on replicas that run sessions, one copy at a time.
+  It trims each kept range from the decoded frames and samples, joins them (`trim`/`atrim` and
+  `concat`, `packages/ytdlp/src/exportArgs.ts`), and encodes H.264 at the source's own size (its
+  rung's cap times 1.5, the level for its size) with AAC at 192 kbit/s, into an MP4 with
+  `+faststart`. The chapters are moved to the copy's timeline; a chapter the cuts swallow goes.
+  The GPU encodes when the replica has one, decoding on the CPU (`nvenc-sw`, `vaapi-sw`) so the
+  frames can be trimmed; a pipeline that fails before any output moves to the next, the CPU last,
+  as a session's does. HDR is tone-mapped to BT.709.
+- **Progress** goes to the row every 2 s from ffmpeg's `-progress` output, and the page asks for it
+  every 3 s while a copy is being made. A row deleted meanwhile (Remove) stops the run.
+- **Done**, the copy is stored at `.exports/<id>.mp4`, its person gets a push ("Ready to save",
+  under the downloads notification kind), and `GET /api/exports/{id}/file` serves it as
+  `<title> (no sponsors).mp4`. A failure records ffmpeg's reason; a run cut for shutdown goes back
+  to the queue.
+- **A day after it finished**, the leader's sweep deletes the copy (`src/exports/sweep.ts`); it
+  also fails one whose job is gone. Deleting a row any way (Remove, the sweep, its person, entry or
+  file going) puts its file in `storage_trash` for the reaper.
+
 ## Not yet
 
 Not built yet:

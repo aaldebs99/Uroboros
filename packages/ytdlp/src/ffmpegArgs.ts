@@ -50,13 +50,16 @@ const NETWORK = [
 ];
 
 const isUrl = (input: string) => /^https?:\/\//.test(input);
+
+/** The options an input needs before its `-i`: reconnecting, for a presigned URL. */
+export const networkInputArgs = (input: string): string[] => (isUrl(input) ? [...NETWORK] : []);
 const seconds = (t: number) => Math.max(0, t).toFixed(4);
 
 function input(p: RunPlan, seek: number | null, before: string[] = []): string[] {
   return [
     ...before,
     ...(seek === null ? [] : ["-ss", seconds(seek)]),
-    ...(isUrl(p.input) ? NETWORK : []),
+    ...networkInputArgs(p.input),
     "-i",
     p.input,
   ];

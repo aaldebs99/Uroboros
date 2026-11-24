@@ -740,6 +740,87 @@
         ],
         "type": "object"
       },
+      "Export": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "cutSeconds": {
+            "type": "number"
+          },
+          "encoder": {
+            "nullable": true,
+            "type": "string"
+          },
+          "entryId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "error": {
+            "nullable": true,
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "fileUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "keptSeconds": {
+            "nullable": true,
+            "type": "number"
+          },
+          "progress": {
+            "maximum": 1,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "sizeBytes": {
+            "nullable": true,
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ExportState"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "entryId",
+          "title",
+          "state",
+          "progress",
+          "encoder",
+          "error",
+          "sizeBytes",
+          "keptSeconds",
+          "cutSeconds",
+          "createdAt",
+          "expiresAt",
+          "fileUrl"
+        ],
+        "type": "object"
+      },
+      "ExportState": {
+        "enum": [
+          "queued",
+          "running",
+          "done",
+          "failed"
+        ],
+        "type": "string"
+      },
       "Feed": {
         "properties": {
           "name": {
@@ -4207,6 +4288,114 @@
         ]
       }
     },
+    "/api/exports": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Export"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Newest first"
+          }
+        },
+        "summary": "The caller's copies to save, newest first (a finished one goes after a day)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/exports/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not the caller's"
+          }
+        },
+        "summary": "Remove a copy (stopping it if it is being made)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/exports/{id}/file": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "video/mp4": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The copy"
+          },
+          "206": {
+            "description": "A byte range of it"
+          },
+          "302": {
+            "description": "A presigned URL (S3 with a public URL set)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not the caller's, or not finished"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "summary": "Save a finished copy: streamed with range support, or a presigned redirect",
+        "tags": [
+          "library"
+        ]
+      }
+    },
     "/api/format-profiles": {
       "get": {
         "responses": {
@@ -4835,6 +5024,67 @@
           }
         },
         "summary": "Change an uploaded video's title, description and creator (its uploader only)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/export": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Export"
+                }
+              }
+            },
+            "description": "The same copy, already asked for"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Export"
+                }
+              }
+            },
+            "description": "Queued"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The video has no segments to cut"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          }
+        },
+        "summary": "Ask for a copy of an entry without its SponsorBlock segments, re-encoded to save",
         "tags": [
           "library"
         ]

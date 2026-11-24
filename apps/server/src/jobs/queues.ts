@@ -23,6 +23,7 @@ export const QUEUES = {
   playback: { leaseMs: 60_000, maxStalls: 1 },
   automation: { leaseMs: 30_000, maxStalls: 1, startEveryMs: 2000 },
   upload: { leaseMs: 60_000, maxStalls: 2 },
+  export: { leaseMs: 60_000, maxStalls: 1 },
 } as const satisfies Record<string, QueueSpec>;
 
 export type QueueName = keyof typeof QUEUES;

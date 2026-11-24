@@ -163,7 +163,11 @@ shared by everyone using the profile and revision. What happens to the segments 
   Every audio packet starts a part cleanly, so the cut is exact, and a music player that knows
   nothing of SponsorBlock never plays them. Its rendition has no `skip_segments`.
 
-Exact cuts in a video need a re-encode: extra arguments `--sponsorblock-remove=…
+To save a video to a device without its segments, the item page's Save offers a copy re-encoded
+without them, cut exactly and in sync
+([transcoding.md](transcoding.md#saving-without-sponsorblock-segments)).
+
+Exact cuts in the stored video need a re-encode too: extra arguments `--sponsorblock-remove=…
 --force-keyframes-at-cuts` do that, with ffmpeg's default encoder for the container, slowly and at
 a cost in quality. `--remove-chapters` and `--download-sections` cut by stream copy too, with the
 same keyframe limit, unless `--force-keyframes-at-cuts` comes with them.

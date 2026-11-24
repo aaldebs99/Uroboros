@@ -1,6 +1,7 @@
 import type {
   Download,
   DownloadProgress,
+  ExportState,
   RequestState,
   UploadState,
   Subscription,
@@ -40,6 +41,19 @@ const UPLOAD = {
   done: () => ({ label: "Done", tone: "success" }),
   failed: () => ({ label: "Failed", tone: "destructive" }),
 } as const satisfies Record<UploadState, (sending: boolean) => Look>;
+
+const EXPORT = {
+  queued: { label: "Waiting", tone: "muted" },
+  running: { label: "Making", tone: "primary" },
+  done: { label: "Ready", tone: "success" },
+  failed: { label: "Failed", tone: "destructive" },
+} as const satisfies Record<ExportState, Look>;
+
+/** A copy to save's state as an outlined pill (docs/transcoding.md). */
+export function ExportBadge({ state }: { state: ExportState }) {
+  const { label, tone } = EXPORT[state];
+  return <Badge tone={tone}>{label}</Badge>;
+}
 
 /** An upload's state as an outlined pill: receiving is Uploading while this tab sends it. */
 export function UploadBadge({ state, sending }: { state: UploadState; sending: boolean }) {

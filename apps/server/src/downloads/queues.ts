@@ -29,6 +29,11 @@ export interface UploadJob {
   uploadId: string;
 }
 
+/** Make a copy of a video without its SponsorBlock segments (docs/transcoding.md). */
+export interface ExportJob {
+  exportId: string;
+}
+
 /** One push to all of a person's devices (`notify` queue; docs/push.md). */
 export interface NotifyJob {
   userId: string;
@@ -46,6 +51,8 @@ export interface DownloadQueues {
   playback: JobQueue<PlaybackJob>;
   /** Finished uploads, filed in their person's library (docs/uploads.md). */
   upload: JobQueue<UploadJob>;
+  /** Copies without SponsorBlock segments, re-encoded to save (docs/transcoding.md). */
+  export: JobQueue<ExportJob>;
 }
 
 /** The producer side of every queue (docs/jobs.md). */
@@ -57,5 +64,6 @@ export function createDownloadQueues(db: Kysely<Database>): DownloadQueues {
     notify: new JobQueue<NotifyJob>(db, "notify"),
     playback: new JobQueue<PlaybackJob>(db, "playback"),
     upload: new JobQueue<UploadJob>(db, "upload"),
+    export: new JobQueue<ExportJob>(db, "export"),
   };
 }

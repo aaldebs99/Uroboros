@@ -24,6 +24,7 @@ import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerUploadRoutes } from "../uploads/routes.ts";
+import { registerExportRoutes, type ExportContext } from "../exports/routes.ts";
 import type { UploadContext } from "../uploads/store.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
 import { registerSiteLoginRoutes } from "../siteLogins/routes.ts";
@@ -151,6 +152,12 @@ function uploadContext(deps: Deps): UploadContext | undefined {
   };
 }
 
+/** What copies to save need; without downloads or a store they answer 503. */
+function exportContext(deps: Deps): ExportContext | undefined {
+  if (deps.downloads === undefined || deps.store === undefined) return undefined;
+  return { ...deps.downloads, store: deps.store };
+}
+
 /** What playback sessions need; without downloads, a store or the bus they answer 503. */
 function playbackContext(deps: Deps): SessionContext | undefined {
   if (deps.downloads === undefined || deps.store === undefined || deps.playbackBus === undefined) {
@@ -273,6 +280,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
   registerUploadRoutes(app, uploadContext(deps));
+  registerExportRoutes(app, exportContext(deps));
   const playback = playbackContext(deps);
   registerPlaybackSessionRoutes(app, playback);
   registerPublicRoutes(app, deps.db, deps.store, playback);

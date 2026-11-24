@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { notify } from "@/components/ui/sonner";
 
+import { ExportsSection } from "@/exports/ExportsSection";
 import { UploadsSection } from "@/uploads/UploadsSection";
 
 import { PasteForm } from "./PasteForm";
@@ -72,6 +73,7 @@ export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | n
         />
       )}
       <UploadsSection />
+      <ExportsSection />
       {downloads.isError ? <p className="text-destructive">{errorText(downloads.error)}</p> : null}
       {list.length === 0 && downloads.isSuccess ? (
         <EmptyState icon={Download} title="Nothing downloaded yet.">

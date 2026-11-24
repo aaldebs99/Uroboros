@@ -11,6 +11,7 @@ import type {
   PlaybackSessionsTable,
   RenditionKeyframesTable,
 } from "./playbackSchema.ts";
+import type { ExportsTable } from "./exportsSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
 
 export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts";
@@ -474,4 +475,5 @@ export interface Database {
   signin_failures: SigninFailuresTable;
   uploads: UploadsTable;
   upload_parts: UploadPartsTable;
+  exports: ExportsTable;
 }
