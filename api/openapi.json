@@ -4588,7 +4588,7 @@
             "description": "Newest first"
           }
         },
-        "summary": "The caller's copies to save, newest first (a finished one goes after a day)",
+        "summary": "The caller's copies to save, newest first (kept until removed)",
         "tags": [
           "library"
         ]

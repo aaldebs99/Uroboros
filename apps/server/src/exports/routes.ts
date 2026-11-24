@@ -38,7 +38,7 @@ const listRoute = createRoute({
   method: "get",
   path: "/api/exports",
   tags: ["library"],
-  summary: "The caller's copies to save, newest first (a finished one goes after a day)",
+  summary: "The caller's copies to save, newest first (kept until removed)",
   responses: { 200: json(z.array(Export), "Newest first") },
 });
 
