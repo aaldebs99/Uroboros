@@ -5,6 +5,7 @@ import {
   TokenList,
   type AdminUserPatch,
   type ChangePasswordBody,
+  type NewApiTokenBody,
   type NewLocalUserBody,
 } from "@uroboros/contract";
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
@@ -49,7 +50,9 @@ export const useTokens = () =>
     queryFn: ({ signal }) => getJson("/api/me/tokens", TokenList, { signal }),
   });
 export const useCreateToken = () =>
-  useRefreshing(keys.tokens, (name: string) => postJson("/api/me/tokens", NewApiToken, { name }));
+  useRefreshing(keys.tokens, (body: NewApiTokenBody) =>
+    postJson("/api/me/tokens", NewApiToken, body),
+  );
 export const useRevokeToken = () =>
   useRefreshing(keys.tokens, (id: string) =>
     deleteJson(`/api/me/tokens/${encodeURIComponent(id)}`),

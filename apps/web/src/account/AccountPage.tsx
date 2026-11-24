@@ -81,7 +81,7 @@ export function AccountPage({ me }: { me: Me }) {
       <Section
         icon={KeyRound}
         title="API tokens"
-        description="For scripts and tools. A token acts as you, except for account and admin changes."
+        description="For scripts and AI tools. A token acts as you, within the access you give it, except for account and admin changes."
       >
         <Tokens />
       </Section>
