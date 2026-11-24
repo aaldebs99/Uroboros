@@ -1,10 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Toaster } from "@/components/ui/sonner";
 import { fakeApi } from "@/test/fakeApi";
 import { fakeXhr } from "@/test/fakeXhr";
+import { expectLabelShowsFocus } from "@/test/focusRing";
 import { renderInRouter } from "@/test/render";
 
 import { UploadDialog } from "./UploadDialog";
@@ -28,11 +30,13 @@ const video = () => new File(["abcdefghij"], "Holiday trip.mp4", { type: "video/
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // Sonner replays toasts still showing to the next test's Toaster.
+  toast.dismiss();
 });
 
 async function open(onOpenChange = vi.fn()) {
   await renderInRouter(
-    <UploadProvider pollMs={5}>
+    <UploadProvider pollMs={5} retryMs={1}>
       <UploadDialog open onOpenChange={onOpenChange} creator="Alice" />
       <Toaster />
     </UploadProvider>,
@@ -59,6 +63,72 @@ function serverFlow() {
     "GET /api/uploads": () => Response.json([]),
   });
 }
+
+describe("UploadDialog after the parts are in", () => {
+  const done = { ...upload, state: "done", entryId: ENTRY };
+
+  it("rides out a server that fails while completing and while checking", async () => {
+    let completes = 0;
+    let checks = 0;
+    fakeApi({
+      "POST /api/uploads": () => Response.json(upload, { status: 201 }),
+      [`POST /api/uploads/${UID}/complete`]: () =>
+        ++completes === 1
+          ? Response.json({ code: "unavailable", message: "deploying" }, { status: 503 })
+          : Response.json({ ...upload, state: "processing" }),
+      [`GET /api/uploads/${UID}`]: () =>
+        ++checks === 1
+          ? Response.json({ code: "unavailable", message: "deploying" }, { status: 503 })
+          : Response.json(done),
+      "GET /api/uploads": () => Response.json([]),
+    });
+    fakeXhr();
+    const { dialog } = await open();
+    await userEvent.upload(within(dialog).getByLabelText("Choose a video"), video());
+    await userEvent.click(within(dialog).getByRole("button", { name: "Upload" }));
+    expect(await screen.findByText("Uploaded: Holiday trip")).toBeInTheDocument();
+    expect(screen.queryByText(/is paused/)).not.toBeInTheDocument();
+  });
+
+  it("waits for the video when a complete it lost the answer to had landed (409)", async () => {
+    fakeApi({
+      "POST /api/uploads": () => Response.json(upload, { status: 201 }),
+      [`POST /api/uploads/${UID}/complete`]: () =>
+        Response.json(
+          { code: "conflict", message: "this upload has all its parts" },
+          { status: 409 },
+        ),
+      [`GET /api/uploads/${UID}`]: () => Response.json(done),
+      "GET /api/uploads": () => Response.json([]),
+    });
+    fakeXhr();
+    const { dialog } = await open();
+    await userEvent.upload(within(dialog).getByLabelText("Choose a video"), video());
+    await userEvent.click(within(dialog).getByRole("button", { name: "Upload" }));
+    expect(await screen.findByText("Uploaded: Holiday trip")).toBeInTheDocument();
+  });
+
+  it("on Try again, picks up from what the server has: here, the finished video", async () => {
+    let finished = false;
+    fakeApi({
+      "POST /api/uploads": () => Response.json(upload, { status: 201 }),
+      [`POST /api/uploads/${UID}/complete`]: () =>
+        Response.json({ code: "unavailable", message: "down" }, { status: 503 }),
+      [`GET /api/uploads/${UID}`]: () =>
+        Response.json(finished ? done : { ...upload, receivedParts: [1, 2, 3] }),
+      "GET /api/uploads": () => Response.json([]),
+    });
+    const parts = fakeXhr();
+    const { dialog } = await open();
+    await userEvent.upload(within(dialog).getByLabelText("Choose a video"), video());
+    await userEvent.click(within(dialog).getByRole("button", { name: "Upload" }));
+    await within(dialog).findByRole("button", { name: "Try again" });
+    finished = true;
+    await userEvent.click(within(dialog).getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("Uploaded: Holiday trip")).toBeInTheDocument();
+    expect(parts).toHaveLength(3);
+  });
+});
 
 describe("UploadDialog", () => {
   it("uploads a video with its details in parts, then says it is in the library", async () => {
@@ -90,6 +160,13 @@ describe("UploadDialog", () => {
     await waitFor(() => {
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
+  });
+
+  it("shows keyboard focus on its file and thumbnail buttons", async () => {
+    fakeApi({});
+    const { dialog } = await open();
+    expectLabelShowsFocus(within(dialog).getByLabelText("Choose a video"));
+    expectLabelShowsFocus(within(dialog).getByLabelText("Choose a thumbnail"));
   });
 
   it("checks the file and the title before sending anything", async () => {

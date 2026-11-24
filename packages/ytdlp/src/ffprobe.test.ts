@@ -65,3 +65,26 @@ describe("ffprobe for playback sessions", () => {
     ]);
   });
 });
+
+describe("ffprobe on a file someone uploaded", () => {
+  it("pins the demuxers it may use, and a local file to the file protocol", async () => {
+    const run = await FakeRun.create({ steps: [{ stdout: JSON.stringify(json) }] });
+    runs.push(run);
+    await ffprobe("/media/upload.mp4", { ...run.options, formats: "mov,matroska,avi" });
+    const argv = await run.argv();
+    expect(
+      argv.slice(argv.indexOf("-format_whitelist"), argv.indexOf("-format_whitelist") + 2),
+    ).toEqual(["-format_whitelist", "mov,matroska,avi"]);
+    expect(argv[argv.indexOf("-protocol_whitelist") + 1]).toBe("file");
+    expect(argv.indexOf("-format_whitelist")).toBeLessThan(argv.indexOf("-i"));
+  });
+
+  it("keeps a URL to the network protocols", async () => {
+    const run = await FakeRun.create({ steps: [{ stdout: JSON.stringify(json) }] });
+    runs.push(run);
+    await ffprobe("https://s3.example/b/k", { ...run.options, formats: "mov" });
+    const argv = await run.argv();
+    expect(argv[argv.indexOf("-protocol_whitelist") + 1]).toBe("http,https,tcp,tls,crypto");
+    expect(argv).toContain("-format_whitelist");
+  });
+});

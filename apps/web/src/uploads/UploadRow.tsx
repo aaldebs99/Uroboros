@@ -36,16 +36,11 @@ function ChooseAgain({ upload, onFile }: { upload: Upload; onFile: (file: File) 
       <span className="text-xs text-muted-foreground">
         Choose {upload.filename} again to finish.
       </span>
-      <Button variant="secondary" size="compact" asChild>
-        <label htmlFor={inputId} className="cursor-pointer">
-          Choose the file
-        </label>
-      </Button>
       <input
         id={inputId}
         type="file"
         aria-label={`Choose ${upload.filename} again`}
-        className="sr-only"
+        className="peer sr-only"
         onChange={(event) => {
           const picked = event.target.files?.[0];
           event.target.value = "";
@@ -59,6 +54,14 @@ function ChooseAgain({ upload, onFile }: { upload: Upload; onFile: (file: File) 
           onFile(picked);
         }}
       />
+      <Button variant="secondary" size="compact" asChild>
+        <label
+          htmlFor={inputId}
+          className="cursor-pointer peer-focus-visible:ring-[0.1875rem] peer-focus-visible:ring-ring/45"
+        >
+          Choose the file
+        </label>
+      </Button>
     </div>
   );
 }

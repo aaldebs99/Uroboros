@@ -20,6 +20,17 @@ import { FAILED_NO_VIDEO, FAILED_OTHERWISE, failUpload, type UploadRow } from ".
 const SHUTDOWN_REQUEUE_DELAY_MS = 1000;
 /** ffprobe's time on a stored upload (it reads the header, or an S3 URL's). */
 const PROBE_TIMEOUT_MS = 5 * 60_000;
+/**
+ * The demuxers an upload may be read with (MP4/MOV/M4V, MKV/WebM, AVI): ffmpeg picks one by
+ * content, never the extension, and a playlist demuxer (HLS, ffconcat) would fetch URLs or read
+ * other files (docs/uploads.md).
+ */
+export const UPLOAD_FORMATS = "mov,matroska,avi";
+const CONTAINERS = new Set(["mov", "mp4", "matroska", "webm", "avi"]);
+/** A container ffprobe named (`mov,mp4,m4a,3gp,3g2,mj2`) is one of those. */
+const allowedContainer = (name: string | null) =>
+  name !== null && name.split(",").some((n) => CONTAINERS.has(n));
+
 /** The frame comes from a tenth of the way in, but no later than a minute. */
 const FRAME_AT = (duration: number | null) =>
   duration === null ? 0 : Math.min(duration * 0.1, 60);
@@ -54,8 +65,15 @@ export function uploadProcessor(deps: WorkerDeps): UploadProcessor {
         const last = err instanceof UnrecoverableError || job.attemptsMade + 1 >= job.opts.attempts;
         if (last) {
           const message = err instanceof NoVideo ? FAILED_NO_VIDEO : FAILED_OTHERWISE;
-          if (await failUpload(deps.db, deps.store, uploadId, message)) {
-            deps.logger.warn({ err, uploadId }, "upload failed");
+          try {
+            if (await failUpload(deps.db, deps.store, uploadId, message)) {
+              deps.logger.warn({ err, uploadId }, "upload failed");
+            }
+          } catch (dropErr) {
+            deps.logger.warn(
+              { err: dropErr, uploadId },
+              "a failed upload's bytes were not dropped",
+            );
           }
         }
         throw err;
@@ -94,7 +112,11 @@ async function fileUpload(deps: WorkerDeps, id: string, signal: AbortSignal): Pr
     ...env(deps.ffprobe.env),
     signal,
     timeoutMs: PROBE_TIMEOUT_MS,
+    formats: UPLOAD_FORMATS,
   });
+  if (!allowedContainer(info.container)) {
+    throw new NoVideo(`the upload is not a video file (${info.container ?? "unknown"})`);
+  }
   const facts = renditionFacts(info);
   if (facts.video_codec === null) throw new NoVideo("the upload has no video stream");
   const frameKey =
@@ -174,6 +196,7 @@ async function frame(
       ...env(deps.ffmpeg.env),
       signal,
       atSeconds: FRAME_AT(duration),
+      formats: UPLOAD_FORMATS,
     });
     const key = uploadThumbnailKey(deps.storage, row.storage_key, row.media_id, row.title, "jpg");
     await deps.store.putBytes(key, bytes, contentTypeOf("jpg"));

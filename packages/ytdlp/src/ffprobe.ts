@@ -16,6 +16,13 @@ export interface FfprobeOptions {
   signal?: AbortSignal;
   env?: Readonly<Record<string, string>>;
   killGraceMs?: number;
+  /**
+   * The demuxers ffprobe may use, comma-separated (`-format_whitelist`), for a file someone
+   * uploaded: ffmpeg picks a demuxer by content, so a playlist named `.mp4` (HLS, ffconcat) would
+   * otherwise make it fetch URLs or read other files. A local file is then held to the file
+   * protocol too.
+   */
+  formats?: string;
 }
 
 /** ffprobe prints most numbers as strings ("634.566"), so both are accepted. */
@@ -133,6 +140,18 @@ export type MediaInfo = z.output<typeof MediaInfo>;
 /** Network protocols only, for an input that is a URL (an S3 object). */
 const URL_PROTOCOLS = ["-protocol_whitelist", "http,https,tcp,tls,crypto"];
 
+/**
+ * The input, with its protocols held to what it needs: a URL to the network ones; a local file,
+ * when the demuxers are pinned (`formats`), to the file protocol. An absolute path never starts
+ * with "-", so ffmpeg cannot read it as an option; a URL starts with its scheme.
+ */
+export function inputArgs(path: string, formats?: string): string[] {
+  const pinned = formats === undefined ? [] : ["-format_whitelist", formats];
+  if (/^https?:\/\//.test(path)) return [...URL_PROTOCOLS, ...pinned, "-i", path];
+  const local = formats === undefined ? [] : ["-protocol_whitelist", "file"];
+  return [...local, ...pinned, "-i", resolve(path)];
+}
+
 /** Reads a media file's (or URL's) container, duration and streams with ffprobe. */
 export async function ffprobe(path: string, options: FfprobeOptions = {}): Promise<MediaInfo> {
   const result = await runProcess({
@@ -144,9 +163,7 @@ export async function ffprobe(path: string, options: FfprobeOptions = {}): Promi
       "json",
       "-show_format",
       "-show_streams",
-      // An absolute path never starts with "-", so ffprobe cannot read it as an option; a URL
-      // starts with its scheme.
-      ...(/^https?:\/\//.test(path) ? [...URL_PROTOCOLS, "-i", path] : ["-i", resolve(path)]),
+      ...inputArgs(path, options.formats),
     ],
     env: options.env,
     signal: options.signal,

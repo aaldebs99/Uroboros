@@ -1,10 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Toaster } from "@/components/ui/sonner";
 import { fakeApi } from "@/test/fakeApi";
 import { fakeXhr } from "@/test/fakeXhr";
+import { expectLabelShowsFocus } from "@/test/focusRing";
 import { renderInRouter } from "@/test/render";
 
 import { UploadProvider } from "./UploadProvider";
@@ -41,6 +43,8 @@ const failed = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // Sonner replays toasts still showing to the next test's Toaster.
+  toast.dismiss();
 });
 
 async function show(extra: Parameters<typeof fakeApi>[0] = {}) {
@@ -70,6 +74,11 @@ describe("UploadsSection", () => {
     expect(
       within(rows[2] ?? section).getByText("That file has no video we can read"),
     ).toBeInTheDocument();
+  });
+
+  it("shows keyboard focus on Choose the file", async () => {
+    const { section } = await show();
+    expectLabelShowsFocus(await within(section).findByLabelText("Choose trip.mp4 again"));
   });
 
   it("dismisses a failed upload, and cancels a paused one", async () => {

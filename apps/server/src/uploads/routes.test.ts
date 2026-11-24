@@ -36,14 +36,14 @@ afterAll(async () => {
   await t.close();
 });
 
-function app(s: SignedIn, partBytes = PART): OpenAPIHono {
+function app(s: SignedIn, partBytes = PART, st: MediaStore = store): OpenAPIHono {
   return asUser(
     createApp(
       {
         db: t.db,
         version: "t",
         logger,
-        store,
+        store: st,
         storage,
         downloads: h.ctx,
         uploadPartBytes: partBytes,
@@ -236,6 +236,27 @@ describe("cancelling and other people", () => {
     expect((await a.request(`/api/uploads/${up.id}`, { method: "DELETE" })).status).toBe(204);
     expect((await a.request(`/api/uploads/${up.id}`)).status).toBe(404);
     expect(await readdir(dir).catch(() => [])).toEqual([]);
+  });
+
+  it("keeps a cancelled upload whose store refused the abort, so it can be cancelled again", async () => {
+    const me = await signedIn(t.db, { username: "upcancelfail" });
+    let down = true;
+    const flaky: MediaStore = {
+      ...store,
+      abortUpload: (key, uploadId) => {
+        if (down) {
+          down = false;
+          return Promise.reject(new Error("the store is down"));
+        }
+        return store.abortUpload(key, uploadId);
+      },
+    };
+    const a = app(me, PART, flaky);
+    const up = await create(a);
+    expect((await a.request(`/api/uploads/${up.id}`, { method: "DELETE" })).status).toBe(500);
+    expect((await a.request(`/api/uploads/${up.id}`)).status).toBe(200);
+    expect((await a.request(`/api/uploads/${up.id}`, { method: "DELETE" })).status).toBe(204);
+    expect((await a.request(`/api/uploads/${up.id}`)).status).toBe(404);
   });
 
   it("answers 404 for another person's upload on every route", async () => {

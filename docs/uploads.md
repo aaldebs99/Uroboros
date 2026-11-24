@@ -25,7 +25,10 @@ it in **parts of 8 MiB**, each its own short request, straight into the media st
    its `upload` job is queued in the same transaction.
 
 `GET /api/uploads/{id}` lists the parts received, so a tab reloaded midway resumes once its person
-picks the same file again (matched by name and size): only the missing parts are sent.
+picks the same file again (matched by name and size): only the missing parts are sent. The browser
+tries a part, the complete and its checks on the processing again after a network or server error
+(1 s, 3 s, 9 s), and Try again picks up from the server's own state: the rest of the parts, or the
+wait for a video it is processing or has filed.
 `DELETE /api/uploads/{id}` cancels an upload still receiving (its bytes go) or dismisses a failed
 one. Every route is the uploader's alone; anyone else gets 404.
 
@@ -44,6 +47,10 @@ The `MediaStore` writes a file in parts (`startUpload`, `putPart`, `completeUplo
   offset (opened `r+`, so a part arriving after a cancel can't bring the file back), renamed on
   completion once its size is right.
 
+An upload's bytes always go before its row (a cancel, the sweep), so bytes a failing store keeps
+stay named for another try. As a backstop for an upload whose row never committed, give the bucket
+an `AbortIncompleteMultipartUpload` lifecycle rule (a few days) where the S3 server supports one.
+
 Completion refuses parts that are not exactly 1 to N or don't add up to the size, and is harmless
 to repeat. An upload's key is `media/<media id>/upload.<ext>` on S3; on a filesystem it follows
 `UROBOROS_STORAGE_LAYOUT` with the creator as the channel, the upload day as the date and `upload`
@@ -55,8 +62,12 @@ does not move the file, as with downloads.
 The `upload` job (lease 60 s, two stalls, three tries 10 s and 20 s apart, two at once per replica):
 
 1. puts the parts together in the store;
-2. reads the file with ffprobe (its path, or an S3 read URL): with no video stream it fails at
-   once, "That file has no video we can read";
+2. reads the file with ffprobe (its path, or an S3 read URL), with its demuxers pinned to MP4/MOV,
+   Matroska/WebM and AVI (`-format_whitelist mov,matroska,avi`, and a local file held to the file
+   protocol): ffmpeg picks a demuxer by content, so a playlist named `.mp4` (HLS, ffconcat) would
+   otherwise make the server fetch URLs or read other files. A file in any other container, or with
+   no video stream, fails at once, "That file has no video we can read". Every later reader
+   (playback sessions, keyframes) reads only a file that passed this check;
 3. grabs a frame (a tenth of the way in, no later than a minute) with the image's own ffmpeg when
    the person sent no thumbnail; a frame that can't be taken leaves the video without one;
 4. in one transaction under the upload's row lock, while it is still `processing`: a media row of
@@ -82,8 +93,10 @@ The leader's upload duty runs every minute:
 - an upload processing for over six hours fails;
 - one processing whose job is gone (the stall limit drops a job without its processor running) gets
   its job back;
-- one receiving untouched for a day, or whose person's account is gone, is dropped with its bytes;
-- done rows are forgotten after a day (their video stays) and failed ones after a week.
+- one receiving untouched for a day, or whose person's account is gone, and a failed one after a
+  week, is dropped: its bytes first, then its row, each row on its own (one the store fails stays
+  for the next sweep);
+- done rows are forgotten after a day (their video stays).
 
 ## Editing
 

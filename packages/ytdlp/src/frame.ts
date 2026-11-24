@@ -1,5 +1,5 @@
-import { resolve } from "node:path";
 import { YtDlpError } from "./errors.ts";
+import { inputArgs } from "./ffprobe.ts";
 import { DEFAULT_KILL_GRACE_MS } from "./process.ts";
 import { meaningfulLine, spawnStream } from "./streamProcess.ts";
 
@@ -14,10 +14,9 @@ export interface FrameOptions {
   /** The most bytes the picture may have. Default 10 MiB. */
   maxBytes?: number;
   killGraceMs?: number;
+  /** The demuxers ffmpeg may use (`-format_whitelist`), for a file someone uploaded. */
+  formats?: string;
 }
-
-/** Network protocols only, for an input that is a URL (an S3 object). */
-const URL_PROTOCOLS = ["-protocol_whitelist", "http,https,tcp,tls,crypto"];
 
 /**
  * One frame of a video (or a URL's) as a JPEG, from ffmpeg's stdout: an uploaded video's thumbnail
@@ -32,8 +31,7 @@ export async function grabFrame(input: string, o: FrameOptions): Promise<Buffer>
       "error",
       "-ss",
       o.atSeconds.toFixed(3),
-      // An absolute path never starts with "-", so ffmpeg cannot read it as an option.
-      ...(/^https?:\/\//.test(input) ? [...URL_PROTOCOLS, "-i", input] : ["-i", resolve(input)]),
+      ...inputArgs(input, o.formats),
       "-frames:v",
       "1",
       "-vf",

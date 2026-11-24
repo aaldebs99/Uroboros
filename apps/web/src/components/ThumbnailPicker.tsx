@@ -67,8 +67,26 @@ export function ThumbnailPicker({
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          <input
+            id={inputId}
+            type="file"
+            accept={THUMBNAIL_TYPES.join(",")}
+            aria-label="Choose a thumbnail"
+            className="peer sr-only"
+            onChange={(event) => {
+              const picked = event.target.files?.[0] ?? null;
+              event.target.value = "";
+              if (picked === null) return;
+              const why = thumbnailProblem(picked);
+              setProblem(why);
+              if (why === null) onFile(picked);
+            }}
+          />
           <Button variant="secondary" asChild>
-            <label htmlFor={inputId} className="cursor-pointer">
+            <label
+              htmlFor={inputId}
+              className="cursor-pointer peer-focus-visible:ring-[0.1875rem] peer-focus-visible:ring-ring/45"
+            >
               <ImagePlus aria-hidden /> Choose an image
             </label>
           </Button>
@@ -83,21 +101,6 @@ export function ThumbnailPicker({
             </Button>
           )}
         </div>
-        <input
-          id={inputId}
-          type="file"
-          accept={THUMBNAIL_TYPES.join(",")}
-          aria-label="Choose a thumbnail"
-          className="sr-only"
-          onChange={(event) => {
-            const picked = event.target.files?.[0] ?? null;
-            event.target.value = "";
-            if (picked === null) return;
-            const why = thumbnailProblem(picked);
-            setProblem(why);
-            if (why === null) onFile(picked);
-          }}
-        />
       </div>
       {problem === null ? (
         file === null ? (

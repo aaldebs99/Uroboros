@@ -334,9 +334,13 @@ export async function completeUpload(
   return describeUpload(ctx.db, row);
 }
 
-/** Drops an upload's bytes: the store's unfinished upload, its file and its thumbnail. */
+/**
+ * Drops an upload's bytes: the store's unfinished upload, its file and its thumbnail. Each step is
+ * harmless to repeat, and a failure throws, so callers drop the bytes before the row: what is left
+ * stays named, for another try.
+ */
 export async function dropStorage(store: MediaStore, row: UploadRow): Promise<void> {
-  await store.abortUpload(row.storage_key, row.store_upload_id).catch(() => undefined);
+  await store.abortUpload(row.storage_key, row.store_upload_id);
   await store.delete(row.storage_key);
   if (row.thumbnail_key !== null) await store.delete(row.thumbnail_key);
 }
@@ -350,22 +354,24 @@ export async function removeUpload(ctx: UploadContext, userId: string, id: strin
   if (row.state === "processing") {
     throw new ApiError("conflict", "this upload is being processed");
   }
+  // The bytes go first: a store that fails leaves the row, so a cancel (or the sweep) tries again.
+  if (row.state === "receiving") await dropStorage(ctx.store, row);
+  else if (row.state === "failed" && row.thumbnail_key !== null) {
+    await ctx.store.delete(row.thumbnail_key);
+  }
   const gone = await ctx.db
     .deleteFrom("uploads")
     .where("id", "=", id)
     .where("state", "=", row.state)
-    .returningAll()
+    .returning("id")
     .executeTakeFirst();
   if (gone === undefined) throw new ApiError("conflict", "this upload just changed");
-  if (gone.state === "receiving") await dropStorage(ctx.store, gone);
-  else if (gone.state === "failed" && gone.thumbnail_key !== null) {
-    await ctx.store.delete(gone.thumbnail_key);
-  }
 }
 
 /**
  * Fails an upload being processed, and drops its bytes: only while it is still processing with no
- * entry, under its row's lock, so a run that lost its job never undoes one that filed it.
+ * entry, under its row's lock, so a run that lost its job never undoes one that filed it. Bytes the
+ * store won't drop now (it throws) stay named by the failed row; the sweep drops them with it.
  */
 export async function failUpload(
   db: Kysely<Database>,

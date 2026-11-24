@@ -209,6 +209,21 @@ describe("the upload job", () => {
     expect(media).toEqual([]);
   });
 
+  it("refuses a file that is no video container (a playlist named .mp4), pinning the demuxers", async () => {
+    const id = await received("uppjob8");
+    const playlist = {
+      format: { format_name: "hls", duration: "10.0" },
+      streams: [{ index: 0, codec_type: "video", codec_name: "h264", width: 64, height: 36 }],
+    };
+    const run = await FakeRun.create({ steps: [{ stdout: JSON.stringify(playlist) }] });
+    fakes.push(run);
+    const hls = { ...deps, ffprobe: { binary: run.options.binary, env: run.options.env } };
+    await expect(uploadProcessor(hls).process(job(id))).rejects.toBeInstanceOf(UnrecoverableError);
+    expect(await uploadRow(id)).toMatchObject({ state: "failed", error: FAILED_NO_VIDEO });
+    const argv = await run.argv();
+    expect(argv[argv.indexOf("-format_whitelist") + 1]).toBe("mov,matroska,avi");
+  });
+
   it("is tried again, and fails the upload only on its last try", async () => {
     const id = await received("uppjob5");
     const broken = { ...deps, ffprobe: await fake({ steps: [], exitCode: 1 }) };

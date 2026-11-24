@@ -105,6 +105,31 @@ describe("the upload sweep", () => {
     }
   });
 
+  it("keeps an abandoned upload whose bytes the store can't drop, for the next sweep", async () => {
+    const stuck = await started("upsweep7");
+    const fine = await started("upsweep8");
+    await age(stuck.id, "25 hours");
+    await age(fine.id, "25 hours");
+    const { storage_key: stuckKey } = await t.db
+      .selectFrom("uploads")
+      .select("storage_key")
+      .where("id", "=", stuck.id)
+      .executeTakeFirstOrThrow();
+    const flaky = {
+      ...ctx.store,
+      abortUpload: (key: string, uploadId: string) =>
+        key === stuckKey
+          ? Promise.reject(new Error("the store is down"))
+          : ctx.store.abortUpload(key, uploadId),
+    };
+    await sweepUploads(ctx, flaky);
+    expect(await stateOf(stuck.id)).toBe("receiving");
+    expect(await stateOf(fine.id)).toBeUndefined();
+    await sweepUploads(ctx, ctx.store);
+    expect(await stateOf(stuck.id)).toBeUndefined();
+    expect(await readdir(stuck.dir).catch(() => [])).toEqual([]);
+  });
+
   it("forgets a done upload after a day (its video stays) and a failed one after a week", async () => {
     const me = await insertUser(t.db, { username: "upsweep6" });
     const entry = await seedProfileless(t.db, me);

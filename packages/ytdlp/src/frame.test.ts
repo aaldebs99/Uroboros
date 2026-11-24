@@ -35,6 +35,15 @@ describe("grabFrame", () => {
     expect(argv[argv.indexOf("-i") + 1]).toBe("https://s3.example/b/k?sig=1");
   });
 
+  it("pins the demuxers it may use, when asked", async () => {
+    const run = await fake({ steps: [{ stdoutBase64: JPEG.toString("base64") }] });
+    await grabFrame("/media/upload.mp4", { ...run.options, atSeconds: 0, formats: "mov,avi" });
+    const argv = await run.argv();
+    expect(argv[argv.indexOf("-format_whitelist") + 1]).toBe("mov,avi");
+    expect(argv[argv.indexOf("-protocol_whitelist") + 1]).toBe("file");
+    expect(argv.indexOf("-format_whitelist")).toBeLessThan(argv.indexOf("-i"));
+  });
+
   it("fails when ffmpeg takes no frame, or one too large", async () => {
     const failed = await fake({ steps: [{ stderr: "Invalid data found\n" }], exitCode: 1 });
     await expect(grabFrame("/m.mp4", { ...failed.options, atSeconds: 0 })).rejects.toThrow(

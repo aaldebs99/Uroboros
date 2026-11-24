@@ -21,6 +21,8 @@ export interface PartsInput {
   retries?: number;
   /** Waits before a retry (tests skip it). */
   wait?: (ms: number) => Promise<void>;
+  /** The first retry's wait, tripled for each after it. Default 1000. */
+  baseMs?: number;
 }
 
 const pause = (ms: number) =>
@@ -29,8 +31,29 @@ const pause = (ms: number) =>
   });
 
 /** A network failure or a server error is worth another try; a refusal (4xx) is not. */
-function retryable(err: unknown): boolean {
+export function retryable(err: unknown): boolean {
   return !(err instanceof ApiError) || err.status >= 500 || err.status === 429;
+}
+
+/**
+ * Runs `fn`, again after a network failure or a server error (a deploy's 502 or 503), `retries`
+ * times at most, `baseMs` then three times longer each time apart. A refusal throws at once.
+ */
+export async function retrying<T>(
+  fn: () => Promise<T>,
+  signal: AbortSignal,
+  opts: { retries?: number; baseMs?: number; wait?: (ms: number) => Promise<void> } = {},
+): Promise<T> {
+  const retries = opts.retries ?? 3;
+  const wait = opts.wait ?? pause;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (signal.aborted || attempt >= retries || !retryable(err)) throw err;
+      await wait((opts.baseMs ?? 1000) * 3 ** attempt);
+    }
+  }
 }
 
 /**
@@ -44,29 +67,29 @@ export async function sendParts(i: PartsInput): Promise<void> {
   const sizeOf = (n: number) => Math.min(partSize, size - (n - 1) * partSize);
   let done = [...have].reduce((sum, n) => sum + sizeOf(n), 0);
   i.onProgress(done);
-  const retries = i.retries ?? 3;
-  const wait = i.wait ?? pause;
+  const retry = {
+    retries: i.retries ?? 3,
+    baseMs: i.baseMs ?? 1000,
+    ...(i.wait === undefined ? {} : { wait: i.wait }),
+  };
   for (let n = 1; n <= count; n++) {
     if (have.has(n)) continue;
     i.signal.throwIfAborted();
     const start = (n - 1) * partSize;
     const part = i.file.slice(start, start + sizeOf(n));
-    for (let attempt = 0; ; attempt++) {
-      try {
-        await i.put(
+    await retrying(
+      () =>
+        i.put(
           n,
           part,
           (loaded) => {
             i.onProgress(done + loaded);
           },
           i.signal,
-        );
-        break;
-      } catch (err) {
-        if (i.signal.aborted || attempt >= retries || !retryable(err)) throw err;
-        await wait(1000 * 3 ** attempt);
-      }
-    }
+        ),
+      i.signal,
+      retry,
+    );
     done += part.size;
     i.onProgress(done);
   }

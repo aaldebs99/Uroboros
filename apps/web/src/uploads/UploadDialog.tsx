@@ -141,23 +141,26 @@ function FileChooser({
             </>
           )}
         </div>
-        <Button variant="secondary" asChild>
-          <label htmlFor={inputId} className="cursor-pointer">
-            {file === null ? "Choose a video" : "Change"}
-          </label>
-        </Button>
         <input
           id={inputId}
           type="file"
           accept={ACCEPT}
           aria-label="Choose a video"
-          className="sr-only"
+          className="peer sr-only"
           onChange={(event) => {
             const picked = event.target.files?.[0];
             event.target.value = "";
             if (picked !== undefined) onPick(picked);
           }}
         />
+        <Button variant="secondary" asChild>
+          <label
+            htmlFor={inputId}
+            className="cursor-pointer peer-focus-visible:ring-[0.1875rem] peer-focus-visible:ring-ring/45"
+          >
+            {file === null ? "Choose a video" : "Change"}
+          </label>
+        </Button>
       </div>
       {error === null ? null : (
         <p role="alert" className="px-0.5 text-xs text-destructive">
