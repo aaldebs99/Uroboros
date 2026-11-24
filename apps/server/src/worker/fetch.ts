@@ -15,6 +15,7 @@ import { renditionFacts } from "../transcode/facts.ts";
 import { indexKeyframes } from "../transcode/keyframes.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { upsertMedia } from "./media.ts";
+import { skipSegmentsFor } from "./skipSegments.ts";
 import { createProgressPublisher } from "./progress.ts";
 import { storeSubtitles, subtitleArgs } from "./subtitles.ts";
 
@@ -291,6 +292,7 @@ async function store(
       size_bytes: size,
       container: ext,
       ...renditionFacts(probed),
+      skip_segments: JSON.stringify(skipSegmentsFor(data.args, info.sponsorSegments)),
     })
     .onConflict((oc) => oc.columns(["media_id", "profile_id", "profile_revision"]).doNothing())
     .execute();

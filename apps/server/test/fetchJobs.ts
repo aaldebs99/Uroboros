@@ -7,18 +7,25 @@ import type { FetchJob } from "../src/downloads/queues.ts";
 import type { SignedIn } from "./auth.ts";
 import { seededDefault } from "./downloads.ts";
 
-/** The recorded download of the clip, plus a thumbnail beside it, after any `extra` steps. */
-export async function downloadScenario(extra: Step[] = []): Promise<Scenario> {
+/**
+ * The recorded download of the clip, plus a thumbnail beside it, after any `extra` steps; `info`
+ * adds fields to the info.json yt-dlp writes (`sponsorblock_chapters`, say).
+ */
+export async function downloadScenario(
+  extra: Step[] = [],
+  info: Record<string, unknown> = {},
+): Promise<Scenario> {
   const transcript = JSON.parse(await fixture("download-clip.json")) as {
     stdout: string;
     stderr: string;
   };
+  const infoJson = { ...(JSON.parse(await fixture("info-clip.json")) as object), ...info };
   return {
     steps: [
       ...extra,
       { writeFile: "clip.mp4", content: "media bytes" },
       { writeFile: "clip.jpg", content: "jpeg" },
-      { writeFile: "clip.info.json", content: await fixture("info-clip.json") },
+      { writeFile: "clip.info.json", content: JSON.stringify(infoJson) },
       { stdout: transcript.stdout },
       { stderr: transcript.stderr },
     ],

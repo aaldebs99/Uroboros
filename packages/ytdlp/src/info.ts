@@ -68,6 +68,21 @@ export const Chapter = z
   .transform((c) => ({ startTime: c.start_time, endTime: c.end_time, title: c.title }));
 export type Chapter = z.output<typeof Chapter>;
 
+/**
+ * A SponsorBlock segment yt-dlp fetched (`sponsorblock_chapters`, with `--sponsorblock-mark` or
+ * `--sponsorblock-remove`): times on the original video, its category, and SponsorBlock's action
+ * type ("skip"; "poi" for a point, "chapter" for a labelled chapter).
+ */
+export const SponsorSegment = z
+  .object({ start_time: z.number(), end_time: z.number(), category: z.string(), type: str })
+  .transform((s) => ({
+    startTime: s.start_time,
+    endTime: s.end_time,
+    category: s.category,
+    type: s.type,
+  }));
+export type SponsorSegment = z.output<typeof SponsorSegment>;
+
 export const SubtitleTrack = z
   .object({ ext: str, url: str, name: str })
   .transform((s) => ({ ext: s.ext, url: s.url, name: s.name }));
@@ -132,6 +147,7 @@ export const VideoInfo = z
     height: num,
     formats: list(Format),
     chapters: list(Chapter),
+    sponsorblock_chapters: list(SponsorSegment),
     subtitles: listRecord(SubtitleTrack),
     automatic_captions: listRecord(SubtitleTrack),
     playlist_id: str,
@@ -158,6 +174,8 @@ export const VideoInfo = z
     height: raw.height,
     formats: raw.formats,
     chapters: raw.chapters,
+    /** SponsorBlock's segments, in the info.json a download writes (empty in a probe). */
+    sponsorSegments: raw.sponsorblock_chapters,
     subtitles: raw.subtitles,
     automaticCaptions: raw.automatic_captions,
     playlistId: raw.playlist_id,

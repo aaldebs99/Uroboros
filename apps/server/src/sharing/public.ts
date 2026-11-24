@@ -1,5 +1,6 @@
 import {
   Chapter,
+  SkipSegment,
   type PublicItem,
   type PublicListItem,
   type PublicShare,
@@ -99,6 +100,7 @@ export async function publicShare(db: Db, code: string): Promise<PublicShare> {
 }
 
 const Chapters = z.array(Chapter);
+const SkipSegments = z.array(SkipSegment);
 
 /** One video of a link with its player's needs, every URL under the link. */
 export async function publicItem(db: Db, code: string, entryId: string): Promise<PublicItem> {
@@ -112,6 +114,7 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
         "m.description",
         "m.chapters",
         "m.webpage_url",
+        "r.skip_segments",
         "r.video_codec",
         "r.audio_codec",
         "r.video_codecs",
@@ -131,6 +134,7 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
       .execute(),
   ]);
   const chapters = Chapters.safeParse(extra.chapters);
+  const skips = SkipSegments.safeParse(extra.skip_segments);
   return {
     id: entryId,
     title: e.title ?? e.video_id,
@@ -140,6 +144,7 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
     thumbnailUrl: thumbnailUrl(`${base}/thumbnail`, e.thumbnail_key),
     description: extra.description,
     chapters: chapters.success ? chapters.data : [],
+    skipSegments: skips.success ? skips.data : [],
     subtitles: subs.map((s) => ({ ...s, url: `${base}/subtitles/${s.id}` })),
     streamUrl: `${base}/stream`,
     fileUrl: e.allow_download ? `${base}/file` : null,

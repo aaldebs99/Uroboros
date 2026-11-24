@@ -104,6 +104,32 @@
   z-index: -1;
 }
 
+/*
+ * SponsorBlock segments the player skips (SponsorSkip): warning-toned bands over the bar, as thick
+ * as it is. The markers come from patches/@videojs__react.patch, hence their own class names.
+ */
+.uro-player .uro-skip-markers {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: 0.1875rem;
+  translate: 0 -50%;
+  pointer-events: none;
+  transition: height 0.1s ease-out;
+}
+
+.uro-player .media-time-slider:is([data-pointing], [data-dragging]) .uro-skip-markers {
+  height: 0.3125rem;
+}
+
+.uro-player .uro-skip-marker {
+  position: absolute;
+  inset-block: 0;
+  left: var(--media-slider-marker-start);
+  width: var(--media-slider-marker-width);
+  background-color: color-mix(in oklch, var(--warning) 85%, transparent);
+}
+
 /* No hairline at the pointer: the lighter run marks it. */
 .uro-player .media-time-slider .media-slider-preview::before {
   display: none;

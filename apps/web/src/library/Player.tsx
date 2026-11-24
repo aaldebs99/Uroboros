@@ -1,7 +1,7 @@
 import "@videojs/react/video/neutral-skin.css";
 import "./player.css";
 
-import type { Chapter, SubtitleTrack } from "@uroboros/contract";
+import type { Chapter, SkipSegment, SubtitleTrack } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
 import { HlsVideo } from "@videojs/react/media/hls-video";
 import { NativeHlsVideo } from "@videojs/react/media/native-hls-video";
@@ -13,6 +13,7 @@ import { readVolume, storeVolume } from "@/lib/playerPrefs";
 
 import { PlayerErrorWatch } from "./PlayerErrorWatch";
 import { PlayerHotkeys } from "./PlayerHotkeys";
+import { SponsorSkip } from "./SponsorSkip";
 
 export interface PlayerProps {
   /** The file, or with `hls` a playback session's multivariant playlist. */
@@ -34,6 +35,8 @@ export interface PlayerProps {
   seek: { time: number } | null;
   /** Drawn on the timeline; the page also lists them. */
   chapters: Chapter[];
+  /** SponsorBlock segments: drawn on the timeline and jumped over as playback reaches them. */
+  skipSegments?: readonly SkipSegment[];
   subtitles: SubtitleTrack[];
   onTime: (position: number, duration: number) => void;
   onPause: (position: number, duration: number) => void;
@@ -87,8 +90,8 @@ function tryPlay(v: HTMLVideoElement): void {
 /**
  * Video.js 10 (the Neutral video skin, in the app's accent, with a timeline styled after YouTube's
  * in player.css): keyboard and touch controls (PlayerHotkeys adds 5 s arrows and frame steps), a
- * captions menu for the subtitle tracks, chapters on the timeline, resume, seek, autoplay, and
- * the volume and mute remembered in this browser.
+ * captions menu for the subtitle tracks, chapters on the timeline, SponsorBlock segments skipped
+ * (SponsorSkip), resume, seek, autoplay, and the volume and mute remembered in this browser.
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
@@ -143,6 +146,9 @@ export function Player(p: PlayerProps) {
     <VideoPlayer>
       <SettingsMenuSlot.Provider value={p.settings ?? null}>
         {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
+        {p.skipSegments === undefined || p.skipSegments.length === 0 ? null : (
+          <SponsorSkip video={video} segments={p.skipSegments} />
+        )}
         {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
           navigation drawer (components/useDrawerDrag.ts). */}
         <NeutralVideoSkin

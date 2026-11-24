@@ -98,7 +98,7 @@ files the video as filtered: "unavailable" (removed, private), "age-restricted",
 
 With **wait before downloading**, a passing video waits until that many hours after Uroboros first
 saw it, then queues on the first check after that. It is for SponsorBlock: segments are submitted
-in the hours after a video goes up, and cutting a brand-new video usually cuts nothing. The backfill
+in the hours after a video goes up, and a brand-new video usually has none to skip. The backfill
 skips it, since old videos already have their segments.
 
 ### Queueing
@@ -139,13 +139,34 @@ way counts as skipped.
 
 ## SponsorBlock
 
-Removing segments changes the file, so it lives in the format profile, which already says what
-shapes a file: an admin ticks categories (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`,
-`filler`, `interaction`, `music_offtopic`) in the profile editor, and downloads with that profile
-run `--sponsorblock-remove=<categories>`. The seeded profiles, and a new one in the editor until the
-admin changes it, cut `sponsor`, `selfpromo` and `interaction`. The categories join the profile's revision only when
-there are any (so profiles without them kept their revisions), and the same cut file is shared by
-everyone using the profile.
+The categories to get rid of (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`, `filler`,
+`interaction`, `music_offtopic`) live in the format profile, which already says what shapes a file:
+its owner ticks them in the profile editor. The built-ins, and a new profile in the editor until its
+owner changes it, take `sponsor`, `selfpromo` and `interaction`. The categories join the profile's
+revision only when there are any (so profiles without them kept their revisions), and the file is
+shared by everyone using the profile and revision. What happens to the segments depends on the file
+(`ytdlpArgsFor`, `src/downloads/profiles.ts`):
+
+- **A video keeps them** and the player skips them. Downloads run `--sponsorblock-mark=<categories>`,
+  which embeds them as chapters ("[SponsorBlock]: Sponsor") by a stream-copy remux. The fetch reads
+  the segments yt-dlp found from the `.info.json` (`sponsorblock_chapters`) into
+  `renditions.skip_segments` (`src/worker/skipSegments.ts`: the profile's categories, SponsorBlock's
+  "skip" action). The item and public-link routes hand them out as `skipSegments`, and the web player
+  draws them as bands on the timeline and jumps over each as playback reaches it, with an Undo
+  (`apps/web/src/library/SponsorSkip.tsx`). Cutting a video is what yt-dlp's
+  `--sponsorblock-remove` would do, but it cuts by stream copy: each kept part must restart at the
+  keyframe before its cut point, so up to one keyframe interval of the removed segment (several
+  seconds on YouTube's AV1) comes along. Those packets land before the part's start, the muxer
+  stacks them on one timestamp, and the browser plays their audio over the next scene, out of sync
+  from then on. A whole file also keeps `media.chapters` on its timeline.
+- **An audio file has them cut out**: audio-only profiles run `--sponsorblock-remove=<categories>`.
+  Every audio packet starts a part cleanly, so the cut is exact, and a music player that knows
+  nothing of SponsorBlock never plays them. Its rendition has no `skip_segments`.
+
+Exact cuts in a video need a re-encode: extra arguments `--sponsorblock-remove=…
+--force-keyframes-at-cuts` do that, with ffmpeg's default encoder for the container, slowly and at
+a cost in quality. `--remove-chapters` and `--download-sections` cut by stream copy too, with the
+same keyframe limit, unless `--force-keyframes-at-cuts` comes with them.
 
 ## Unsubscribing
 

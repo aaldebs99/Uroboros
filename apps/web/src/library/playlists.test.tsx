@@ -60,6 +60,7 @@ const item = (n: number, playlists: { id: string; name: string }[] = []) => ({
   ...entry(n),
   description: null,
   chapters: [],
+  skipSegments: [],
   subtitles: [],
   streamUrl: `/api/library/${id(n)}/stream`,
   webpageUrl: null,

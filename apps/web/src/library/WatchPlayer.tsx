@@ -10,13 +10,17 @@ import { SessionPlayer } from "./SessionPlayer";
 
 const Player = lazy(() => import("./Player").then((m) => ({ default: m.Player })));
 
-type Shared = Omit<PlayerProps, "src" | "hls" | "title" | "chapters" | "subtitles">;
+type Shared = Omit<
+  PlayerProps,
+  "src" | "hls" | "title" | "chapters" | "skipSegments" | "subtitles"
+>;
 
 /** What the watch player needs of a video: a library item, or a public link's item. */
 export type PlayableItem = Pick<
   LibraryItem,
   | "title"
   | "chapters"
+  | "skipSegments"
   | "subtitles"
   | "streamUrl"
   | "container"
@@ -76,6 +80,7 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
     onTime: track,
     title: item.title,
     chapters: item.chapters,
+    skipSegments: item.skipSegments,
     subtitles: item.subtitles,
     settings,
   };

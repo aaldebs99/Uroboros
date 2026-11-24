@@ -23,6 +23,8 @@ const gestures = (build: "dev" | "default") =>
   skinFile(build, "shared/skins/shared/video/behaviors/gestures.js");
 const settingsMenu = (build: "dev" | "default") =>
   skinFile(build, "neutral-video/skins/shared/video/menus/settings-menu.js");
+const timeSlider = (build: "dev" | "default") =>
+  skinFile(build, "neutral-video/components/sliders/time-slider.js");
 /** A preset module of the package, in one of its two builds. */
 const presetFile = (build: "dev" | "default", name: string) =>
   readFileSync(
@@ -90,6 +92,19 @@ describe("patches/@videojs__react.patch", () => {
         /function QualitySlot\(\) \{\s*return useContext\(SettingsMenuSlot\) \?\? \/\* @__PURE__ \*\/ jsx\(QualityMenu, \{\}\);/,
       );
       expect(menu).toContain("t2 = /* @__PURE__ */ jsx(QualitySlot, {});");
+    },
+  );
+
+  it.each(["dev", "default"] as const)(
+    'draws the SponsorBlock segments\' track (label "skip") as markers on the timeline (%s build)',
+    (build) => {
+      const slider = timeSlider(build);
+      expect(slider).toContain(
+        'import { TimeSliderMarkers } from "../../../../../ui/time-slider/markers.js";',
+      );
+      expect(slider).toContain('const uroSkipFilter = { label: "skip" };');
+      expect(slider).toMatch(/className: "uro-skip-markers",\s*filter: uroSkipFilter,/);
+      expect(slider).toMatch(/children: \[\s*t4,\s*uroSkipMarkers,\s*t5,\s*t11\s*\]/);
     },
   );
 });

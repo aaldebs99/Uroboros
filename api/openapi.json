@@ -1104,6 +1104,12 @@
                 "nullable": true,
                 "type": "string"
               },
+              "skipSegments": {
+                "items": {
+                  "$ref": "#/components/schemas/SkipSegment"
+                },
+                "type": "array"
+              },
               "sources": {
                 "items": {
                   "properties": {
@@ -1153,6 +1159,7 @@
             "required": [
               "description",
               "chapters",
+              "skipSegments",
               "subtitles",
               "streamUrl",
               "webpageUrl",
@@ -2064,6 +2071,12 @@
                 },
                 "type": "array"
               },
+              "skipSegments": {
+                "items": {
+                  "$ref": "#/components/schemas/SkipSegment"
+                },
+                "type": "array"
+              },
               "streamUrl": {
                 "type": "string"
               },
@@ -2089,6 +2102,7 @@
             "required": [
               "description",
               "chapters",
+              "skipSegments",
               "subtitles",
               "streamUrl",
               "fileUrl",
@@ -2805,6 +2819,25 @@
         "required": [
           "enabled",
           "logins"
+        ],
+        "type": "object"
+      },
+      "SkipSegment": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/SponsorBlockCategory"
+          },
+          "end": {
+            "type": "number"
+          },
+          "start": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "category"
         ],
         "type": "object"
       },

@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { LibraryEntry } from "./downloads.ts";
+import { LibraryEntry, SkipSegment } from "./downloads.ts";
 import { PlaybackFacts } from "./playback.ts";
 
 export const MAX_TAGS = 20;
@@ -42,6 +42,8 @@ export type SubtitleTrack = z.infer<typeof SubtitleTrack>;
 export const LibraryItem = LibraryEntry.extend({
   description: z.string().nullable(),
   chapters: z.array(Chapter),
+  /** The SponsorBlock segments the player skips (a video keeps them; an audio file had them cut). */
+  skipSegments: z.array(SkipSegment),
   subtitles: z.array(SubtitleTrack),
   /** Inline, range-capable; may redirect to a presigned URL. */
   streamUrl: z.string(),

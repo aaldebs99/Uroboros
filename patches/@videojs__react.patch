@@ -11,6 +11,45 @@ index 02dfa37fc053a390bc94cc35d8d5e9bafd8cdcbf..27f1c8cc719a795f9d0fa6e98a509a0b
  			closeDelay: 100,
  			side,
  			...props,
+diff --git a/dist/default/internal/skins/neutral-video/components/sliders/time-slider.js b/dist/default/internal/skins/neutral-video/components/sliders/time-slider.js
+index de9d004a07c24ee27f4e6054ecec121b5bfe25e9..4a96c0e5f99ce7ef81d8b8419d63a67a20dfb8c7 100644
+--- a/dist/default/internal/skins/neutral-video/components/sliders/time-slider.js
++++ b/dist/default/internal/skins/neutral-video/components/sliders/time-slider.js
+@@ -8,6 +8,7 @@ import { SliderTrack } from "../../../../../ui/slider/track.js";
+ import { SliderValue } from "../../../../../ui/slider/value.js";
+ import { TimeSliderChapterTitle } from "../../../../../ui/time-slider/chapter-title.js";
+ import { TimeSliderChapters } from "../../../../../ui/time-slider/chapters.js";
++import { TimeSliderMarkers } from "../../../../../ui/time-slider/markers.js";
+ import { TimeSliderRoot } from "../../../../../ui/time-slider/root.js";
+ import ForwardRef from "../../../../../icons/dist/react/neutral/spinner.js";
+ import { SliderBuffer as SliderBuffer$1, SliderFill as SliderFill$1, SliderThumb as SliderThumb$1, SliderTrack as SliderTrack$1 } from "../../../shared/components/sliders/slider.js";
+@@ -15,6 +16,18 @@ import { c } from "react-compiler-runtime";
+ import { jsx, jsxs } from "react/jsx-runtime";
+ import { cn, resolveClassName } from "@videojs/utils/style";
+ //#region src/internal/skins/neutral-video/components/sliders/time-slider.tsx
++//#region uroboros: patches/@videojs__react.patch
++/** The app's SponsorBlock segments (a metadata track labelled "skip"), drawn as bands on the timeline. */
++const uroSkipFilter = { label: "skip" };
++const uroSkipMarkers = /* @__PURE__ */ jsx(TimeSliderMarkers, {
++	className: "uro-skip-markers",
++	filter: uroSkipFilter,
++	renderMarker: (props) => /* @__PURE__ */ jsx("div", {
++		className: "uro-skip-marker",
++		...props
++	})
++});
++//#endregion
+ function TimeSlider(t0) {
+ 	const $ = c(25);
+ 	let t1;
+@@ -120,6 +133,7 @@ function TimeSlider(t0) {
+ 			...props,
+ 			children: [
+ 				t4,
++				uroSkipMarkers,
+ 				t5,
+ 				t11
+ 			]
 diff --git a/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js b/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
 index b07ba1786560ba13e2dafa973c1f0acd93fddb26..4e7ffa523f2408fde7020bb567c91b48928d9cf1 100644
 --- a/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
@@ -87,6 +126,45 @@ index cf103ec4b511eaaf5bf99386a48c3c5f4db60981..89b99266d6a0a14daeb654028ed90f04
  			closeDelay: 100,
  			side,
  			...props,
+diff --git a/dist/dev/internal/skins/neutral-video/components/sliders/time-slider.js b/dist/dev/internal/skins/neutral-video/components/sliders/time-slider.js
+index 8e48d9aa92cdff3cbd7c0bba865d665174cabf7a..85c2e2182b15df84e1b104fd442d654857cf15e1 100644
+--- a/dist/dev/internal/skins/neutral-video/components/sliders/time-slider.js
++++ b/dist/dev/internal/skins/neutral-video/components/sliders/time-slider.js
+@@ -8,6 +8,7 @@ import { SliderTrack } from "../../../../../ui/slider/track.js";
+ import { SliderValue } from "../../../../../ui/slider/value.js";
+ import { TimeSliderChapterTitle } from "../../../../../ui/time-slider/chapter-title.js";
+ import { TimeSliderChapters } from "../../../../../ui/time-slider/chapters.js";
++import { TimeSliderMarkers } from "../../../../../ui/time-slider/markers.js";
+ import { TimeSliderRoot } from "../../../../../ui/time-slider/root.js";
+ import ForwardRef from "../../../../../icons/dist/react/neutral/spinner.js";
+ import { SliderBuffer as SliderBuffer$1, SliderFill as SliderFill$1, SliderThumb as SliderThumb$1, SliderTrack as SliderTrack$1 } from "../../../shared/components/sliders/slider.js";
+@@ -15,6 +16,18 @@ import { c } from "react-compiler-runtime";
+ import { jsx, jsxs } from "react/jsx-runtime";
+ import { cn, resolveClassName } from "@videojs/utils/style";
+ //#region src/internal/skins/neutral-video/components/sliders/time-slider.tsx
++//#region uroboros: patches/@videojs__react.patch
++/** The app's SponsorBlock segments (a metadata track labelled "skip"), drawn as bands on the timeline. */
++const uroSkipFilter = { label: "skip" };
++const uroSkipMarkers = /* @__PURE__ */ jsx(TimeSliderMarkers, {
++	className: "uro-skip-markers",
++	filter: uroSkipFilter,
++	renderMarker: (props) => /* @__PURE__ */ jsx("div", {
++		className: "uro-skip-marker",
++		...props
++	})
++});
++//#endregion
+ function TimeSlider(t0) {
+ 	const $ = c(25);
+ 	let t1;
+@@ -120,6 +133,7 @@ function TimeSlider(t0) {
+ 			...props,
+ 			children: [
+ 				t4,
++				uroSkipMarkers,
+ 				t5,
+ 				t11
+ 			]
 diff --git a/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js b/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
 index f7af89b6d7e9125f524bf3714bbf20097d71ea2d..8c88cd408dc375d89d5fd54c4f7325e2e10f6868 100644
 --- a/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js

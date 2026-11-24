@@ -163,7 +163,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@videojs/react': 40bf3fc8b481a0d6bfe797cd991417d882822c8a387664963f30a0ba25064dca
+  '@videojs/react': e49e6afaa85c2d1fcde5df5311c9def2744086872e9835015de078419d338a53
 
 importers:
 
@@ -289,7 +289,7 @@ importers:
         version: link:../../packages/contract
       '@videojs/react':
         specifier: 10.5.0
-        version: 10.5.0(patch_hash=40bf3fc8b481a0d6bfe797cd991417d882822c8a387664963f30a0ba25064dca)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        version: 10.5.0(patch_hash=e49e6afaa85c2d1fcde5df5311c9def2744086872e9835015de078419d338a53)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -8260,7 +8260,7 @@ snapshots:
       '@videojs/spf': 10.5.0
       '@videojs/utils': 10.5.0
 
-  '@videojs/react@10.5.0(patch_hash=40bf3fc8b481a0d6bfe797cd991417d882822c8a387664963f30a0ba25064dca)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@videojs/react@10.5.0(patch_hash=e49e6afaa85c2d1fcde5df5311c9def2744086872e9835015de078419d338a53)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@videojs/core': 10.5.0(react@19.3.0)
       '@videojs/media': 10.5.0

@@ -29,10 +29,13 @@ const SPONSORBLOCK_LABELS: Record<SponsorBlockCategory, string> = {
   music_offtopic: "Non-music section",
 };
 
-/** What a new profile cuts until its owner changes it: the same as the built-in profiles. */
+/** What a new profile skips until its owner changes it: the same as the built-in profiles. */
 const NEW_PROFILE_CUTS: readonly SponsorBlockCategory[] = ["sponsor", "selfpromo", "interaction"];
 
-/** The SponsorBlock categories a profile cuts, as checkboxes. */
+/**
+ * The SponsorBlock categories a profile gets rid of, as checkboxes: a video keeps them (marked as
+ * chapters) for the player to skip, an audio file has them cut out (docs/automation.md#sponsorblock).
+ */
 function SponsorBlockFields({
   value,
   onChange,
@@ -42,7 +45,7 @@ function SponsorBlockFields({
 }) {
   return (
     <fieldset className="grid gap-1" aria-describedby="profile-sponsorblock-help">
-      <legend className="mb-1 font-medium">Remove SponsorBlock segments</legend>
+      <legend className="mb-1 font-medium">Skip SponsorBlock segments</legend>
       <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
         {SPONSORBLOCK_CATEGORIES.map((c) => (
           <label key={c} className="flex min-h-11 items-center gap-3">
@@ -60,7 +63,8 @@ function SponsorBlockFields({
         ))}
       </div>
       <p id="profile-sponsorblock-help" className="text-sm text-muted-foreground">
-        Cut from the file when it is downloaded. Segments submitted later are not cut.
+        Videos keep them, marked as chapters, and skip them when you watch here; audio-only profiles
+        cut them out of the file. Only segments submitted before the download count.
       </p>
     </fieldset>
   );

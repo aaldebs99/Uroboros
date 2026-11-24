@@ -164,5 +164,20 @@ describe("public links", () => {
     );
     expect(item.playbackUrl).toBe(`/api/public/s/${code}/items/${film.entryId}/playback`);
     expect(item).toMatchObject({ videoCodecs: null, width: null, qualities: [] });
+    expect(item.skipSegments).toEqual([]);
+  });
+
+  it("a public item carries the SponsorBlock segments its player skips", async () => {
+    const segments = [{ start: 49.04, end: 69, category: "sponsor" }];
+    await t.db
+      .updateTable("renditions")
+      .set({ skip_segments: JSON.stringify(segments) })
+      .where("id", "=", film.renditionId)
+      .execute();
+    const code = await link({ entry_id: film.entryId });
+    const item = PublicItem.parse(
+      await (await anon(`/api/public/s/${code}/items/${film.entryId}`)).json(),
+    );
+    expect(item.skipSegments).toEqual(segments);
   });
 });

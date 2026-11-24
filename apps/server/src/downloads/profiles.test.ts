@@ -196,11 +196,25 @@ describe("ytdlpArgsFor", () => {
     ]);
   });
 
-  it("passes --sponsorblock-remove to yt-dlp", () => {
+  it("marks a video's SponsorBlock segments for the player to skip, and cuts an audio file's", () => {
     const base = { format: "b", mergeFormat: null, audioOnly: false, audioFormat: null };
+    const video = ytdlpArgsFor({
+      ...base,
+      extraArgs: [],
+      sponsorblockRemove: ["sponsor", "intro"],
+    }).extraArgs;
+    // A stream-copied cut desyncs a video (each part restarts at a keyframe); marking cuts nothing.
+    expect(video).toContain("--sponsorblock-mark=intro,sponsor");
+    expect(video.join(" ")).not.toMatch(/sponsorblock-remove/);
     expect(
-      ytdlpArgsFor({ ...base, extraArgs: [], sponsorblockRemove: ["sponsor", "intro"] }).extraArgs,
-    ).toContain("--sponsorblock-remove=intro,sponsor");
+      ytdlpArgsFor({
+        ...base,
+        audioOnly: true,
+        audioFormat: "opus",
+        extraArgs: [],
+        sponsorblockRemove: ["sponsor"],
+      }).extraArgs,
+    ).toContain("--sponsorblock-remove=sponsor");
     expect(ytdlpArgsFor({ ...base, extraArgs: [], sponsorblockRemove: [] }).extraArgs).toEqual([
       "--write-thumbnail",
       "--convert-thumbnails=jpg",

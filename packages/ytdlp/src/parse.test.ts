@@ -101,6 +101,23 @@ describe("lenient validation", () => {
     expect(info).not.toHaveProperty("brand_new_field");
   });
 
+  it("reads the SponsorBlock segments a download's info.json carries, dropping broken ones", () => {
+    const info = VideoInfo.parse({
+      id: "x",
+      sponsorblock_chapters: [
+        { start_time: 49.04, end_time: 69, category: "sponsor", type: "skip", _categories: [] },
+        { start_time: 120, end_time: 120, category: "poi_highlight", type: "poi" },
+        { start_time: "soon", end_time: 10, category: "sponsor" },
+        { start_time: 1, end_time: 2 },
+      ],
+    });
+    expect(info.sponsorSegments).toEqual([
+      { startTime: 49.04, endTime: 69, category: "sponsor", type: "skip" },
+      { startTime: 120, endTime: 120, category: "poi_highlight", type: "poi" },
+    ]);
+    expect(VideoInfo.parse({ id: "y" }).sponsorSegments).toEqual([]);
+  });
+
   it("drops null playlist entries (unavailable videos) rather than failing", () => {
     const info = PlaylistInfo.parse({
       _type: "playlist",

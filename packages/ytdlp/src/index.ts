@@ -36,6 +36,7 @@ export {
   Format,
   PlaylistEntry,
   PlaylistInfo,
+  SponsorSegment,
   SubtitleTrack,
   Thumbnail,
   VideoInfo,

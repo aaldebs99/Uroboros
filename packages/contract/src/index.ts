@@ -53,6 +53,7 @@ export {
   QueueSelectionResult,
   RequestState,
   SPONSORBLOCK_CATEGORIES,
+  SkipSegment,
   SponsorBlockCategory,
   WatchProgress,
   YOUTUBE_SEARCH_RESULTS,

@@ -57,6 +57,15 @@ export type SponsorBlockCategory = z.infer<typeof SponsorBlockCategory>;
 const Categories = z.array(SponsorBlockCategory).max(SPONSORBLOCK_CATEGORIES.length * 2);
 
 /**
+ * A SponsorBlock segment the player skips, in seconds on the file's own timeline: a video profile
+ * keeps its segments in the file (marked as chapters) rather than cutting them.
+ */
+export const SkipSegment = z
+  .object({ start: z.number(), end: z.number(), category: SponsorBlockCategory })
+  .openapi("SkipSegment");
+export type SkipSegment = z.infer<typeof SkipSegment>;
+
+/**
  * A yt-dlp preset: a built-in the caller kept, or one of their own; nobody sees another person's.
  * Editing a built-in makes it the caller's own copy, and deleting one hides it, for them alone.
  * `revision` changes whenever the file-shaping arguments do.

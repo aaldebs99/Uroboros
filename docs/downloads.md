@@ -90,14 +90,15 @@ channel ([jobs.md](jobs.md)).
 ## Format profiles
 
 yt-dlp presets (`format_profiles`, `src/downloads/profiles.ts`): a format selector, a container to
-merge into, or audio-only with an audio format, SponsorBlock categories to cut, and extra arguments
+merge into, or audio-only with an audio format, SponsorBlock categories to get rid of, and extra arguments
 from the wrapper's allowlist (checked by the server with `@uroboros/ytdlp/flags` when saved, and
 again when the job runs). `revision` hashes the file-shaping arguments, and renditions are keyed by
 profile and revision, so editing a profile makes new downloads fetch a fresh file instead of
 reusing one made with the old arguments; files already in libraries stay.
 
-- **Built-ins** (`user_id` null) are everyone's to start with. All but the archive cut
-  SponsorBlock's `sponsor`, `selfpromo` and `interaction` segments (docs/automation.md):
+- **Built-ins** (`user_id` null) are everyone's to start with. All but the archive get rid of
+  SponsorBlock's `sponsor`, `selfpromo` and `interaction` segments: the video ones keep them for
+  the player to skip, the audio ones cut them out ([automation.md](automation.md#sponsorblock)):
   - "Best available" (the default), "Best up to 1080p (MP4)" and "Up to 720p (MP4)", the smaller
     one for phones and tight storage;
   - "Audio only (Opus)";
@@ -156,7 +157,8 @@ thumbnail. Removing a library entry deletes the row only; the reaper deletes a f
 has referenced it for a day ([automation.md](automation.md#the-reaper)).
 
 Pasted links and new uploads dispatch before a subscription's backfill (`downloads.priority`), and
-a format profile can cut SponsorBlock segments ([automation.md](automation.md#sponsorblock)).
+a format profile can skip SponsorBlock segments in videos and cut them from audio files
+([automation.md](automation.md#sponsorblock)).
 
 ## JavaScript challenges
 

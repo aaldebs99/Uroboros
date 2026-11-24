@@ -1,4 +1,4 @@
-import { Chapter, type LibraryItem } from "@uroboros/contract";
+import { Chapter, SkipSegment, type LibraryItem } from "@uroboros/contract";
 import type { Kysely } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
@@ -10,6 +10,7 @@ import { base, ENTRY_COLUMNS, toEntry, type EntryRow } from "./query.ts";
 import { playbackFacts, type RenditionPlayback } from "../transcode/itemFacts.ts";
 
 const Chapters = z.array(Chapter);
+const SkipSegments = z.array(SkipSegment);
 
 /**
  * An entry with what its page and player need: the caller's own, or one a share reaches them
@@ -30,6 +31,7 @@ export async function getItem(
       "m.chapters",
       "m.webpage_url",
       "m.uploaded_by",
+      "r.skip_segments",
       "r.video_codec",
       "r.audio_codec",
       "r.video_codecs",
@@ -43,6 +45,7 @@ export async function getItem(
         chapters: unknown;
         webpage_url: string | null;
         uploaded_by: string | null;
+        skip_segments: unknown;
         video_codec: string | null;
         audio_codec: string | null;
       } & RenditionPlayback)
@@ -60,10 +63,12 @@ export async function getItem(
     seen.own ? playlistsHolding(db, userId, entryId) : [],
   ]);
   const chapters = Chapters.safeParse(row.chapters);
+  const skips = SkipSegments.safeParse(row.skip_segments);
   return {
     ...toEntry(row, seen.own),
     description: row.description,
     chapters: chapters.success ? chapters.data : [],
+    skipSegments: skips.success ? skips.data : [],
     subtitles: subs.map((s) => ({ ...s, url: `/api/library/${entryId}/subtitles/${s.id}` })),
     streamUrl: `/api/library/${entryId}/stream`,
     webpageUrl: row.webpage_url,

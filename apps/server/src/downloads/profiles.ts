@@ -36,6 +36,20 @@ export function profileRevision(args: ProfileArgs): string {
   return createHash("sha256").update(canonical).digest("hex").slice(0, 12);
 }
 
+/**
+ * How a profile's SponsorBlock categories reach yt-dlp. An audio file has them cut out: every audio
+ * packet starts a part cleanly. A video keeps them, marked as chapters, and the player skips them:
+ * yt-dlp cuts by stream copy, so each kept part would restart at the keyframe before its cut, and
+ * the removed segment's last seconds would pile up on one timestamp and play out of sync
+ * (docs/automation.md#sponsorblock).
+ */
+function sponsorBlockArgs(args: ProfileArgs): string[] {
+  const categories = [...(args.sponsorblockRemove ?? [])].sort();
+  if (categories.length === 0) return [];
+  const verb = args.audioOnly ? "remove" : "mark";
+  return [`--sponsorblock-${verb}=${categories.join(",")}`];
+}
+
 /** The yt-dlp format selector and extra arguments a profile runs with. */
 export function ytdlpArgsFor(args: ProfileArgs): { format: string; extraArgs: string[] } {
   const shape =
@@ -44,14 +58,13 @@ export function ytdlpArgsFor(args: ProfileArgs): { format: string; extraArgs: st
       : args.mergeFormat === null
         ? []
         : [`--merge-output-format=${args.mergeFormat}`];
-  const cut = [...(args.sponsorblockRemove ?? [])].sort();
   return {
     format: args.format,
     extraArgs: [
       ...shape,
       "--write-thumbnail",
       "--convert-thumbnails=jpg",
-      ...(cut.length === 0 ? [] : [`--sponsorblock-remove=${cut.join(",")}`]),
+      ...sponsorBlockArgs(args),
       ...args.extraArgs,
     ],
   };
