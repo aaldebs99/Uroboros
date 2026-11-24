@@ -4,11 +4,13 @@ import {
   LIBRARY_PAGE_SIZE,
   LibraryPage,
   LibrarySort,
+  MAX_TAGS,
   SEARCH_MAX_CHARS,
   SEARCH_MIN_CHARS,
+  Tag,
 } from "./library.ts";
 import { Download, FormatProfile, NewSearchBody } from "./downloads.ts";
-import { PlaylistDetail, PlaylistSummary } from "./playlists.ts";
+import { PLAYLIST_MAX_ITEMS, PlaylistDetail, PlaylistSummary } from "./playlists.ts";
 
 /** Where the MCP server answers (docs/mcp.md): only API tokens with the `mcp` scope reach it. */
 export const MCP_PATH = "/api/mcp";
@@ -143,3 +145,33 @@ export const McpDownloadsInput = z.object({
 
 export const McpDownloads = z.object({ downloads: z.array(Download) });
 export const McpProfiles = z.object({ profiles: z.array(FormatProfile) });
+
+const PlaylistId = z.uuid().describe("One of the person's own playlists (kind manual)");
+
+export const McpPlaylistItemsInput = z.object({
+  playlistId: PlaylistId,
+  entryIds: z
+    .array(z.uuid())
+    .min(1)
+    .max(PLAYLIST_MAX_ITEMS)
+    .describe("Library entries to add at the end; ones already in it stay where they are"),
+});
+
+export const McpPlaylistItemInput = z.object({ playlistId: PlaylistId, entryId: z.uuid() });
+
+/** Changes to one entry; at least one. Tags and Keep only on the person's own entries. */
+export const McpUpdateEntryInput = z
+  .object({
+    entryId: z.uuid().describe("A library entry's id"),
+    tags: z
+      .array(Tag)
+      .max(MAX_TAGS)
+      .optional()
+      .describe("The entry's tags, replacing the ones it has (lower-cased)"),
+    watched: z.boolean().optional(),
+    kept: z.boolean().optional().describe("Kept entries are never cleaned up automatically"),
+  })
+  .refine(
+    (u) => u.tags !== undefined || u.watched !== undefined || u.kept !== undefined,
+    "nothing to change",
+  );
