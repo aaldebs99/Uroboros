@@ -4245,6 +4245,18 @@
             }
           },
           {
+            "description": "A pasted link: the entries of the video it points at",
+            "in": "query",
+            "name": "url",
+            "required": false,
+            "schema": {
+              "description": "A pasted link: the entries of the video it points at",
+              "format": "uri",
+              "maxLength": 2048,
+              "type": "string"
+            }
+          },
+          {
             "description": "A channel key",
             "in": "query",
             "name": "channel",
@@ -4314,6 +4326,18 @@
               "maxLength": 2000,
               "type": "string"
             }
+          },
+          {
+            "description": "Entries per page (default 60)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "description": "Entries per page (default 60)",
+              "maximum": 60,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -4335,7 +4359,7 @@
                 }
               }
             },
-            "description": "A bad cursor, channel key, or a sort that needs another parameter"
+            "description": "A bad cursor, channel key, link or limit, or a sort that needs another parameter"
           },
           "404": {
             "content": {

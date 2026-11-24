@@ -8,11 +8,14 @@ import { sql, type Kysely, type RawBuilder, type SelectQueryBuilder } from "kyse
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { channelKey, parseChannelKey } from "./channelKey.ts";
+import { linkMatch } from "./linkMatch.ts";
 import { platformName } from "./platform.ts";
 import { decodeCursor, encodeCursor, type Cursor } from "./cursor.ts";
 
 export interface LibraryFilters {
   q?: string | undefined;
+  /** A pasted link: the entries of the video it points at. */
+  url?: string | undefined;
   channel?: string | undefined;
   source?: string | undefined;
   /** A manual playlist of the caller's. */
@@ -23,6 +26,8 @@ export interface LibraryFilters {
   watched?: boolean | undefined;
   sort?: LibrarySort | undefined;
   cursor?: string | undefined;
+  /** Entries per page; `LIBRARY_PAGE_SIZE` when omitted. */
+  limit?: number | undefined;
 }
 
 interface SortSpec {
@@ -98,9 +103,18 @@ function channelFilter(qb: Base, key: string): Base {
         .where(sql<string>`coalesce(m.channel, m.uploader)`, "=", c.value);
 }
 
+/** The entries of the video a pasted link points at (`linkMatch`). */
+function linkFilter(qb: Base, link: string): Base {
+  const match = linkMatch(link);
+  return match.kind === "youtube"
+    ? qb.where("m.extractor", "=", "youtube").where("m.video_id", "=", match.videoId)
+    : qb.where("m.webpage_url", "in", match.urls);
+}
+
 function filtered(qb: Base, f: LibraryFilters, q: string | null): Base {
   let out = qb;
   if (q !== null) out = out.where(sql<boolean>`m.search @@ ${queryOf(q)}`);
+  if (f.url !== undefined) out = linkFilter(out, f.url);
   if (f.channel !== undefined) out = channelFilter(out, f.channel);
   if (f.tag !== undefined) {
     const tag = f.tag.trim().toLowerCase();
@@ -209,6 +223,7 @@ export async function listLibraryPage(
   const sort = chooseSort(f, q);
   if (as === undefined) await checkPlaylists(db, userId, f);
   const spec = sortSpec(sort, q);
+  const size = f.limit ?? LIBRARY_PAGE_SIZE;
   let qb = inPlaylist(filtered(base(db, userId, as?.ownerId), f, q), f);
   if (f.entry !== undefined) qb = qb.where("e.id", "=", f.entry);
   if (f.cursor !== undefined) {
@@ -220,16 +235,16 @@ export async function listLibraryPage(
     .select([...ENTRY_COLUMNS, (spec.keyExpr ?? spec.expr).as("sort_key")] as never)
     .orderBy(sql`${spec.expr} ${sql.raw(spec.dir)}`)
     .orderBy(sql`e.id ${sql.raw(spec.dir)}`)
-    .limit(LIBRARY_PAGE_SIZE + 1)
+    .limit(size + 1)
     .execute()
     .catch(badCursorKey);
   const typed = rows as unknown as EntryRow[];
-  const pageRows = typed.slice(0, LIBRARY_PAGE_SIZE);
+  const pageRows = typed.slice(0, size);
   const last = pageRows.at(-1);
   return {
     entries: pageRows.map((r) => toEntry(r, as === undefined)),
     nextCursor:
-      typed.length > LIBRARY_PAGE_SIZE && last !== undefined
+      typed.length > size && last !== undefined
         ? encodeCursor({ key: keyOf(last.sort_key), id: last.id })
         : null,
   };

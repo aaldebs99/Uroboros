@@ -1,6 +1,12 @@
 import { extname } from "node:path";
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { ApiErrorBody, ChannelSummary, LibraryPage, LibrarySort } from "@uroboros/contract";
+import {
+  ApiErrorBody,
+  ChannelSummary,
+  LIBRARY_PAGE_SIZE,
+  LibraryPage,
+  LibrarySort,
+} from "@uroboros/contract";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
@@ -30,6 +36,14 @@ const libraryQuery = z.object({
     .max(1000)
     .optional()
     .openapi({ param: { name: "q", in: "query" }, description: "Full-text search" }),
+  url: z
+    .url({ protocol: /^https?$/ })
+    .max(2048)
+    .optional()
+    .openapi({
+      param: { name: "url", in: "query" },
+      description: "A pasted link: the entries of the video it points at",
+    }),
   channel: z
     .string()
     .max(1000)
@@ -58,6 +72,16 @@ const libraryQuery = z.object({
     .max(2000)
     .optional()
     .openapi({ param: { name: "cursor", in: "query" } }),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LIBRARY_PAGE_SIZE)
+    .optional()
+    .openapi({
+      param: { name: "limit", in: "query" },
+      description: `Entries per page (default ${String(LIBRARY_PAGE_SIZE)})`,
+    }),
 });
 
 const listRoute = createRoute({
@@ -68,7 +92,7 @@ const listRoute = createRoute({
   request: { query: libraryQuery },
   responses: {
     200: json(LibraryPage, "A page"),
-    400: error("A bad cursor, channel key, or a sort that needs another parameter"),
+    400: error("A bad cursor, channel key, link or limit, or a sort that needs another parameter"),
     404: error("A playlist that is not the caller's"),
   },
 });

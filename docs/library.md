@@ -6,12 +6,17 @@ public links in [sharing.md](sharing.md).
 
 ## Search, filters and paging
 
-`GET /api/library` answers a `LibraryPage` (`entries`, `nextCursor`), 60 entries at a time,
-always of the caller's own entries (`src/library/query.ts`):
+`GET /api/library` answers a `LibraryPage` (`entries`, `nextCursor`), 60 entries at a time (or
+`limit`, 1 to 60), always of the caller's own entries (`src/library/query.ts`):
 
 - `q`: full-text search over title, channel and description. `media.search` is a generated
   `tsvector` with the `simple` configuration (no stemming, any language) and a GIN index, queried
   with `websearch_to_tsquery`, so quotes, `OR` and `-word` work and odd input never errors.
+- `url`: a pasted http(s) link, answering the entries of the video it points at
+  (`src/library/linkMatch.ts`). A YouTube link in any of its shapes (`watch?v=`, `youtu.be/`,
+  `/shorts/`, `/live/`, `/embed/`, on `www.`, `m.` or `music.`) matches by video id; any other
+  matches the stored page URL, as pasted or without its fragment, in either scheme, with or
+  without `www.` and a final slash.
 - `channel` (a channel key), `tag`, `watched` (`true`/`false`), `source` (a YouTube playlist the
   caller has) and `playlist` (one of the caller's manual playlists); another person's playlist is
   404, and `source` with `playlist` is 400.
