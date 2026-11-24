@@ -53,6 +53,7 @@ export const subscriptionTools: Tool[] = [
     input: McpDownloadLinkInput,
     output: DownloadRequest,
     write: true,
+    openWorld: true,
     run: (args, { downloads, caller }) =>
       createRequest(need(downloads), caller.userId, { ...args, intent: "subscribe" }),
   }),
@@ -64,16 +65,19 @@ export const subscriptionTools: Tool[] = [
     input: NewSubscriptionBody,
     output: Subscription,
     write: true,
+    openWorld: true,
     run: (body, { downloads, caller }) => createSubscription(need(downloads), caller.userId, body),
   }),
   defineTool({
     name: "update_subscription",
     title: "Change a subscription",
     description:
-      "Changes a subscription: its feeds, format, schedule, filters, delay, retention or notifications; enabled false pauses it and true resumes it.",
+      "Changes a subscription: its feeds, format, schedule, filters, delay, retention or notifications; enabled false pauses it and true resumes it. A tighter retention deletes the videos it no longer keeps.",
     input: McpUpdateSubscriptionInput,
     output: Subscription,
     write: true,
+    // A tighter retention (keepLast, deleteWatchedAfterDays) has the reaper remove entries.
+    destructive: true,
     idempotent: true,
     run: ({ subscriptionId, changes }, { downloads, caller }) =>
       updateSubscription(need(downloads), caller.userId, subscriptionId, changes),
@@ -100,6 +104,7 @@ export const subscriptionTools: Tool[] = [
     input: McpSubscriptionInput,
     output: Subscription,
     write: true,
+    openWorld: true,
     idempotent: true,
     run: ({ subscriptionId }, { downloads, caller }) =>
       checkSubscriptionNow(need(downloads), caller.userId, subscriptionId),

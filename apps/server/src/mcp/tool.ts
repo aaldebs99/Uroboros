@@ -40,6 +40,8 @@ interface ToolSpec<I extends z.ZodObject, O extends z.ZodObject> {
   destructive?: boolean;
   /** Calling it twice with the same arguments does no more than once. */
   idempotent?: boolean;
+  /** Reaches other sites (yt-dlp reads a link or a feed), not just the library. */
+  openWorld?: boolean;
   /** `signal` aborts when the client cancels the call or goes away. */
   run(args: z.output<I>, ctx: ToolContext, signal: AbortSignal): Promise<z.input<O>>;
 }
@@ -99,7 +101,7 @@ export function defineTool<I extends z.ZodObject, O extends z.ZodObject>(
             readOnlyHint: !write,
             destructiveHint: spec.destructive ?? false,
             idempotentHint: spec.idempotent ?? !write,
-            openWorldHint: false,
+            openWorldHint: spec.openWorld ?? false,
           },
         },
         (args, call) =>

@@ -121,6 +121,7 @@ export const downloadTools: Tool[] = [
     input: McpDownloadLinkInput,
     output: DownloadRequest,
     write: true,
+    openWorld: true,
     run: (args, { downloads, caller }) =>
       createRequest(need(downloads), caller.userId, { ...args, intent: "download" }),
   }),
@@ -131,6 +132,7 @@ export const downloadTools: Tool[] = [
     input: McpSearchInput,
     output: DownloadRequest,
     write: true,
+    openWorld: true,
     run: ({ query }, { downloads, caller }) =>
       createRequest(need(downloads), caller.userId, {
         url: youtubeSearchUrl(query),
@@ -145,6 +147,7 @@ export const downloadTools: Tool[] = [
     input: McpQueueInput,
     output: QueueSelectionResult,
     write: true,
+    openWorld: true,
     run: ({ requestId, entryIds }, { downloads, caller }) =>
       queueSelection(need(downloads), asMember(caller), requestId, entryIds),
   }),
@@ -169,6 +172,7 @@ export const downloadTools: Tool[] = [
     input: McpDownloadInput,
     output: Download,
     write: true,
+    openWorld: true,
     run: async ({ downloadId }, { downloads, caller }) => {
       const ctx = need(downloads);
       await retryDownload(ctx, asMember(caller), downloadId);

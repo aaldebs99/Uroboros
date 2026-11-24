@@ -113,6 +113,40 @@ describe("the MCP endpoint", () => {
     expect(body.result.structuredContent).toEqual({ channels: [] });
   });
 
+  it("marks the tools that reach other sites, and the ones that can delete", async () => {
+    await setMcp(testDb.db, true);
+    const res = await mcpPost(app, secret, "tools/list");
+    const { result } = (await res.json()) as {
+      result: {
+        tools: {
+          name: string;
+          annotations: { openWorldHint: boolean; destructiveHint: boolean; readOnlyHint: boolean };
+        }[];
+      };
+    };
+    const hinted = (hint: "openWorldHint" | "destructiveHint" | "readOnlyHint") =>
+      result.tools
+        .filter((t) => t.annotations[hint])
+        .map((t) => t.name)
+        .sort();
+    expect(hinted("openWorldHint")).toEqual([
+      "check_subscription_now",
+      "create_subscription",
+      "download_link",
+      "preview_subscription",
+      "queue_selection",
+      "retry_download",
+      "search_youtube",
+    ]);
+    expect(hinted("destructiveHint")).toEqual([
+      "cancel_download",
+      "delete_subscription",
+      "remove_from_playlist",
+      "update_subscription",
+    ]);
+    expect(hinted("readOnlyHint")).toEqual([...READ_TOOLS].sort());
+  });
+
   it("offers a read-only token only the tools that read", async () => {
     await setMcp(testDb.db, true);
     const reader = await mcpToken(testDb.db, await insertUser(testDb.db, { username: "mcpro" }), {
