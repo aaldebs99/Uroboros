@@ -38,6 +38,7 @@ export const copyFixture = (over: Partial<Export> = {}): Export => ({
   cutSeconds: 104.5,
   createdAt: T,
   fileUrl: null,
+  current: true,
   ...over,
 });
 

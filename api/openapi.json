@@ -841,6 +841,9 @@
             "format": "date-time",
             "type": "string"
           },
+          "current": {
+            "type": "boolean"
+          },
           "cutSeconds": {
             "type": "number"
           },
@@ -897,7 +900,8 @@
           "keptSeconds",
           "cutSeconds",
           "createdAt",
-          "fileUrl"
+          "fileUrl",
+          "current"
         ],
         "type": "object"
       },

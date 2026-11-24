@@ -13,7 +13,7 @@ import { Tooltip } from "@/components/ui/tooltip";
  * Save, an icon button named in its tooltip: the stored file as it is, or, on a video that keeps
  * SponsorBlock segments, a menu that also offers a copy without them (re-encoded by the server;
  * docs/transcoding.md), which appears under Downloads › Copies to save. Once that copy is made, it
- * saves straight away.
+ * saves straight away, while the video's segments stay as they were cut.
  */
 export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "skipSegments"> }) {
   const start = useStartExport();
@@ -31,7 +31,10 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "skipSegment
       </Tooltip>
     );
   }
-  const made = copies.data?.find((c) => c.entryId === item.id && c.fileUrl !== null)?.fileUrl;
+  // A copy cut from segments a refetch has since changed is not this video's any more.
+  const made = copies.data?.find(
+    (c) => c.entryId === item.id && c.current && c.fileUrl !== null,
+  )?.fileUrl;
   const ask = () => {
     start.mutate(item.id, {
       onSuccess: (copy) => {

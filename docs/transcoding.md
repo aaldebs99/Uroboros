@@ -219,7 +219,9 @@ which leaves part of a sponsor in or puts the sound out of step, so the copy is 
   `export` job. Asking again for the same entry and cuts, while that copy is waiting, being made or
   ready, answers with it; a failed one is reset and made again in its own row. A video with no
   segments is refused. Once a copy is ready, Save › Without sponsors on the item page saves it
-  straight away.
+  straight away, as long as it is `current`: cut from the segments the file has now. After a
+  SponsorBlock refetch changed them ([automation.md](automation.md#sponsorblock)), the old copy
+  stays under Copies to save, and Without sponsors asks for a new one with the new cuts.
 - **The job** (`src/worker/exportRun.ts`) runs on replicas that run sessions, one copy at a time.
   It trims each kept range from the decoded frames and samples, joins them (`trim`/`atrim` and
   `concat`, `packages/ytdlp/src/exportArgs.ts`), and encodes H.264 at the source's own size (its

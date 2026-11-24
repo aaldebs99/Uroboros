@@ -28,6 +28,11 @@ export const Export = z
     createdAt: z.iso.datetime(),
     /** Where to save it from, once done. */
     fileUrl: z.string().nullable(),
+    /**
+     * Cut from the segments the video's file has now: false once a SponsorBlock refetch changed
+     * them (docs/automation.md#sponsorblock), when asking again makes a new copy.
+     */
+    current: z.boolean(),
   })
   .openapi("Export");
 export type Export = z.infer<typeof Export>;

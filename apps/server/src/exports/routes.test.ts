@@ -92,6 +92,28 @@ describe("asking for a copy without sponsors", () => {
     expect(jobs).toEqual([expect.objectContaining({ data: { exportId: made.id } })]);
   });
 
+  it("says a copy is current until the file's segments change, and a new ask is then a new copy", async () => {
+    const me = await user();
+    const e = await entryWith(me);
+    const made = Export.parse(
+      await (await post(app(me), `/api/library/${e.entryId}/export`)).json(),
+    );
+    expect(made.current).toBe(true);
+    // A SponsorBlock refetch found other segments.
+    await t.db
+      .updateTable("renditions")
+      .set({ skip_segments: JSON.stringify([{ start: 30, end: 40, category: "sponsor" }]) })
+      .where("id", "=", e.renditionId)
+      .execute();
+    const list = z.array(Export).parse(await (await app(me).request("/api/exports")).json());
+    expect(list.find((c) => c.id === made.id)?.current).toBe(false);
+    const again = await post(app(me), `/api/library/${e.entryId}/export`);
+    expect(again.status).toBe(201);
+    const fresh = Export.parse(await again.json());
+    expect(fresh.id).not.toBe(made.id);
+    expect(fresh).toMatchObject({ current: true, cutSeconds: 10 });
+  });
+
   it("makes a failed copy again in its own row when asked again", async () => {
     const me = await user();
     const e = await entryWith(me);

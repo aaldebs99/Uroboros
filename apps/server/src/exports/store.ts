@@ -23,9 +23,24 @@ const SkipSegments = z.array(SkipSegment);
 const Spans = z.array(z.object({ start: z.number(), end: z.number() }));
 
 type ExportRow = Selectable<ExportsTable>;
-type Described = ExportRow & { title: string | null; video_id: string; duration: number | null };
+type Described = ExportRow & {
+  title: string | null;
+  video_id: string;
+  duration: number | null;
+  skip_segments: unknown;
+};
 
 const iso = (d: Date) => d.toISOString();
+
+/** Whether a copy's cuts are those the file's segments make now (a refetch can change them). */
+function isCurrent(spans: readonly Span[], row: Described): boolean {
+  const segments = SkipSegments.safeParse(row.skip_segments);
+  const now = mergeCuts(segments.success ? segments.data : [], row.duration);
+  return (
+    now.length === spans.length &&
+    now.every((c, i) => c.start === spans[i].start && c.end === spans[i].end)
+  );
+}
 
 /** The copy as its person sees it. */
 export function describeExport(row: Described): Export {
@@ -46,6 +61,7 @@ export function describeExport(row: Described): Export {
     cutSeconds: cut,
     createdAt: iso(row.created_at),
     fileUrl: row.state === "done" ? `/api/exports/${row.id}/file` : null,
+    current: isCurrent(spans, row),
   };
 }
 
@@ -59,6 +75,7 @@ function described(db: Kysely<Database>) {
     .select([
       "m.title",
       "m.video_id",
+      "r.skip_segments",
       sql<number | null>`coalesce(r.duration, m.duration)`.as("duration"),
     ]);
 }

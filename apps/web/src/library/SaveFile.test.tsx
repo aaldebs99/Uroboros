@@ -22,6 +22,7 @@ const COPY = {
   cutSeconds: 104.5,
   createdAt: "2026-11-24T18:00:00.000Z",
   fileUrl: null,
+  current: true,
 };
 
 afterEach(() => {
@@ -87,5 +88,35 @@ describe("SaveFile", () => {
       );
     });
     expect(calls.some((c) => c.method === "POST")).toBe(false);
+  });
+
+  it("asks for a new copy when the one made was cut from segments a refetch changed", async () => {
+    const stale = {
+      ...COPY,
+      state: "done",
+      progress: 1,
+      sizeBytes: 10,
+      fileUrl: `/api/exports/${COPY.id}/file`,
+      current: false,
+    };
+    const calls = fakeApi({
+      [`POST /api/library/${ID}/export`]: () => Response.json(COPY, { status: 201 }),
+      "GET /api/exports": () => Response.json([stale]),
+    });
+    await renderInRouter(
+      <SaveFile item={{ id: ID, skipSegments: [{ start: 49, end: 69, category: "sponsor" }] }} />,
+    );
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/exports")).toBe(true);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    const menu = await screen.findByRole("dialog", { name: "Save" });
+    expect(within(menu).queryByRole("link", { name: "Without sponsors" })).toBeNull();
+    fireEvent.click(within(menu).getByRole("button", { name: "Without sponsors" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === "POST" && c.path === `/api/library/${ID}/export`)).toBe(
+        true,
+      );
+    });
   });
 });
