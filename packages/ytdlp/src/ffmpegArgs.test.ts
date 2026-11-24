@@ -136,6 +136,21 @@ describe("sessionArgs", () => {
     ]);
   });
 
+  it("tags tone-mapped output as BT.709 on every pipeline, and leaves SDR as it is", () => {
+    const tags = ["-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"];
+    for (const pipeline of ["cpu", "nvenc", "nvenc-sw", "vaapi", "vaapi-sw"] as const) {
+      const hdr = sessionArgs(
+        encode({ video: { ...encode().video, pipeline, hdr: "smpte2084" } as RunPlan["video"] }),
+      );
+      const at = hdr.indexOf("-color_primaries");
+      expect(hdr.slice(at, at + 6)).toEqual(tags);
+      const sdr = sessionArgs(
+        encode({ video: { ...encode().video, pipeline } as RunPlan["video"] }),
+      );
+      expect(sdr).not.toContain("-color_primaries");
+    }
+  });
+
   it("decodes on the CPU and uploads to the GPU when the GPU can't decode the source", () => {
     const nv = sessionArgs(
       encode({ video: { ...encode().video, pipeline: "nvenc-sw" } as RunPlan["video"] }),

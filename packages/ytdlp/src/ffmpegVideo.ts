@@ -73,8 +73,18 @@ export function videoFilter(e: EncodeSettings): string {
   }
 }
 
-/** The encoder and its rate control: the rung's cap, and the level the playlist names. */
+/**
+ * Tone-mapped output is BT.709, and says so: the GPU filters keep the source's BT.2020 tags (or
+ * drop them), and a browser decoding with BT.2020's matrix would shift every colour.
+ */
+const BT709 = ["-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"];
+
+/** The encoder, its rate control (the rung's cap, the level the playlist names) and colour tags. */
 export function videoEncoderArgs(e: EncodeSettings): string[] {
+  return [...encoder(e), ...(e.hdr === null ? [] : BT709)];
+}
+
+function encoder(e: EncodeSettings): string[] {
   const rate = String(e.bitrate);
   const buffer = String(e.bitrate * 2);
   const profile = ["-profile:v", "high", "-level:v", (e.level / 10).toFixed(1)];
