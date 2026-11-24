@@ -4,7 +4,7 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-type FieldChrome = {
+export type FieldChrome = {
   label: string;
   /** Muted help under the box. */
   help?: ReactNode | undefined;
@@ -17,12 +17,12 @@ type FieldChrome = {
   className?: string | undefined;
 };
 
-const boxClasses =
+export const boxClasses =
   "peer w-full rounded-[0.5rem] border border-foreground/25 bg-transparent px-3.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 disabled:opacity-45 aria-invalid:border-destructive";
-const labelClasses =
+export const labelClasses =
   "pointer-events-none absolute top-2 left-3.5 text-xs text-muted-foreground peer-focus-visible:text-primary peer-aria-invalid:text-destructive";
 
-function useFieldIds(id: string | undefined, chrome: FieldChrome) {
+export function useFieldIds(id: string | undefined, chrome: FieldChrome) {
   const generated = useId();
   const fieldId = id ?? generated;
   const helpId = chrome.help === undefined ? undefined : `${fieldId}-help`;
@@ -31,7 +31,7 @@ function useFieldIds(id: string | undefined, chrome: FieldChrome) {
   return { fieldId, helpId, errorId, describedBy };
 }
 
-function FieldFoot({
+export function FieldFoot({
   chrome,
   helpId,
   errorId,

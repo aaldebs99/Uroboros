@@ -25,8 +25,8 @@ describe("SiteLogins", () => {
     expect(within(list).getByText(/me@example\.com/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Add login" }));
     const dialog = screen.getByRole("dialog", { name: "Add a login" });
-    const site = within(dialog).getByRole("combobox", { name: "Site" });
-    const options = within(site)
+    await userEvent.click(within(dialog).getByRole("combobox", { name: "Site" }));
+    const options = within(within(dialog).getByRole("listbox", { name: "Site" }))
       .getAllByRole("option")
       .map((o) => o.textContent);
     expect(options).toContain("twitch");
@@ -34,7 +34,7 @@ describe("SiteLogins", () => {
     expect(options).not.toContain("youtube");
   });
 
-  it("adds a login in a dialog: the site, the username and the password, then Save", async () => {
+  it("adds a login in a dialog: a searched-for site, the username and the password, then Save", async () => {
     const calls = fakeApi({
       "GET /api/me/site-logins": () => Response.json({ enabled: true, logins: [] }),
       "PUT /api/me/site-logins/twitch": () =>
@@ -45,7 +45,13 @@ describe("SiteLogins", () => {
     expect(screen.queryByRole("combobox", { name: "Site" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Add login" }));
     const dialog = screen.getByRole("dialog", { name: "Add a login" });
-    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Site" }), "twitch");
+    await userEvent.type(within(dialog).getByRole("combobox", { name: "Site" }), "twi");
+    expect(
+      within(within(dialog).getByRole("listbox", { name: "Site" }))
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["twitch"]);
+    await userEvent.keyboard("{Enter}");
     await userEvent.type(within(dialog).getByLabelText("Username or email"), " me ");
     const password = within(dialog).getByLabelText("Password");
     expect(password).toHaveAttribute("autocomplete", "new-password");

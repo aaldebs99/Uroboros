@@ -15,7 +15,8 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, SelectField } from "@/components/ui/field";
+import { ComboboxField } from "@/components/ui/combobox-field";
+import { Field } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { notify } from "@/components/ui/sonner";
 
@@ -68,8 +69,9 @@ function Credentials({
 }
 
 /**
- * Adds a login, or replaces a saved one, in a form dialog: the site (yt-dlp's list, less those
- * already saved; fixed when changing one), the username and the password, then Save.
+ * Adds a login, or replaces a saved one, in a form dialog: the site (a searchable list of
+ * yt-dlp's, less those already saved; fixed when changing one), the username and the password,
+ * then Save.
  */
 function LoginDialog({
   login,
@@ -84,9 +86,13 @@ function LoginDialog({
   const [site, setSite] = useState<LoginSite | "">(login?.site ?? "");
   const [username, setUsername] = useState(login?.username ?? "");
   const [password, setPassword] = useState("");
+  const [siteError, setSiteError] = useState<string | null>(null);
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (site === "") return;
+    if (site === "") {
+      setSiteError("Pick a site from the list.");
+      return;
+    }
     save.mutate(
       { site, username: username.trim(), password },
       {
@@ -118,24 +124,20 @@ function LoginDialog({
         </DialogDescription>
         <form className="grid gap-3" onSubmit={submit}>
           {login === null ? (
-            <SelectField
+            <ComboboxField
               id="site-login-site"
               label="Site"
+              placeholder="Type to search"
+              noMatch="yt-dlp has no login for a site by that name"
               required
+              options={choices}
               value={site}
-              onChange={(e) => {
-                setSite(e.target.value as LoginSite | "");
+              error={siteError}
+              onChange={(picked) => {
+                setSite(picked as LoginSite | "");
+                setSiteError(null);
               }}
-            >
-              <option value="" disabled>
-                Choose a site
-              </option>
-              {choices.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </SelectField>
+            />
           ) : null}
           <Credentials
             idPrefix="site-login"
