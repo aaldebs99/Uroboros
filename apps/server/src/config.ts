@@ -323,7 +323,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
           e.UROBOROS_SUBTITLE_LANGS === undefined
             ? DEFAULT_SUBTITLE_LANGS
             : e.UROBOROS_SUBTITLE_LANGS || null,
-        automatic: e.UROBOROS_AUTO_SUBTITLES === "true",
+        automatic: e.UROBOROS_AUTO_SUBTITLES !== "false",
       },
       concurrency: e.UROBOROS_WORKER_CONCURRENCY,
       ytdlpPath: e.YTDLP_PATH ?? "yt-dlp",

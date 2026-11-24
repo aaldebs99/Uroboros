@@ -161,8 +161,13 @@ Per entry and person: lower-cased, trimmed, 1–32 characters, at most 20 (`PUT
 ## Subtitles and chapters
 
 Every download saves subtitles: `--write-subs --sub-langs <UROBOROS_SUBTITLE_LANGS>
---convert-subs vtt` (default `en.*`; empty saves none), plus automatic captions with
-`UROBOROS_AUTO_SUBTITLES=true`. Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
+--convert-subs vtt` (default `en.*`; empty saves none), plus automatic captions (YouTube's
+transcripts) unless `UROBOROS_AUTO_SUBTITLES=false`. Each automatic caption is asked for once:
+`,-.*-orig` joins the languages (YouTube's `en-orig` is the same file as its `en`) unless they
+name an original themselves, and `--extractor-args youtube:skip=translated_subs` skips machine
+translations of a video's subtitles (`en-de`), since every caption file is one more request to a
+site that rate-limits them. A non-English video's English automatic captions are still a machine
+translation of its speech. Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
 on S3; in the folder layout, beside the media file and named after it, `<file>.<lang>.vtt`, so
 videos that share a title never share a subtitle; one that cannot be stored is skipped) and recorded in `subtitles`. Chapters come from
 the `.info.json` into `media.chapters`.

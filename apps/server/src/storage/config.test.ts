@@ -108,11 +108,18 @@ describe("storage settings", () => {
     expect(c.storage.kind).toBe("s3");
   });
 
-  it("reads the subtitle settings: English by default, empty turns them off", () => {
+  it("reads the subtitle settings: English with automatic captions by default, empty turns them off", () => {
     expect(loadConfig({ ...base, ...s3 }).worker.subtitles).toEqual({
       langs: "en.*",
-      automatic: false,
+      automatic: true,
     });
+    expect(
+      loadConfig({ ...base, ...s3, UROBOROS_AUTO_SUBTITLES: "false" }).worker.subtitles.automatic,
+    ).toBe(false);
+    // compose passes an empty value when it is unset.
+    expect(
+      loadConfig({ ...base, ...s3, UROBOROS_AUTO_SUBTITLES: "" }).worker.subtitles.automatic,
+    ).toBe(true);
     expect(
       loadConfig({ ...base, ...s3, UROBOROS_SUBTITLE_LANGS: "" }).worker.subtitles.langs,
     ).toBeNull();

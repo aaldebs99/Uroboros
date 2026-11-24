@@ -17,13 +17,19 @@ export interface SubtitleSettings {
   automatic: boolean;
 }
 
-/** The yt-dlp arguments that save subtitles as `.vtt` beside the media file. */
+/**
+ * The yt-dlp arguments that save subtitles as `.vtt` beside the media file. With automatic
+ * captions, each is asked for once: YouTube's `<lang>-orig` is the same file as its `<lang>`
+ * (unless the setting names the originals itself), and machine translations of a video's
+ * subtitles (`en-de`) are skipped, each one more request to a site that rate-limits them.
+ */
 export function subtitleArgs(s: SubtitleSettings): string[] {
   if (s.langs === null) return [];
+  const langs = s.automatic && !/orig/i.test(s.langs) ? `${s.langs},-.*-orig` : s.langs;
   return [
     "--write-subs",
-    ...(s.automatic ? ["--write-auto-subs"] : []),
-    `--sub-langs=${s.langs}`,
+    ...(s.automatic ? ["--write-auto-subs", "--extractor-args=youtube:skip=translated_subs"] : []),
+    `--sub-langs=${langs}`,
     "--convert-subs=vtt",
   ];
 }
