@@ -110,6 +110,25 @@ describe("readTranscript", () => {
     expect(t.nextFromSeconds).toBe(31);
   });
 
+  it("keeps lines that start together on one page, so pages never repeat or stall", async () => {
+    const cue = await seedEntry(testDb.db, owner, { title: "Cues" });
+    await track(cue.mediaId, "en", { indexed: true }, [
+      { text: "a b c", line_at: [0, 2, 4], line_start: [10, 10, 12], end_s: 14 },
+    ]);
+    const first = await readTranscript(testDb.db, owner, cue.entryId, { maxLines: 1 });
+    expect(first.lines).toEqual([
+      { start: 10, text: "a" },
+      { start: 10, text: "b" },
+    ]);
+    expect(first.nextFromSeconds).toBe(12);
+    const second = await readTranscript(testDb.db, owner, cue.entryId, {
+      fromSeconds: 12,
+      maxLines: 1,
+    });
+    expect(second.lines).toEqual([{ start: 12, text: "c" }]);
+    expect(second.nextFromSeconds).toBeNull();
+  });
+
   it("answers 404 for someone else's video", async () => {
     const stranger = (await signedIn(testDb.db, { username: "transcript2" })).userId;
     await expect(

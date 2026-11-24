@@ -50,20 +50,56 @@ export async function readTranscript(
   }
   const from = opts.fromSeconds ?? 0;
   // Every run holds at least one line; one spare covers a first run whose lines all start early.
+  const limit = opts.maxLines + 2;
   const runs = await db
     .selectFrom("caption_segments")
     .select(["text", "line_at", "line_start"])
     .where("subtitle_id", "=", chosen.id)
     .where("end_s", ">=", from)
     .orderBy("seq")
-    .limit(opts.maxLines + 2)
+    .limit(limit)
     .execute();
   const lines = runs.flatMap(linesOf).filter((l) => l.start >= from);
+  const page = pageOf(lines, opts.maxLines);
+  const last = page.at(-1)?.start;
+  let next = lines.at(page.length)?.start ?? null;
+  // The page took every fetched line; a run not fetched may follow.
+  if (next === null && last !== undefined && runs.length === limit) {
+    next = await nextRunStart(db, chosen.id, last);
+  }
   return {
     entryId,
     track: { lang: chosen.lang, automatic: chosen.automatic, indexed: true },
     tracks,
-    lines: lines.slice(0, opts.maxLines),
-    nextFromSeconds: lines.at(opts.maxLines)?.start ?? null,
+    lines: page,
+    nextFromSeconds: next,
   };
+}
+
+/**
+ * The first `max` lines, and any after them starting at the same moment: paging resumes from a
+ * start time, so splitting lines that share one would repeat them, or never move on.
+ */
+function pageOf(lines: TranscriptLine[], max: number): TranscriptLine[] {
+  let end = Math.min(max, lines.length);
+  const last = lines.at(end - 1)?.start;
+  while (end < lines.length && lines.at(end)?.start === last) end++;
+  return lines.slice(0, end);
+}
+
+/** When the first run starting after `after` starts; null when there is none. */
+async function nextRunStart(
+  db: Kysely<Database>,
+  subtitleId: string,
+  after: number,
+): Promise<number | null> {
+  const row = await db
+    .selectFrom("caption_segments")
+    .select("start_s")
+    .where("subtitle_id", "=", subtitleId)
+    .where("start_s", ">", after)
+    .orderBy("seq")
+    .limit(1)
+    .executeTakeFirst();
+  return row?.start_s ?? null;
 }
