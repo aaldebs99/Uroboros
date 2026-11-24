@@ -65,7 +65,7 @@ on a watch page). Pages use all of it:
 - A block that reads badly stretched (a form's fields, a settings column, a long paragraph) caps
   its own width (`max-w-3xl`, about 768px) and stays at the left margin.
 - Sign-in, which has no shell, is the one centred page. Dialogs are centred overlays.
-- Not yet followed: Account and Users still centre a `max-w-3xl` to `max-w-5xl` column. Bring each one to this rule when you next change it.
+- Not yet followed: Admin › Users and Admin › Groups still centre a `max-w-5xl` column. Bring each one to this rule when you next change it.
 
 ## Search palette (Ctrl+K)
 

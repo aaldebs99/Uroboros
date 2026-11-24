@@ -17,7 +17,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-4 border-t border-border pt-6 first:border-t-0 first:pt-0">
+    <section className="grid grid-cols-1 gap-4 border-t border-border pt-6 first:border-t-0 first:pt-0">
       <div className="grid gap-1">
         <h2 className="flex items-center gap-2 text-base/[1.3] font-bold">
           <Icon className="size-4.5 text-muted-foreground" aria-hidden />

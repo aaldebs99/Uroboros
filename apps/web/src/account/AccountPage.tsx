@@ -41,7 +41,7 @@ function PhoneLinks({ isAdmin }: { isAdmin: boolean }) {
 /** The signed-in user's own account: profile, password, sessions and API tokens. */
 export function AccountPage({ me }: { me: Me }) {
   return (
-    <section className="mx-auto grid w-full max-w-3xl gap-6">
+    <section className="grid w-full max-w-3xl grid-cols-1 gap-6">
       <PageHeader title="Account" description="Who you are here, and where you are signed in." />
       <div className="flex items-center gap-4">
         <Avatar name={me.displayName} className="size-16 text-2xl" />
