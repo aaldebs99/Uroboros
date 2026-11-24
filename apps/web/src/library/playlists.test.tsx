@@ -63,6 +63,11 @@ const item = (n: number, playlists: { id: string; name: string }[] = []) => ({
   videoCodec: "h264",
   audioCodec: "aac",
   playbackUrl: `/api/library/${id(n)}/playback`,
+  videoCodecs: null,
+  audioCodecs: null,
+  width: null,
+  height: null,
+  qualities: [],
   sharedBy: null,
 });
 

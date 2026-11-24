@@ -65,6 +65,12 @@ beforeAll(async () => {
       storage_key: "v.mp4",
       size_bytes: 10,
       container: "mp4",
+      video_codec: "h264",
+      audio_codec: "aac",
+      width: 1280,
+      height: 720,
+      video_codecs: "avc1.64001f",
+      audio_codecs: "mp4a.40.2",
     })
     .returning("id")
     .executeTakeFirstOrThrow();
@@ -150,6 +156,16 @@ describe("library item", () => {
       streamUrl: `/api/library/${entryId}/stream`,
       webpageUrl: "https://www.youtube.com/watch?v=item1",
       sources: [{ title: "Mix" }],
+    });
+  });
+
+  it("says what the player needs to choose: codec strings, size and the qualities offered", async () => {
+    expect(await item()).toMatchObject({
+      videoCodecs: "avc1.64001f",
+      audioCodecs: "mp4a.40.2",
+      width: 1280,
+      height: 720,
+      qualities: ["720", "480", "360"],
     });
   });
 

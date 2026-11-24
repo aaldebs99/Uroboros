@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { LibraryEntry } from "./downloads.ts";
+import { PlaybackFacts } from "./playback.ts";
 
 export const MAX_TAGS = 20;
 export const LIBRARY_PAGE_SIZE = 60;
@@ -56,6 +57,7 @@ export const LibraryItem = LibraryEntry.extend({
   playbackUrl: z.string(),
   /** The owner's name when the caller sees it through a share (docs/sharing.md); null for their own. */
   sharedBy: z.string().nullable(),
+  ...PlaybackFacts.shape,
 }).openapi("LibraryItem");
 export type LibraryItem = z.infer<typeof LibraryItem>;
 

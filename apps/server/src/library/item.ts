@@ -6,6 +6,7 @@ import { ApiError } from "../api/errors.ts";
 import { playlistsHolding } from "../playlists/listing.ts";
 import { visibleEntry } from "../sharing/access.ts";
 import { base, ENTRY_COLUMNS, toEntry, type EntryRow } from "./query.ts";
+import { playbackFacts, type RenditionPlayback } from "../transcode/itemFacts.ts";
 
 const Chapters = z.array(Chapter);
 
@@ -29,6 +30,10 @@ export async function getItem(
       "m.webpage_url",
       "r.video_codec",
       "r.audio_codec",
+      "r.video_codecs",
+      "r.audio_codecs",
+      "r.width",
+      "r.height",
     ] as never)
     .executeTakeFirst()) as
     | (EntryRow & {
@@ -37,7 +42,7 @@ export async function getItem(
         webpage_url: string | null;
         video_codec: string | null;
         audio_codec: string | null;
-      })
+      } & RenditionPlayback)
     | undefined;
   if (row === undefined) throw new ApiError("not_found", "no such library entry");
   const [subs, sources, playlists] = await Promise.all([
@@ -65,6 +70,7 @@ export async function getItem(
     audioCodec: row.audio_codec,
     playbackUrl: `/api/library/${entryId}/playback`,
     sharedBy: seen.own ? null : seen.owner_name,
+    ...playbackFacts(row),
   };
 }
 

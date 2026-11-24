@@ -68,11 +68,15 @@ export interface WorkerSettings {
   concurrency: number;
   /** The yt-dlp to run: `YTDLP_PATH` (set in the image), else `yt-dlp` on PATH. */
   ytdlpPath: string;
-  /** Compatible playback copies (docs/transcoding.md). */
+  /** Playback sessions (docs/transcoding.md). */
   transcode: {
-    /** Copies made at once by this process (`UROBOROS_TRANSCODE_CONCURRENCY`; 0: none here). */
+    /** Sessions run at once by this process (`UROBOROS_TRANSCODE_CONCURRENCY`; 0: none here). */
     concurrency: number;
-    /** `UROBOROS_TRANSCODE_HWACCEL`: `none` is libx264, `nvenc` the NVIDIA encoder. */
+    /** This replica's GPU (`UROBOROS_TRANSCODE_HWACCEL`): `none`, `nvenc` or `vaapi`. */
+    hwaccel: "none" | "nvenc" | "vaapi";
+    /** The VA-API render node (`UROBOROS_TRANSCODE_VAAPI_DEVICE`). */
+    vaapiDevice: string;
+    /** The cached copies' encoder, derived from `hwaccel` (goes with the copies). */
     encoder: TranscodeEncoder;
     /** Days an unused copy is kept (`UROBOROS_TRANSCODE_KEEP_DAYS`). */
     keepDays: number;
@@ -187,12 +191,20 @@ const workerEnvSchema = z.object({
       .string()
       .regex(/^(0|[1-9]\d*)$/, "UROBOROS_TRANSCODE_CONCURRENCY must be 0 or a positive integer")
       .transform(Number)
-      .prefault("1"),
+      .prefault("2"),
   ),
   UROBOROS_TRANSCODE_HWACCEL: unsetIfEmpty(
     z
-      .enum(["none", "nvenc"], { error: "UROBOROS_TRANSCODE_HWACCEL must be none or nvenc" })
+      .enum(["none", "nvenc", "vaapi"], {
+        error: "UROBOROS_TRANSCODE_HWACCEL must be none, nvenc or vaapi",
+      })
       .prefault("none"),
+  ),
+  UROBOROS_TRANSCODE_VAAPI_DEVICE: unsetIfEmpty(
+    z
+      .string()
+      .regex(/^\//, "UROBOROS_TRANSCODE_VAAPI_DEVICE must be an absolute path (a render node)")
+      .prefault("/dev/dri/renderD128"),
   ),
   UROBOROS_TRANSCODE_KEEP_DAYS: unsetIfEmpty(
     positiveInt("UROBOROS_TRANSCODE_KEEP_DAYS").prefault("30"),
@@ -322,6 +334,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       ytdlpPath: e.YTDLP_PATH ?? "yt-dlp",
       transcode: {
         concurrency: e.UROBOROS_TRANSCODE_CONCURRENCY,
+        hwaccel: e.UROBOROS_TRANSCODE_HWACCEL,
+        vaapiDevice: e.UROBOROS_TRANSCODE_VAAPI_DEVICE,
         encoder: e.UROBOROS_TRANSCODE_HWACCEL === "nvenc" ? "nvenc" : "libx264",
         keepDays: e.UROBOROS_TRANSCODE_KEEP_DAYS,
       },

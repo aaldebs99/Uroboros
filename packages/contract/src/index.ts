@@ -114,3 +114,15 @@ export {
   SharePersonRef,
   ShareState,
 } from "./sharing.ts";
+export {
+  PlaybackEncoder,
+  PlaybackFacts,
+  PlaybackMode,
+  PlaybackReason,
+  PlaybackRequest,
+  PlaybackSession,
+  QUALITY_RUNGS,
+  Quality,
+  SessionState,
+  type QualityRung,
+} from "./playback.ts";

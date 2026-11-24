@@ -1,0 +1,19 @@
+# Transcode playback sessions with VA-API (AMD; Intel untested; docs/transcoding.md). Add it to the
+# stack:
+#
+#   UROBOROS_RENDER_GID=$(getent group render | cut -d: -f3) \
+#     docker compose -f compose.yaml -f compose/gpu/vaapi.yaml up -d
+#
+# Every replica gets the render node, and the host's `render` group so the non-root process may
+# open it. The image's jellyfin-ffmpeg brings the Mesa (radeonsi) and Intel drivers. Another node
+# (a second GPU): set UROBOROS_TRANSCODE_VAAPI_DEVICE, e.g. /dev/dri/renderD129. A GPU that fails
+# the startup test falls back to the CPU.
+services:
+  uroboros:
+    environment:
+      UROBOROS_TRANSCODE_HWACCEL: vaapi
+      UROBOROS_TRANSCODE_VAAPI_DEVICE: ${UROBOROS_TRANSCODE_VAAPI_DEVICE:-/dev/dri/renderD128}
+    devices:
+      - ${UROBOROS_TRANSCODE_VAAPI_DEVICE:-/dev/dri/renderD128}:${UROBOROS_TRANSCODE_VAAPI_DEVICE:-/dev/dri/renderD128}
+    group_add:
+      - "${UROBOROS_RENDER_GID:?set UROBOROS_RENDER_GID to the host's render group id}"

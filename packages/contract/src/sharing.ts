@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { Chapter, SubtitleTrack } from "./library.ts";
+import { PlaybackFacts } from "./playback.ts";
 
 /** What is shared: a library entry, a manual playlist, or a YouTube playlist (docs/sharing.md). */
 export const ShareKind = z.enum(["entry", "playlist", "youtube"]).openapi("ShareKind");
@@ -151,5 +152,6 @@ export const PublicItem = PublicListItem.extend({
   videoCodec: z.string().nullable(),
   audioCodec: z.string().nullable(),
   playbackUrl: z.string(),
+  ...PlaybackFacts.shape,
 }).openapi("PublicItem");
 export type PublicItem = z.infer<typeof PublicItem>;

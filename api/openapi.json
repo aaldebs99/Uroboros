@@ -914,6 +914,10 @@
                 "nullable": true,
                 "type": "string"
               },
+              "audioCodecs": {
+                "nullable": true,
+                "type": "string"
+              },
               "chapters": {
                 "items": {
                   "$ref": "#/components/schemas/Chapter"
@@ -923,6 +927,10 @@
               "description": {
                 "nullable": true,
                 "type": "string"
+              },
+              "height": {
+                "nullable": true,
+                "type": "integer"
               },
               "playbackUrl": {
                 "type": "string"
@@ -943,6 +951,20 @@
                     "name"
                   ],
                   "type": "object"
+                },
+                "type": "array"
+              },
+              "qualities": {
+                "items": {
+                  "enum": [
+                    "360",
+                    "480",
+                    "720",
+                    "1080",
+                    "1440",
+                    "2160"
+                  ],
+                  "type": "string"
                 },
                 "type": "array"
               },
@@ -983,9 +1005,17 @@
                 "nullable": true,
                 "type": "string"
               },
+              "videoCodecs": {
+                "nullable": true,
+                "type": "string"
+              },
               "webpageUrl": {
                 "nullable": true,
                 "type": "string"
+              },
+              "width": {
+                "nullable": true,
+                "type": "integer"
               }
             },
             "required": [
@@ -999,7 +1029,12 @@
               "videoCodec",
               "audioCodec",
               "playbackUrl",
-              "sharedBy"
+              "sharedBy",
+              "videoCodecs",
+              "audioCodecs",
+              "width",
+              "height",
+              "qualities"
             ],
             "type": "object"
           }
@@ -1732,6 +1767,10 @@
                 "nullable": true,
                 "type": "string"
               },
+              "audioCodecs": {
+                "nullable": true,
+                "type": "string"
+              },
               "chapters": {
                 "items": {
                   "$ref": "#/components/schemas/Chapter"
@@ -1750,8 +1789,26 @@
                 "nullable": true,
                 "type": "string"
               },
+              "height": {
+                "nullable": true,
+                "type": "integer"
+              },
               "playbackUrl": {
                 "type": "string"
+              },
+              "qualities": {
+                "items": {
+                  "enum": [
+                    "360",
+                    "480",
+                    "720",
+                    "1080",
+                    "1440",
+                    "2160"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
               },
               "streamUrl": {
                 "type": "string"
@@ -1765,6 +1822,14 @@
               "videoCodec": {
                 "nullable": true,
                 "type": "string"
+              },
+              "videoCodecs": {
+                "nullable": true,
+                "type": "string"
+              },
+              "width": {
+                "nullable": true,
+                "type": "integer"
               }
             },
             "required": [
@@ -1776,7 +1841,12 @@
               "container",
               "videoCodec",
               "audioCodec",
-              "playbackUrl"
+              "playbackUrl",
+              "videoCodecs",
+              "audioCodecs",
+              "width",
+              "height",
+              "qualities"
             ],
             "type": "object"
           }

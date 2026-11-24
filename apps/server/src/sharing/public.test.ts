@@ -172,5 +172,6 @@ describe("public links", () => {
       await (await anon(`/api/public/s/${code}/items/${film.entryId}`)).json(),
     );
     expect(item.playbackUrl).toBe(`/api/public/s/${code}/items/${film.entryId}/playback`);
+    expect(item).toMatchObject({ videoCodecs: null, width: null, qualities: [] });
   });
 });

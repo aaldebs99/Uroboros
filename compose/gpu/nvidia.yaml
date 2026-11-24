@@ -1,0 +1,13 @@
+# Transcode playback sessions on an NVIDIA GPU (NVENC; docs/transcoding.md). Add it to the stack:
+#
+#   docker compose -f compose.yaml -f compose/gpu/nvidia.yaml up -d
+#
+# Every replica gets the GPU through the Container Device Interface (the NVIDIA Container Toolkit
+# with CDI generated: `nvidia-ctk cdi generate`), which also mounts the driver's libraries; the
+# image's jellyfin-ffmpeg has the encoder. A GPU that fails the startup test falls back to the CPU.
+services:
+  uroboros:
+    environment:
+      UROBOROS_TRANSCODE_HWACCEL: nvenc
+    devices:
+      - nvidia.com/gpu=all

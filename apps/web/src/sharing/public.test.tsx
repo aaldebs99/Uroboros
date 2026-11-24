@@ -45,6 +45,11 @@ const item = (n: number, fileUrl: string | null = null) => ({
   videoCodec: "vp9",
   audioCodec: "opus",
   playbackUrl: `${base(n)}/playback`,
+  videoCodecs: null,
+  audioCodecs: null,
+  width: null,
+  height: null,
+  qualities: [],
 });
 
 /** The whole app at `/s/<code>`, signed out: `/api/me` is 401. */

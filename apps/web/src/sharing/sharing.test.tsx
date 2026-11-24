@@ -302,6 +302,11 @@ describe("a video someone shared with me", () => {
     videoCodec: "h264",
     audioCodec: "aac",
     playbackUrl: `/api/library/${ENTRY}/playback`,
+    videoCodecs: null,
+    audioCodecs: null,
+    width: null,
+    height: null,
+    qualities: [],
     sharedBy: "Alice",
   };
 

@@ -12,6 +12,7 @@ import { dashed } from "../library/query.ts";
 import { playlistEntryIds } from "../playlists/listing.ts";
 import { linkShare, visibleEntry, type LiveShare, type VisibleEntry } from "./access.ts";
 import { describeTarget } from "./targets.ts";
+import { playbackFacts } from "../transcode/itemFacts.ts";
 
 type Db = Kysely<Database>;
 
@@ -103,7 +104,16 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
     db
       .selectFrom("media as m")
       .innerJoin("renditions as r", "r.media_id", "m.id")
-      .select(["m.description", "m.chapters", "r.video_codec", "r.audio_codec"])
+      .select([
+        "m.description",
+        "m.chapters",
+        "r.video_codec",
+        "r.audio_codec",
+        "r.video_codecs",
+        "r.audio_codecs",
+        "r.width",
+        "r.height",
+      ])
       .where("m.id", "=", e.media_id)
       .where("r.id", "=", e.rendition_id)
       .executeTakeFirstOrThrow(),
@@ -132,5 +142,6 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
     videoCodec: extra.video_codec,
     audioCodec: extra.audio_codec,
     playbackUrl: `${base}/playback`,
+    ...playbackFacts(extra),
   };
 }
