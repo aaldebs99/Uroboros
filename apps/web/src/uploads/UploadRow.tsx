@@ -36,7 +36,7 @@ function ChooseAgain({ upload, onFile }: { upload: Upload; onFile: (file: File) 
       <span className="text-xs text-muted-foreground">
         Choose {upload.filename} again to finish.
       </span>
-      <Button variant="secondary" size="sm" asChild>
+      <Button variant="secondary" size="compact" asChild>
         <label htmlFor={inputId} className="cursor-pointer">
           Choose the file
         </label>
