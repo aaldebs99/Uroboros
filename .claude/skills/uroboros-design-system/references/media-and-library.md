@@ -92,9 +92,9 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   focus ring of its own: it takes the focus for its shortcuts, and its controls keep theirs.
 - The columns follow the page's width (`@container`, two columns from `@6xl`); on a narrower page
   the suggestions stack under the details.
-- The suggestions are "From your library" rows: a 168px thumbnail with the title, channel and
-  when it was added beside it. The rows flow into columns (at least 20rem each) when the column is
-  wide enough for two, as on a large screen or under the details on a narrow page.
+- The suggestions are "From your library" rows, one per row however wide the column (beside the
+  player, or under the details on a narrow page): the thumbnail takes 40% of the row (never under
+  168px, a phone's), and the title, channel and when it was added fill the rest beside it.
 
 ## Player
 
