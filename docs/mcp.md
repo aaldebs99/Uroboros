@@ -87,7 +87,8 @@ with the `mcp` scope through, never the session cookie. Then:
   `packages/contract/src/mcp.ts`, with every input schema) and the same as JSON text. A refusal the
   REST API would answer with an error is the tool's own error, worded `code: message`
   (`not_found: no such library entry`); anything unexpected is logged and reported without its
-  details. Links in results (thumbnails and the like) are paths on the Uroboros server.
+  details. Links in results (thumbnails and the like) are paths on the Uroboros server, which a
+  token reaches only with the `api` scope too.
 
 The tools call the same service functions as the REST routes, so permissions match:
 `visibleEntry` for what a person may see, owner checks for what they may change.
