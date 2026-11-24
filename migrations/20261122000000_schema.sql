@@ -437,8 +437,36 @@ CREATE TABLE subtitles (
   name TEXT,
   automatic BOOLEAN NOT NULL DEFAULT false,
   storage_key TEXT NOT NULL UNIQUE,
-  UNIQUE (media_id, lang, automatic)
+  -- When its captions were last read into caption_segments for search (docs/library.md "Search");
+  -- null while that waits. Storing the file again sets it back to null.
+  indexed_at TIMESTAMPTZ,
+  -- Reads of the file that failed since the last that worked; at 3 search gives the track up.
+  index_failures SMALLINT NOT NULL DEFAULT 0 CHECK (index_failures >= 0),
+  UNIQUE (media_id, lang, automatic),
+  UNIQUE (id, media_id)
 );
+CREATE INDEX subtitles_pending_idx ON subtitles (media_id) WHERE indexed_at IS NULL;
+
+-- A subtitle track's captions as runs of lines (src/library/vtt.ts), for search: at most 400
+-- characters and 30 seconds each, with where each line begins in the text (`line_at`, UTF-16
+-- offsets) and when it starts (`line_start`), so a match plays from its own line. One track per
+-- language is read (src/library/captionIndex.ts); the media's own id makes search find a video's
+-- runs without the subtitles table, and the composite key keeps it the track's.
+CREATE TABLE caption_segments (
+  subtitle_id UUID NOT NULL,
+  media_id UUID NOT NULL,
+  seq INTEGER NOT NULL CHECK (seq >= 0),
+  start_s DOUBLE PRECISION NOT NULL CHECK (start_s >= 0),
+  end_s DOUBLE PRECISION NOT NULL CHECK (end_s >= start_s),
+  text TEXT NOT NULL CHECK (char_length(text) BETWEEN 1 AND 400),
+  line_at INTEGER[] NOT NULL,
+  line_start DOUBLE PRECISION[] NOT NULL,
+  CHECK (cardinality(line_at) = cardinality(line_start) AND cardinality(line_at) >= 1),
+  PRIMARY KEY (subtitle_id, seq),
+  FOREIGN KEY (subtitle_id, media_id) REFERENCES subtitles (id, media_id) ON DELETE CASCADE
+);
+CREATE INDEX caption_segments_text_idx ON caption_segments USING GIN (text gin_trgm_ops);
+CREATE INDEX caption_segments_media_idx ON caption_segments (media_id, start_s);
 
 -- Library search (docs/library.md "Search") matches substrings through trigram indexes over these
 -- texts. The line breaks keep a phrase from running from one field into the next, and the channel is

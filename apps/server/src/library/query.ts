@@ -73,8 +73,8 @@ function sortSpec(sort: LibrarySort): SortSpec {
       // The best place a search matched (`h`, docs/library.md "Search"), then the newest; the cursor
       // carries both, the time as Postgres's own microsecond text.
       return {
-        expr: sql`ROW(${WORST_TIER} - h.tier, e.added_at)`,
-        keyExpr: sql`(${WORST_TIER} - h.tier)::text || '|' || e.added_at::text`,
+        expr: sql`ROW(${sql.lit(WORST_TIER)} - h.tier, e.added_at)`,
+        keyExpr: sql`(${sql.lit(WORST_TIER)} - h.tier)::text || '|' || e.added_at::text`,
         dir: "desc",
         cast: (k) =>
           sql`ROW(split_part(${k}::text, '|', 1)::integer, split_part(${k}::text, '|', 2)::timestamptz)`,

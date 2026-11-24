@@ -11,6 +11,7 @@ import type {
   PlaybackSessionsTable,
   RenditionKeyframesTable,
 } from "./playbackSchema.ts";
+import type { CaptionSegmentsTable } from "./captionsSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
 import type { NoticesTable } from "./noticesSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
@@ -342,6 +343,9 @@ export interface SubtitlesTable {
   name: string | null;
   automatic: Defaulted<boolean>;
   storage_key: string;
+  /** When its captions were read for search; null while that waits. */
+  indexed_at: Timestamp | null;
+  index_failures: Defaulted<number>;
 }
 
 /** `sources`: a playlist someone queued from a preview. */
@@ -430,6 +434,7 @@ export interface Database {
   download_requests: DownloadRequestsTable;
   downloads: DownloadsTable;
   subtitles: SubtitlesTable;
+  caption_segments: CaptionSegmentsTable;
   sources: SourcesTable;
   user_sources: UserSourcesTable;
   source_items: SourceItemsTable;

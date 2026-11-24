@@ -38,15 +38,17 @@ is stemmed (`src/library/searchTerms.ts`, `src/library/search.ts`).
 - **Rules.** 3 to 200 characters, at most 8 terms, and at least one term with 3 letters or digits in
   a row (what a trigram index can find); anything else is 400. Spaces alone are no search.
 - **Matching.** Every term must appear within one place: a video's title, channel and description
-  together (the channel is the uploader when there is none), or one chapter title. A word in the
-  title and another in a chapter don't match.
+  together (the channel is the uploader when there is none), one chapter title, or one run of
+  caption lines (see [Subtitles and chapters](#subtitles-and-chapters)). A word in the title and
+  another in a chapter don't match, nor do words in neighbouring runs.
 - **Rank.** The best place a video matched (title, then channel, then a chapter, then the
-  description), then the newest entry; the cursor carries both.
+  description, then the captions), then the newest entry; the cursor carries both.
 - **Indexes.** `media_search_idx` is an expression index over `media_search_text(title, channel,
   uploader, description)` and `media_chapters_search_idx` one over `media_chapter_text(chapters)`
-  where there are chapters, both immutable SQL functions in the schema; the query repeats each
+  where there are chapters, both immutable SQL functions in the schema, and
+  `caption_segments_text_idx` is one over `caption_segments.text`; the query repeats each
   expression exactly, or the index goes unused, and a plan test (`searchPlan.test.ts`) checks
-  EXPLAIN names both. Edits to an upload's details re-index themselves.
+  EXPLAIN names all three. Edits to an upload's details re-index themselves.
 - **Shape of the query.** The matches are found first, in materialised CTEs, and only then kept to
   the caller's own media (`(m.id IN (SELECT media_id FROM owned)) IS TRUE`, a hashed filter), so the
   planner never walks a whole library to filter it; the page then joins them as `h`.
@@ -136,6 +138,7 @@ at once, plays the same for every file the library holds, and costs a few hundre
   cached for a day; null until the clip is made.
 - **Off.** `UROBOROS_GENERATE_PREVIEWS=false` makes none, new or backfilled; clips already made
   still play. The reaper deletes a clip with its media.
+- **The bell** lists the person's previews being made ([push.md](push.md)).
 
 The preview is a plain muted `<video>` laid over the thumbnail, not the player: it reports no watch
 progress and never touches the remembered volume. Grid tiles have it (the library, search,
@@ -162,4 +165,26 @@ Every download saves subtitles: `--write-subs --sub-langs <UROBOROS_SUBTITLE_LAN
 `UROBOROS_AUTO_SUBTITLES=true`. Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
 on S3; in the folder layout, beside the media file and named after it, `<file>.<lang>.vtt`, so
 videos that share a title never share a subtitle; one that cannot be stored is skipped) and recorded in `subtitles`. Chapters come from
-the `.info.json` into `media.chapters`. Media downloaded before this step has neither.
+the `.info.json` into `media.chapters`.
+
+**Captions for search.** Search reads the captions into `caption_segments` (`src/library/vtt.ts`,
+`src/library/captionIndex.ts`) as each download stores them, from the files yt-dlp just wrote:
+
+- **Parsing.** WebVTT cues lose their tags, inline timestamps and entities; YouTube's rolling auto
+  captions (each cue repeats the last line, and 10 ms cues repeat everything) are read once each,
+  a repeated line stretching the one already read; lines that are only a sound tag (`[Music]`) or
+  notes are dropped. Lines join into runs of at most 240 characters and 30 seconds, a silence of 5
+  seconds starting a new one, and each run keeps where and when every line begins, so a match can
+  play from its own line. A line over 400 characters is cut between words.
+- **Which tracks.** One per language (the code before any `-`): manual over automatic, then the
+  original (`en-orig`), then the plain code (`en` over `en-de` or `en-US`); at most 3 languages a
+  video, those with a manual track first, and 5000 runs and 16 MiB of a track.
+- **Failures.** Reading a media's captions is one transaction under `lockKey("CAPS", mediaId)`,
+  which replaces its runs and marks its tracks read (`subtitles.indexed_at`). A file that cannot be
+  read counts against its track (`index_failures`) and changes nothing else; the video's download
+  succeeds all the same. The leader's catch-up duty reads, every minute, the captions of up to 50
+  media with a track still waiting (at most 20 seconds a pass); a track that failed 3 times is
+  given up, and the media's others are read without it.
+- **Reading them again** (after a parser change, say): `UPDATE subtitles SET indexed_at = NULL`,
+  and the duty reads every track again, 50 media a minute.
+- Deleting a media deletes its subtitles and their runs (`ON DELETE CASCADE`).

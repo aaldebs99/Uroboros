@@ -26,7 +26,8 @@ export function roleKey(name: string): bigint {
 /**
  * A per-resource key: a 4-byte ASCII namespace, then the first 4 bytes of sha256(resource). The
  * namespaces: `DOWN` (a person's download dispatch), `PUSH` (a person's push devices), `UPLD`
- * (a person's unfinished uploads) and `GRPS` (the groups a person makes).
+ * (a person's unfinished uploads), `GRPS` (the groups a person makes) and `CAPS` (a media's
+ * captions, read for search).
  */
 export function lockKey(namespace: string, resource: string): bigint {
   if (namespace.length !== 4 || !ASCII.test(namespace)) {

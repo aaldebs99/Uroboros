@@ -45,6 +45,28 @@ beforeAll(async () => {
   // Newer than "Dragons of the North", but its match is in a weaker place.
   await add("Later talk", 11, { description: "another dragon" });
   await seedEntry(testDb.db, bob.userId, { title: "Bob's dragon", addedAt: at(12) });
+  // Spoken only: the captions hold the word.
+  const { mediaId } = await add("Lecture", 13);
+  const sub = await testDb.db
+    .insertInto("subtitles")
+    .values({ media_id: mediaId, lang: "en", storage_key: `subs/${mediaId}.vtt` })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  await testDb.db
+    .insertInto("caption_segments")
+    .values(
+      [
+        { text: "and then the dragon", start_s: 30, end_s: 34, seq: 0 },
+        { text: "flew over the fair", start_s: 34, end_s: 38, seq: 1 },
+      ].map((s) => ({
+        ...s,
+        subtitle_id: sub.id,
+        media_id: mediaId,
+        line_at: [0],
+        line_start: [s.start_s],
+      })),
+    )
+    .execute();
 });
 afterAll(async () => {
   await testDb.close();
@@ -72,7 +94,15 @@ describe("library search", () => {
       // Descriptions, the newer first.
       "Later talk",
       "Talk",
+      // Then what was said.
+      "Lecture",
     ]);
+  });
+
+  it("needs every word within one run of caption lines", async () => {
+    expect(await found("then dragon")).toEqual(["Lecture"]);
+    // The words are in neighbouring runs, not one.
+    expect(await found("dragon flew")).toEqual([]);
   });
 
   it("needs every word within one title, chapter or description", async () => {
@@ -110,11 +140,13 @@ describe("library search", () => {
       "Cooking",
       "Dragons of the North",
       "Later talk",
+      "Lecture",
       "Talk",
       "Uploads",
       "Walk",
     ]);
     expect(await found("dragon", alice, "&sort=added")).toEqual([
+      "Lecture",
       "Later talk",
       "Talk",
       "Walk",
@@ -135,7 +167,7 @@ describe("library search", () => {
       expect(res.status, q).toBe(400);
     }
     // Nothing but spaces is no search at all.
-    expect((await page(alice, "?q=%20%20")).entries).toHaveLength(11);
+    expect((await page(alice, "?q=%20%20")).entries).toHaveLength(12);
   });
 });
 

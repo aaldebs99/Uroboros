@@ -9,9 +9,9 @@ import { likePattern } from "./searchTerms.ts";
  */
 
 /** Where a search matched, best first; a media's rank is its best. */
-export const TIER = { title: 0, channel: 1, chapter: 2, description: 3 } as const;
+export const TIER = { title: 0, channel: 1, chapter: 2, description: 3, captions: 4 } as const;
 /** The weakest tier, so `WORST_TIER - tier` ranks the best highest. */
-export const WORST_TIER = 3;
+export const WORST_TIER = 4;
 
 /** A search's bound, so a broad one cannot hold a connection (the pool's bound is client-side). */
 export const SEARCH_TIMEOUT_MS = 10_000;
@@ -43,15 +43,15 @@ export function hitsTable(
     ),
     meta AS MATERIALIZED (
       SELECT m.id AS media_id,
-        CASE WHEN ${holdsAll(title, p)} THEN ${TIER.title}
-             WHEN ${holdsAll(byline, p)} THEN ${TIER.channel}
-             ELSE ${TIER.description} END AS tier
+        CASE WHEN ${holdsAll(title, p)} THEN ${sql.lit(TIER.title)}
+             WHEN ${holdsAll(byline, p)} THEN ${sql.lit(TIER.channel)}
+             ELSE ${sql.lit(TIER.description)} END AS tier
       FROM media m
       WHERE ${holdsAll(sql`media_search_text(m.title, m.channel, m.uploader, m.description)`, p)}
         AND ${owned}
     ),
     chap AS MATERIALIZED (
-      SELECT m.id AS media_id, ${TIER.chapter} AS tier
+      SELECT m.id AS media_id, ${sql.lit(TIER.chapter)} AS tier
       FROM media m
       WHERE m.chapters <> '[]'::jsonb
         AND ${holdsAll(sql`media_chapter_text(m.chapters)`, p)}
@@ -59,9 +59,15 @@ export function hitsTable(
           SELECT 1 FROM jsonb_array_elements(m.chapters) c WHERE ${holdsAll(sql`(c ->> 'title')`, p)}
         )
         AND ${owned}
+    ),
+    caps AS MATERIALIZED (
+      SELECT DISTINCT s.media_id, ${sql.lit(TIER.captions)} AS tier
+      FROM caption_segments s
+      WHERE ${holdsAll(sql`s.text`, p)}
+        AND (s.media_id IN (SELECT media_id FROM owned)) IS TRUE
     )
     SELECT media_id, min(tier)::integer AS tier
-    FROM (SELECT * FROM meta UNION ALL SELECT * FROM chap) u
+    FROM (SELECT * FROM meta UNION ALL SELECT * FROM chap UNION ALL SELECT * FROM caps) u
     GROUP BY media_id
   )`;
 }

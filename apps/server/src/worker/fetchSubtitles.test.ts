@@ -101,7 +101,12 @@ describe("subtitles and chapters", () => {
       { start_time: 10, end_time: 30, title: "Main" },
     ];
     info["subtitles"] = { en: [{ ext: "vtt", url: "https://x.example/en.vtt" }] };
-    const scenario = await downloadScenario([{ writeFile: "clip.en.vtt", content: "WEBVTT\n" }]);
+    const scenario = await downloadScenario([
+      {
+        writeFile: "clip.en.vtt",
+        content: "WEBVTT\n\n00:00:01.500 --> 00:00:03.000\nwelcome to the clip\n",
+      },
+    ]);
     scenario.steps = scenario.steps.map((s) =>
       "writeFile" in s && s.writeFile === "clip.info.json"
         ? { ...s, content: JSON.stringify(info) }
@@ -130,6 +135,14 @@ describe("subtitles and chapters", () => {
     expect(argv).toEqual(
       expect.arrayContaining(["--write-subs", "--sub-langs=en.*", "--convert-subs=vtt"]),
     );
+    // Their captions are searchable at once.
+    const segments = await testDb.db
+      .selectFrom("caption_segments")
+      .select(["start_s", "text"])
+      .where("media_id", "=", media.id)
+      .execute();
+    expect(segments).toEqual([{ start_s: 1.5, text: "welcome to the clip" }]);
+    expect(subs[0]?.indexed_at).not.toBeNull();
   });
 
   it("still succeeds when a subtitle cannot be stored", async () => {

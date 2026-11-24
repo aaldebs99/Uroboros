@@ -1,4 +1,5 @@
 import type { DownloadContext } from "../downloads/dispatch.ts";
+import { CAPTION_INDEX_EVERY_MS, indexPendingCaptions } from "../library/captionIndex.ts";
 import { periodicDuty } from "../shared/periodic.ts";
 import { reapOnce, REAPER_EVERY_MS } from "../storage/reaper.ts";
 import type { MediaStore } from "../storage/store.ts";
@@ -12,8 +13,8 @@ import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
 /**
  * The leader's automation duties: queue due checks every few seconds, apply retention hourly, run the reaper
  * every 15 minutes, and look after playback sessions (lost runs, abandoned and ended sessions),
- * uploads (lost jobs, abandoned and old uploads), copies to save (lost jobs) and, unless they are
- * off, the hover previews still to make every minute.
+ * uploads (lost jobs, abandoned and old uploads), copies to save (lost jobs), captions still to read
+ * for search every minute and, unless they are off, the hover previews still to make every minute.
  */
 export function automationDuties(
   ctx: DownloadContext,
@@ -59,6 +60,15 @@ export function automationDuties(
     () => sweepExports(ctx),
     ctx.logger,
   );
+  const captions = periodicDuty(
+    "captions for search",
+    CAPTION_INDEX_EVERY_MS,
+    async () => {
+      const read = await indexPendingCaptions(ctx, store);
+      if (read > 0) ctx.logger.info({ read }, "read waiting captions for search");
+    },
+    ctx.logger,
+  );
   const previews = periodicDuty(
     "hover previews",
     PREVIEW_SWEEP_EVERY_MS,
@@ -75,6 +85,7 @@ export function automationDuties(
       sessions(signal),
       uploads(signal),
       exports(signal),
+      captions(signal),
       ...(opts.generatePreviews ? [previews(signal)] : []),
     ]);
   };

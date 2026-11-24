@@ -30,6 +30,7 @@ describe("search plan", () => {
       const p = await plan(terms);
       expect(p, terms.join(" ")).toContain("media_search_idx");
       expect(p, terms.join(" ")).toContain("media_chapters_search_idx");
+      expect(p, terms.join(" ")).toContain("caption_segments_text_idx");
     }
   });
 });

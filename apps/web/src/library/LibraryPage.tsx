@@ -111,7 +111,7 @@ export function LibraryPage({
       </div>
       {tooShort ? (
         <EmptyState icon={SearchX} title={`Type at least ${String(SEARCH_MIN_CHARS)} characters.`}>
-          Search finds words in titles, channels, chapters and descriptions.
+          Search finds words in titles, channels, chapters, descriptions and captions.
         </EmptyState>
       ) : (
         <LibraryGrid

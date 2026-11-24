@@ -38,7 +38,7 @@ const libraryQuery = z.object({
     .openapi({
       param: { name: "q", in: "query" },
       description:
-        'Search: 3–200 characters, every word (or "quoted phrase") found within one title with its channel and description, or one chapter title; best place first, then newest',
+        'Search: 3–200 characters, every word (or "quoted phrase") found within one title with its channel and description, one chapter title, or one run of caption lines; best place first, then newest',
     }),
   url: z
     .url({ protocol: /^https?$/ })
