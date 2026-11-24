@@ -169,6 +169,43 @@ describe("subtitles and chapters", () => {
     expect((await states("subfail-1"))[0]?.state).toBe("done");
   });
 
+  it("fetches the video without subtitles when the site refuses them", async () => {
+    const u = await user();
+    const data = await queued("sub429-1", [u]);
+    const scenario = await downloadScenario();
+    // yt-dlp writes subtitles before the video, and a failed one fails the whole run.
+    scenario.variants = [
+      {
+        whenArg: "--write-subs",
+        steps: [
+          {
+            stderr:
+              "ERROR: Unable to download video subtitles for 'en': HTTP Error 429: Too Many Requests\n",
+          },
+        ],
+        exitCode: 1,
+      },
+    ];
+    await fetchProcessor(await h.deps(scenario), createCancelRegistry())(job(data));
+    expect((await states("sub429-1"))[0]?.state).toBe("done");
+    const argv = await h.lastArgv();
+    expect(argv.filter((a) => a.startsWith("--") && a.includes("sub"))).toEqual([]);
+  });
+
+  it("still fails a download whose video fails, subtitles or not", async () => {
+    const u = await user();
+    const data = await queued("sub-unavailable-1", [u]);
+    const scenario: Scenario = {
+      steps: [{ stderr: "ERROR: [generic] sub-unavailable-1: Video unavailable\n" }],
+      exitCode: 1,
+    };
+    await expect(
+      fetchProcessor(await h.deps(scenario), createCancelRegistry())(job(data)),
+    ).rejects.toThrow();
+    // Tried once: only a subtitle failure earns the second run.
+    expect(await h.lastArgv()).toContain("--write-subs");
+  });
+
   it("still succeeds with no subtitles and no chapters", async () => {
     const u = await user();
     const data = await queued("nosubs-1", [u]);

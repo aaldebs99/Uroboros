@@ -167,7 +167,10 @@ transcripts) unless `UROBOROS_AUTO_SUBTITLES=false`. Each automatic caption is a
 name an original themselves, and `--extractor-args youtube:skip=translated_subs` skips machine
 translations of a video's subtitles (`en-de`), since every caption file is one more request to a
 site that rate-limits them. A non-English video's English automatic captions are still a machine
-translation of its speech. Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
+translation of its speech. yt-dlp fetches subtitles before the media and fails the whole run when
+one cannot be had (an HTTP 429 on YouTube's captions, say), so a fetch that fails that way runs once
+more without the subtitle arguments (`withSubtitleFallback`, `src/worker/subtitles.ts`): the video
+arrives, with whatever subtitles the first run finished. Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
 on S3; in the folder layout, beside the media file and named after it, `<file>.<lang>.vtt`, so
 videos that share a title never share a subtitle; one that cannot be stored is skipped) and recorded in `subtitles`. Chapters come from
 the `.info.json` into `media.chapters`.

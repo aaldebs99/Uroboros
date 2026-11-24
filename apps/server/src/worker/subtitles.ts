@@ -1,6 +1,7 @@
 import { open, readdir } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
-import type { DownloadedFile, VideoInfo } from "@uroboros/ytdlp";
+import { YtDlpError, type DownloadedFile, type VideoInfo } from "@uroboros/ytdlp";
+import type { Logger } from "pino";
 import {
   indexMediaCaptions,
   MAX_CAPTION_BYTES,
@@ -32,6 +33,31 @@ export function subtitleArgs(s: SubtitleSettings): string[] {
     `--sub-langs=${langs}`,
     "--convert-subs=vtt",
   ];
+}
+
+/** yt-dlp's words when a subtitle could not be fetched (an HTTP 429 on YouTube's captions, say). */
+const SUBTITLE_FAILED = "Unable to download video subtitles";
+
+/**
+ * Runs yt-dlp with the profile's and the subtitle arguments, and once more with the profile's alone
+ * when a subtitle could not be fetched: yt-dlp writes subtitles before the media and fails the
+ * whole run on one it cannot get, so the video never came, and the second run costs little.
+ */
+export async function withSubtitleFallback<T>(
+  run: (extraArgs: string[]) => Promise<T>,
+  args: { profile: string[]; subtitles: string[] },
+  signal: AbortSignal,
+  logger: Logger,
+): Promise<T> {
+  try {
+    return await run([...args.profile, ...args.subtitles]);
+  } catch (err) {
+    const subtitlesFailed =
+      err instanceof YtDlpError && err.stderrTail.some((l) => l.includes(SUBTITLE_FAILED));
+    if (!subtitlesFailed || args.subtitles.length === 0 || signal.aborted) throw err;
+    logger.warn({ err }, "fetching subtitles failed; fetching the video without them");
+    return run(args.profile);
+  }
 }
 
 export interface FoundSubtitle {

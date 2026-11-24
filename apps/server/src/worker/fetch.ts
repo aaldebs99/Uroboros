@@ -17,7 +17,7 @@ import type { WorkerDeps } from "./deps.ts";
 import { upsertMedia } from "./media.ts";
 import { skipSegmentsFor } from "./skipSegments.ts";
 import { createProgressPublisher } from "./progress.ts";
-import { storeSubtitles, subtitleArgs } from "./subtitles.ts";
+import { storeSubtitles, subtitleArgs, withSubtitleFallback } from "./subtitles.ts";
 import { queuePreview } from "../previews/queue.ts";
 
 const ACTIVE = ["queued", "running"] as const;
@@ -356,21 +356,27 @@ async function downloadAndSettle(
 ): Promise<void> {
   const progress = createProgressPublisher(deps.db, data.fetchKey);
   const { format, extraArgs: profileArgs } = ytdlpArgsFor(data.args);
-  const extraArgs = [...profileArgs, ...subtitleArgs(deps.subtitles)];
   // Whoever waits on this fetch now: per site, the earliest waiter's saved login.
   const logins = await loginsForFetch(deps.db, deps.ytdlp.secretsKey, data.fetchKey, deps.logger);
-  const result = await download(data.url, {
-    binary: deps.ytdlp.binary,
-    ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
-    logins,
-    ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
-    workDir: scratch,
-    format,
-    extraArgs,
+  const run = (extraArgs: string[]) =>
+    download(data.url, {
+      binary: deps.ytdlp.binary,
+      ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
+      logins,
+      ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
+      workDir: scratch,
+      format,
+      extraArgs,
+      signal,
+      timeoutMs: DOWNLOAD_TIMEOUT_MS,
+      onProgress: progress,
+    });
+  const result = await withSubtitleFallback(
+    run,
+    { profile: profileArgs, subtitles: subtitleArgs(deps.subtitles) },
     signal,
-    timeoutMs: DOWNLOAD_TIMEOUT_MS,
-    onProgress: progress,
-  });
+    deps.logger,
+  );
   const file = result.files[0];
   if (file === undefined) throw new StorageError("yt-dlp finished without a file");
   progress({ phase: "storing" });
