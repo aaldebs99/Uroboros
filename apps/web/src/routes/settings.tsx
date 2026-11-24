@@ -1,4 +1,4 @@
-import { Bell, KeyRound } from "lucide-react";
+import { Bell, KeyRound, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Section } from "@/account/Section";
@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { NAV_ITEMS } from "@/nav";
 import { MyNotifications } from "@/settings/MyNotifications";
 import { NotificationKinds } from "@/settings/NotificationKinds";
+import { FormatProfiles } from "@/settings/Profiles";
 import { SettingsTabs } from "@/settings/SettingsTabs";
 import { SiteLogins } from "@/settings/SiteLogins";
 
@@ -53,6 +54,21 @@ export function SettingsLoginsPage() {
         description="Your accounts on sites that need one (Vimeo, Twitch, SoundCloud…). Your links and subscriptions sign in with them. Passwords stay encrypted on the server and are never shown again."
       >
         <SiteLogins />
+      </Section>
+    </SettingsFrame>
+  );
+}
+
+/** Settings › Profiles: the person's format profiles, built-in and their own, and their default. */
+export function SettingsProfilesPage() {
+  return (
+    <SettingsFrame>
+      <Section
+        icon={SlidersHorizontal}
+        title="Format profiles"
+        description="The yt-dlp presets you download with. The built-in ones are everyone's until you change them; your changes, and the profiles you add, are yours alone. Your default is used whenever you don't pick one."
+      >
+        <FormatProfiles />
       </Section>
     </SettingsFrame>
   );

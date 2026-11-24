@@ -89,14 +89,35 @@ channel ([jobs.md](jobs.md)).
 
 ## Format profiles
 
-Admin-defined yt-dlp presets (`format_profiles`): a format selector, a container to merge into, or
-audio-only with an audio format, and extra arguments from the wrapper's allowlist (checked by the
-server with `@uroboros/ytdlp/flags` when saved, and again when the job runs). `revision` hashes the
-file-shaping arguments, and renditions are keyed by it, so editing a profile makes new downloads
-fetch a fresh file instead of reusing one made with the old arguments; files already in libraries
-stay. Exactly one profile is the default. A profile in use cannot be deleted. Seeded: "Best available"
-(default), "Best up to 1080p (MP4)", "Audio only (Opus)", each cutting SponsorBlock's `sponsor`,
-`selfpromo` and `interaction` segments (docs/automation.md).
+yt-dlp presets (`format_profiles`, `src/downloads/profiles.ts`): a format selector, a container to
+merge into, or audio-only with an audio format, SponsorBlock categories to cut, and extra arguments
+from the wrapper's allowlist (checked by the server with `@uroboros/ytdlp/flags` when saved, and
+again when the job runs). `revision` hashes the file-shaping arguments, and renditions are keyed by
+profile and revision, so editing a profile makes new downloads fetch a fresh file instead of
+reusing one made with the old arguments; files already in libraries stay.
+
+- **Built-ins** (`user_id` null) are everyone's to start with: "Best available" (the default),
+  "Best up to 1080p (MP4)" and "Audio only (Opus)", each cutting SponsorBlock's `sponsor`,
+  `selfpromo` and `interaction` segments (docs/automation.md). A person may change them, for
+  themselves alone (`src/downloads/profileEdits.ts`): editing one makes it a profile of their own
+  (copy-on-write: a new row, the built-in hidden from them in `hidden_profiles`, their
+  subscriptions and default moved to the copy), and deleting one hides it from them. Everyone who
+  keeps a built-in shares its fetches and files.
+- **Personal profiles** belong to one person, who alone sees and uses them (Settings › Profiles);
+  anyone else's, or a built-in someone hid, is 404 on the profile routes and 400 as a download's or
+  subscription's profile. A name is unique among the profiles a person sees; two people may share
+  one. A profile of one's own that downloads, subscriptions or library files use cannot be deleted,
+  nor a built-in the person's subscriptions follow, nor anyone's last profile.
+- **A default per person**: `PUT /api/format-profiles/default {profileId}` picks any profile they
+  see (`user_default_profiles`); without one, the built-in default if they kept it, else their
+  first. A download or request without a profile uses it, and `GET /api/format-profiles` marks it
+  `isDefault` for the caller.
+
+Fetches and files are shared by profile and revision, so people on a built-in share them; a
+personal profile's files are its owner's. Deleting an account removes its profiles with its
+downloads and subscriptions; its files keep no profile (`renditions.profile_id` is set null) and,
+referenced by nobody, go to the reaper. On a filesystem, files are named by profile name: when
+another file holds the path, `freeKey` adds the short revision, and then the profile's id too.
 
 ## Storage
 

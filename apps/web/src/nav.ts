@@ -1,23 +1,7 @@
-import {
-  Download,
-  Library,
-  Rss,
-  Settings,
-  Share2,
-  SlidersHorizontal,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { Download, Library, Rss, Settings, Share2, Users, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
-  to:
-    | "/"
-    | "/downloads"
-    | "/subscriptions"
-    | "/shared"
-    | "/settings"
-    | "/admin/users"
-    | "/admin/format-profiles";
+  to: "/" | "/downloads" | "/subscriptions" | "/shared" | "/settings" | "/admin/users";
   label: string;
   icon: LucideIcon;
   blurb: string;
@@ -57,6 +41,7 @@ export const LIBRARY_VIEWS = [
 export const SETTINGS_VIEWS = [
   { to: "/settings", label: "Notifications" },
   { to: "/settings/logins", label: "Logins" },
+  { to: "/settings/profiles", label: "Profiles" },
 ] as const;
 
 /** Whether `pathname` is one of Settings' views. */
@@ -90,11 +75,5 @@ export const ADMIN_ITEMS: readonly NavItem[] = [
     label: "Users",
     icon: Users,
     blurb: "Who can sign in, and what they can do.",
-  },
-  {
-    to: "/admin/format-profiles",
-    label: "Format profiles",
-    icon: SlidersHorizontal,
-    blurb: "The presets people pick from when downloading.",
   },
 ];

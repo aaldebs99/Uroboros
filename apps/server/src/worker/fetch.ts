@@ -182,16 +182,12 @@ async function put(deps: WorkerDeps, key: string, file: string, ext: string): Pr
   }
 }
 
-/**
- * A filesystem layout names files by profile, not revision, so an edited profile would land on the
- * file older library entries still point at: then the short revision is added before the extension.
- * (S3 keys already carry the revision.)
- */
-export async function freeKey(
+/** Whether `key` is free for this rendition: nobody else's file, and not waiting to be deleted. */
+async function keyIsMine(
   deps: WorkerDeps,
   key: string,
   own: { mediaId: string; profileId: string; revision: string },
-): Promise<string> {
+): Promise<boolean> {
   const holder = await deps.db
     .selectFrom("renditions")
     .select(["media_id", "profile_id", "profile_revision"])
@@ -203,15 +199,38 @@ export async function freeKey(
     .select("key")
     .where("key", "=", key)
     .executeTakeFirst();
-  const mine =
+  return (
     trashed === undefined &&
     (holder === undefined ||
       (holder.media_id === own.mediaId &&
         holder.profile_id === own.profileId &&
-        holder.profile_revision === own.revision));
-  if (mine) return key;
+        holder.profile_revision === own.revision))
+  );
+}
+
+/**
+ * A filesystem layout names files by profile name, not revision, so an edited profile, or two
+ * people's profiles of one name, would land on a file other library entries still point at: then
+ * the short revision is added before the extension, and if that is taken too (identical profiles
+ * of one name), the profile's id as well. (S3 keys already carry both.)
+ */
+export async function freeKey(
+  deps: WorkerDeps,
+  key: string,
+  own: { mediaId: string; profileId: string; revision: string },
+): Promise<string> {
   const ext = extname(key);
-  return `${key.slice(0, key.length - ext.length)} [${own.revision.slice(0, 8)}]${ext}`;
+  const stem = key.slice(0, key.length - ext.length);
+  const rev = own.revision.slice(0, 8);
+  const candidates = [
+    key,
+    `${stem} [${rev}]${ext}`,
+    `${stem} [${rev} ${own.profileId.slice(0, 8)}]${ext}`,
+  ];
+  for (const candidate of candidates.slice(0, -1)) {
+    if (await keyIsMine(deps, candidate, own)) return candidate;
+  }
+  return candidates.at(-1) ?? key;
 }
 
 /** Stores the downloaded file and its sidecars, and records the rendition. */

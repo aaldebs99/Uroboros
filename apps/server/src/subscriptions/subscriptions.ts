@@ -9,7 +9,7 @@ import type { FeedJson, SubscriptionsTable } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { publishDownloadEvent } from "../downloads/events.ts";
-import { getProfile } from "../downloads/profiles.ts";
+import { visibleProfile } from "../downloads/profiles.ts";
 import { toRequest } from "../downloads/requests.ts";
 import { checkPattern, normalizePattern } from "./patterns.ts";
 import { checkSchedule, firstCheckAt, scheduleColumns } from "./schedule.ts";
@@ -22,8 +22,9 @@ export function present(row: ListedRow): Subscription {
   return toSubscription(row);
 }
 
-async function checkProfile(ctx: DownloadContext, id: string): Promise<void> {
-  if ((await getProfile(ctx.db, id)) === undefined) {
+/** A profile the subscriber may use: a built-in or one of their own. */
+async function checkProfile(ctx: DownloadContext, userId: string, id: string): Promise<void> {
+  if ((await visibleProfile(ctx.db, userId, id)) === undefined) {
     throw new ApiError("bad_request", "no such format profile");
   }
 }
@@ -94,7 +95,7 @@ export async function createSubscription(
   const src = await previewRequest(ctx, userId, body.requestId);
   const feeds = pickFeeds(src.tabs, body.feeds);
   checkSchedule(body.schedule, ctx.limits.minCheckIntervalMinutes);
-  await checkProfile(ctx, body.profileId);
+  await checkProfile(ctx, userId, body.profileId);
   const row = await ctx.db
     .insertInto("subscriptions")
     .values({
@@ -145,7 +146,7 @@ async function changes(
   if (patch.schedule !== undefined) {
     checkSchedule(patch.schedule, ctx.limits.minCheckIntervalMinutes);
   }
-  if (patch.profileId !== undefined) await checkProfile(ctx, patch.profileId);
+  if (patch.profileId !== undefined) await checkProfile(ctx, current.user_id, patch.profileId);
   return {
     ...(patch.feeds === undefined
       ? {}

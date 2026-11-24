@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { SponsorBlockCategory, type FormatProfile } from "@uroboros/contract";
-import type { Kysely, Selectable } from "kysely";
+import { sql, type ExpressionBuilder, type Kysely, type Selectable } from "kysely";
 import type { Database, FormatProfilesTable } from "../db/schema.ts";
 
 /** The arguments that shape a downloaded file; a download snapshots them when it is queued. */
@@ -73,17 +73,20 @@ export function argsOf(row: ProfileRow): ProfileArgs {
 const isCategory = (c: string): c is SponsorBlockCategory =>
   SponsorBlockCategory.safeParse(c).success;
 
-export function toProfile(row: ProfileRow): FormatProfile {
+/** The profile as `viewer` sees it: whether it is their default (`defaultId`) is theirs alone. */
+export function toProfile(row: ProfileRow, defaultId: string | null): FormatProfile {
   return {
     id: row.id,
     name: row.name,
     ...argsOf(row),
     sponsorblockRemove: row.sponsorblock_remove.filter(isCategory),
-    isDefault: row.is_default,
+    builtIn: row.user_id === null,
+    isDefault: row.id === defaultId,
     revision: row.revision,
   };
 }
 
+/** Any profile by id, whoever owns it: for job consumers, whose ids were checked when queued. */
 export async function getProfile(
   db: Kysely<Database>,
   id: string,
@@ -91,10 +94,69 @@ export async function getProfile(
   return db.selectFrom("format_profiles").selectAll().where("id", "=", id).executeTakeFirst();
 }
 
-export async function defaultProfile(db: Kysely<Database>): Promise<ProfileRow | undefined> {
+/**
+ * The profiles `userId` sees: their own, and the built-ins they haven't deleted or edited into one
+ * of their own (`hidden_profiles`). Someone else's never.
+ */
+export const seenBy = (userId: string) => (eb: ExpressionBuilder<Database, "format_profiles">) =>
+  eb.or([
+    eb("format_profiles.user_id", "=", userId),
+    eb.and([
+      eb("format_profiles.user_id", "is", null),
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("hidden_profiles as h")
+            .select("h.profile_id")
+            .whereRef("h.profile_id", "=", "format_profiles.id")
+            .where("h.user_id", "=", userId),
+        ),
+      ),
+    ]),
+  ]);
+
+/** A profile `userId` may use (`seenBy`); anyone else's, or a built-in they hid, is undefined. */
+export async function visibleProfile(
+  db: Kysely<Database>,
+  userId: string,
+  id: string,
+): Promise<ProfileRow | undefined> {
   return db
     .selectFrom("format_profiles")
     .selectAll()
-    .where("is_default", "=", true)
+    .where("id", "=", id)
+    .where(seenBy(userId))
     .executeTakeFirst();
+}
+
+/** Every profile `userId` may use: the built-ins they still see, then their own, each by name. */
+export async function profilesFor(db: Kysely<Database>, userId: string): Promise<ProfileRow[]> {
+  return db
+    .selectFrom("format_profiles")
+    .selectAll()
+    .where(seenBy(userId))
+    .orderBy(sql`user_id IS NOT NULL`)
+    .orderBy("name")
+    .execute();
+}
+
+/**
+ * What `userId` downloads with when they pick nothing: their own choice (`user_default_profiles`),
+ * else the built-in default if they still see it, else their first profile.
+ */
+export async function defaultProfileFor(
+  db: Kysely<Database>,
+  userId: string,
+): Promise<ProfileRow | undefined> {
+  const [chosen, seen] = await Promise.all([
+    db
+      .selectFrom("user_default_profiles")
+      .select("profile_id")
+      .where("user_id", "=", userId)
+      .executeTakeFirst(),
+    profilesFor(db, userId),
+  ]);
+  return (
+    seen.find((p) => p.id === chosen?.profile_id) ?? seen.find((p) => p.is_default) ?? seen.at(0)
+  );
 }

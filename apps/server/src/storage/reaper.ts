@@ -66,18 +66,22 @@ async function sweepOne(db: Kysely<Database>, id: string): Promise<boolean> {
       .where("rendition_id", "=", id)
       .executeTakeFirst();
     if (used !== undefined) return false;
-    const m = await tx
-      .selectFrom("media")
-      .select(["extractor", "video_id"])
-      .where("id", "=", r.media_id)
-      .executeTakeFirstOrThrow();
-    const active = await tx
-      .selectFrom("downloads")
-      .select("id")
-      .where("fetch_key", "=", fetchKey(m.extractor, m.video_id, r.profile_id, r.profile_revision))
-      .where("state", "in", ACTIVE)
-      .executeTakeFirst();
-    if (active !== undefined) return false;
+    // A rendition whose profile is gone (its owner's account deleted) has no fetch to wait for.
+    if (r.profile_id !== null) {
+      const m = await tx
+        .selectFrom("media")
+        .select(["extractor", "video_id"])
+        .where("id", "=", r.media_id)
+        .executeTakeFirstOrThrow();
+      const key = fetchKey(m.extractor, m.video_id, r.profile_id, r.profile_revision);
+      const active = await tx
+        .selectFrom("downloads")
+        .select("id")
+        .where("fetch_key", "=", key)
+        .where("state", "in", ACTIVE)
+        .executeTakeFirst();
+      if (active !== undefined) return false;
+    }
     // Any playback sessions go with it (cascade), and their folders to the trash (a trigger).
     await tx.deleteFrom("renditions").where("id", "=", id).execute();
     await trash(tx, [r.storage_key]);

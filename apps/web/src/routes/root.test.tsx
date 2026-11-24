@@ -66,6 +66,7 @@ describe("app shell", () => {
       "Settings",
       "Notifications",
       "Logins",
+      "Profiles",
     ]);
   });
 

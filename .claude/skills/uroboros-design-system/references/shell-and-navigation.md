@@ -34,10 +34,10 @@ A list of sections in the page colour, below the top bar, not a separate coloure
 - Groups are split by a hairline rule (`border-t border-border mx-1 my-2`), with headings at
   12/500 muted (`px-3 pt-3.5 pb-1.5`).
 - Groups today: the primary group (Library, Downloads, Subscriptions, Shared, Settings), then
-  **Admin** for admins (Users, Format profiles).
+  **Admin** for admins (Users).
 - **A section's views are indented under it** (`SECTIONS` in `components/SidebarNav.tsx`, the
-  lists in `nav.ts`): Library's Videos, Channels and Playlists, and Settings' Notifications and
-  Logins, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
+  lists in `nav.ts`): Library's Videos, Channels and Playlists, and Settings' Notifications,
+  Logins and Profiles, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
   turns medium while one of its pages is open. On phones the same views are underlined tabs atop
   the page (`ViewTabs`, `RouteTabs phoneOnly`); the mini rail has no room for them.
 - When subscriptions exist, a **Subscriptions** group lists channels with 24px round avatars.
@@ -63,8 +63,7 @@ on a watch page). Pages use all of it:
 - A block that reads badly stretched (a form's fields, a settings column, a long paragraph) caps
   its own width (`max-w-3xl`, about 768px) and stays at the left margin.
 - Sign-in, which has no shell, is the one centred page. Dialogs are centred overlays.
-- Not yet followed: Account, Users and Format profiles still centre a `max-w-3xl` to
-  `max-w-5xl` column. Bring each one to this rule when you next change it.
+- Not yet followed: Account and Users still centre a `max-w-3xl` to `max-w-5xl` column. Bring each one to this rule when you next change it.
 
 ## Search palette (Ctrl+K)
 

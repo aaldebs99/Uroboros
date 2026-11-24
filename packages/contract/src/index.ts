@@ -33,6 +33,7 @@ export {
 } from "./auth.ts";
 export {
   DOWNLOAD_ERROR_KINDS,
+  DefaultProfileBody,
   Download,
   DownloadErrorKind,
   DownloadEvent,

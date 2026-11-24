@@ -29,6 +29,7 @@ const profiles = [
     audioFormat: null,
     extraArgs: [],
     sponsorblockRemove: [],
+    builtIn: true,
     isDefault: true,
     revision: "r1",
   },

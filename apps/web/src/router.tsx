@@ -8,8 +8,8 @@ import {
 
 import { ChannelsPage } from "./library/ChannelsPage";
 import { PlaylistsPage } from "./library/PlaylistsPage";
-import { SettingsLoginsPage, SettingsPage } from "./routes";
-import { AccountRoute, AdminProfilesRoute, AdminUsersRoute } from "./routes/account";
+import { SettingsLoginsPage, SettingsPage, SettingsProfilesPage } from "./routes";
+import { AccountRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
 import { ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
 import { RootLayout } from "./routes/root";
@@ -75,16 +75,16 @@ const routeTree = rootRoute.addChildren([
     path: "/settings/logins",
     component: SettingsLoginsPage,
   }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/settings/profiles",
+    component: SettingsProfilesPage,
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: "/account", component: AccountRoute }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/admin/users",
     component: AdminUsersRoute,
-  }),
-  createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/admin/format-profiles",
-    component: AdminProfilesRoute,
   }),
 ]);
 

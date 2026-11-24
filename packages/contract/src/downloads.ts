@@ -56,7 +56,11 @@ export const SponsorBlockCategory = z.enum(SPONSORBLOCK_CATEGORIES).openapi("Spo
 export type SponsorBlockCategory = z.infer<typeof SponsorBlockCategory>;
 const Categories = z.array(SponsorBlockCategory).max(SPONSORBLOCK_CATEGORIES.length * 2);
 
-/** An admin-defined yt-dlp preset. `revision` changes whenever the file-shaping arguments do. */
+/**
+ * A yt-dlp preset: a built-in the caller kept, or one of their own; nobody sees another person's.
+ * Editing a built-in makes it the caller's own copy, and deleting one hides it, for them alone.
+ * `revision` changes whenever the file-shaping arguments do.
+ */
 export const FormatProfile = z
   .object({
     id: Id,
@@ -68,6 +72,9 @@ export const FormatProfile = z
     extraArgs: z.array(z.string()),
     /** Segments cut from the file when it is downloaded. */
     sponsorblockRemove: z.array(SponsorBlockCategory),
+    /** A built-in the caller hasn't changed, shared with everyone; false for their own. */
+    builtIn: z.boolean(),
+    /** The caller's default: their own choice, or else the built-in default. */
     isDefault: z.boolean(),
     revision: z.string(),
   })
@@ -96,11 +103,13 @@ export const FormatProfilePatch = z
     audioFormat: Word.nullable().optional(),
     extraArgs: z.array(z.string().max(512)).max(64).optional(),
     sponsorblockRemove: Categories.optional(),
-    /** Makes this the default; the old default stops being one. */
-    isDefault: z.literal(true).optional(),
   })
   .openapi("FormatProfilePatch");
 export type FormatProfilePatch = z.infer<typeof FormatProfilePatch>;
+
+/** Which visible profile the caller downloads with when they pick none. */
+export const DefaultProfileBody = z.object({ profileId: Id }).openapi("DefaultProfileBody");
+export type DefaultProfileBody = z.infer<typeof DefaultProfileBody>;
 
 export const NewDownloadBody = z
   .object({

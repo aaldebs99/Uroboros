@@ -120,8 +120,9 @@ a format profile. A playlist or channel opens a preview (a channel grouped by ta
 unticked) where you untick what you don't want. Each video is fetched once per profile, however
 many people ask for it, and lands in everyone's Library, where it can be saved. Media is stored in
 an S3-compatible bucket (RustFS locally) or in organized folders on a shared volume
-(`UROBOROS_STORAGE=filesystem`, layout in `UROBOROS_STORAGE_LAYOUT`). Admins manage the format
-profiles under Admin › Format profiles. `docs/downloads.md` has the design.
+(`UROBOROS_STORAGE=filesystem`, layout in `UROBOROS_STORAGE_LAYOUT`). Everyone starts with the
+built-in format profiles and manages their own under Settings › Profiles: changing a built-in
+changes it for them alone. `docs/downloads.md` has the design.
 
 The Library searches what you downloaded (the top bar's search), filters by watched state and tag,
 browses by channel and playlist, and plays videos in the browser with chapters and subtitles,

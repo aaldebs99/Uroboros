@@ -111,6 +111,8 @@ type Json<T> = ColumnType<T, string, string>;
 /** `format_profiles`: an admin-defined yt-dlp preset (docs/downloads.md). */
 export interface FormatProfilesTable {
   id: Generated<string>;
+  /** The owner; null for a built-in, everyone's until a person edits or deletes it for themselves. */
+  user_id: string | null;
   name: string;
   format: string;
   merge_format: string | null;
@@ -122,6 +124,18 @@ export interface FormatProfilesTable {
   revision: string;
   created_at: Created;
   updated_at: Defaulted<Date | string>;
+}
+
+/** `hidden_profiles`: built-ins a person deleted or edited into their own, hidden from them. */
+export interface HiddenProfilesTable {
+  user_id: string;
+  profile_id: string;
+}
+
+/** `user_default_profiles`: the profile a person downloads with when they pick none. */
+export interface UserDefaultProfilesTable {
+  user_id: string;
+  profile_id: string;
 }
 
 /** `media`: one video, by extractor and id, shared by every user. */
@@ -150,7 +164,8 @@ export interface MediaTable {
 export interface RenditionsTable {
   id: Generated<string>;
   media_id: string;
-  profile_id: string;
+  /** Null once the profile is gone (its owner's account deleted); the reaper sweeps the file. */
+  profile_id: string | null;
   profile_revision: string;
   storage_key: string;
   /** BIGINT: pg returns it as a string. */
@@ -423,6 +438,8 @@ export interface Database {
   site_logins: SiteLoginsTable;
   push_device_tombstones: PushDeviceTombstonesTable;
   format_profiles: FormatProfilesTable;
+  user_default_profiles: UserDefaultProfilesTable;
+  hidden_profiles: HiddenProfilesTable;
   media: MediaTable;
   renditions: RenditionsTable;
   library_entries: LibraryEntriesTable;

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /** A tab is a route of its own (as `nav.ts` lists them): add a page's views here. */
 export interface RouteTab {
-  to: "/shared" | "/shared/by-me" | "/settings" | "/settings/logins";
+  to: "/shared" | "/shared/by-me" | "/settings" | "/settings/logins" | "/settings/profiles";
   label: string;
 }
 

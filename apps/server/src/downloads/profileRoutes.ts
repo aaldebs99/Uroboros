@@ -1,21 +1,16 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   ApiErrorBody,
+  DefaultProfileBody,
   FormatProfile,
   FormatProfilePatch,
   NewFormatProfileBody,
 } from "@uroboros/contract";
-import { normalizeExtraArgs } from "@uroboros/ytdlp/flags";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
-import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
-import { requireAdmin } from "../auth/guard.ts";
-import { argsOf, getProfile, profileRevision, toProfile, type ProfileArgs } from "./profiles.ts";
-
-const UNIQUE_VIOLATION = "23505";
-const RESTRICT_VIOLATION = "23001";
-const FK_VIOLATION = "23503";
+import { chooseDefault, createProfile, editProfile, removeProfile } from "./profileEdits.ts";
+import { defaultProfileFor, profilesFor, toProfile, type ProfileRow } from "./profiles.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
   description,
@@ -33,182 +28,100 @@ const listRoute = createRoute({
   method: "get",
   path: "/api/format-profiles",
   tags: ["downloads"],
-  summary: "The format profiles to pick from (the default first)",
+  summary: "The profiles the caller can download with: the built-ins they kept, then their own",
   responses: { 200: json(z.array(FormatProfile), "Profiles") },
 });
 
 const createProfileRoute = createRoute({
   method: "post",
-  path: "/api/admin/format-profiles",
-  tags: ["admin"],
-  summary: "Add a format profile",
+  path: "/api/format-profiles",
+  tags: ["downloads"],
+  summary: "Add a profile of the caller's own",
   request: body(NewFormatProfileBody),
   responses: {
     201: json(FormatProfile, "Added"),
     400: error("A refused yt-dlp argument, or audio-only without an audio format"),
-    403: error("Admins only"),
-    409: error("The name is taken"),
+    409: error("Another of the caller's profiles has that name"),
   },
 });
 
 const patchRoute = createRoute({
   method: "patch",
-  path: "/api/admin/format-profiles/{id}",
-  tags: ["admin"],
-  summary: "Edit a format profile; edits apply to downloads queued afterwards",
+  path: "/api/format-profiles/{id}",
+  tags: ["downloads"],
+  summary:
+    "Edit a profile; a built-in becomes the caller's own copy (a new id), for them alone. Edits apply to downloads queued afterwards",
   request: { params: idParams, ...body(FormatProfilePatch) },
   responses: {
     200: json(FormatProfile, "Edited"),
     400: error("A refused yt-dlp argument, or audio-only without an audio format"),
-    403: error("Admins only"),
-    404: error("No such profile"),
-    409: error("The name is taken"),
+    404: error("No such profile the caller sees"),
+    409: error("Another of the caller's profiles has that name"),
   },
 });
 
 const deleteRoute = createRoute({
   method: "delete",
-  path: "/api/admin/format-profiles/{id}",
-  tags: ["admin"],
-  summary: "Delete an unused format profile",
+  path: "/api/format-profiles/{id}",
+  tags: ["downloads"],
+  summary: "Delete one of the caller's profiles, or hide a built-in from them alone",
   request: { params: idParams },
   responses: {
     204: { description: "Deleted" },
-    403: error("Admins only"),
-    404: error("No such profile"),
-    409: error("The default profile, or one that downloads or files use"),
+    404: error("No such profile the caller sees"),
+    409: error("Downloads, subscriptions or files in their library use it, or it is their last"),
   },
 });
 
-/** Checks and canonicalizes the arguments; throws `bad_request`. */
-function checked(args: ProfileArgs): ProfileArgs {
-  if (args.audioOnly !== (args.audioFormat !== null)) {
-    throw new ApiError("bad_request", "an audio-only profile needs an audio format, and only it");
-  }
-  try {
-    return {
-      ...args,
-      extraArgs: normalizeExtraArgs(args.extraArgs),
-      sponsorblockRemove: [...new Set(args.sponsorblockRemove ?? [])].sort(),
-    };
-  } catch (err) {
-    throw new ApiError("bad_request", err instanceof Error ? err.message : String(err));
-  }
-}
+const defaultRoute = createRoute({
+  method: "put",
+  path: "/api/format-profiles/default",
+  tags: ["downloads"],
+  summary: "Choose the profile the caller downloads with when they pick none",
+  request: body(DefaultProfileBody),
+  responses: {
+    204: { description: "Chosen" },
+    404: error("No such profile the caller may use"),
+  },
+});
 
-function codeOf(err: unknown): string | undefined {
-  return (err as { code?: string }).code;
-}
-
-function nameTaken(err: unknown): never {
-  if (codeOf(err) === UNIQUE_VIOLATION)
-    throw new ApiError("conflict", "a profile with that name exists");
-  throw err;
+/** The profile as the caller sees it, marked if it is their default. */
+async function shown(db: Kysely<Database>, userId: string, row: ProfileRow) {
+  return toProfile(row, (await defaultProfileFor(db, userId))?.id ?? null);
 }
 
 export function registerProfileRoutes(app: OpenAPIHono, db: Kysely<Database>): void {
   app.openapi(listRoute, async (c) => {
-    const rows = await db
-      .selectFrom("format_profiles")
-      .selectAll()
-      .orderBy("is_default", "desc")
-      .orderBy("name")
-      .execute();
-    return c.json(rows.map(toProfile), 200);
+    const { userId } = currentPrincipal(c);
+    const [rows, fallback] = await Promise.all([
+      profilesFor(db, userId),
+      defaultProfileFor(db, userId),
+    ]);
+    return c.json(
+      rows.map((row) => toProfile(row, fallback?.id ?? null)),
+      200,
+    );
   });
 
   app.openapi(createProfileRoute, async (c) => {
-    requireAdmin(currentPrincipal(c));
-    const b = c.req.valid("json");
-    const args = checked({
-      format: b.format,
-      mergeFormat: b.mergeFormat,
-      audioOnly: b.audioOnly,
-      audioFormat: b.audioFormat,
-      extraArgs: b.extraArgs,
-      sponsorblockRemove: b.sponsorblockRemove,
-    });
-    const row = await db
-      .insertInto("format_profiles")
-      .values({
-        name: b.name,
-        format: args.format,
-        merge_format: args.mergeFormat,
-        audio_only: args.audioOnly,
-        audio_format: args.audioFormat,
-        extra_args: args.extraArgs,
-        sponsorblock_remove: args.sponsorblockRemove ?? [],
-        revision: profileRevision(args),
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow()
-      .catch(nameTaken);
-    return c.json(toProfile(row), 201);
+    const { userId } = currentPrincipal(c);
+    const row = await createProfile(db, userId, c.req.valid("json"));
+    return c.json(await shown(db, userId, row), 201);
   });
 
   app.openapi(patchRoute, async (c) => {
-    requireAdmin(currentPrincipal(c));
-    const { id } = c.req.valid("param");
-    const patch = c.req.valid("json");
-    const current = await getProfile(db, id);
-    if (current === undefined) throw new ApiError("not_found", "no such profile");
-    const old = argsOf(current);
-    const args = checked({
-      format: patch.format ?? old.format,
-      mergeFormat: patch.mergeFormat === undefined ? old.mergeFormat : patch.mergeFormat,
-      audioOnly: patch.audioOnly ?? old.audioOnly,
-      audioFormat: patch.audioFormat === undefined ? old.audioFormat : patch.audioFormat,
-      extraArgs: patch.extraArgs ?? old.extraArgs,
-      sponsorblockRemove: patch.sponsorblockRemove ?? old.sponsorblockRemove ?? [],
-    });
-    const row = await db
-      .transaction()
-      .execute(async (tx) => {
-        if (patch.isDefault === true) {
-          await tx
-            .updateTable("format_profiles")
-            .set({ is_default: false })
-            .where("is_default", "=", true)
-            .where("id", "!=", id)
-            .execute();
-        }
-        return tx
-          .updateTable("format_profiles")
-          .set({
-            name: patch.name ?? current.name,
-            format: args.format,
-            merge_format: args.mergeFormat,
-            audio_only: args.audioOnly,
-            audio_format: args.audioFormat,
-            extra_args: args.extraArgs,
-            sponsorblock_remove: args.sponsorblockRemove ?? [],
-            revision: profileRevision(args),
-            updated_at: new Date(),
-            ...(patch.isDefault === true ? { is_default: true } : {}),
-          })
-          .where("id", "=", id)
-          .returningAll()
-          .executeTakeFirstOrThrow();
-      })
-      .catch(nameTaken);
-    return c.json(toProfile(row), 200);
+    const { userId } = currentPrincipal(c);
+    const row = await editProfile(db, userId, c.req.valid("param").id, c.req.valid("json"));
+    return c.json(await shown(db, userId, row), 200);
   });
 
   app.openapi(deleteRoute, async (c) => {
-    requireAdmin(currentPrincipal(c));
-    const { id } = c.req.valid("param");
-    const current = await getProfile(db, id);
-    if (current === undefined) throw new ApiError("not_found", "no such profile");
-    if (current.is_default)
-      throw new ApiError("conflict", "choose another default before deleting this one");
-    try {
-      await db.deleteFrom("format_profiles").where("id", "=", id).execute();
-    } catch (err) {
-      if (codeOf(err) === RESTRICT_VIOLATION || codeOf(err) === FK_VIOLATION) {
-        throw new ApiError("conflict", "downloads or stored files use this profile");
-      }
-      throw err;
-    }
+    await removeProfile(db, currentPrincipal(c).userId, c.req.valid("param").id);
+    return c.body(null, 204);
+  });
+
+  app.openapi(defaultRoute, async (c) => {
+    await chooseDefault(db, currentPrincipal(c).userId, c.req.valid("json").profileId);
     return c.body(null, 204);
   });
 }

@@ -137,9 +137,13 @@ CREATE TABLE vapid_keys (
 -- Downloads and storage (docs/downloads.md). A format profile is an admin-defined yt-dlp preset;
 -- `revision` hashes the arguments that shape the file, so editing a profile makes new downloads
 -- fetch a fresh rendition instead of reusing one made with the old arguments.
+-- yt-dlp presets. A built-in (user_id null) is everyone's until a person changes it, which changes
+-- it for them alone: editing makes it a profile of their own, deleting hides it (hidden_profiles).
+-- Any other profile is its owner's alone (docs/downloads.md#format-profiles).
 CREATE TABLE format_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE CHECK (char_length(btrim(name)) BETWEEN 1 AND 64),
+  user_id UUID REFERENCES users ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 64),
   format TEXT NOT NULL CHECK (char_length(format) BETWEEN 1 AND 512),
   merge_format TEXT,
   audio_only BOOLEAN NOT NULL DEFAULT false,
@@ -151,13 +155,32 @@ CREATE TABLE format_profiles (
   revision TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK (audio_only = (audio_format IS NOT NULL))
+  CHECK (audio_only = (audio_format IS NOT NULL)),
+  -- The fallback default is a built-in; a person's own choice is in user_default_profiles.
+  CHECK (NOT is_default OR user_id IS NULL),
+  UNIQUE NULLS NOT DISTINCT (user_id, name)
 );
 CREATE UNIQUE INDEX format_profiles_one_default ON format_profiles ((true)) WHERE is_default;
+CREATE INDEX format_profiles_user_idx ON format_profiles (user_id) WHERE user_id IS NOT NULL;
 
--- Revisions are profileRevision() of each row's arguments (apps/server/src/downloads/profiles.ts;
--- its test pins these literals). "Best available" is the default, and every seeded profile cuts
--- SponsorBlock's sponsor, self-promotion and interaction-reminder segments.
+-- The built-ins a person deleted, or edited into a profile of their own: hidden from them alone.
+CREATE TABLE hidden_profiles (
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE CASCADE,
+  PRIMARY KEY (user_id, profile_id)
+);
+
+-- The profile a person downloads with when they pick none: one they can see. Without a row, the
+-- built-in default if they still see it, else their first profile.
+CREATE TABLE user_default_profiles (
+  user_id UUID PRIMARY KEY REFERENCES users ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE CASCADE
+);
+
+-- The built-ins. Revisions are profileRevision() of each row's arguments
+-- (apps/server/src/downloads/profiles.ts; its test pins these literals). "Best available" is the
+-- default, and every one cuts SponsorBlock's sponsor, self-promotion and interaction-reminder
+-- segments.
 INSERT INTO format_profiles
   (name, format, merge_format, audio_only, audio_format, sponsorblock_remove, is_default, revision)
 VALUES
@@ -199,7 +222,9 @@ CREATE TABLE media (
 CREATE TABLE renditions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   media_id UUID NOT NULL REFERENCES media ON DELETE CASCADE,
-  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE RESTRICT,
+  -- Null once the profile is gone (its owner's account deleted): nothing references the file then,
+  -- and the reaper sweeps it.
+  profile_id UUID REFERENCES format_profiles ON DELETE SET NULL,
   profile_revision TEXT NOT NULL,
   storage_key TEXT NOT NULL,
   size_bytes BIGINT NOT NULL,
@@ -235,7 +260,9 @@ CREATE TABLE subscriptions (
   url TEXT NOT NULL,
   feeds JSONB NOT NULL,
   tabs JSONB NOT NULL,
-  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE RESTRICT,
+  -- NO ACTION, not RESTRICT: deleting an account removes its subscriptions and personal profiles
+  -- in one statement, checked at its end.
+  profile_id UUID NOT NULL REFERENCES format_profiles,
   -- When checks run: every interval_minutes, or on a 5-field cron in cron_tz (one or the other).
   interval_minutes INTEGER CHECK (interval_minutes BETWEEN 1 AND 10080),
   cron TEXT CHECK (char_length(cron) BETWEEN 9 AND 120),
@@ -330,7 +357,8 @@ CREATE TABLE downloads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
   request_id UUID REFERENCES download_requests ON DELETE SET NULL,
-  profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE RESTRICT,
+  -- NO ACTION, as for subscriptions: an account's downloads and profiles go together.
+  profile_id UUID NOT NULL REFERENCES format_profiles,
   profile_revision TEXT NOT NULL,
   args JSONB NOT NULL,
   extractor TEXT NOT NULL,

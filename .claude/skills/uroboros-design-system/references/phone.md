@@ -32,7 +32,7 @@ A slim top bar with a menu button, and bottom tabs.
   - Each tab is a 22px icon over a 10px label, with targets at least 44px wide.
   - The current tab is `text-foreground` with `aria-current="page"`; the others are muted.
 - The **You** tab opens the account page (`/account`), which also lists Settings and, for admins,
-  the Admin pages (Users, Format profiles).
+  the Admin pages (Users).
 - Leave room for the tab bar at the bottom of the scroll area (`pb-[calc(58px+env(safe-area-inset-bottom))]`).
 
 ## Library feed

@@ -230,12 +230,21 @@ describe("schema: downloads, media and profiles", () => {
     expect(await errCode(download(u, p, "fetch:a").execute())).toBeUndefined();
   });
 
-  it("refuses deleting a profile a rendition uses", async () => {
-    const p = await defaultProfile();
-    await rendition(await media(), p).execute();
-    expect(await errCode(t.db.deleteFrom("format_profiles").where("id", "=", p.id).execute())).toBe(
-      "23001",
-    ); // restrict_violation
+  it("keeps a profile's renditions, with no profile, when it goes (the API refuses while a library uses one)", async () => {
+    const owner = await localUser("profile-owner");
+    const p = await t.db
+      .insertInto("format_profiles")
+      .values({ user_id: owner, name: "Mine", format: "b", revision: "r1" })
+      .returning(["id", "revision"])
+      .executeTakeFirstOrThrow();
+    const r = await rendition(await media(), p).executeTakeFirstOrThrow();
+    await t.db.deleteFrom("format_profiles").where("id", "=", p.id).execute();
+    const left = await t.db
+      .selectFrom("renditions")
+      .select("profile_id")
+      .where("id", "=", r.id)
+      .executeTakeFirstOrThrow();
+    expect(left.profile_id).toBeNull();
   });
 
   it("deletes a user's downloads, requests and library entries with the user", async () => {

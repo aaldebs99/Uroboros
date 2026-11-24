@@ -100,7 +100,7 @@ export function useRemoveEntry() {
   });
 }
 
-const profilePath = (id: string) => `/api/admin/format-profiles/${encodeURIComponent(id)}`;
+const profilePath = (id: string) => `/api/format-profiles/${encodeURIComponent(id)}`;
 
 function useProfileMutation<A, R>(fn: (arg: A) => Promise<R>) {
   const client = useQueryClient();
@@ -110,9 +110,10 @@ function useProfileMutation<A, R>(fn: (arg: A) => Promise<R>) {
   });
 }
 
+/** Adds a profile of the caller's own; nobody else sees it. */
 export const useCreateProfile = () =>
   useProfileMutation((body: NewFormatProfileBody) =>
-    postJson("/api/admin/format-profiles", FormatProfile, body),
+    postJson("/api/format-profiles", FormatProfile, body),
   );
 export const usePatchProfile = () =>
   useProfileMutation(({ id, patch }: { id: string; patch: FormatProfilePatch }) =>
@@ -120,6 +121,11 @@ export const usePatchProfile = () =>
   );
 export const useDeleteProfile = () =>
   useProfileMutation((id: string) => deleteJson(profilePath(id)));
+/** Makes a built-in or own profile the one the caller downloads with when they pick none. */
+export const useSetDefaultProfile = () =>
+  useProfileMutation((profileId: string) =>
+    putNoContent("/api/format-profiles/default", { profileId }),
+  );
 
 export const itemKey = (id: string) => ["api", "library", "item", id] as const;
 /** One entry with its chapters, subtitles and stream URL. */

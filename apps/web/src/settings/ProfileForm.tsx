@@ -29,7 +29,7 @@ const SPONSORBLOCK_LABELS: Record<SponsorBlockCategory, string> = {
   music_offtopic: "Non-music section",
 };
 
-/** What a new profile cuts until the admin changes it: the same as the seeded profiles. */
+/** What a new profile cuts until its owner changes it: the same as the built-in profiles. */
 const NEW_PROFILE_CUTS: readonly SponsorBlockCategory[] = ["sponsor", "selfpromo", "interaction"];
 
 /** The SponsorBlock categories a profile cuts, as checkboxes. */
@@ -184,14 +184,19 @@ export function ProfileForm({
   );
 }
 
-/** The profile form in a dialog: adding when `initial` is missing, else editing it. */
+/**
+ * The profile form in a dialog, titled `title`: empty when adding, or filled from `initial` (the
+ * profile being edited, or a copy of a built-in under its new name).
+ */
 export function ProfileDialog({
   open,
+  title,
   initial,
   onSave,
   onClose,
 }: {
   open: boolean;
+  title: string;
   initial?: FormatProfile;
   onSave: (body: NewFormatProfileBody) => Promise<unknown>;
   onClose: () => void;
@@ -204,8 +209,8 @@ export function ProfileDialog({
       }}
     >
       <DialogContent className="max-h-[calc(100dvh-3rem)] overflow-y-auto">
-        <DialogTitle>{initial ? `Edit ${initial.name}` : "Add profile"}</DialogTitle>
-        <DialogDescription>A yt-dlp preset people pick from when downloading.</DialogDescription>
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription>A yt-dlp preset to download with. Only you see it.</DialogDescription>
         <ProfileForm
           {...(initial === undefined ? {} : { initial })}
           onSave={onSave}

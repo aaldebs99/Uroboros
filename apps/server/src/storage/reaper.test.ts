@@ -252,4 +252,18 @@ describe("the reaper", () => {
     const own = { mediaId: randomUUID(), profileId: profile.id, revision: profile.revision };
     expect(await freeKey(deps, key, own)).not.toBe(key);
   });
+
+  it("adds the profile's id when the revision alone is taken too (identical profiles of one name)", async () => {
+    const stem = `Channel/2026-01-01 T [x]/T [${randomUUID()}]`;
+    const rev = profile.revision.slice(0, 8);
+    await t.db
+      .insertInto("storage_trash")
+      .values([{ key: `${stem}.mp4` }, { key: `${stem} [${rev}].mp4` }])
+      .execute();
+    const deps = { db: t.db } as WorkerDeps;
+    const own = { mediaId: randomUUID(), profileId: profile.id, revision: profile.revision };
+    expect(await freeKey(deps, `${stem}.mp4`, own)).toBe(
+      `${stem} [${rev} ${profile.id.slice(0, 8)}].mp4`,
+    );
+  });
 });

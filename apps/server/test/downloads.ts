@@ -5,7 +5,7 @@ import type { Database } from "../src/db/schema.ts";
 import { createApp } from "../src/api/app.ts";
 import type { DownloadContext } from "../src/downloads/dispatch.ts";
 import { createDownloadQueues } from "../src/downloads/queues.ts";
-import { defaultProfile, type ProfileRow } from "../src/downloads/profiles.ts";
+import type { ProfileRow } from "../src/downloads/profiles.ts";
 import { asUser, type SignedIn } from "./auth.ts";
 import { liveJobs } from "./jobs.ts";
 
@@ -36,8 +36,13 @@ export function downloadHarness(db: Kysely<Database>, limit = 3) {
   });
 }
 
+/** The built-in default, "Best available". */
 export async function seededDefault(db: Kysely<Database>): Promise<ProfileRow> {
-  const p = await defaultProfile(db);
+  const p = await db
+    .selectFrom("format_profiles")
+    .selectAll()
+    .where("is_default", "=", true)
+    .executeTakeFirst();
   if (p === undefined) throw new Error("no default profile");
   return p;
 }

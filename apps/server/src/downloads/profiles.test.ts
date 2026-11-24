@@ -33,32 +33,31 @@ const send = (s: SignedIn, method: string, path: string, json?: unknown) =>
     ...(json === undefined ? {} : { body: JSON.stringify(json) }),
   });
 
-async function list(): Promise<FormatProfile[]> {
-  return z
-    .array(FormatProfile)
-    .parse(await (await send(member, "GET", "/api/format-profiles")).json());
+async function list(s: SignedIn = member): Promise<FormatProfile[]> {
+  return z.array(FormatProfile).parse(await (await send(s, "GET", "/api/format-profiles")).json());
 }
 
-async function create(over: Record<string, unknown> = {}): Promise<Response> {
-  return send(admin, "POST", "/api/admin/format-profiles", {
+async function create(over: Record<string, unknown> = {}, s: SignedIn = member) {
+  return send(s, "POST", "/api/format-profiles", {
     name: `p-${randomUUID().slice(0, 8)}`,
     format: "bv*+ba/b",
     ...over,
   });
 }
 
-describe("format profiles", () => {
-  it("seeds revisions that profileRevision reproduces", async () => {
-    for (const p of await list()) expect(p.revision).toBe(profileRevision(p));
-  });
+const patch = (id: string, json: unknown, s: SignedIn = member) =>
+  send(s, "PATCH", `/api/format-profiles/${id}`, json);
 
-  it("lists profiles for a member, who may not create one", async () => {
-    expect((await list()).length).toBeGreaterThanOrEqual(3);
-    const res = await send(member, "POST", "/api/admin/format-profiles", {
-      name: "x",
-      format: "b",
-    });
-    expect(res.status).toBe(403);
+describe("format profiles", () => {
+  it("seeds built-ins whose revisions profileRevision reproduces, listed for everyone", async () => {
+    const builtIns = (await list()).filter((p) => p.builtIn);
+    expect(builtIns.map((p) => p.name)).toEqual([
+      "Audio only (Opus)",
+      "Best available",
+      "Best up to 1080p (MP4)",
+    ]);
+    for (const p of builtIns) expect(p.revision).toBe(profileRevision(p));
+    expect((await list(admin)).filter((p) => p.builtIn)).toEqual(builtIns);
   });
 
   it("refuses an extra argument that is not allowed, naming it", async () => {
@@ -75,17 +74,10 @@ describe("format profiles", () => {
 
   it("changes the revision when the format changes, not when only the name does", async () => {
     const p = FormatProfile.parse(await (await create()).json());
-    const renamed = FormatProfile.parse(
-      await (
-        await send(admin, "PATCH", `/api/admin/format-profiles/${p.id}`, { name: `${p.name}-2` })
-      ).json(),
-    );
+    expect(p.builtIn).toBe(false);
+    const renamed = FormatProfile.parse(await (await patch(p.id, { name: `${p.name}-2` })).json());
     expect(renamed.revision).toBe(p.revision);
-    const reformatted = FormatProfile.parse(
-      await (
-        await send(admin, "PATCH", `/api/admin/format-profiles/${p.id}`, { format: "b" })
-      ).json(),
-    );
+    const reformatted = FormatProfile.parse(await (await patch(p.id, { format: "b" })).json());
     expect(reformatted.revision).not.toBe(p.revision);
   });
 
@@ -93,20 +85,12 @@ describe("format profiles", () => {
     const p = FormatProfile.parse(await (await create()).json());
     expect(p.sponsorblockRemove).toEqual([]);
     const cut = FormatProfile.parse(
-      await (
-        await send(admin, "PATCH", `/api/admin/format-profiles/${p.id}`, {
-          sponsorblockRemove: ["sponsor", "intro", "sponsor"],
-        })
-      ).json(),
+      await (await patch(p.id, { sponsorblockRemove: ["sponsor", "intro", "sponsor"] })).json(),
     );
     expect(cut.sponsorblockRemove).toEqual(["intro", "sponsor"]);
     expect(cut.revision).not.toBe(p.revision);
     const reordered = FormatProfile.parse(
-      await (
-        await send(admin, "PATCH", `/api/admin/format-profiles/${p.id}`, {
-          sponsorblockRemove: ["intro", "sponsor"],
-        })
-      ).json(),
+      await (await patch(p.id, { sponsorblockRemove: ["intro", "sponsor"] })).json(),
     );
     expect(reordered.revision).toBe(cut.revision);
     expect(reordered.revision).toBe(profileRevision(reordered));
@@ -116,48 +100,41 @@ describe("format profiles", () => {
     expect((await create({ sponsorblockRemove: ["poi_highlight"] })).status).toBe(400);
   });
 
-  it("keeps exactly one default", async () => {
-    const p = FormatProfile.parse(await (await create()).json());
-    const res = await send(admin, "PATCH", `/api/admin/format-profiles/${p.id}`, {
-      isDefault: true,
-    });
-    expect(res.status).toBe(200);
-    const defaults = (await list()).filter((x) => x.isDefault);
-    expect(defaults.map((x) => x.id)).toEqual([p.id]);
-    const seed = (await list()).find((x) => x.name === "Best available");
-    await send(admin, "PATCH", `/api/admin/format-profiles/${seed?.id ?? ""}`, { isDefault: true });
-  });
-
-  it("refuses deleting the default or a profile in use, and deletes an unused one", async () => {
-    const def = (await list()).find((x) => x.isDefault);
-    expect(
-      (await send(admin, "DELETE", `/api/admin/format-profiles/${def?.id ?? ""}`)).status,
-    ).toBe(409);
+  it("refuses deleting a profile in use, and deletes an unused one", async () => {
     const used = FormatProfile.parse(await (await create()).json());
     const media = await testDb.db
       .insertInto("media")
       .values({ extractor: "youtube", video_id: randomUUID() })
       .returning("id")
       .executeTakeFirstOrThrow();
-    await testDb.db
+    const r = await testDb.db
       .insertInto("renditions")
       .values({
         media_id: media.id,
         profile_id: used.id,
         profile_revision: used.revision,
-        storage_key: "k",
+        storage_key: `k/${randomUUID()}`,
         size_bytes: 1,
       })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await testDb.db
+      .insertInto("library_entries")
+      .values({ user_id: member.userId, media_id: media.id, rendition_id: r.id })
       .execute();
-    expect((await send(admin, "DELETE", `/api/admin/format-profiles/${used.id}`)).status).toBe(409);
+    expect((await send(member, "DELETE", `/api/format-profiles/${used.id}`)).status).toBe(409);
     const unused = FormatProfile.parse(await (await create()).json());
-    expect((await send(admin, "DELETE", `/api/admin/format-profiles/${unused.id}`)).status).toBe(
-      204,
-    );
+    expect((await send(member, "DELETE", `/api/format-profiles/${unused.id}`)).status).toBe(204);
   });
 
-  it("refuses a duplicate name (409)", async () => {
+  it("refuses a built-in's name or one the person already used (409); two people may share one", async () => {
     expect((await create({ name: "Best available" })).status).toBe(409);
+    expect((await create({ name: "Mine" })).status).toBe(201);
+    expect((await create({ name: "Mine" })).status).toBe(409);
+    expect((await create({ name: "Mine" }, admin)).status).toBe(201);
+    const other = FormatProfile.parse(await (await create()).json());
+    expect((await patch(other.id, { name: "Mine" })).status).toBe(409);
+    expect((await patch(other.id, { name: "Audio only (Opus)" })).status).toBe(409);
   });
 });
 

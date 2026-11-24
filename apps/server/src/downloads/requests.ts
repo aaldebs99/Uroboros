@@ -8,7 +8,7 @@ import type { Principal } from "../auth/guard.ts";
 import { dispatchFor, queueDownload, type DownloadContext } from "./dispatch.ts";
 import { publishDownloadEvent } from "./events.ts";
 import { probeJobId } from "./fetchKey.ts";
-import { defaultProfile, getProfile } from "./profiles.ts";
+import { defaultProfileFor, getProfile, visibleProfile } from "./profiles.ts";
 import { recordPlaylist } from "./sources.ts";
 
 type RequestRow = Selectable<DownloadRequestsTable>;
@@ -49,10 +49,11 @@ export async function createRequest(
     intent?: "download" | "subscribe" | "search" | undefined;
   },
 ): Promise<DownloadRequest> {
+  // The person's own default, or a profile they may use: a built-in or one of theirs.
   const profile =
     body.profileId === undefined
-      ? await defaultProfile(ctx.db)
-      : await getProfile(ctx.db, body.profileId);
+      ? await defaultProfileFor(ctx.db, userId)
+      : await visibleProfile(ctx.db, userId, body.profileId);
   if (profile === undefined) throw new ApiError("bad_request", "no such format profile");
   // The request and its probe job commit together: a request is never left probing with no job.
   const row = await ctx.db.transaction().execute(async (tx) => {
