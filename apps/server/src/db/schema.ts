@@ -1,4 +1,7 @@
 import type { ColumnType, Generated } from "kysely";
+import type { PlaybackSessionsTable, RenditionKeyframesTable } from "./playbackSchema.ts";
+
+export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts";
 
 /** A `TIMESTAMPTZ`: read as a `Date`, written as a `Date` or an ISO string. */
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
@@ -147,6 +150,9 @@ export interface RenditionsTable {
   width: number | null;
   height: number | null;
   duration: number | null;
+  /** RFC 6381 codec strings (docs/transcoding.md). */
+  video_codecs: string | null;
+  audio_codecs: string | null;
   orphaned_at: Timestamp | null;
   created_at: Created;
 }
@@ -439,6 +445,8 @@ export interface Database {
   subscription_items: SubscriptionItemsTable;
   storage_trash: StorageTrashTable;
   transcodes: TranscodesTable;
+  rendition_keyframes: RenditionKeyframesTable;
+  playback_sessions: PlaybackSessionsTable;
   playlists: PlaylistsTable;
   playlist_items: PlaylistItemsTable;
   shares: SharesTable;

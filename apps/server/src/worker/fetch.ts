@@ -1,6 +1,6 @@
 import { access, mkdir, rm } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { download, ffprobe, type DownloadedFile, type MediaInfo } from "@uroboros/ytdlp";
+import { download, ffprobe, type DownloadedFile } from "@uroboros/ytdlp";
 import { DelayedError, UnrecoverableError } from "bullmq";
 import { dispatchFor } from "../downloads/dispatch.ts";
 import { StorageError, toDownloadError, type DownloadFailure } from "../downloads/errors.ts";
@@ -11,6 +11,8 @@ import type { FetchJob } from "../downloads/queues.ts";
 import { loginsForFetch } from "../siteLogins/forJobs.ts";
 import { renditionKey, sidecarKey, type MediaNames } from "../storage/index.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
+import { renditionFacts } from "../transcode/facts.ts";
+import { indexKeyframes } from "../transcode/keyframes.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { upsertMedia } from "./media.ts";
 import { createProgressPublisher } from "./progress.ts";
@@ -178,18 +180,6 @@ async function put(deps: WorkerDeps, key: string, file: string, ext: string): Pr
   }
 }
 
-function codecs(info: MediaInfo) {
-  const video = info.streams.find((s) => s.type === "video");
-  const audio = info.streams.find((s) => s.type === "audio");
-  return {
-    video_codec: video?.codec ?? null,
-    audio_codec: audio?.codec ?? null,
-    width: video?.width ?? null,
-    height: video?.height ?? null,
-    duration: info.duration,
-  };
-}
-
 /**
  * A filesystem layout names files by profile, not revision, so an edited profile would land on the
  * file older library entries still point at: then the short revision is added before the extension.
@@ -279,12 +269,13 @@ async function store(
       storage_key: key,
       size_bytes: size,
       container: ext,
-      ...codecs(probed),
+      ...renditionFacts(probed),
     })
     .onConflict((oc) => oc.columns(["media_id", "profile_id", "profile_revision"]).doNothing())
     .execute();
   const rendition = await existingRendition(deps, data);
   if (rendition === undefined) throw new StorageError("the rendition was not recorded");
+  await indexKeyframes(deps, rendition.id, file.path, probed);
   return rendition;
 }
 

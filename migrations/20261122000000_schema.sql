@@ -209,6 +209,10 @@ CREATE TABLE renditions (
   width INTEGER,
   height INTEGER,
   duration DOUBLE PRECISION,
+  -- RFC 6381 codec strings of the video and audio streams (docs/transcoding.md), so the web app
+  -- can ask the browser about the file itself.
+  video_codecs TEXT,
+  audio_codecs TEXT,
   -- Set by the reaper when no entry references it; cleared when one does again.
   orphaned_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -521,6 +525,43 @@ CREATE TABLE transcodes (
   last_used_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (source_rendition_id, settings)
 );
+
+-- A video's keyframe times in seconds from the file's start, sorted: where a playback session that
+-- copies the video (a remux) can cut segments (docs/transcoding.md). Written by the fetch consumer
+-- after a download, or by the first session that needs it.
+CREATE TABLE rendition_keyframes (
+  rendition_id UUID PRIMARY KEY REFERENCES renditions ON DELETE CASCADE,
+  times DOUBLE PRECISION[] NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- One viewer's playback of one entry, transcoded or remuxed on the fly (docs/transcoding.md): a
+-- signed-in person, or a public link's code (the session goes when the link does). `plan` is what
+-- it serves (sessionPlan.ts); `boundaries` the segments' start times and, last, the end, null
+-- until a remux has its keyframes. Its segments live under `.transcodes/<id>/` while it runs; the
+-- hot state (wanted and stored segments, liveness) is in Valkey.
+CREATE TABLE playback_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rendition_id UUID NOT NULL REFERENCES renditions ON DELETE CASCADE,
+  entry_id UUID NOT NULL REFERENCES library_entries ON DELETE CASCADE,
+  user_id UUID REFERENCES users ON DELETE CASCADE,
+  share_code TEXT REFERENCES shares (code) ON DELETE CASCADE,
+  quality TEXT NOT NULL,
+  mode TEXT NOT NULL CHECK (mode IN ('remux', 'encode', 'audio')),
+  plan JSONB NOT NULL,
+  boundaries DOUBLE PRECISION[],
+  state TEXT NOT NULL DEFAULT 'queued'
+    CHECK (state IN ('queued', 'starting', 'running', 'stopped', 'failed')),
+  encoder TEXT CHECK (encoder IN ('copy', 'libx264', 'nvenc', 'vaapi')),
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  stopped_at TIMESTAMPTZ,
+  CHECK ((user_id IS NULL) <> (share_code IS NULL))
+);
+CREATE INDEX playback_sessions_viewer ON playback_sessions (entry_id, user_id, share_code)
+  WHERE state IN ('queued', 'starting', 'running');
+CREATE INDEX playback_sessions_ended ON playback_sessions (stopped_at)
+  WHERE state IN ('stopped', 'failed');
 
 -- Storage keys whose rows are gone and whose files the reaper still has to delete. A key ending in
 -- `/` is a prefix: everything under it goes.

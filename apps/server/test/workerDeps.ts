@@ -10,6 +10,9 @@ import { disabledPush } from "../src/push/service.ts";
 import type { WorkerDeps } from "../src/worker/deps.ts";
 import { downloadHarness } from "./downloads.ts";
 
+/** What the fake ffprobe prints for a keyframe probe: keyframes at 0 and 2 s. */
+export const KEYFRAME_PACKETS = "0.000000,K__\n1.000000,___\n2.000000,K__\n";
+
 /** Worker deps on a filesystem store, with fake yt-dlp and ffprobe runs the test scripts. */
 export async function workerHarness(db: Kysely<Database>, limit = 3) {
   const h = await downloadHarness(db, limit);
@@ -19,6 +22,8 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
   const runs: FakeRun[] = [];
   const ffprobeRun = await FakeRun.create({
     steps: [{ stdout: await fixture("ffprobe-clip.json") }],
+    // The keyframe index the fetch consumer reads from the packets (keyframes every 2 s).
+    variants: [{ whenArg: "packet=pts_time,flags", steps: [{ stdout: KEYFRAME_PACKETS }] }],
   });
   runs.push(ffprobeRun);
   return {

@@ -50,7 +50,20 @@ describe("fetch", () => {
       .where("profile_id", "=", data.profileId)
       .orderBy("created_at", "desc")
       .executeTakeFirstOrThrow();
-    expect(r).toMatchObject({ video_codec: "h264", width: 320, height: 240, container: "mp4" });
+    expect(r).toMatchObject({
+      video_codec: "h264",
+      width: 320,
+      height: 240,
+      container: "mp4",
+      video_codecs: "avc1.f4000d",
+      audio_codecs: "mp4a.40.2",
+    });
+    const keyframes = await testDb.db
+      .selectFrom("rendition_keyframes")
+      .select("times")
+      .where("rendition_id", "=", r.id)
+      .executeTakeFirst();
+    expect(keyframes?.times).toEqual([0, 2]);
     expect(r.storage_key).toMatch(/\[Best available\]\.mp4$/);
     const stored = await readdir(join(h.root, r.storage_key, ".."));
     expect(stored.sort()).toEqual(
