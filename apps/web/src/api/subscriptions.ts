@@ -1,6 +1,8 @@
 import {
+  QueueSelectionResult,
   Subscription,
   SubscriptionItemsPage,
+  type ItemDownloadBody,
   type NewSubscriptionBody,
   type SubscriptionPatch,
 } from "@uroboros/contract";
@@ -69,6 +71,9 @@ export const updateSubscription = (id: string, patch: SubscriptionPatch) =>
 export const deleteSubscription = (id: string) => deleteJson(path(id));
 
 export const checkSubscription = (id: string) => postJson(`${path(id)}/check`, Subscription);
+/** Downloads one video from the subscription's activity that it skipped, filtered or holds. */
+export const downloadSubscriptionItem = (id: string, item: ItemDownloadBody) =>
+  postJson(`${path(id)}/items/download`, QueueSelectionResult, item);
 /** Downloads the subscription's latest `count` videos (a job lists them; 202). */
 export const downloadLatest = (id: string, count: number) =>
   postNoContent(`${path(id)}/latest`, { count });

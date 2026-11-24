@@ -126,6 +126,13 @@ getting, gets no new download. It sends no notification.
 
 The **newest** backfill chosen when subscribing takes at most 50 of each tab as well.
 
+The subscription page's **Recent activity** opens each video on its site (its title, in a new
+tab), offers **Watch** for one in the library, and **Download** beside one the subscription passed
+over (skipped, filtered or waiting): `POST /api/subscriptions/{id}/items/download {extractor,
+videoId}` queues that video in the subscription's format at a pasted link's priority, from the
+item's own link (no yt-dlp in the request), and the item turns `queued`. One already had or on its
+way counts as skipped.
+
 ## SponsorBlock
 
 Removing segments changes the file, so it lives in the format profile, which already says what

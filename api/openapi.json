@@ -845,6 +845,25 @@
         ],
         "type": "object"
       },
+      "ItemDownloadBody": {
+        "properties": {
+          "extractor": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "videoId": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "extractor",
+          "videoId"
+        ],
+        "type": "object"
+      },
       "KeptBody": {
         "properties": {
           "kept": {
@@ -7981,6 +8000,57 @@
           }
         },
         "summary": "What a subscription has seen and what became of each, newest first",
+        "tags": [
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/subscriptions/{id}/items/download": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemDownloadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSelectionResult"
+                }
+              }
+            },
+            "description": "Queued, or skipped as already had"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such subscription, or it never saw that video"
+          }
+        },
+        "summary": "Download one video the subscription skipped, filtered or is waiting on, now",
         "tags": [
           "subscriptions"
         ]

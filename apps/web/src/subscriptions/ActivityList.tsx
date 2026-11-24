@@ -1,29 +1,95 @@
 import type { SubscriptionItem } from "@uroboros/contract";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { Download, ExternalLink, LoaderCircle, Play } from "lucide-react";
+import { useState } from "react";
 
 import { errorText } from "@/api/client";
-import { useSubscriptionItems } from "@/api/subscriptions";
+import {
+  downloadSubscriptionItem,
+  subscriptionKeys,
+  useSubscriptionItems,
+} from "@/api/subscriptions";
 import { ItemOutcomeBadge } from "@/components/StatusBadge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { notify } from "@/components/ui/sonner";
 
 import { relativeTime } from "./format";
 
+const titleOf = (item: SubscriptionItem) => item.title ?? item.videoId;
+
+/** The video's own page on its site, in a new tab. */
 function ItemTitle({ item }: { item: SubscriptionItem }) {
-  const title = item.title ?? item.videoId;
-  return item.entryId === null ? (
-    <span className="truncate font-medium">{title}</span>
-  ) : (
-    <Link
-      to="/library/$entryId"
-      params={{ entryId: item.entryId }}
-      className="truncate font-medium hover:underline focus-visible:rounded-[0.25rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
+  return (
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex min-w-0 items-center gap-1.5 font-medium hover:underline focus-visible:rounded-[0.25rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
     >
-      {title}
-    </Link>
+      <span className="truncate">{titleOf(item)}</span>
+      <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="sr-only">(opens the site)</span>
+    </a>
   );
 }
 
-/** What the subscription saw, newest first: each video's outcome and why. */
+/** What a subscription didn't download by itself: skipped, filtered or still waiting. */
+const downloadable = (item: SubscriptionItem) => item.entryId === null && item.outcome !== "queued";
+
+/** Watch it in the library once it's there, or download one the subscription passed over. */
+function ItemAction({ subscriptionId, item }: { subscriptionId: string; item: SubscriptionItem }) {
+  const client = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  if (item.entryId !== null) {
+    return (
+      <Link
+        to="/library/$entryId"
+        params={{ entryId: item.entryId }}
+        aria-label={`Watch ${titleOf(item)}`}
+        className={buttonVariants({ variant: "quiet", size: "compact" })}
+      >
+        <Play aria-hidden /> Watch
+      </Link>
+    );
+  }
+  if (!downloadable(item)) return null;
+  const download = () => {
+    setBusy(true);
+    downloadSubscriptionItem(subscriptionId, { extractor: item.extractor, videoId: item.videoId })
+      .then(async (result) => {
+        notify.success(result.queued > 0 ? "Queued" : "Already in your library or on its way", {
+          detail: titleOf(item),
+        });
+        await client.invalidateQueries({
+          queryKey: [...subscriptionKeys.one(subscriptionId), "items"],
+        });
+      })
+      .catch((err: unknown) => {
+        notify.error(errorText(err));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
+  };
+  return (
+    <Button
+      variant="secondary"
+      size="compact"
+      aria-label={`Download ${titleOf(item)}`}
+      disabled={busy}
+      onClick={download}
+    >
+      {busy ? <LoaderCircle className="animate-spin" aria-hidden /> : <Download aria-hidden />}
+      Download
+    </Button>
+  );
+}
+
+/**
+ * What the subscription saw, newest first: each video (its title opens it on its site), its outcome
+ * and why, and a way to watch it or, when the subscription passed it over, download it now.
+ */
 export function ActivityList({
   subscriptionId,
   lastCheckedAt,
@@ -52,7 +118,10 @@ export function ActivityList({
                 {[item.reason, `seen ${relativeTime(item.seenAt)}`].filter(Boolean).join(" · ")}
               </p>
             </div>
-            <ItemOutcomeBadge outcome={item.outcome} />
+            <div className="flex shrink-0 items-center gap-2">
+              <ItemOutcomeBadge outcome={item.outcome} />
+              <ItemAction subscriptionId={subscriptionId} item={item} />
+            </div>
           </li>
         ))}
       </ul>

@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { ApiErrorBody, Subscription, SubscriptionItemsPage } from "@uroboros/contract";
+import {
+  ApiErrorBody,
+  QueueSelectionResult,
+  Subscription,
+  SubscriptionItemsPage,
+} from "@uroboros/contract";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
@@ -193,6 +198,47 @@ describe("subscriptions", () => {
     expect((await send(bob, "POST", path, { count: 5 })).status).toBe(404);
     await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, { enabled: false });
     expect((await send(alice, "POST", path, { count: 5 })).status).toBe(409);
+  });
+
+  it("downloads one skipped video from the activity, once, and only for its owner", async () => {
+    const sub = await created(alice);
+    await t.db
+      .insertInto("subscription_items")
+      .values({
+        subscription_id: sub.id,
+        extractor: "youtube",
+        video_id: "skip-1",
+        title: "An old one",
+        url: "https://www.youtube.com/watch?v=skip-1",
+        outcome: "existing",
+        reason: "there when you subscribed",
+      })
+      .execute();
+    const path = `/api/subscriptions/${sub.id}/items/download`;
+    const body = { extractor: "youtube", videoId: "skip-1" };
+    const first = await send(alice, "POST", path, body);
+    expect(QueueSelectionResult.parse(await first.json())).toEqual({ queued: 1, skipped: 0 });
+    const item = await t.db
+      .selectFrom("subscription_items")
+      .select(["outcome", "reason", "download_id"])
+      .where("subscription_id", "=", sub.id)
+      .where("video_id", "=", "skip-1")
+      .executeTakeFirstOrThrow();
+    expect(item).toMatchObject({ outcome: "queued", reason: null });
+    const download = await t.db
+      .selectFrom("downloads")
+      .select(["subscription_id", "priority", "url"])
+      .where("id", "=", item.download_id ?? "")
+      .executeTakeFirstOrThrow();
+    expect(download).toEqual({
+      subscription_id: sub.id,
+      priority: 0,
+      url: "https://www.youtube.com/watch?v=skip-1",
+    });
+    const again = await send(alice, "POST", path, body);
+    expect(QueueSelectionResult.parse(await again.json())).toEqual({ queued: 0, skipped: 1 });
+    expect((await send(alice, "POST", path, { ...body, videoId: "never-seen" })).status).toBe(404);
+    expect((await send(bob, "POST", path, body)).status).toBe(404);
   });
 
   it("pausing removes the schedule and resuming restores it", async () => {

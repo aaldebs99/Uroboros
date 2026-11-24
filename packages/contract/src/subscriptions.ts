@@ -204,6 +204,12 @@ export const SubscriptionItem = z
   .openapi("SubscriptionItem");
 export type SubscriptionItem = z.infer<typeof SubscriptionItem>;
 
+/** Download one video a subscription saw but didn't (skipped, filtered or waiting), now. */
+export const ItemDownloadBody = z
+  .object({ extractor: z.string().min(1).max(64), videoId: z.string().min(1).max(256) })
+  .openapi("ItemDownloadBody");
+export type ItemDownloadBody = z.infer<typeof ItemDownloadBody>;
+
 export const SubscriptionItemsPage = z
   .object({ items: z.array(SubscriptionItem), nextCursor: z.string().nullable() })
   .openapi("SubscriptionItemsPage");

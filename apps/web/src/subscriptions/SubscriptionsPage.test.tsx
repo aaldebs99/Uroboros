@@ -107,6 +107,44 @@ describe("SubscriptionPage", () => {
     expect(within(activity).getByText("Queued")).toBeInTheDocument();
   });
 
+  it("opens each video on its site, downloads a skipped one, and watches one in the library", async () => {
+    const skipped = itemFixture({
+      videoId: "old1",
+      title: "An old one",
+      url: "https://www.youtube.com/watch?v=old1",
+      outcome: "existing",
+      reason: "there when you subscribed",
+      downloadId: null,
+      entryId: null,
+    });
+    const had = itemFixture({ entryId: "0190a3f2-7c1e-7000-8000-0000000000e9" });
+    const calls = fakeApi({
+      [`GET /api/subscriptions/${SUB_ID}`]: () => Response.json(subscriptionFixture()),
+      [`GET /api/subscriptions/${SUB_ID}/items`]: () =>
+        Response.json({ items: [had, skipped], nextCursor: null }),
+      [`POST /api/subscriptions/${SUB_ID}/items/download`]: () =>
+        Response.json({ queued: 1, skipped: 0 }),
+      "GET /api/format-profiles": () => Response.json([]),
+    });
+    await renderInRouter(<SubscriptionPage subscriptionId={SUB_ID} />);
+    const activity = await screen.findByRole("list", { name: "Recent activity" });
+    const row = within(activity).getByText("An old one").closest("li") as HTMLElement;
+    const link = within(row).getByRole("link", { name: /An old one/ });
+    expect(link).toHaveAttribute("href", "https://www.youtube.com/watch?v=old1");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(within(row).getByText("Skipped")).toBeInTheDocument();
+    await userEvent.click(within(row).getByRole("button", { name: "Download An old one" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.path.endsWith("/items/download"))?.body).toEqual({
+        extractor: "youtube",
+        videoId: "old1",
+      });
+    });
+    const watch = within(activity).getByRole("link", { name: `Watch ${had.title ?? ""}` });
+    expect(watch).toHaveAttribute("href", `/library/${had.entryId ?? ""}`);
+    expect(within(activity).getAllByRole("button", { name: /^Download/ })).toHaveLength(1);
+  });
+
   it("refreshes the activity when a running check finishes", async () => {
     let subCalls = 0;
     let itemCalls = 0;

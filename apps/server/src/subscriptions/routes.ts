@@ -1,8 +1,10 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   ApiErrorBody,
+  ItemDownloadBody,
   LatestBody,
   NewSubscriptionBody,
+  QueueSelectionResult,
   Subscription,
   SubscriptionItemsPage,
   SubscriptionPatch,
@@ -11,6 +13,7 @@ import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { need } from "../downloads/routes.ts";
+import { downloadItem } from "./itemDownload.ts";
 import { listItems } from "./items.ts";
 import { checkNow, queueLatest } from "./queue.ts";
 import { listedQuery, ownSubscription } from "./store.ts";
@@ -111,6 +114,18 @@ const latestRoute = createRoute({
   },
 });
 
+const itemDownloadRoute = createRoute({
+  method: "post",
+  path: "/api/subscriptions/{id}/items/download",
+  tags,
+  summary: "Download one video the subscription skipped, filtered or is waiting on, now",
+  request: { params: idParams, ...body(ItemDownloadBody) },
+  responses: {
+    200: json(QueueSelectionResult, "Queued, or skipped as already had"),
+    404: error("No such subscription, or it never saw that video"),
+  },
+});
+
 const itemsRoute = createRoute({
   method: "get",
   path: "/api/subscriptions/{id}/items",
@@ -190,6 +205,12 @@ export function registerSubscriptionRoutes(
     if (!row.enabled) throw new ApiError("conflict", "this subscription is paused");
     await queueLatest(d.queues.automation, row.id, c.req.valid("json").count);
     return c.body(null, 202);
+  });
+
+  app.openapi(itemDownloadRoute, async (c) => {
+    const d = need(ctx);
+    const id = c.req.valid("param").id;
+    return c.json(await downloadItem(d, currentPrincipal(c).userId, id, c.req.valid("json")), 200);
   });
 
   app.openapi(itemsRoute, async (c) => {

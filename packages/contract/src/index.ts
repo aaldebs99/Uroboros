@@ -73,6 +73,7 @@ export {
   BackfillMode,
   CheckSchedule,
   Feed,
+  ItemDownloadBody,
   KeptBody,
   LatestBody,
   MAX_CHECK_INTERVAL_MINUTES,
