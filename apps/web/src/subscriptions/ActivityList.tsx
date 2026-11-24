@@ -13,6 +13,7 @@ import {
 import { ItemOutcomeBadge } from "@/components/StatusBadge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { notify } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 
 import { relativeTime } from "./format";
 
@@ -47,9 +48,9 @@ function ItemAction({ subscriptionId, item }: { subscriptionId: string; item: Su
         to="/library/$entryId"
         params={{ entryId: item.entryId }}
         aria-label={`Watch ${titleOf(item)}`}
-        className={buttonVariants({ variant: "quiet", size: "compact" })}
+        className={cn(buttonVariants({ variant: "quiet", size: "compact" }), "max-md:px-2.5")}
       >
-        <Play aria-hidden /> Watch
+        <Play aria-hidden /> <span className="max-md:sr-only">Watch</span>
       </Link>
     );
   }
@@ -76,12 +77,14 @@ function ItemAction({ subscriptionId, item }: { subscriptionId: string; item: Su
     <Button
       variant="secondary"
       size="compact"
+      // On a phone, only the icon: the title keeps the row's room (the label names the video).
+      className="max-md:px-2.5"
       aria-label={`Download ${titleOf(item)}`}
       disabled={busy}
       onClick={download}
     >
       {busy ? <LoaderCircle className="animate-spin" aria-hidden /> : <Download aria-hidden />}
-      Download
+      <span className="max-md:sr-only">Download</span>
     </Button>
   );
 }
