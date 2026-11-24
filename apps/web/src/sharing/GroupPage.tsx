@@ -1,6 +1,7 @@
 import type { GroupDetail, GroupMember } from "@uroboros/contract";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  ArrowLeft,
   EllipsisVertical,
   LogOut,
   Pencil,
@@ -26,11 +27,12 @@ import {
 import { useDirectory } from "@/api/sharing";
 import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { PageHeader } from "@/components/ui/page-header";
 import { ResponsiveMenu, type MenuAction } from "@/components/ui/responsive-menu";
 import { notify } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 
 import { tileGrid } from "../library/VideoTile";
 import { GroupDialog } from "./GroupDialog";
@@ -40,6 +42,18 @@ import { SharedTile } from "./SharedTile";
 const fail = (error: unknown) => {
   notify.error(errorText(error));
 };
+
+/** Back to Settings › Groups: a quiet link above the title, at the left margin. */
+function BackLink() {
+  return (
+    <Link
+      to="/settings/groups"
+      className={cn(buttonVariants({ variant: "quiet", size: "compact" }), "-mb-5 -ml-3.5 w-fit")}
+    >
+      <ArrowLeft aria-hidden /> Groups
+    </Link>
+  );
+}
 
 /** The header's actions: Rename and Delete for managers, Leave for everyone. */
 function GroupActions({ group, myId }: { group: GroupDetail; myId: string | undefined }) {
@@ -254,10 +268,18 @@ function SharedWithGroup({ group }: { group: GroupDetail }) {
 export function GroupPage({ groupId }: { groupId: string }) {
   const group = useGroup(groupId);
   const myId = useMe().data?.id;
-  if (group.isError) return <p className="text-destructive">{errorText(group.error)}</p>;
+  if (group.isError) {
+    return (
+      <section className="grid w-full max-w-3xl grid-cols-1 gap-8">
+        <BackLink />
+        <p className="text-destructive">{errorText(group.error)}</p>
+      </section>
+    );
+  }
   const g = group.data;
   return (
     <section className="grid w-full max-w-3xl grid-cols-1 gap-8">
+      <BackLink />
       <PageHeader
         showTitle
         title={g?.name ?? "Group"}

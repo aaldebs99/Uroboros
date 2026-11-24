@@ -246,6 +246,27 @@ describe("a group's page", () => {
     expect(within(members).getByText("Disabled")).toBeInTheDocument();
   });
 
+  it("leads back to Settings › Groups", async () => {
+    await showGroup("member");
+    expect(screen.getByRole("link", { name: "Groups" })).toHaveAttribute(
+      "href",
+      "/settings/groups",
+    );
+  });
+
+  it("keeps the way back when the group can't be shown", async () => {
+    groupApi("member", {
+      [`GET /api/groups/${G}`]: () =>
+        Response.json({ code: "not_found", message: "No such group" }, { status: 404 }),
+    });
+    await renderInRouter(<GroupPage groupId={G} />);
+    expect(await screen.findByText("No such group")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Groups" })).toHaveAttribute(
+      "href",
+      "/settings/groups",
+    );
+  });
+
   it("shows a member only Leave", async () => {
     await showGroup("member");
     expect(screen.getByRole("button", { name: "Leave" })).toBeInTheDocument();

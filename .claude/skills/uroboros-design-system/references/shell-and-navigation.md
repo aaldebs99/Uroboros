@@ -216,7 +216,7 @@ title (24/700) with the muted description under it, the action at the trailing e
 under the title when narrow), and a hairline rule under the header (`pb-3.5 border-b
 border-border`). A page holding a single list doesn't repeat the list's own heading.
 
-A detail page reached from a list (a subscription) has a **back link** above its title: a compact
-quiet button at the left margin (`-ml-3.5`, so its arrow lines up with the text) with an
-`ArrowLeft` and the list's name ("← Subscriptions"), a router `Link` to the list rather than
-`history.back()`, so it works from a deep link too. It shows in the page's error state as well.
+A detail page reached from a list (a subscription, a group) has a **back link** above its title: a
+compact quiet button at the left margin (`-ml-3.5`, so its arrow lines up with the text) with an
+`ArrowLeft` and the list's name ("← Subscriptions", "← Groups"), a router `Link` to the list rather
+than `history.back()`, so it works from a deep link too. It shows in the page's error state as well.
