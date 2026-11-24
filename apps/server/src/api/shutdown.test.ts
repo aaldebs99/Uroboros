@@ -75,13 +75,17 @@ describe("api shutdown", () => {
   it("cuts a request that outlasts the grace period and reports the failed drain", async () => {
     const slow = slowRoute();
     const api = await ready(config(300), { configure: slow.configure });
-    const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/test/slow`);
+    // Handled from the start: the cut can land while close() still runs its cleanup.
+    const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/test/slow`).then(
+      () => "answered",
+      () => "cut",
+    );
     await slow.entered;
 
     const start = Date.now();
     await expect(api.close()).rejects.toThrow(/did not drain within 300 ms/);
     expect(Date.now() - start).toBeLessThan(2000);
-    await expect(inFlight).rejects.toThrow();
+    expect(await inFlight).toBe("cut");
     slow.release();
   });
 
