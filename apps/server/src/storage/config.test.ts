@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "../config.ts";
 import { DEFAULT_LAYOUT } from "./config.ts";
 
-const base = { DATABASE_URL: "postgres://u:p@h/db", VALKEY_URL: "redis://h:6379" };
+const base = { DATABASE_URL: "postgres://u:p@h/db" };
 const s3 = {
   UROBOROS_STORAGE: "s3",
   UROBOROS_S3_ENDPOINT: "http://rustfs:9000",

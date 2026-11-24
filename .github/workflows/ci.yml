@@ -17,7 +17,7 @@
 # Jobs split by what they need to warm up, not by topic:
 #   static  cheap checks; installs the workspace for the ratchets, builds nothing
 #   node    the TypeScript workspace: lock, audit, licences, codegen drift, eslint, tsc, the
-#           vitest projects (with Postgres and Valkey containers) and the web build
+#           vitest projects (with Postgres and RustFS containers) and the web build
 #   images  docker build of the image; nothing is pushed. Its
 #           ffmpeg comes from a private registry image, so the job logs in first (skipped with a
 #           notice when the secret is unavailable, as on a fork's pull request, where the build
@@ -78,7 +78,7 @@ jobs:
 
   node:
     name: TypeScript
-    # Docker for the Postgres and Valkey the server tests run against.
+    # Docker for the Postgres and RustFS the server tests run against.
     runs-on: big-dind
     timeout-minutes: 120
     steps:
@@ -97,19 +97,18 @@ jobs:
       - run: mise run check:gen
       - run: mise run lint
       - run: mise run check:types
-      # Postgres, Valkey and RustFS started here, as Djinn does, rather than by testcontainers: the job's
+      # Postgres and RustFS started here, as Djinn does, rather than by testcontainers: the job's
       # Docker daemon starts empty, and pulls into it are retried here (Djinn saw them fail with
       # containerd ingest-lock errors). The suite's global setup builds its migrated template on
       # this server (UROBOROS_TEST_DATABASE_URL) and every test clones it, and skips starting
       # containers of its own. The images are compose.yaml's pins (exact tag and digest), which a
       # laptop run's global setup starts too.
-      - name: Start Postgres, Valkey and RustFS for the tests
+      - name: Start Postgres and RustFS for the tests
         run: |
           set -eu
           pg_image="$(scripts/image/compose-image.sh postgres)"
-          valkey_image="$(scripts/image/compose-image.sh valkey)"
           rustfs_image="$(scripts/image/compose-image.sh rustfs)"
-          for image in "$pg_image" "$valkey_image" "$rustfs_image"; do
+          for image in "$pg_image" "$rustfs_image"; do
             for attempt in 1 2 3 4 5; do
               docker pull "$image" && break
               sleep $((attempt * 5))
@@ -120,26 +119,22 @@ jobs:
             -e POSTGRES_USER=uroboros -e POSTGRES_PASSWORD=uroboros -e POSTGRES_DB=uroboros_test \
             "$pg_image" postgres -c fsync=off -c synchronous_commit=off \
             -c full_page_writes=off -c max_connections=500
-          docker run -d --name uroboros-test-valkey -p 127.0.0.1:6379:6379 "$valkey_image"
           # The credentials apps/server/test/s3Credentials.ts expects.
           docker run -d --name uroboros-test-rustfs -p 127.0.0.1:9000:9000 \
             -e RUSTFS_ACCESS_KEY=uroboros -e RUSTFS_SECRET_KEY=uroboros-dev-secret "$rustfs_image"
           for _ in $(seq 1 60); do
             if docker exec uroboros-test-pg pg_isready -U uroboros -d uroboros_test &&
-              docker exec uroboros-test-valkey valkey-cli ping &&
               curl -fsS http://127.0.0.1:9000/health > /dev/null; then
               exit 0
             fi
             sleep 1
           done
           docker logs uroboros-test-pg
-          docker logs uroboros-test-valkey
           docker logs uroboros-test-rustfs
           exit 1
       - run: mise run test
         env:
           UROBOROS_TEST_DATABASE_URL: postgres://uroboros:uroboros@127.0.0.1:5432/uroboros_test
-          UROBOROS_TEST_VALKEY_URL: redis://127.0.0.1:6379
           UROBOROS_TEST_S3_URL: http://127.0.0.1:9000
       - run: mise run build:ui
 

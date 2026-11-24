@@ -100,7 +100,7 @@ jobs:
 
       # A release is smoke-tested before anything is pushed: the image is built into the
       # runner's Docker (`load`), scripts/image/smoke-test.sh runs the server and migrate against
-      # throwaway Postgres and Valkey, and only then does the push step below run, rebuilding
+      # a throwaway Postgres, and only then does the push step below run, rebuilding
       # from this builder's cache (the same layers, so the pushed image is the one tested). A
       # failure leaves :X.Y.Z and :latest where they were. The :main pushes skip this.
       #

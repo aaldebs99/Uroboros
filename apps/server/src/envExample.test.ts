@@ -15,7 +15,7 @@ function sources(dir: string): string[] {
     .map((f) => join(dir, f));
 }
 
-const CODE_NAME = /\b(?:UROBOROS_[A-Z0-9_]*[A-Z0-9]|DATABASE_URL|VALKEY_URL|YTDLP_PATH)\b/g;
+const CODE_NAME = /\b(?:UROBOROS_[A-Z0-9_]*[A-Z0-9]|DATABASE_URL|YTDLP_PATH)\b/g;
 const COMPOSE_NAME = /\$\{([A-Z][A-Z0-9_]*)/g;
 /** A variable line: `NAME=value`, or the same commented out. */
 const EXAMPLE_LINE = /^(?:# )?([A-Z][A-Z0-9_]*)=/gm;

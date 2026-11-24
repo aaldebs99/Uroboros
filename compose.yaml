@@ -1,11 +1,11 @@
-# Local stack, the shape of a production run: Postgres, Valkey and RustFS, and one uroboros
+# Local stack, the shape of a production run: Postgres and RustFS, and one uroboros
 # behind Caddy on 127.0.0.1:18080 (UROBOROS_PORT overrides the host port). It serves HTTP, runs
 # the download jobs and applies pending migrations as it starts. More replicas work the same way
 # (`docker compose up --scale uroboros=2`): each serves and downloads, the migrations apply once
 # under an advisory lock, one replica leads the singleton duties, and Caddy picks them all up.
 # Settings come from the shell or a `.env` file beside this one (`.env.example` lists them all).
 # `mise run docker:up` builds the real images and starts it. The proxy is the only port this file
-# publishes. Everything dev-only (hot reload, loopback ports for Postgres, Valkey and RustFS,
+# publishes. Everything dev-only (hot reload, loopback ports for Postgres and RustFS,
 # which `mise run dev:deps` uses for a host-run server) is in compose.dev.yaml.
 #
 # One project name, so up, down, logs and ps from any directory address the same stack.
@@ -41,7 +41,6 @@ x-storage-env: &storage-env
 x-server-env: &server-env
   <<: *storage-env
   DATABASE_URL: postgres://uroboros:uroboros@postgres:5432/uroboros
-  VALKEY_URL: redis://valkey:6379
   # Web Push (docs/push.md), passed through from the shell; empty means unset. Push stays off
   # unless UROBOROS_PUBLIC_BASE_URL is https, so the plain-http local stack has it off by default.
   # Without a configured VAPID pair the first replica generates one and both share it.
@@ -107,15 +106,6 @@ services:
       retries: 12
       start_period: 15s
 
-  valkey:
-    image: valkey/valkey:8.1.12-alpine@sha256:9971099af41c36e887aabdfe22b80c0fe45df949163dfc9cb434febc57cfc3fc
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-
   # S3-compatible object storage for downloaded media: RustFS, S3 API on :9000 and the console on
   # :9001 (the dev overlay publishes them on 127.0.0.1:19000 and :19001). Pinned by version and
   # digest; Renovate bumps both. The credentials are dev-only. The image runs as uid 10001 and owns /data on a fresh volume.
@@ -167,8 +157,8 @@ services:
     # SIGKILL a replica mid-drain (the default is 10 s).
     stop_grace_period: 35s
     healthcheck:
-      # /api/ready is 503 until the replica has migrated; degraded is still HTTP 200, so a
-      # stopped Valkey does not take the replicas out.
+      # /api/ready is 503 until the replica has migrated, then 200 (degraded too, so a database
+      # blip does not restart the replicas).
       test:
         - CMD
         - node
@@ -180,8 +170,6 @@ services:
       start_period: 10s
     depends_on:
       postgres:
-        condition: service_healthy
-      valkey:
         condition: service_healthy
       rustfs-init:
         condition: service_completed_successfully

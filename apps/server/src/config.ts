@@ -22,7 +22,6 @@ export class ConfigError extends Error {
 export interface Config {
   bind: { host: string; port: number };
   databaseUrl: string;
-  valkeyUrl: string;
   webDist: string | null;
   /** The largest request body `/api/*` accepts. */
   bodyLimitBytes: number;
@@ -217,7 +216,6 @@ const configSchema = z
   .object({
     UROBOROS_BIND: bindSchema.prefault(DEFAULT_BIND),
     DATABASE_URL: required("DATABASE_URL"),
-    VALKEY_URL: required("VALKEY_URL"),
     UROBOROS_WEB_DIST: z.string().min(1).optional(),
     UROBOROS_BODY_LIMIT_BYTES: unsetIfEmpty(
       positiveInt("UROBOROS_BODY_LIMIT_BYTES").prefault(String(DEFAULT_BODY_LIMIT_BYTES)),
@@ -293,7 +291,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
   return {
     bind: e.UROBOROS_BIND,
     databaseUrl: e.DATABASE_URL,
-    valkeyUrl: e.VALKEY_URL,
     webDist: e.UROBOROS_WEB_DIST ?? null,
     bodyLimitBytes: e.UROBOROS_BODY_LIMIT_BYTES,
     shutdownGraceMs: e.UROBOROS_SHUTDOWN_GRACE_MS,
@@ -340,7 +337,7 @@ export function loadMigrationsDir(env: NodeJS.ProcessEnv): string | null {
   return dir === undefined ? null : resolve(dir);
 }
 
-/** Configuration for the manual migrate command, which has no use for Valkey. */
+/** Configuration for the manual migrate command, which needs only the database. */
 export function loadMigrateConfig(env: NodeJS.ProcessEnv): MigrateConfig {
   const e = parse(migrateSchema, env);
   return { databaseUrl: e.DATABASE_URL, migrationsDir: loadMigrationsDir(env) };

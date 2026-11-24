@@ -43,9 +43,9 @@ async function buildTemplate(adminUrl: string): Promise<void> {
 }
 
 /**
- * Starts Postgres, Valkey and RustFS once per run, unless UROBOROS_TEST_DATABASE_URL /
- * UROBOROS_TEST_VALKEY_URL / UROBOROS_TEST_S3_URL point at existing ones (CI services; RustFS must
- * then use the credentials in s3Credentials.ts). Testcontainers' Ryuk reaper
+ * Starts Postgres and RustFS once per run, unless UROBOROS_TEST_DATABASE_URL /
+ * UROBOROS_TEST_S3_URL point at existing ones (CI services; RustFS must then use the credentials in
+ * s3Credentials.ts). Testcontainers' Ryuk reaper
  * removes the containers even if this process crashes.
  */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
@@ -56,16 +56,6 @@ export default async function setup(project: TestProject): Promise<() => Promise
     const pg = await new PostgreSqlContainer(composeImage("postgres")).start();
     stops.push(() => pg.stop());
     postgresUrl = pg.getConnectionUri();
-  }
-
-  let valkeyUrl = process.env["UROBOROS_TEST_VALKEY_URL"];
-  if (valkeyUrl === undefined || valkeyUrl === "") {
-    const valkey = await new GenericContainer(composeImage("valkey"))
-      .withExposedPorts(6379)
-      .withWaitStrategy(Wait.forLogMessage(/Ready to accept connections/))
-      .start();
-    stops.push(() => valkey.stop());
-    valkeyUrl = `redis://${valkey.getHost()}:${String(valkey.getMappedPort(6379))}`;
   }
 
   let s3Url = process.env["UROBOROS_TEST_S3_URL"];
@@ -87,7 +77,6 @@ export default async function setup(project: TestProject): Promise<() => Promise
   }
 
   project.provide("postgresUrl", postgresUrl);
-  project.provide("valkeyUrl", valkeyUrl);
   project.provide("s3Url", s3Url);
   return async () => {
     await Promise.all(stops.map((stop) => stop()));

@@ -5,7 +5,6 @@ import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 
 const base = {
   DATABASE_URL: "postgres://u:p@h/db",
-  VALKEY_URL: "redis://h:6379",
   UROBOROS_STORAGE: "filesystem",
   UROBOROS_STORAGE_ROOT: "/media",
 };
@@ -13,9 +12,12 @@ const base = {
 describe("loadConfig", () => {
   it("lists every missing required var", () => {
     expect(() => loadConfig({})).toThrow(ConfigError);
-    expect(() => loadConfig({})).toThrow(
-      /DATABASE_URL[\s\S]*VALKEY_URL|VALKEY_URL[\s\S]*DATABASE_URL/,
-    );
+    expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
+  });
+
+  it("needs no Valkey", () => {
+    expect(() => loadConfig(base)).not.toThrow();
+    expect(Object.keys(loadConfig(base))).not.toContain("valkeyUrl");
   });
 
   it("parses a bind address", () => {
@@ -28,7 +30,6 @@ describe("loadConfig", () => {
     expect(cfg.bind).toEqual({ host: "127.0.0.1", port: 18081 });
     expect(cfg.webDist).toBeNull();
     expect(cfg.databaseUrl).toBe(base.DATABASE_URL);
-    expect(cfg.valkeyUrl).toBe(base.VALKEY_URL);
   });
 
   it("reads UROBOROS_WEB_DIST", () => {

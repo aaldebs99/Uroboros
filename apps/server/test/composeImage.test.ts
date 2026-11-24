@@ -5,7 +5,7 @@ import { composeImage } from "./composeImage.ts";
 const PINNED = /^[a-z0-9./-]+:\d+(\.\d+)+(-[a-z0-9]+)?@sha256:[0-9a-f]{64}$/;
 
 describe("composeImage", () => {
-  it.each(["postgres", "valkey", "rustfs", "caddy"])(
+  it.each(["postgres", "rustfs", "caddy"])(
     "finds the %s image in compose.yaml, pinned by exact version and digest",
     (service) => {
       expect(composeImage(service)).toMatch(PINNED);

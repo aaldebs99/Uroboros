@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prints the `image:` of a service in compose.yaml, the one place the third-party images
-# (Postgres, Valkey, RustFS, Caddy) are pinned by exact tag and digest; Renovate's docker-compose
+# (Postgres, RustFS, Caddy) are pinned by exact tag and digest; Renovate's docker-compose
 # manager keeps them current. CI and smoke-test.sh read them through this, the test setup through
 # apps/server/test/composeImage.ts.
 #

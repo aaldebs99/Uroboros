@@ -20,7 +20,7 @@ run as several replicas. It ships with:
   ffmpeg), and a compose stack shaped like production.
 - **Toolchain and gates**: every tool is pinned in `.mise/config.toml` and locked per platform in
   `.mise/mise.lock`, and every CI step is a `mise run <task>`. The gates are oxfmt, eslint
-  (type-aware), tsc, vitest against real Postgres and Valkey, actionlint, zizmor, shellcheck, the
+  (type-aware), tsc, vitest against real Postgres and RustFS, actionlint, zizmor, shellcheck, the
   Renovate validator, lockfile, audit and licence checks, OpenAPI drift, the
   image build, and forward-only [ratchets](docs/ratchets.md).
 - **Automation**: [Renovate](.renovaterc.json5) waits 3 days before adopting any release and
@@ -35,7 +35,7 @@ stack and the tests.
 
 ```sh
 mise trust && mise install   # tools, git hooks, workspace dependencies
-mise run dev:deps            # Postgres on 127.0.0.1:15432, Valkey on 127.0.0.1:16379
+mise run dev:deps            # Postgres on 127.0.0.1:15432, RustFS on 127.0.0.1:19000
 mise run dev:server          # the server on http://127.0.0.1:18081; it applies pending migrations first
 mise run dev:ui              # Vite on http://127.0.0.1:18173, proxying /api to :18081
 ```
@@ -48,16 +48,16 @@ yt-dlp and ffmpeg on `PATH`; the compose stacks below have them.
 
 The image takes its ffmpeg from an image in a private registry, so the `docker:*` tasks
 (`docker:build`, `docker:smoke`, `docker:up`) need `docker login code.example.com` first.
-To run the real thing instead, `mise run docker:up` builds the image and starts Postgres, Valkey,
+To run the real thing instead, `mise run docker:up` builds the image and starts Postgres,
 RustFS and one uroboros (migrating as it starts, serving and downloading) behind Caddy on
 http://127.0.0.1:18080; `docker compose up --scale uroboros=2` runs more replicas, which share the
 work. `mise run docker:up:dev` is the same stack with both the server and the
 UI hot-reloading from source (Vite behind the same Caddy, so an edit to the UI shows at once and
 one to the server restarts the replicas; `mise run docker:up:dev:build` after a dependency or
 Dockerfile change), listening on port 18080 on every interface so other devices on the network can
-reach it (Postgres, Valkey and RustFS stay on loopback), and `mise run docker:down` stops either.
+reach it (Postgres and RustFS stay on loopback), and `mise run docker:down` stops either.
 Plain `dev:ui` runs Vite on the host, proxying to a host-run `dev:server` on :18081. Every host port can be moved with an environment
-variable (`UROBOROS_PORT`, `UROBOROS_POSTGRES_PORT`, `UROBOROS_VALKEY_PORT`, `UROBOROS_S3_PORT`,
+variable (`UROBOROS_PORT`, `UROBOROS_POSTGRES_PORT`, `UROBOROS_S3_PORT`,
 `UROBOROS_S3_CONSOLE_PORT`, `UROBOROS_UI_PORT`, `UROBOROS_BIND`).
 
 Before you push, run the same gates CI runs:
@@ -70,7 +70,7 @@ mise run ci
 
 ## Database and tests
 
-The server reads `DATABASE_URL` and `VALKEY_URL`. There is no separate migrate step: the server
+The server reads `DATABASE_URL`; Postgres is its only service besides storage. There is no separate migrate step: the server
 applies the migrations as it starts, the way Djinn's `serve` does. It listens at once (so liveness answers), connects on a connection of its own, retrying an
 unreachable database every 2 s for `UROBOROS_DB_STARTUP_GRACE_SECS` (0, the default, retries
 until it answers; a wrong password or URL fails at once), applies every pending file with no
@@ -108,9 +108,9 @@ transaction, so `CREATE INDEX CONCURRENTLY` and other statements that refuse a t
 supported yet; use a plain `CREATE INDEX` while the table is small.
 
 `mise run test` needs Docker and no other setup. The server's vitest global setup starts one
-Postgres, one Valkey and one RustFS with testcontainers, migrates a `uroboros_template` database and freezes
+Postgres and one RustFS with testcontainers, migrates a `uroboros_template` database and freezes
 it as a template; each test clones it into its own database, so tests never share rows. Set
-`UROBOROS_TEST_DATABASE_URL`, `UROBOROS_TEST_VALKEY_URL` and `UROBOROS_TEST_S3_URL` (RustFS with the dev keys) to use servers you provide instead,
+`UROBOROS_TEST_DATABASE_URL` and `UROBOROS_TEST_S3_URL` (RustFS with the dev keys) to use servers you provide instead,
 which is what CI does.
 
 ## Downloads and storage
@@ -154,7 +154,6 @@ GPU, organized folders, a host-run server, and what to change before others use 
 | Variable                                                     | Read by                       | Default                                                            | What it is                                                                                                                                                                                                                                                                           |
 | ------------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `DATABASE_URL`                                               | server, migrate               | required                                                           | Postgres connection string.                                                                                                                                                                                                                                                          |
-| `VALKEY_URL`                                                 | server                        | required                                                           | Valkey connection string.                                                                                                                                                                                                                                                            |
 | `UROBOROS_BIND`                                              | server                        | `127.0.0.1:18081`                                                  | `host:port` to listen on; the image sets `0.0.0.0:8080`.                                                                                                                                                                                                                             |
 | `UROBOROS_WEB_DIST`                                          | server                        | unset (no SPA)                                                     | The built SPA to serve; the image sets `/app/web`.                                                                                                                                                                                                                                   |
 | `UROBOROS_BODY_LIMIT_BYTES`                                  | server                        | `65536`                                                            | Largest request body on `/api/*`; larger gets 413 `payload_too_large`.                                                                                                                                                                                                               |
@@ -195,7 +194,7 @@ GPU, organized folders, a host-run server, and what to change before others use 
 | `UROBOROS_SECRETS_KEY`                                       | server                        | unset (saving site logins off)                                     | 32 random bytes in base64 (`openssl rand -base64 32`) sealing saved site logins; keep it, a new key voids them.                                                                                                                                                                      |
 | `UROBOROS_SUBTITLE_LANGS`, `UROBOROS_AUTO_SUBTITLES`         | server                        | `en.*`, `false`                                                    | Subtitles saved with each download (yt-dlp `--sub-langs`; empty saves none), and whether automatic captions count.                                                                                                                                                                   |
 | `UROBOROS_MIGRATIONS_DIR`                                    | api, migrate, `migration:new` | the repo's `migrations/`                                           | Where the SQL files are; the image sets `/app/migrations`.                                                                                                                                                                                                                           |
-| `UROBOROS_TEST_DATABASE_URL`, `_VALKEY_URL`, `_S3_URL`       | tests                         | unset (testcontainers)                                             | Servers for the test run to use instead of starting containers.                                                                                                                                                                                                                      |
+| `UROBOROS_TEST_DATABASE_URL`, `_S3_URL`                      | tests                         | unset (testcontainers)                                             | Servers for the test run to use instead of starting containers.                                                                                                                                                                                                                      |
 | `UROBOROS_API_URL`, `UROBOROS_UI_PORT`                       | Vite (`dev:ui`)               | `http://127.0.0.1:18081`, `18173`                                  | Where the dev server proxies `/api`, and its own port.                                                                                                                                                                                                                               |
 
 The compose host ports (`UROBOROS_PORT` and the others) are under Quickstart. The compose stack

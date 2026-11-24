@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test for the built image, against throwaway Postgres and Valkey containers:
+# Smoke test for the built image, against a throwaway Postgres container:
 #
 #   image   runs as 65532:65532 with tini as PID 1; `yt-dlp --version` and `ffmpeg -version`
 #           answer, no other downloader is installed, ffmpeg and ffprobe are the pinned mirror's
@@ -22,7 +22,6 @@ IMAGE="${1:?Usage: smoke-test.sh <image>}"
 
 # The compose file's pins (exact tag and digest), so the smoke test runs what the stack runs.
 POSTGRES_IMAGE="$("$(dirname "$0")/compose-image.sh" postgres)"
-VALKEY_IMAGE="$("$(dirname "$0")/compose-image.sh" valkey)"
 
 # The Node the image must run: the Dockerfile's pin, which `mise run ratchet:pins` ties to mise.
 NODE_VERSION="$(sed -n 's/^ARG NODE_VERSION=//p' "$(dirname "$0")/../../Dockerfile")"
@@ -42,14 +41,12 @@ JF=/usr/lib/jellyfin-ffmpeg
 SUFFIX="$$"
 NETWORK="uroboros-smoke-${SUFFIX}"
 PG="uroboros-smoke-pg-${SUFFIX}"
-VK="uroboros-smoke-vk-${SUFFIX}"
 SERVER="uroboros-smoke-server-${SUFFIX}"
 DATABASE_URL="postgres://uroboros:uroboros@${PG}:5432/uroboros"
-VALKEY_URL="redis://${VK}:6379"
 FAILED=0
 
 cleanup() {
-    docker rm -f "${SERVER}" "${PG}" "${VK}" > /dev/null 2>&1 || true
+    docker rm -f "${SERVER}" "${PG}" > /dev/null 2>&1 || true
     docker network rm "${NETWORK}" > /dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -127,18 +124,13 @@ in_image() {
     docker run --rm --entrypoint sh "${IMAGE}" -c "$1" 2>/dev/null | sed -n 1p
 }
 
-echo "Starting throwaway Postgres and Valkey..."
+echo "Starting a throwaway Postgres..."
 docker network create "${NETWORK}" > /dev/null
 docker run -d --name "${PG}" --network "${NETWORK}" \
     -e POSTGRES_USER=uroboros -e POSTGRES_PASSWORD=uroboros -e POSTGRES_DB=uroboros \
     "${POSTGRES_IMAGE}" > /dev/null
-docker run -d --name "${VK}" --network "${NETWORK}" "${VALKEY_IMAGE}" > /dev/null
 if ! wait_for 60 docker exec "${PG}" pg_isready -U uroboros -d uroboros; then
     echo "Postgres did not become ready" >&2
-    exit 1
-fi
-if ! wait_for 60 docker exec "${VK}" valkey-cli ping; then
-    echo "Valkey did not become ready" >&2
     exit 1
 fi
 
@@ -215,7 +207,7 @@ check "can write /media (filesystem storage)" docker run --rm --entrypoint sh "$
 
 # The database is empty: the server applies the migrations itself before it reports ready.
 docker run -d --name "${SERVER}" --network "${NETWORK}" \
-    -e DATABASE_URL="${DATABASE_URL}" -e VALKEY_URL="${VALKEY_URL}" \
+    -e DATABASE_URL="${DATABASE_URL}" \
     -e UROBOROS_STORAGE=filesystem -e UROBOROS_STORAGE_ROOT=/tmp/media \
     "${IMAGE}" > /dev/null
 if wait_for 60 ready_ok; then

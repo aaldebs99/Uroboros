@@ -3,7 +3,6 @@ import { ConfigError, loadConfig } from "../config.ts";
 
 const base = {
   DATABASE_URL: "postgres://u:p@h/db",
-  VALKEY_URL: "redis://h:6379",
   UROBOROS_STORAGE: "filesystem",
   UROBOROS_STORAGE_ROOT: "/media",
 };

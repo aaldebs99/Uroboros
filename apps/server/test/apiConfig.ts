@@ -3,7 +3,6 @@ import { pino } from "pino";
 import type { Logger } from "pino";
 import type { Config } from "../src/config.ts";
 import { DEFAULT_LAYOUT } from "../src/storage/config.ts";
-import { TestValkey } from "./testValkey.ts";
 
 /** The repo's real migrations. */
 export const MIGRATIONS = fileURLToPath(new URL("../../../migrations", import.meta.url));
@@ -12,12 +11,11 @@ export const MIGRATIONS = fileURLToPath(new URL("../../../migrations", import.me
 export const fixtureMigrations = (name: string): string =>
   fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 
-/** A server config on a free port against `databaseUrl` and the shared Valkey. */
+/** A server config on a free port against `databaseUrl`. */
 export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Config {
   return {
     bind: { host: "127.0.0.1", port: 0 },
     databaseUrl,
-    valkeyUrl: TestValkey.url(),
     webDist: null,
     bodyLimitBytes: 65_536,
     shutdownGraceMs: 20_000,
