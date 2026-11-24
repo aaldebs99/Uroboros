@@ -156,6 +156,18 @@ describe("SubscriptionForm", () => {
     });
   });
 
+  it("links back to the subscriptions list, even when the subscription is gone", async () => {
+    fakeApi({
+      [`GET /api/subscriptions/${SUB_ID}`]: () =>
+        Response.json({ code: "not_found", message: "no such subscription" }, { status: 404 }),
+    });
+    await renderInRouter(<SubscriptionPage subscriptionId={SUB_ID} />);
+    expect(await screen.findByRole("link", { name: "Subscriptions" })).toHaveAttribute(
+      "href",
+      "/subscriptions",
+    );
+  });
+
   it("edits a subscription's filters", async () => {
     const calls = fakeApi({
       [`GET /api/subscriptions/${SUB_ID}`]: () => Response.json(subscriptionFixture()),

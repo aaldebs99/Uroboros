@@ -1,15 +1,16 @@
 import type { Subscription } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Pause, Play, RefreshCw } from "lucide-react";
+import { ArrowLeft, Pause, Play, RefreshCw } from "lucide-react";
 
 import { errorText } from "@/api/client";
 import { subscriptionKeys, updateSubscription, useSubscription } from "@/api/subscriptions";
 import { SubscriptionBadge } from "@/components/StatusBadge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { PageHeader } from "@/components/ui/page-header";
 import { notify } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 
 import { ActivityList } from "./ActivityList";
 import { scheduleLabel, sourceLabel } from "./format";
@@ -17,6 +18,18 @@ import { fromSubscription, toPatch } from "./formValues";
 import { LatestButton } from "./LatestDialog";
 import { SubscriptionForm } from "./SubscriptionForm";
 import { useSubscriptionActions } from "./SubscriptionsPage";
+
+/** Back to the list this page was opened from: a quiet link above the title, at the left margin. */
+function BackLink() {
+  return (
+    <Link
+      to="/subscriptions"
+      className={cn(buttonVariants({ variant: "quiet", size: "compact" }), "-mb-3 -ml-3.5 w-fit")}
+    >
+      <ArrowLeft aria-hidden /> Subscriptions
+    </Link>
+  );
+}
 
 function Header({ sub }: { sub: Subscription }) {
   const actions = useSubscriptionActions();
@@ -105,10 +118,18 @@ function Settings({ sub }: { sub: Subscription }) {
 export function SubscriptionPage({ subscriptionId }: { subscriptionId: string }) {
   const query = useSubscription(subscriptionId);
   const sub = query.data;
-  if (query.isError) return <p className="text-destructive">{errorText(query.error)}</p>;
+  if (query.isError) {
+    return (
+      <section className="grid w-full gap-6">
+        <BackLink />
+        <p className="text-destructive">{errorText(query.error)}</p>
+      </section>
+    );
+  }
   if (sub === undefined) return null;
   return (
     <section className="grid w-full gap-6">
+      <BackLink />
       <Header sub={sub} />
       {sub.error === null ? null : (
         <Notice tone="destructive" title="The last check failed">
