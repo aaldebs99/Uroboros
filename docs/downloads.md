@@ -13,9 +13,12 @@ request handler.
    - a **video** upserts its `media` row, creates one `downloads` row and dispatches it; the
      request becomes `queued`;
    - a **playlist** becomes `choosing`, with one preview group, every entry ticked;
-   - a **channel's main URL** lists its tabs; each tab is probed and becomes a group (Videos
-     ticked, Shorts and Live unticked);
-   - a group is cut at `UROBOROS_MAX_PLAYLIST_ENTRIES` (1000), and says so;
+   - a **channel's main URL** lists its tabs, each becoming a group (Videos ticked, Shorts and
+     Live unticked): current yt-dlp nests every tab's entries in the root listing, which is then
+     used as it is; a tab without them (an older yt-dlp's stub) is listed on its own;
+   - a group is cut at `UROBOROS_MAX_PLAYLIST_ENTRIES` (1000), and says so. Every preview listing
+     passes `--playlist-items=1:<that + 1>` (the cap applies to a root's nested tabs as well), so
+     a channel with thousands of videos lists in seconds instead of paging through all of them;
    - a failure marks the request `failed` with its error kind and yt-dlp's redacted stderr tail,
      which the web shows collapsed ("yt-dlp output") under the error's plain words, as it does
      for a failed download. A site that wants a signed-in account (yt-dlp's login wall: Vimeo's

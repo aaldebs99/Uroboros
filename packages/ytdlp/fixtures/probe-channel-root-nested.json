@@ -1,0 +1,206 @@
+{
+  "_type": "playlist",
+  "id": "@LinusTechTips",
+  "title": "Linus Tech Tips",
+  "channel": "Linus Tech Tips",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+  "channel_url": "https://www.youtube.com/channel/UCXuqSBlHAE6Xw-yeJA0Tunw",
+  "uploader": "Linus Tech Tips",
+  "uploader_id": "@LinusTechTips",
+  "webpage_url": "https://www.youtube.com/@LinusTechTips",
+  "original_url": "https://www.youtube.com/@LinusTechTips",
+  "extractor": "youtube:tab",
+  "extractor_key": "YoutubeTab",
+  "playlist_count": 3,
+  "entries": [
+    {
+      "_type": "playlist",
+      "id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "title": "Linus Tech Tips - Videos",
+      "channel": "Linus Tech Tips",
+      "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "uploader": "Linus Tech Tips",
+      "webpage_url": "https://www.youtube.com/@LinusTechTips/videos",
+      "extractor": "youtube:tab",
+      "extractor_key": "YoutubeTab",
+      "entries": [
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "qiLUvCt3k6g",
+          "url": "https://www.youtube.com/watch?v=qiLUvCt3k6g",
+          "title": "Linus is 3 hours late for WAN - Why is WAN Late Episode 28",
+          "duration": 4182,
+          "live_status": null,
+          "availability": "subscriber_only",
+          "timestamp": null,
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/qiLUvCt3k6g/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLDA8pKftMPesORh_jV5eFp2bdvntQ",
+              "width": 720,
+              "height": 404
+            }
+          ]
+        },
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "dXo5AvXG8Ds",
+          "url": "https://www.youtube.com/watch?v=dXo5AvXG8Ds",
+          "title": "Extras - AMD Upgrade Luke",
+          "duration": 2112,
+          "live_status": null,
+          "availability": "subscriber_only",
+          "timestamp": null,
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/dXo5AvXG8Ds/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLA6xxmZ1B-6tNpmVDqdiDFujugMhg",
+              "width": 720,
+              "height": 404
+            }
+          ]
+        },
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "Ip5EiqbuBpE",
+          "url": "https://www.youtube.com/watch?v=Ip5EiqbuBpE",
+          "title": "Mac Gaming is Solved But Not By Apple",
+          "duration": 1149,
+          "live_status": null,
+          "availability": null,
+          "timestamp": null,
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/Ip5EiqbuBpE/hq720_custom_1.jpg?sqp=CPzqk9gG-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLAKsZcc-a7_jzVVhLzZ7C596Ao0-A",
+              "width": 720,
+              "height": 404
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "_type": "playlist",
+      "id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "title": "Linus Tech Tips - Live",
+      "channel": "Linus Tech Tips",
+      "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "uploader": "Linus Tech Tips",
+      "webpage_url": "https://www.youtube.com/@LinusTechTips/streams",
+      "extractor": "youtube:tab",
+      "extractor_key": "YoutubeTab",
+      "entries": [
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "Z1sqWFs86uU",
+          "url": "https://www.youtube.com/watch?v=Z1sqWFs86uU",
+          "title": "Building the Rarest PC",
+          "duration": 13091,
+          "live_status": "was_live",
+          "availability": null,
+          "timestamp": null,
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/Z1sqWFs86uU/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCgaMBoZiNxupMBAHn3tecnOERLkw",
+              "width": 720,
+              "height": 404
+            }
+          ]
+        },
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "o4ub_WOWFoo",
+          "url": "https://www.youtube.com/watch?v=o4ub_WOWFoo",
+          "title": "I Love The Steam Machine More Already - WAN Show June 26, 2026",
+          "duration": 14025,
+          "live_status": "was_live",
+          "availability": null,
+          "timestamp": null,
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/o4ub_WOWFoo/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLCN7VE949dhPfZMxJc946DBwMIuBw",
+              "width": 720,
+              "height": 404
+            }
+          ]
+        },
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "BCyBANIkjlo",
+          "url": "https://www.youtube.com/watch?v=BCyBANIkjlo",
+          "title": "The Xbox News Looks Really Bad - WAN Show June 19, 2026",
+          "duration": 13276,
+          "live_status": "was_live",
+          "availability": null,
+          "timestamp": null,
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/BCyBANIkjlo/hq720.jpg?sqp=-oaymwEcCNAFEJQDSFXyq4qpAw4IARUAAIhCGAFwAcABBg==&rs=AOn4CLBl3xIjFATC4wL05zJHEl-wEla63w",
+              "width": 720,
+              "height": 404
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "_type": "playlist",
+      "id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "title": "Linus Tech Tips - Shorts",
+      "channel": "Linus Tech Tips",
+      "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+      "uploader": "Linus Tech Tips",
+      "webpage_url": "https://www.youtube.com/@LinusTechTips/shorts",
+      "extractor": "youtube:tab",
+      "extractor_key": "YoutubeTab",
+      "entries": [
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "pZWJE5-M0T4",
+          "url": "https://www.youtube.com/shorts/pZWJE5-M0T4",
+          "title": "Every Samsung Fold in 60 Seconds",
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/pZWJE5-M0T4/sardefault.jpg?sqp=-oaymwEgCJUDEOAESFWQAgHyq4qpAw8IARUAAIhCcAHAAQbIAQE=&rs=AOn4CLAwJTBPedFH8FwcqUXZGzl4w8i04Q",
+              "width": 405,
+              "height": 608
+            }
+          ]
+        },
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "2pZ4DTeIrak",
+          "url": "https://www.youtube.com/shorts/2pZ4DTeIrak",
+          "title": "Tech Russian Roulette with Tech Acronyms!",
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/2pZ4DTeIrak/sardefault.jpg?sqp=-oaymwEgCJUDEOAESFWQAgHyq4qpAw8IARUAAIhCcAHAAQbIAQE=&rs=AOn4CLBzxs9yGTiUQ7VALwl31Opc8NXJ3g",
+              "width": 405,
+              "height": 608
+            }
+          ]
+        },
+        {
+          "_type": "url",
+          "ie_key": "Youtube",
+          "id": "1OnMQNXozE8",
+          "url": "https://www.youtube.com/shorts/1OnMQNXozE8",
+          "title": "How to Start 3D Printing",
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/1OnMQNXozE8/sardefault.jpg?sqp=-oaymwEgCJUDEOAESFWQAgHyq4qpAw8IARUAAIhCcAHAAQbIAQE=&rs=AOn4CLB-sFGy-FFz1WxLSePycwRqLWWR8w",
+              "width": 405,
+              "height": 608
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

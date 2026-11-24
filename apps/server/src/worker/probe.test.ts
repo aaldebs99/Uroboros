@@ -121,6 +121,30 @@ describe("probe", () => {
     expect(req.groups[0]?.entries).toHaveLength(3);
   });
 
+  it("builds a channel's tabs from the root listing's nested entries, in one capped listing", async () => {
+    const base = "https://www.youtube.com/@LinusTechTips";
+    const id = await request(base);
+    const deps = await h.deps({
+      steps: [{ stdout: await fixture("probe-channel-root-nested.json") }],
+    });
+    await probeProcessor({ ...deps, limits: { ...deps.limits, maxPlaylistEntries: 2 } })({
+      data: { requestId: id },
+    });
+    const req = await load(id);
+    expect(req).toMatchObject({ state: "choosing", kind: "channel" });
+    expect(req.groups.map((g) => [g.name, g.ticked, g.entries.length, g.truncated])).toEqual([
+      ["Videos", true, 2, true],
+      ["Live", false, 2, true],
+      ["Shorts", false, 2, true],
+    ]);
+    expect(req.groups[0]?.entries[0]).toMatchObject({ id: "qiLUvCt3k6g", extractor: "Youtube" });
+    // The last (only) yt-dlp run was the root's, capped one past what the preview keeps: no tab
+    // was listed again.
+    const argv = await h.lastArgv();
+    expect(argv.at(-1)).toBe(base);
+    expect(argv).toContain("--playlist-items=1:3");
+  });
+
   it("records channel ids and tab URLs", async () => {
     const base = "https://www.youtube.com/@BlenderOfficial";
     const id = await request(base);

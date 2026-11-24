@@ -165,29 +165,26 @@ export const VideoInfo = z
   }));
 export type VideoInfo = z.output<typeof VideoInfo>;
 
-/**
- * One entry of a playlist or channel. Under `--flat-playlist` it is a stub (`_type: "url"`) with
- * whatever the listing page showed; otherwise it is a full video, of which this keeps the summary.
- */
-export const PlaylistEntry = z
-  .object({
-    id: z.string(),
-    _type: str,
-    ie_key: str,
-    url: str,
-    webpage_url: str,
-    title: str,
-    duration: num,
-    uploader: str,
-    channel: str,
-    channel_id: str,
-    live_status: str,
-    availability: str,
-    media_type: str,
-    timestamp: num,
-    thumbnails: list(Thumbnail),
-  })
-  .transform((e) => ({
+const entryFields = {
+  id: z.string(),
+  _type: str,
+  ie_key: str,
+  url: str,
+  webpage_url: str,
+  title: str,
+  duration: num,
+  uploader: str,
+  channel: str,
+  channel_id: str,
+  live_status: str,
+  availability: str,
+  media_type: str,
+  timestamp: num,
+  thumbnails: list(Thumbnail),
+};
+
+function summary(e: z.output<z.ZodObject<typeof entryFields>>) {
+  return {
     id: e.id,
     /** "video" for a full entry or a video stub, "playlist" for a nested playlist (a channel tab). */
     kind: entryKind(e._type, e.ie_key, e.url),
@@ -203,6 +200,28 @@ export const PlaylistEntry = z
     mediaType: e.media_type,
     timestamp: e.timestamp,
     thumbnails: e.thumbnails,
+  };
+}
+
+/** A nested playlist's own entries: one level down, never further. */
+const ChildEntry = z.object(entryFields).transform(summary);
+
+/**
+ * One entry of a playlist or channel. Under `--flat-playlist` it is a stub (`_type: "url"`) with
+ * whatever the listing page showed; otherwise it is a full video, of which this keeps the summary.
+ * A channel's root listing may carry each tab as a nested playlist with its own entries
+ * (`children`; current yt-dlp does, capped by `--playlist-items` like the root), so the tab need
+ * not be listed again; `children` is null when the listing gave none (an older yt-dlp's
+ * `_type: "url"` tab stubs).
+ */
+export const PlaylistEntry = z
+  .object({ ...entryFields, entries: z.array(z.unknown()).nullish().catch(null) })
+  .transform((e) => ({
+    ...summary(e),
+    children:
+      e._type === "playlist" && e.entries !== null && e.entries !== undefined
+        ? list(ChildEntry).parse(e.entries)
+        : null,
   }));
 export type PlaylistEntry = z.output<typeof PlaylistEntry>;
 

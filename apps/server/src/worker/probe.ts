@@ -29,7 +29,17 @@ export function ytdlpOptions(deps: Deps) {
   };
 }
 
-function previewEntry(e: PlaylistEntry, fallbackExtractor: string): PreviewEntry | null {
+/**
+ * A preview lists one more than it keeps, so a longer listing says it was cut: yt-dlp stops there
+ * (on each of a channel's nested tabs too), instead of paging through thousands of videos.
+ */
+function previewArgs(deps: Deps): string[] {
+  return [`--playlist-items=1:${String(deps.limits.maxPlaylistEntries + 1)}`];
+}
+
+type EntrySummary = Omit<PlaylistEntry, "children">;
+
+function previewEntry(e: EntrySummary, fallbackExtractor: string): PreviewEntry | null {
   if (e.kind !== "video" || e.url === null) return null;
   return {
     id: e.id,
@@ -46,11 +56,11 @@ function group(
   name: string,
   url: string,
   ticked: boolean,
-  info: PlaylistInfo,
+  listed: { entries: readonly EntrySummary[]; extractorKey: string | null },
   limit: number,
 ): PreviewGroup {
-  const entries = info.entries
-    .map((e) => previewEntry(e, info.extractorKey ?? "generic"))
+  const entries = listed.entries
+    .map((e) => previewEntry(e, listed.extractorKey ?? "generic"))
     .filter((e): e is PreviewEntry => e !== null);
   return { name, url, ticked, truncated: entries.length > limit, entries: entries.slice(0, limit) };
 }
@@ -66,24 +76,32 @@ function tabName(e: PlaylistEntry): string {
 const isVideosTab = (e: PlaylistEntry) =>
   /\/videos\/?$/.test(e.url ?? "") || tabName(e) === "Videos";
 
-/** A channel's main URL lists its tabs; each tab is probed and becomes a group. */
+/**
+ * A channel's main URL lists its tabs, each of which becomes a group: from the entries the root
+ * listing nested under it (current yt-dlp), or else by listing the tab itself.
+ */
 async function tabGroups(
   deps: Deps,
   info: PlaylistInfo,
   signal?: AbortSignal,
 ): Promise<PreviewGroup[]> {
   const groups: PreviewGroup[] = [];
+  const limit = deps.limits.maxPlaylistEntries;
   for (const tab of info.entries) {
     if (tab.kind !== "playlist" || tab.url === null) continue;
+    if (tab.children !== null) {
+      const listed = { entries: tab.children, extractorKey: tab.extractorKey ?? info.extractorKey };
+      groups.push(group(tabName(tab), tab.url, isVideosTab(tab), listed, limit));
+      continue;
+    }
     try {
       const listed = await probe(tab.url, {
         ...ytdlpOptions(deps),
+        extraArgs: previewArgs(deps),
         ...(signal === undefined ? {} : { signal }),
       });
       if (listed.kind === "video") continue;
-      groups.push(
-        group(tabName(tab), tab.url, isVideosTab(tab), listed, deps.limits.maxPlaylistEntries),
-      );
+      groups.push(group(tabName(tab), tab.url, isVideosTab(tab), listed, limit));
     } catch (err) {
       deps.logger.warn({ err, url: tab.url }, "probing a channel tab failed; leaving it out");
     }
@@ -179,7 +197,10 @@ export function probeProcessor(deps: Deps) {
     try {
       // The requester's own logins, for this probe and a channel's tab probes.
       const signedIn = await withLoginsOf(deps, req.user_id);
-      const info = await probe(req.url, ytdlpOptions(signedIn));
+      const info = await probe(req.url, {
+        ...ytdlpOptions(signedIn),
+        extraArgs: previewArgs(deps),
+      });
       if (info.kind === "video") await queueVideo(signedIn, req, info);
       else await preview(signedIn, req, info);
     } catch (err) {

@@ -51,6 +51,29 @@ describe("parseInfo on recorded yt-dlp output", () => {
   });
 });
 
+describe("a channel's root listing", () => {
+  it("keeps each tab's own entries when yt-dlp nests them (current yt-dlp)", async () => {
+    const info = parseInfo(await json("probe-channel-root-nested.json"));
+    if (info.kind === "video") throw new Error("expected a listing");
+    expect(info.entries.map((t) => [t.kind, t.url, t.children?.length])).toEqual([
+      ["playlist", "https://www.youtube.com/@LinusTechTips/videos", 3],
+      ["playlist", "https://www.youtube.com/@LinusTechTips/streams", 3],
+      ["playlist", "https://www.youtube.com/@LinusTechTips/shorts", 3],
+    ]);
+    expect(info.entries[0]?.children?.[0]).toMatchObject({ kind: "video", id: "qiLUvCt3k6g" });
+  });
+
+  it("leaves children null for an older yt-dlp's tab stubs, which must be listed again", async () => {
+    const info = parseInfo(await json("probe-channel-root.json"));
+    if (info.kind === "video") throw new Error("expected a listing");
+    expect(info.entries.map((t) => [t.kind, t.children])).toEqual([
+      ["playlist", null],
+      ["playlist", null],
+      ["playlist", null],
+    ]);
+  });
+});
+
 describe("lenient validation", () => {
   it("keeps going through wrong types, unknown fields and broken list items", () => {
     const info = VideoInfo.parse({
