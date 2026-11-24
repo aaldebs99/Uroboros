@@ -273,3 +273,27 @@ describe("loadConfig transcoding", () => {
     expect(() => loadConfig({ ...base, [name]: bad })).toThrow(ConfigError);
   });
 });
+
+describe("loadConfig secrets key", () => {
+  const key = Buffer.alloc(32, 7).toString("base64");
+
+  it("leaves saving site logins off without UROBOROS_SECRETS_KEY, or with an empty one", () => {
+    expect(loadConfig(base).secretsKey).toBeNull();
+    expect(loadConfig({ ...base, UROBOROS_SECRETS_KEY: "" }).secretsKey).toBeNull();
+  });
+
+  it("decodes 32 bytes of base64", () => {
+    expect(loadConfig({ ...base, UROBOROS_SECRETS_KEY: key }).secretsKey).toEqual(
+      Buffer.alloc(32, 7),
+    );
+  });
+
+  it.each(["short", Buffer.alloc(16).toString("base64"), Buffer.alloc(48).toString("base64")])(
+    "refuses %j",
+    (value) => {
+      expect(() => loadConfig({ ...base, UROBOROS_SECRETS_KEY: value })).toThrow(
+        /UROBOROS_SECRETS_KEY/,
+      );
+    },
+  );
+});

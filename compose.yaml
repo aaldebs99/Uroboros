@@ -81,6 +81,9 @@ x-server-env: &server-env
   UROBOROS_WORK_DIR: /work
   UROBOROS_WORKER_CONCURRENCY: ${UROBOROS_WORKER_CONCURRENCY:-}
   UROBOROS_YTDLP_COOKIES_FILE: ${UROBOROS_YTDLP_COOKIES_FILE:-}
+  # The key people's saved site logins (Settings › Logins) are sealed with: 32 random bytes in
+  # base64 (openssl rand -base64 32). Unset, saving logins is off; changing it voids saved ones.
+  UROBOROS_SECRETS_KEY: ${UROBOROS_SECRETS_KEY:-}
   UROBOROS_SUBTITLE_LANGS: ${UROBOROS_SUBTITLE_LANGS-en.*}
   UROBOROS_AUTO_SUBTITLES: ${UROBOROS_AUTO_SUBTITLES:-}
 

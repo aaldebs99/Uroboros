@@ -79,10 +79,11 @@ everywhere.
 `/api/me/tokens` creates (the secret is shown once), lists and revokes personal tokens: 64 hex
 characters sent as `Authorization: Bearer …`, SHA-256 at rest, at most 20 per user, names unique per
 user, no scopes and no expiry (Djinn's choices). A token acts as its owner except on
-`/api/admin/*`, `/api/me/tokens*`, `/api/me/password`, `/api/me/sessions*` and `/api/me/push*`,
-which answer 403 "an API token cannot be used here; sign in in the browser": a leaked token must not
-mint successors, act as an admin, change the password or move someone's notifications. Token
-requests need no CSRF header.
+`/api/admin/*`, `/api/me/tokens*`, `/api/me/password`, `/api/me/sessions*`, `/api/me/push*` and
+`/api/me/site-logins*`, which answer 403 "an API token cannot be used here; sign in in the
+browser": a leaked token must not mint successors, act as an admin, change the password, move
+someone's notifications or read and replace their saved site logins. Token requests need no CSRF
+header.
 
 ## Claims sync
 

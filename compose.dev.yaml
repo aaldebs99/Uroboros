@@ -47,6 +47,9 @@ services:
       UROBOROS_BIND: 0.0.0.0:8080
       UROBOROS_WEB_DIST: /src/apps/web/dist
       UROBOROS_MIGRATIONS_DIR: /src/migrations
+      # A fixed key for the dev stack only, so saved site logins work there: never use it for a
+      # real deployment (generate one with openssl rand -base64 32).
+      UROBOROS_SECRETS_KEY: ${UROBOROS_SECRETS_KEY:-ZGV2LW9ubHkta2V5LWRvLW5vdC11c2UtZm9yLXJlYWw=}
     healthcheck:
       test:
         - CMD

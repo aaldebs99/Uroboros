@@ -403,6 +403,16 @@ export interface NotificationPrefsTable {
   shares: Defaulted<boolean>;
 }
 
+/** `site_logins`: a person's saved login for one yt-dlp site, the password sealed. */
+export interface SiteLoginsTable {
+  user_id: string;
+  site: string;
+  username: string;
+  password_sealed: Buffer;
+  created_at: ColumnType<Date, Date | string | undefined, never>;
+  updated_at: Defaulted<Date>;
+}
+
 export interface Database {
   push_devices: PushDevicesTable;
   vapid_keys: VapidKeysTable;
@@ -411,6 +421,7 @@ export interface Database {
   auth_logins: AuthLoginsTable;
   oidc_grants: OidcGrantsTable;
   api_tokens: ApiTokensTable;
+  site_logins: SiteLoginsTable;
   push_device_tombstones: PushDeviceTombstonesTable;
   format_profiles: FormatProfilesTable;
   media: MediaTable;

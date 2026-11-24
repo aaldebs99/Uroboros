@@ -74,6 +74,20 @@ CREATE TABLE oidc_grants (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- A person's saved login for one site yt-dlp can sign in to, keyed by its netrc machine name
+-- ("vimeo"). The password is sealed with UROBOROS_SECRETS_KEY (AES-256-GCM: nonce, ciphertext,
+-- tag; the additional data names the user and the site) and never leaves the server: the jobs
+-- open it into a private .netrc for one yt-dlp run (docs/downloads.md).
+CREATE TABLE site_logins (
+  user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  site TEXT NOT NULL CHECK (site ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
+  username TEXT NOT NULL CHECK (char_length(username) BETWEEN 1 AND 256),
+  password_sealed BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, site)
+);
+
 -- Personal API tokens (64 hex characters; only the SHA-256 is stored).
 CREATE TABLE api_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

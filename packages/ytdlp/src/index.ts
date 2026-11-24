@@ -2,7 +2,7 @@
  * @uroboros/ytdlp: the typed wrapper the workers use to run yt-dlp and ffprobe. Only workers
  * import it; the api never spawns either program.
  */
-export type { YtDlpOptions } from "./args.ts";
+export type { SiteLoginSecret, YtDlpOptions } from "./args.ts";
 export {
   download,
   DEFAULT_OUTPUT_TEMPLATE,
@@ -13,6 +13,22 @@ export {
 export { YTDLP_ERROR_KINDS, YtDlpError, type YtDlpErrorKind } from "./errors.ts";
 export { ALLOWED_FLAGS, normalizeExtraArgs } from "./flags.ts";
 export { ffprobe, MediaInfo, MediaStream, type FfprobeOptions } from "./ffprobe.ts";
+export {
+  AUDIO_PREROLL_SECONDS,
+  sessionArgs,
+  type EncodeSettings,
+  type Pipeline,
+  type RunPlan,
+} from "./ffmpegArgs.ts";
+export { checkEncoder, type EncoderCheck, type EncoderCheckOptions } from "./encoderCheck.ts";
+export { probeKeyframes, type KeyframeOptions } from "./keyframes.ts";
+export {
+  meaningfulLine,
+  spawnStream,
+  type StreamExit,
+  type StreamOptions,
+  type StreamProcess,
+} from "./streamProcess.ts";
 export {
   Chapter,
   Format,

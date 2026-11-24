@@ -39,6 +39,7 @@ export function workerDeps(
     ytdlp: {
       binary: config.worker.ytdlpPath,
       cookiesFile: config.worker.cookiesFile,
+      secretsKey: config.secretsKey,
       jsRuntime: process.execPath,
     },
     ffprobe: { binary: "ffprobe" },

@@ -157,6 +157,7 @@ export async function startApi(
       downloadEvents,
       store,
       transcodeEncoder: config.worker.transcode.encoder,
+      secretsKey: config.secretsKey,
     },
     {
       webDist: config.webDist,

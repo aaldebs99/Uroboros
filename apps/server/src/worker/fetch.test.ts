@@ -1,18 +1,15 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { fixture, type Scenario, type Step } from "@uroboros/ytdlp/testing";
 import { DelayedError, UnrecoverableError } from "bullmq";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
-import { seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { TestValkey } from "../../test/testValkey.ts";
+import { downloadScenario, downloadStates, fetchJob, queuedFetch } from "../../test/fetchJobs.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
-import { queueDownload } from "../downloads/dispatch.ts";
 import { eventsChannel } from "../downloads/events.ts";
-import { argsOf } from "../downloads/profiles.ts";
 import type { FetchJob } from "../downloads/queues.ts";
 import { createValkey } from "../shared/valkey.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
@@ -34,70 +31,10 @@ afterAll(async () => {
 
 const user = (): Promise<SignedIn> => signedIn(testDb.db, { username: `f${String(++n)}` });
 
-/** The recorded download of the clip, plus a thumbnail beside it. */
-async function downloadScenario(extra: Step[] = []): Promise<Scenario> {
-  const transcript = JSON.parse(await fixture("download-clip.json")) as {
-    stdout: string;
-    stderr: string;
-  };
-  return {
-    steps: [
-      ...extra,
-      { writeFile: "clip.mp4", content: "media bytes" },
-      { writeFile: "clip.jpg", content: "jpeg" },
-      { writeFile: "clip.info.json", content: await fixture("info-clip.json") },
-      { stdout: transcript.stdout },
-      { stderr: transcript.stderr },
-    ],
-  };
-}
-
-/** Queues `videoId` for each user and returns the fetch job a dispatch would add. */
-async function queued(videoId: string, users: SignedIn[]): Promise<FetchJob> {
-  const profile = await seededDefault(testDb.db);
-  for (const u of users) {
-    await testDb.db.transaction().execute((tx) =>
-      queueDownload(tx, {
-        userId: u.userId,
-        requestId: null,
-        extractor: "Generic",
-        videoId,
-        url: `http://127.0.0.1:18765/${videoId}.mp4`,
-        title: videoId,
-        profile,
-      }),
-    );
-  }
-  const row = await testDb.db
-    .selectFrom("downloads")
-    .select("fetch_key")
-    .where("video_id", "=", videoId)
-    .executeTakeFirstOrThrow();
-  return {
-    fetchKey: row.fetch_key,
-    extractor: "generic",
-    videoId,
-    url: `http://127.0.0.1:18765/${videoId}.mp4`,
-    profileId: profile.id,
-    profileName: profile.name,
-    revision: profile.revision,
-    args: argsOf(profile),
-  };
-}
-
-const job = (data: FetchJob, attemptsMade = 0) => ({
-  id: data.fetchKey,
-  data,
-  attemptsMade,
-  opts: { attempts: 3 },
-});
-
-const states = (videoId: string) =>
-  testDb.db
-    .selectFrom("downloads")
-    .select(["user_id", "state", "error_kind", "attempts", "stderr_tail"])
-    .where("video_id", "=", videoId)
-    .execute();
+const queued = (videoId: string, users: SignedIn[]): Promise<FetchJob> =>
+  queuedFetch(testDb.db, videoId, users);
+const job = fetchJob;
+const states = (videoId: string) => downloadStates(testDb.db, videoId);
 
 describe("fetch", () => {
   it("stores the file, settles every waiting download, adds library entries and dispatches the next", async () => {

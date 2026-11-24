@@ -6,11 +6,13 @@ import { seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import { toRequest } from "../downloads/requests.ts";
+import { saveLogin } from "../siteLogins/store.ts";
 import { probeProcessor } from "./probe.ts";
 
 let testDb: TestDb;
 let h: Awaited<ReturnType<typeof workerHarness>>;
 let user: SignedIn;
+const KEY = Buffer.alloc(32, 5);
 
 beforeAll(async () => {
   testDb = await TestDb.create();
@@ -190,5 +192,35 @@ describe("probe", () => {
       errorMessage: "the site needs a signed-in account",
     });
     expect(req.stderrTail).toContain(line);
+  });
+
+  it("signs in with the requester's saved logins only, and names a refused login", async () => {
+    const other = await signedIn(testDb.db, { username: "probe-other" });
+    await saveLogin(testDb.db, KEY, user.userId, "vimeo", { username: "me", password: "mine-pw" });
+    await saveLogin(testDb.db, KEY, other.userId, "twitch", {
+      username: "x",
+      password: "their-pw",
+    });
+    const id = await request("https://vimeo.com/1");
+    const deps = await h.deps({
+      steps: [
+        { copyArgFile: "--netrc-location", name: ".netrc", as: "netrc-seen" },
+        { stderr: "ERROR: [vimeo] Unable to log in: bad username or password\n" },
+      ],
+      exitCode: 1,
+    });
+    await run(id, { ...deps, ytdlp: { ...deps.ytdlp, secretsKey: KEY } });
+    expect(await load(id)).toMatchObject({
+      state: "failed",
+      errorKind: "login_failed",
+      errorMessage: "the site refused the saved login",
+    });
+    expect(await h.lastCopied("netrc-seen")).toBe('machine vimeo login "me" password "mine-pw"\n');
+  });
+
+  it("runs without --netrc when the server has no key", async () => {
+    const id = await request("https://vimeo.com/2");
+    await run(id, await h.deps({ steps: [{ stdout: await fixture("probe-video.json") }] }));
+    expect(await h.lastArgv()).not.toContain("--netrc");
   });
 });

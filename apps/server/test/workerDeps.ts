@@ -31,6 +31,11 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
       const run = runs.at(-1);
       return run === undefined ? [] : run.argv();
     },
+    /** A file the most recent fake yt-dlp saved with a `copyArgFile` step (null: none). */
+    async lastCopied(name: string): Promise<string | null> {
+      const run = runs.at(-1);
+      return run === undefined ? null : run.copied(name);
+    },
     async deps(scenario: Scenario): Promise<WorkerDeps> {
       const run = await FakeRun.create(scenario);
       runs.push(run);
@@ -43,6 +48,7 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
           binary: run.options.binary,
           env: run.options.env,
           cookiesFile: null,
+          secretsKey: null,
           jsRuntime: "/usr/local/bin/node",
         },
         ffprobe: { binary: ffprobeRun.options.binary, env: ffprobeRun.options.env },

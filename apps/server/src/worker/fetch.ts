@@ -8,6 +8,7 @@ import { publishDownloadEvent } from "../downloads/events.ts";
 import { noticeFinishedRequests } from "../downloads/requestNotices.ts";
 import { ytdlpArgsFor } from "../downloads/profiles.ts";
 import type { FetchJob } from "../downloads/queues.ts";
+import { loginsForFetch } from "../siteLogins/forJobs.ts";
 import { renditionKey, sidecarKey, type MediaNames } from "../storage/index.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import type { WorkerDeps } from "./deps.ts";
@@ -339,10 +340,13 @@ async function downloadAndSettle(
   const progress = createProgressPublisher(deps.valkey, deps.prefix, data.fetchKey);
   const { format, extraArgs: profileArgs } = ytdlpArgsFor(data.args);
   const extraArgs = [...profileArgs, ...subtitleArgs(deps.subtitles)];
+  // Whoever waits on this fetch now: per site, the earliest waiter's saved login.
+  const logins = await loginsForFetch(deps.db, deps.ytdlp.secretsKey, data.fetchKey, deps.logger);
   const result = await download(data.url, {
     binary: deps.ytdlp.binary,
     ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
     ...(deps.ytdlp.cookiesFile === null ? {} : { cookiesFile: deps.ytdlp.cookiesFile }),
+    logins,
     ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
     workDir: scratch,
     format,

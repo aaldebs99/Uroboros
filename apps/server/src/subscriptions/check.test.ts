@@ -5,6 +5,7 @@ import { seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { FeedJson } from "../db/schema.ts";
+import { saveLogin } from "../siteLogins/store.ts";
 import { checkFailure, checkProcessor } from "./check.ts";
 import { PatternTimeout } from "./patterns.ts";
 import { listing, sleep, type ListedVideo } from "../../test/listings.ts";
@@ -94,6 +95,24 @@ const row = (id: string) =>
   t.db.selectFrom("subscriptions").selectAll().where("id", "=", id).executeTakeFirstOrThrow();
 
 describe("subscription checks", () => {
+  it("lists with the owner's saved logins", async () => {
+    const key = Buffer.alloc(32, 4);
+    const u = await user();
+    await saveLogin(t.db, key, u.userId, "vimeo", { username: "owner", password: "owner-pw" });
+    const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);
+    const deps = await h.deps({
+      steps: [
+        { copyArgFile: "--netrc-location", name: ".netrc", as: "seen" },
+        { stdout: listing(videos, vids("l", 1)) },
+      ],
+    });
+    await checkProcessor({ ...deps, ytdlp: { ...deps.ytdlp, secretsKey: key } })({
+      data: { subscriptionId: id },
+    });
+    expect(await h.lastCopied("seen")).toBe('machine vimeo login "owner" password "owner-pw"\n');
+    expect((await items(id)).map((i) => i.outcome)).toEqual(["existing"]);
+  });
+
   it("records everything as existing on a none backfill and queues nothing", async () => {
     const u = await user();
     const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);

@@ -1,0 +1,23 @@
+#!/bin/sh
+# Writes packages/contract/src/generated/loginSites.ts from the yt-dlp pinned in an image (default
+# uroboros:local; build it first with `mise run docker:build`): see login-sites.py.
+#
+# Usage: login-sites.sh [image] [--print]
+#   --print writes to stdout instead of the file (the smoke test compares it with the commit).
+set -eu
+IMAGE="${1:-uroboros:local}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "${HERE}/../.." && pwd)"
+OUT="${ROOT}/packages/contract/src/generated/loginSites.ts"
+run() {
+    docker run --rm --network none -v "${HERE}/login-sites.py:/gen/login-sites.py:ro" \
+        --entrypoint /opt/yt-dlp/bin/python3 "${IMAGE}" -I /gen/login-sites.py
+}
+if [ "${2:-}" = "--print" ]; then
+    run
+else
+    mkdir -p "$(dirname "${OUT}")"
+    run > "${OUT}.tmp"
+    mv "${OUT}.tmp" "${OUT}"
+    echo "wrote ${OUT}"
+fi

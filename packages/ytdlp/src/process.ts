@@ -19,6 +19,8 @@ export interface RunOptions {
   onStdoutLine?: (line: string) => void;
   /** Decides which stderr lines the tail keeps (all by default). */
   keepInTail?: (line: string) => boolean;
+  /** Strings (saved passwords) blanked wherever they appear in the kept stderr lines. */
+  secrets?: readonly string[];
   /** Receives every raw (unredacted) stderr line. */
   onStderrLine?: (line: string) => void;
   /** The cap on collected stdout, in UTF-16 code units. Defaults to 128 Mi. */
@@ -116,7 +118,9 @@ class Run {
   }
 
   private readonly onStderrLine = (line: string): void => {
-    if (this.options.keepInTail?.(line) ?? true) this.tail.push(redactLine(line));
+    if (this.options.keepInTail?.(line) ?? true) {
+      this.tail.push(redactLine(line, this.options.secrets));
+    }
     this.options.onStderrLine?.(line);
   };
 

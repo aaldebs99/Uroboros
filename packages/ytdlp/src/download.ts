@@ -2,7 +2,6 @@ import { readFile } from "node:fs/promises";
 import { isAbsolute, resolve } from "node:path";
 import { checkUrl, commandLine, DEFAULT_BINARY, runtimeArgs, type YtDlpOptions } from "./args.ts";
 import { removePartialFiles } from "./cleanup.ts";
-import { withCookiesCopy } from "./cookies.ts";
 import { YtDlpError } from "./errors.ts";
 import { normalizeExtraArgs } from "./flags.ts";
 import { VideoInfo } from "./info.ts";
@@ -14,6 +13,7 @@ import {
   stoppedError,
   type RunResult,
 } from "./process.ts";
+import { secretsOf, withRunFiles } from "./runFiles.ts";
 import {
   MARKER,
   parseMarkedLine,
@@ -131,10 +131,11 @@ export async function download(url: string, options: DownloadOptions): Promise<D
     ...runtimeArgs(options.jsRuntime),
   ];
   const reporter = new Reporter(options.onProgress);
-  const result = await withCookiesCopy(options.cookiesFile, (cookies) =>
+  const result = await withRunFiles(options, (files) =>
     runProcess({
       binary: options.binary ?? DEFAULT_BINARY,
-      args: commandLine(cookies, own, extra, target),
+      args: commandLine(files, own, extra, target),
+      secrets: secretsOf(options),
       cwd: options.workDir,
       env: options.env,
       signal: options.signal,

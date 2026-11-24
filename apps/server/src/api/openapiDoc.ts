@@ -8,9 +8,9 @@ const OVERVIEW = `Everything the web app does goes through this API, so a script
 **With a token** (scripts): create a personal API token in the web app under Account › Tokens
 and send it as \`Authorization: Bearer <token>\`. A token acts as its owner, needs no CSRF header,
 and is refused (403) on \`/api/admin/*\`, \`/api/me/tokens*\`, \`/api/me/password\`,
-\`/api/me/sessions*\` and \`/api/me/push*\`, so a leaked token cannot mint another, act as an
-admin, change the password or move notifications. Click **Authorize** above and paste a token to
-try the routes here.
+\`/api/me/sessions*\`, \`/api/me/push*\` and \`/api/me/site-logins*\`, so a leaked token cannot
+mint another, act as an admin, change the password, move notifications or touch saved site logins.
+Click **Authorize** above and paste a token to try the routes here.
 
 **With the browser's session**: the \`uroboros_session\` cookie, set by signing in. Every write
 (anything but GET, HEAD and OPTIONS) must also send the \`X-Uroboros-CSRF\` header with the value

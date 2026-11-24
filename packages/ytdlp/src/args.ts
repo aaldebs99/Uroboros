@@ -1,5 +1,12 @@
 import { YtDlpError } from "./errors.ts";
 
+/** A saved login for one yt-dlp site, keyed by the extractor's netrc machine name. */
+export interface SiteLoginSecret {
+  site: string;
+  username: string;
+  password: string;
+}
+
 /** Options every yt-dlp call takes. */
 export interface YtDlpOptions {
   /** The yt-dlp executable; the worker passes `YTDLP_PATH`. Defaults to `yt-dlp` on PATH. */
@@ -14,6 +21,13 @@ export interface YtDlpOptions {
    * private copy and the original (a read-only Secret mount, say) is never written.
    */
   cookiesFile?: string;
+  /**
+   * Saved site logins. The wrapper writes them to a private `.netrc` for the run (removed
+   * afterwards) and passes `--netrc --netrc-location`, so each extractor finds its own site's
+   * login and no password is on the command line; every password is scrubbed from the kept
+   * stderr lines too.
+   */
+  logins?: readonly SiteLoginSecret[];
   /** Kills the run after this many milliseconds; it then fails as `timed_out`. */
   timeoutMs?: number;
   /** Aborting kills the run; it then fails as `cancelled`. */
@@ -60,19 +74,28 @@ export function checkUrl(raw: string): string {
   return url.href;
 }
 
+/** The private files a run reads its secrets from (see `runFiles.ts`), null when unused. */
+export interface RunFiles {
+  /** The run's copy of the cookies file. */
+  cookies: string | null;
+  /** The directory holding the run's `.netrc`. */
+  netrcDir: string | null;
+}
+
 /** The arguments every run starts with: no user config, no update check, no colour codes. */
-export function baseArgs(cookiesPath: string | null): string[] {
+export function baseArgs(files: RunFiles): string[] {
   const args = ["--ignore-config", "--no-update", "--color", "never"];
-  if (cookiesPath !== null) args.push("--cookies", cookiesPath);
+  if (files.cookies !== null) args.push("--cookies", files.cookies);
+  if (files.netrcDir !== null) args.push("--netrc", "--netrc-location", files.netrcDir);
   return args;
 }
 
 /** Assembles a full command line, the URL last and behind `--` so it is never an option. */
 export function commandLine(
-  cookiesPath: string | null,
+  files: RunFiles,
   own: readonly string[],
   extra: readonly string[],
   url: string,
 ): string[] {
-  return [...baseArgs(cookiesPath), ...own, ...extra, "--", url];
+  return [...baseArgs(files), ...own, ...extra, "--", url];
 }

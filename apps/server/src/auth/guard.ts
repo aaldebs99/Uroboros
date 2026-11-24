@@ -41,13 +41,17 @@ const PUBLIC_EXACT = new Set([
 /** `/api/public/` serves public links (docs/sharing.md), each checking its own code. */
 const PUBLIC_PREFIXES = ["/api/docs", "/api/auth/oidc/", "/api/public/"];
 
-/** Routes a token must never reach: it cannot mint a successor, act as admin or move push. */
+/**
+ * Routes a token must never reach: it cannot mint a successor, act as admin, move push, or read
+ * or replace the saved site logins.
+ */
 const TOKEN_REFUSED = [
   "/api/admin",
   "/api/me/tokens",
   "/api/me/password",
   "/api/me/sessions",
   "/api/me/push",
+  "/api/me/site-logins",
 ];
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);

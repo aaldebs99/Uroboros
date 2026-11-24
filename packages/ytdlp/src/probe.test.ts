@@ -146,6 +146,38 @@ describe("probe", () => {
     );
     expect(leftovers).toEqual([]);
   });
+
+  it("signs in from a private .netrc, never on the command line, and scrubs the password", async () => {
+    const run = await fake({
+      steps: [
+        { copyArgFile: "--netrc-location", name: ".netrc", as: "netrc-seen" },
+        { stderr: "[debug] login form said hunter22 was wrong\n" },
+        { stderr: "ERROR: [vimeo] Unable to log in: bad username or password\n" },
+      ],
+      exitCode: 1,
+    });
+    const error = await failure(
+      probe(URL, {
+        ...run.options,
+        logins: [{ site: "vimeo", username: "me@example.com", password: "hunter22" }],
+      }),
+    );
+    expect(error.kind).toBe("login_failed");
+    expect(error.stderrTail.join("\n")).not.toContain("hunter22");
+    const argv = await run.argv();
+    expect(argv).toContain("--netrc");
+    expect(argv[argv.indexOf("--netrc-location") + 1]).toMatch(/uroboros-netrc-/);
+    expect(argv.join(" ")).not.toContain("hunter22");
+    expect(await run.copied("netrc-seen")).toBe(
+      'machine vimeo login "me@example.com" password "hunter22"\n',
+    );
+  });
+
+  it("passes no --netrc without logins", async () => {
+    const run = await fake({ steps: [{ stdout: await fixture("probe-video.json") }] });
+    await probe(URL, { ...run.options, logins: [] });
+    expect(await run.argv()).not.toContain("--netrc");
+  });
 });
 
 describe("ffprobe", () => {

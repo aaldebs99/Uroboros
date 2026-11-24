@@ -44,7 +44,7 @@ The web UI follows the `uroboros-design-system` skill (`.claude/skills/uroboros-
 | `check:lock`, `check:audit`, `check:licenses`, `check:gen`         | lockfile drift; `pnpm audit` (high); licence allowlist; OpenAPI drift          |
 | `test`                                                             | every vitest project (Docker for Postgres and Valkey)                          |
 | `ratchet`, `ratchet:{lines,complexity,suppressions,pixels,pins}`   | forward-only gates (`docs/ratchets.md`); `ratchet:test` tests them             |
-| `gen`                                                              | regenerate `api/openapi.json`                                                  |
+| `gen`, `gen:login-sites`                                           | regenerate `api/openapi.json`; the sites yt-dlp logs in to (from the image)    |
 | `migrate`, `migration:new <name>`                                  | apply migrations by hand (every replica does on start); create a new migration |
 | `dev:deps`, `dev:server`, `dev:ui`                                 | Postgres :15432, Valkey :16379, RustFS :19000; the server :18081; Vite         |
 | `build:server`, `build:ui`                                         | tsdown bundles into `apps/server/dist`; the SPA into `apps/web/dist`           |
@@ -109,8 +109,8 @@ small public list (health, ready, info, openapi, docs, `/api/auth/methods`,
 via }`; admin routes call `requireAdmin`. Sessions are opaque random tokens in Postgres (only the
 SHA-256 is stored) behind the `uroboros_session` cookie, and every cookie write needs the
 `X-Uroboros-CSRF` header matching the `uroboros_csrf` cookie; bearer tokens skip CSRF but are
-refused on `/api/admin`, `/api/me/tokens`, `/api/me/password`, `/api/me/sessions` and
-`/api/me/push`. Local passwords are argon2id on Node's built-in `crypto.argon2`; failed sign-ins
+refused on `/api/admin`, `/api/me/tokens`, `/api/me/password`, `/api/me/sessions`,
+`/api/me/push` and `/api/me/site-logins`. Local passwords are argon2id on Node's built-in `crypto.argon2`; failed sign-ins
 are counted in Valkey so the limit holds across replicas. OIDC uses `openid-client` with PKCE S256
 and checks ID-token signatures against the provider's JWKS; the claims sync redeems refresh tokens
 under the `URO_OSYN` advisory lock, one replica at a time. An account is local or SSO, never both;
@@ -133,7 +133,11 @@ searches with Postgres full-text (`media.search`, `websearch_to_tsquery`), pages
 cursors, and keeps per-person tags, watch progress and queued playlists. Playlists of two kinds, sharing with
 people or by a public link (`/api/public/s/{code}`, outside the guard, each route checking its
 code), and the download and share notifications are in `docs/sharing.md`; every route that serves
-an entry asks `visibleEntry` (`src/sharing/access.ts`). Tests start RustFS too
+an entry asks `visibleEntry` (`src/sharing/access.ts`). People's saved site logins (Settings ›
+Logins, `docs/downloads.md#site-logins`) are sealed with `UROBOROS_SECRETS_KEY` and reach yt-dlp only
+as a per-run private `.netrc`; a job signs in as the person it runs for (`withLoginsOf`), a shared
+fetch as its earliest waiter per site, and `mise run gen:login-sites` refreshes the site list after
+a yt-dlp bump. Tests start RustFS too
 (`test/testS3.ts` gives a fresh bucket); job tests drive `@uroboros/ytdlp/testing`'s fake
 binary, whose scenarios can answer per URL (`variants`). No test touches the network.
 

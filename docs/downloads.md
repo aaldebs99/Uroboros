@@ -19,8 +19,9 @@ request handler.
    - a failure marks the request `failed` with its error kind and yt-dlp's redacted stderr tail,
      which the web shows collapsed ("yt-dlp output") under the error's plain words, as it does
      for a failed download. A site that wants a signed-in account (yt-dlp's login wall: Vimeo's
-     own video pages need one with current yt-dlp) is `login_required`; the server can sign in
-     with a cookies file (`UROBOROS_YTDLP_COOKIES_FILE`).
+     own video pages need one with current yt-dlp) is `login_required`, and a saved login the
+     site refused is `login_failed`; both point to Settings › Logins ([site logins](#site-logins)).
+     The server can also sign in with a cookies file (`UROBOROS_YTDLP_COOKIES_FILE`).
 3. `POST /api/downloads/requests/{id}/queue {entryIds}` turns the ticked entries into downloads.
    Entries the person already has, or is already getting, are skipped and counted. A preview
    nobody queues expires after a day (the leader's sweeper deletes it).
@@ -116,6 +117,32 @@ YouTube serves some formats only after a JavaScript challenge. The image install
 `[default]` extras, which include the yt-dlp-ejs solver scripts, and every probe and download runs
 with `--js-runtimes node:<the server's own node>`, so the solver runs on the Node 24 already in the
 image (no Deno needed).
+
+## Site logins
+
+People save a username and password for any site yt-dlp can sign in to, under Settings › Logins
+(`/api/me/site-logins`, cookie sessions only: an API token is refused). The sites are the pinned
+yt-dlp's netrc machine names, generated into `packages/contract/src/generated/loginSites.ts` by
+`mise run gen:login-sites` (YouTube is left out: it takes cookies only); the image smoke test fails
+while the committed list differs from the image's yt-dlp, so a yt-dlp bump regenerates it.
+
+- **At rest:** one `site_logins` row per person and site. The password is sealed with AES-256-GCM
+  under `UROBOROS_SECRETS_KEY` (`src/secrets/seal.ts`; nonce, ciphertext and tag, with the owner
+  and site as additional data) and never leaves the server. Without the key saving is off (409)
+  and the jobs use no logins; a changed key leaves old rows unreadable, listed as such for their
+  owner to enter again. There is no key rotation.
+- **Whose logins a run uses:** a probe signs in with the requester's logins (a channel's tab
+  probes too), and a subscription's listing and full probes with its owner's (`withLoginsOf`,
+  `src/worker/logins.ts`). A fetch is shared, so right before each attempt it takes, per site, the
+  login of the earliest-waiting person on its fetch key who has one (`loginsForFetch`). Like a
+  shared rendition, the file then serves everyone waiting.
+- **How yt-dlp gets them:** the wrapper writes the run's logins to a private `.netrc` (mode 0600,
+  in a fresh temporary directory removed afterwards) and passes `--netrc --netrc-location`, so
+  each extractor looks up its own site and no password is on the command line. Values are quoted
+  netrc tokens (no control characters allowed), and each saved password is scrubbed from the kept
+  stderr lines.
+- **A refused login** (`login_failed`: "bad username or password" and its kin) fails at once, with
+  no retry.
 
 ## Not yet
 

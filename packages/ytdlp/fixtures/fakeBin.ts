@@ -5,14 +5,20 @@
  * stripping, so it imports nothing but node builtins.
  */
 import { spawn } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 export type Step =
   | { stdout: string }
   | { stderr: string }
   | { sleepMs: number }
   | { writeFile: string; content: string }
+  /**
+   * Copies the file named by the value after `copyArgFile` (joined with `name` when that value is
+   * a directory) beside the argv record, as `as`, so a test can read a file that is gone by the
+   * time the run ends. Nothing is copied when the argument is absent.
+   */
+  | { copyArgFile: string; name?: string; as: string }
   | { spawnSleeper: string }
   | { hang: true };
 
@@ -47,12 +53,26 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
+function copyArgFile(step: { copyArgFile: string; name?: string; as: string }): void {
+  const args = process.argv.slice(2);
+  const at = args.indexOf(step.copyArgFile);
+  const value = at === -1 ? undefined : args[at + 1];
+  const argvFile = process.env["FAKE_BIN_ARGV"];
+  if (value === undefined || argvFile === undefined) return;
+  const source = step.name === undefined ? value : join(value, step.name);
+  if (existsSync(source)) copyFileSync(source, join(dirname(argvFile), step.as));
+}
+
 async function run(step: Step): Promise<void> {
   if ("stdout" in step) return write(process.stdout, step.stdout);
   if ("stderr" in step) return write(process.stderr, step.stderr);
   if ("sleepMs" in step) return sleep(step.sleepMs);
   if ("writeFile" in step) {
     writeFileSync(resolve(step.writeFile), fill(step.content));
+    return;
+  }
+  if ("copyArgFile" in step) {
+    copyArgFile(step);
     return;
   }
   if ("spawnSleeper" in step) {

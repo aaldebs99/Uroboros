@@ -7,7 +7,8 @@ export const DOWNLOAD_ERROR_TEXT = {
   geo_blocked: "This video isn't available in the server's country.",
   age_restricted: "This video needs a signed-in, age-verified account (add cookies).",
   login_required:
-    "The site wants a signed-in account for this. The server can sign in with a cookies file (UROBOROS_YTDLP_COOKIES_FILE).",
+    "The site wants a signed-in account for this. Save your login for it under Settings › Logins.",
+  login_failed: "The site refused your saved login. Check it under Settings › Logins.",
   rate_limited: "The site is limiting requests. It will retry.",
   network: "The site couldn't be reached. It will retry.",
   unsupported_url: "yt-dlp doesn't support this link.",

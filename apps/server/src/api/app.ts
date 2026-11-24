@@ -23,6 +23,7 @@ import { registerSharingRoutes } from "../sharing/routes.ts";
 import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
+import { registerSiteLoginRoutes } from "../siteLogins/routes.ts";
 import { registerPlaybackRoutes } from "../transcode/routes.ts";
 import { oidcEndSessionUrl, registerOidcRoutes } from "../auth/oidc/routes.ts";
 import type { OidcProvider } from "../auth/oidc/provider.ts";
@@ -61,6 +62,8 @@ export interface Deps {
   downloadEvents?: EventHub;
   /** The encoder new playback copies are made with (`UROBOROS_TRANSCODE_HWACCEL`). */
   transcodeEncoder?: TranscodeEncoder;
+  /** `UROBOROS_SECRETS_KEY`, for saved site logins; without it none can be saved. */
+  secretsKey?: Buffer | null;
 }
 
 export interface AuthDeps {
@@ -230,6 +233,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerPlaylistRoutes(app, deps.db);
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerNotificationPrefRoutes(app, deps.db);
+  registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
   const playback =
     deps.downloads === undefined

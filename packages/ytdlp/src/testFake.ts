@@ -48,6 +48,15 @@ export class FakeRun {
     return JSON.parse(await readFile(join(this.dir, "argv.json"), "utf8")) as string[];
   }
 
+  /** A file a `copyArgFile` step saved, or null when none was. */
+  async copied(name: string): Promise<string | null> {
+    try {
+      return await readFile(join(this.dir, name), "utf8");
+    } catch {
+      return null;
+    }
+  }
+
   async close(): Promise<void> {
     await rm(this.dir, { recursive: true, force: true });
   }

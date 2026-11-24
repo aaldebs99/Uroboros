@@ -11,6 +11,7 @@ export const YTDLP_ERROR_KINDS = [
   "geo_blocked",
   "age_restricted",
   "login_required",
+  "login_failed",
   "rate_limited",
   "network",
   "unsupported_url",
@@ -66,6 +67,13 @@ const RULES: readonly (readonly [YtDlpErrorKind, RegExp])[] = [
   [
     "private",
     /\bprivate video\b|\bvideo is private\b|\bplaylist is private\b|members[- ]only|been granted access/i,
+  ],
+  // A saved login the site refused. Before `login_required`: these messages often end with yt-dlp's
+  // login hint, which mentions --cookies. A bare "Unable to log in" is left alone, because
+  // extractors also say that when the login page can't be reached.
+  [
+    "login_failed",
+    /\b(?:invalid|wrong|incorrect|bad) (?:username|password|e-?mail|login|credentials)\b|\blogin failed\b/i,
   ],
   // yt-dlp's raise_login_required, once the kinds above (whose messages also suggest cookies) have
   // passed: the site wants a signed-in account (Vimeo's own pages do since 2025).

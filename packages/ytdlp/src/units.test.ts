@@ -56,6 +56,16 @@ describe("redactLine", () => {
     );
     expect(redactLine(".youtube.com\tTRUE\t/\tTRUE\t1795389424\tSID\tsecret")).toBe("<redacted>");
   });
+
+  it("drops a netrc line, and blanks the run's own passwords wherever they appear", () => {
+    expect(redactLine('machine vimeo login "me" password "hunter22"')).toBe("<redacted>");
+    expect(redactLine("[debug] posting hunter22 to the login form", ["hunter22"])).toBe(
+      "[debug] posting <redacted> to the login form",
+    );
+    // A very short password would blank ordinary words, so it is left to the other rules.
+    expect(redactLine("ERROR: abc failed", ["abc"])).toBe("ERROR: abc failed");
+    expect(redactLine("Please login with password", [])).toBe("Please login with password");
+  });
 });
 
 describe("classifyFailure", () => {
@@ -91,6 +101,19 @@ describe("classifyFailure", () => {
       "login_required",
     ],
     ["ERROR: [twitter] 456: Login is required to access this content", "login_required"],
+    // A saved login the site refused, as the extractors word it.
+    ["ERROR: [vimeo] Unable to log in: bad username or password", "login_failed"],
+    [
+      "ERROR: [twitch:vod] Unable to login. Twitch said: Invalid username or password",
+      "login_failed",
+    ],
+    ["ERROR: [soundcloud] Unable to login: Wrong password", "login_failed"],
+    [
+      "ERROR: [niconico] Unable to log in: Invalid username/password; Use --cookies-from-browser or --cookies for the authentication.",
+      "login_failed",
+    ],
+    ["ERROR: [vk] Login failed", "login_failed"],
+    ["ERROR: [udemy] Unable to login: incorrect username and/or password", "login_failed"],
     ["ERROR: Unsupported URL: https://example.com/", "unsupported_url"],
     ["ERROR: [generic] x: Unable to download webpage: HTTP Error 404: Not Found", "unavailable"],
     ["ERROR: something nobody has seen before", "unknown"],
@@ -153,13 +176,17 @@ describe("arguments", () => {
   });
 
   it("puts the URL last, behind --", () => {
-    expect(commandLine("/tmp/c.txt", ["--a"], ["--b"], "https://x.example/")).toEqual([
+    const files = { cookies: "/tmp/c.txt", netrcDir: "/tmp/n" };
+    expect(commandLine(files, ["--a"], ["--b"], "https://x.example/")).toEqual([
       "--ignore-config",
       "--no-update",
       "--color",
       "never",
       "--cookies",
       "/tmp/c.txt",
+      "--netrc",
+      "--netrc-location",
+      "/tmp/n",
       "--a",
       "--b",
       "--",

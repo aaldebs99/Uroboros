@@ -2,6 +2,7 @@ import type { DownloadErrorKind } from "@uroboros/contract";
 import { toDownloadError } from "../downloads/errors.ts";
 import { recordPlaylistItems } from "../downloads/sources.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
+import { withLoginsOf } from "../worker/logins.ts";
 import { filterAll } from "./decisions.ts";
 import { freeLease, releaseLease, renewLease, takeLease } from "./lease.ts";
 import { candidateKey, listFeed, type Candidate } from "./listing.ts";
@@ -180,7 +181,8 @@ export function checkProcessor(deps: WorkerDeps, signal?: AbortSignal) {
     const sub = await takeLease(deps.db, job.data.subscriptionId);
     if (sub === undefined) return;
     try {
-      if ((await runCheck(deps, sub, signal)) === "stale") {
+      // The owner's logins sign in the listing and the full probes.
+      if ((await runCheck(await withLoginsOf(deps, sub.user_id), sub, signal)) === "stale") {
         // Decided under filters the person has since changed: check again under the new ones.
         await freeLease(deps.db, sub.id);
         await checkNow(deps.queues.automation, sub.id);

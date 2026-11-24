@@ -40,6 +40,7 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
       ytdlpPath: "yt-dlp",
       transcode: { concurrency: 0, encoder: "libx264", keepDays: 30 },
     },
+    secretsKey: null,
     ...over,
   };
 }

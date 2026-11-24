@@ -265,6 +265,12 @@ description = "Fail if api/openapi.json differs from the code (CI gate)"
 depends = ["install"]
 run = "pnpm -F @uroboros/server exec tsx src/bin/gen.ts --check"
 
+[tasks."gen:login-sites"]
+description = "Regenerate the sites yt-dlp can sign in to (packages/contract/src/generated/loginSites.ts) from the image's yt-dlp; run after a yt-dlp bump and commit the result"
+# Reads the pinned yt-dlp inside uroboros:local (mise run docker:build first); the image smoke test
+# fails while the committed list differs from the image's.
+run = "sh scripts/gen/login-sites.sh uroboros:local"
+
 # ── Web ───────────────────────────────────────────────────────────────────────────────────────
 
 [tasks."dev:ui"]

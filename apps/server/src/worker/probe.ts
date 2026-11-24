@@ -6,18 +6,23 @@ import { publishDownloadEvent } from "../downloads/events.ts";
 import { getProfile } from "../downloads/profiles.ts";
 import type { ProbeJob } from "../downloads/queues.ts";
 import type { WorkerDeps } from "./deps.ts";
+import { withLoginsOf } from "./logins.ts";
 import { upsertMedia } from "./media.ts";
 
 const PROBE_TIMEOUT_MS = 120_000;
 
 type Deps = WorkerDeps;
 
-/** yt-dlp's options for a flat probe with these deps (the subscription check lists with them). */
+/**
+ * yt-dlp's options for a flat probe with these deps (the subscription check lists with them),
+ * signed in with the logins `withLoginsOf` put on them.
+ */
 export function ytdlpOptions(deps: Deps) {
   return {
     binary: deps.ytdlp.binary,
     ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
     ...(deps.ytdlp.cookiesFile === null ? {} : { cookiesFile: deps.ytdlp.cookiesFile }),
+    ...(deps.ytdlp.logins === undefined ? {} : { logins: deps.ytdlp.logins }),
     ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
     timeoutMs: PROBE_TIMEOUT_MS,
     flat: true,
@@ -172,9 +177,11 @@ export function probeProcessor(deps: Deps) {
       .executeTakeFirst();
     if (req?.state !== "probing") return;
     try {
-      const info = await probe(req.url, ytdlpOptions(deps));
-      if (info.kind === "video") await queueVideo(deps, req, info);
-      else await preview(deps, req, info);
+      // The requester's own logins, for this probe and a channel's tab probes.
+      const signedIn = await withLoginsOf(deps, req.user_id);
+      const info = await probe(req.url, ytdlpOptions(signedIn));
+      if (info.kind === "video") await queueVideo(signedIn, req, info);
+      else await preview(signedIn, req, info);
     } catch (err) {
       const failure = toDownloadError(err);
       deps.logger.warn({ err, requestId: req.id }, "probe failed");

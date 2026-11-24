@@ -1,5 +1,4 @@
 import { checkUrl, commandLine, DEFAULT_BINARY, runtimeArgs, type YtDlpOptions } from "./args.ts";
-import { withCookiesCopy } from "./cookies.ts";
 import { YtDlpError } from "./errors.ts";
 import { normalizeExtraArgs } from "./flags.ts";
 import { parseInfo, type ProbeResult } from "./info.ts";
@@ -10,6 +9,7 @@ import {
   runProcess,
   type RunResult,
 } from "./process.ts";
+import { secretsOf, withRunFiles } from "./runFiles.ts";
 
 export interface ProbeOptions extends YtDlpOptions {
   /**
@@ -45,10 +45,11 @@ export async function probe(url: string, options: ProbeOptions = {}): Promise<Pr
     ...runtimeArgs(options.jsRuntime),
   ];
   if (options.flat === true) own.push("--flat-playlist");
-  return withCookiesCopy(options.cookiesFile, async (cookies) => {
+  return withRunFiles(options, async (files) => {
     const result = await runProcess({
       binary: options.binary ?? DEFAULT_BINARY,
-      args: commandLine(cookies, own, extra, target),
+      args: commandLine(files, own, extra, target),
+      secrets: secretsOf(options),
       env: options.env,
       signal: options.signal,
       timeoutMs: options.timeoutMs,

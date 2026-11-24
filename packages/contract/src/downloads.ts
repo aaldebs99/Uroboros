@@ -10,6 +10,7 @@ export const DOWNLOAD_ERROR_KINDS = [
   "geo_blocked",
   "age_restricted",
   "login_required",
+  "login_failed",
   "rate_limited",
   "network",
   "unsupported_url",

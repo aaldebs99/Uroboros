@@ -432,6 +432,7 @@
           "geo_blocked",
           "age_restricted",
           "login_required",
+          "login_failed",
           "rate_limited",
           "network",
           "unsupported_url",
@@ -1066,6 +1067,105 @@
           "password"
         ],
         "type": "object"
+      },
+      "LoginSite": {
+        "enum": [
+          "10play",
+          "1und1tv",
+          "abematv",
+          "afreecatv",
+          "alura",
+          "aluracourse",
+          "animationdigitalnetwork",
+          "atresplayer",
+          "bbc",
+          "bbvtv",
+          "biliintl",
+          "brainpop",
+          "brilliantpala",
+          "caracoltv-play",
+          "cbcgem",
+          "cdapl",
+          "curiositystream",
+          "cybrary",
+          "dailymotion",
+          "dangalplay",
+          "digitalconcerthall",
+          "dropout",
+          "eplus",
+          "eroprofile",
+          "ewetv",
+          "fancode",
+          "fc2",
+          "frontendmasters",
+          "gaia",
+          "gamedevtv",
+          "gdcvault",
+          "getcourseru",
+          "glattvisiontv",
+          "globo",
+          "goplay",
+          "hidive",
+          "hrti",
+          "iprima",
+          "iwara",
+          "laxarxames",
+          "lecturio",
+          "mellowfan",
+          "mlb",
+          "mnettv",
+          "netplus",
+          "newgrounds",
+          "niconico",
+          "nubiles-porn",
+          "onsen",
+          "osnateltv",
+          "packtpub",
+          "peloton",
+          "piapro",
+          "platzi",
+          "playsuisse",
+          "pluralsight",
+          "pokergo",
+          "pornhub",
+          "qdance",
+          "quantumtv",
+          "rokfin",
+          "roosterteeth",
+          "rtbf",
+          "safari",
+          "saktv",
+          "salttv",
+          "shahid",
+          "softwhiteunderbelly",
+          "sonyliv",
+          "soundcloud",
+          "stacommu",
+          "stageplus",
+          "teachable",
+          "teamtreehouse",
+          "tennistv",
+          "theatercomplextown",
+          "thisoldhouse",
+          "toutv",
+          "tubetugraz",
+          "tumblr",
+          "twitch",
+          "udemy",
+          "ufctv",
+          "vidio",
+          "vimeo",
+          "viu",
+          "vk",
+          "vrtnu",
+          "vtxtv",
+          "walytv",
+          "watchnebula",
+          "weverse",
+          "wrestleuniverse",
+          "zattoo"
+        ],
+        "type": "string"
       },
       "LogoutResult": {
         "properties": {
@@ -2297,6 +2397,71 @@
         ],
         "type": "object"
       },
+      "SiteLoginBody": {
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "type": "object"
+      },
+      "SiteLoginView": {
+        "properties": {
+          "site": {
+            "$ref": "#/components/schemas/LoginSite"
+          },
+          "state": {
+            "enum": [
+              "ok",
+              "unreadable"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "site",
+          "username",
+          "state",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "SiteLogins": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "logins": {
+            "items": {
+              "$ref": "#/components/schemas/SiteLoginView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "logins"
+        ],
+        "type": "object"
+      },
       "SponsorBlockCategory": {
         "enum": [
           "sponsor",
@@ -2742,7 +2907,7 @@
     }
   },
   "info": {
-    "description": "Everything the web app does goes through this API, so a script can do it too.\n\n## Signing in\n\n**With a token** (scripts): create a personal API token in the web app under Account › Tokens\nand send it as `Authorization: Bearer <token>`. A token acts as its owner, needs no CSRF header,\nand is refused (403) on `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`,\n`/api/me/sessions*` and `/api/me/push*`, so a leaked token cannot mint another, act as an\nadmin, change the password or move notifications. Click **Authorize** above and paste a token to\ntry the routes here.\n\n**With the browser's session**: the `uroboros_session` cookie, set by signing in. Every write\n(anything but GET, HEAD and OPTIONS) must also send the `X-Uroboros-CSRF` header with the value\nof the `uroboros_csrf` cookie.\n\nRoutes marked with no security (health, readiness, sign-in, and public links under\n`/api/public/s/{code}`) need neither: a public link's code is its own key.\n\n## Errors\n\nEvery error is an `ApiErrorBody`, `{ \"code\": \"...\", \"message\": \"...\" }`; `code` decides the\nstatus: `bad_request` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404,\n`conflict` 409, `payload_too_large` 413 (bodies over 64 KiB), `unprocessable` 422,\n`too_many_requests` 429, `internal` 500, `unavailable` 503 (starting, or a dependency is down).\nAnother person's things answer 404, never 403.\n\n## Paging\n\nLists that can grow page with a keyset cursor: pass the `nextCursor` of one page as `cursor`\nfor the next; it is `null` on the last. Things added while you page never cause duplicates or\ngaps.\n\n## Live progress\n\n`GET /api/downloads/events` is a server-sent event stream of the caller's download changes\n(state and progress), from whichever replica serves it.\n",
+    "description": "Everything the web app does goes through this API, so a script can do it too.\n\n## Signing in\n\n**With a token** (scripts): create a personal API token in the web app under Account › Tokens\nand send it as `Authorization: Bearer <token>`. A token acts as its owner, needs no CSRF header,\nand is refused (403) on `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`,\n`/api/me/sessions*`, `/api/me/push*` and `/api/me/site-logins*`, so a leaked token cannot\nmint another, act as an admin, change the password, move notifications or touch saved site logins.\nClick **Authorize** above and paste a token to try the routes here.\n\n**With the browser's session**: the `uroboros_session` cookie, set by signing in. Every write\n(anything but GET, HEAD and OPTIONS) must also send the `X-Uroboros-CSRF` header with the value\nof the `uroboros_csrf` cookie.\n\nRoutes marked with no security (health, readiness, sign-in, and public links under\n`/api/public/s/{code}`) need neither: a public link's code is its own key.\n\n## Errors\n\nEvery error is an `ApiErrorBody`, `{ \"code\": \"...\", \"message\": \"...\" }`; `code` decides the\nstatus: `bad_request` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404,\n`conflict` 409, `payload_too_large` 413 (bodies over 64 KiB), `unprocessable` 422,\n`too_many_requests` 429, `internal` 500, `unavailable` 503 (starting, or a dependency is down).\nAnother person's things answer 404, never 403.\n\n## Paging\n\nLists that can grow page with a keyset cursor: pass the `nextCursor` of one page as `cursor`\nfor the next; it is `null` on the last. Things added while you page never cause duplicates or\ngaps.\n\n## Live progress\n\n`GET /api/downloads/events` is a server-sent event stream of the caller's download changes\n(state and progress), from whichever replica serves it.\n",
     "title": "Uroboros API",
     "version": "0.0.0"
   },
@@ -5188,6 +5353,163 @@
         "summary": "Sign out one of the caller's sessions",
         "tags": [
           "account"
+        ]
+      }
+    },
+    "/api/me/site-logins": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteLogins"
+                }
+              }
+            },
+            "description": "Whether logins can be saved, and the saved ones"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Called with an API token"
+          }
+        },
+        "summary": "The caller's saved site logins (never their passwords)",
+        "tags": [
+          "site-logins"
+        ]
+      }
+    },
+    "/api/me/site-logins/{site}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "The site's yt-dlp netrc machine name",
+            "in": "path",
+            "name": "site",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/LoginSite"
+                },
+                {
+                  "description": "The site's yt-dlp netrc machine name"
+                }
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Called with an API token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No saved login for that site"
+          }
+        },
+        "summary": "Remove the caller's login for a site",
+        "tags": [
+          "site-logins"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "description": "The site's yt-dlp netrc machine name",
+            "in": "path",
+            "name": "site",
+            "required": true,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/LoginSite"
+                },
+                {
+                  "description": "The site's yt-dlp netrc machine name"
+                }
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SiteLoginBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteLoginView"
+                }
+              }
+            },
+            "description": "The saved login"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not a site yt-dlp signs in to, or a bad username or password"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Called with an API token"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The server has no UROBOROS_SECRETS_KEY to seal it with"
+          }
+        },
+        "summary": "Save (or replace) the caller's login for a site",
+        "tags": [
+          "site-logins"
         ]
       }
     },

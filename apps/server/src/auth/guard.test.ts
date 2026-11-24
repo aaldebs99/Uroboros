@@ -83,11 +83,18 @@ describe("the API guard", () => {
     expect(res.status).toBe(200);
   });
 
-  it("refuses a bearer token on admin, token, password, session and push routes", async () => {
+  it("refuses a bearer token on admin, token, password, session, push and site-login routes", async () => {
     const s = await signedIn(testDb.db, { username: "dave", role: "admin" });
     const secret = newSecret();
     tokens.set(secret, s.userId);
-    for (const prefix of ["admin", "me/tokens", "me/password", "me/sessions", "me/push"]) {
+    for (const prefix of [
+      "admin",
+      "me/tokens",
+      "me/password",
+      "me/sessions",
+      "me/push",
+      "me/site-logins",
+    ]) {
       const res = await req(`/api/${prefix}/x`, { headers: { authorization: `Bearer ${secret}` } });
       expect([prefix, res.status]).toEqual([prefix, 403]);
       expect(await res.json()).toMatchObject({

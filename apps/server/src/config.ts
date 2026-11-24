@@ -42,6 +42,11 @@ export interface Config {
   downloads: DownloadLimits;
   /** The job consumers' settings (probe, download, notify): yt-dlp, scratch space, concurrency. */
   worker: WorkerSettings;
+  /**
+   * `UROBOROS_SECRETS_KEY`, the 32-byte key saved site logins are sealed with
+   * (`src/secrets/seal.ts`); null leaves saving logins off.
+   */
+  secretsKey: Buffer | null;
 }
 
 /** What the manual migrate command needs: the database and where the SQL files are. */
@@ -194,6 +199,16 @@ const workerEnvSchema = z.object({
   ),
 });
 
+/** 32 random bytes in standard base64, as `openssl rand -base64 32` prints them. */
+const secretsKey = z
+  .string()
+  .regex(
+    /^[A-Za-z0-9+/]{43}=$/,
+    "UROBOROS_SECRETS_KEY must be 32 random bytes in base64 (openssl rand -base64 32)",
+  )
+  .transform((value) => Buffer.from(value, "base64"))
+  .optional();
+
 const configSchema = z
   .object({
     UROBOROS_BIND: bindSchema.prefault(DEFAULT_BIND),
@@ -219,6 +234,7 @@ const configSchema = z
     UROBOROS_PUSH_MAX_DEVICES: unsetIfEmpty(
       positiveInt("UROBOROS_PUSH_MAX_DEVICES").prefault(String(DEFAULT_MAX_DEVICES)),
     ),
+    UROBOROS_SECRETS_KEY: unsetIfEmpty(secretsKey),
     ...authEnvSchema.shape,
     ...storageEnvSchema.shape,
     ...workerEnvSchema.shape,
@@ -310,6 +326,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
         keepDays: e.UROBOROS_TRANSCODE_KEEP_DAYS,
       },
     },
+    secretsKey: e.UROBOROS_SECRETS_KEY ?? null,
   };
 }
 
