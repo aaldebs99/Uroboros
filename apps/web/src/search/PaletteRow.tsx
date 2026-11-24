@@ -24,7 +24,7 @@ function Lines({ title, meta }: { title: string; meta: (string | null)[] }) {
   const line = meta.filter((part) => part !== null && part !== "").join(" · ");
   return (
     <span className="grid min-w-0 flex-1">
-      <span className="truncate font-medium">{title}</span>
+      <span className="line-clamp-2 font-medium">{title}</span>
       {line === "" ? null : (
         <span className="truncate text-xs text-muted-foreground tabular-nums">{line}</span>
       )}
@@ -39,7 +39,7 @@ function Lines({ title, meta }: { title: string; meta: (string | null)[] }) {
 function RemoteThumbnail({ url }: { url: string | null }) {
   const [broken, setBroken] = useState(false);
   return (
-    <span className="relative grid aspect-video w-24 shrink-0 place-items-center overflow-hidden rounded-[0.5rem] bg-raised">
+    <span className="relative grid aspect-video w-20 shrink-0 place-items-center overflow-hidden rounded-[0.5rem] bg-raised md:w-24">
       {url === null || broken ? (
         <Film className="size-5 text-muted-foreground" aria-hidden />
       ) : (
@@ -106,7 +106,7 @@ export function PaletteRow({
     case "entry":
       return (
         <>
-          <VideoThumbnail entry={option.entry} className="w-24 shrink-0 rounded-[0.5rem]" />
+          <VideoThumbnail entry={option.entry} className="w-20 shrink-0 rounded-[0.5rem] md:w-24" />
           {/* The thumbnail's badge says how long it is. */}
           <Lines title={option.entry.title} meta={[option.entry.channel]} />
         </>
@@ -128,7 +128,7 @@ export function PaletteRow({
           <span className={iconBox}>
             <Search className="size-4.5" aria-hidden />
           </span>
-          <span className="min-w-0 flex-1 truncate">
+          <span className="line-clamp-2 min-w-0 flex-1">
             See all results for “{option.query}” in your library
           </span>
         </>
@@ -139,7 +139,7 @@ export function PaletteRow({
           <span className={iconBox}>
             <Globe className="size-4.5" aria-hidden />
           </span>
-          <span className="min-w-0 flex-1 truncate">Search YouTube for “{option.query}”</span>
+          <span className="line-clamp-2 min-w-0 flex-1">Search YouTube for “{option.query}”</span>
         </>
       );
     case "download":
@@ -152,7 +152,7 @@ export function PaletteRow({
               <Download className="size-4.5" aria-hidden />
             )}
           </span>
-          <span className="min-w-0 flex-1 truncate">
+          <span className="line-clamp-2 min-w-0 flex-1">
             {pending === true ? "Downloading…" : "Download this link"}
           </span>
         </>
@@ -163,7 +163,7 @@ export function PaletteRow({
           <span className={iconBox}>
             <SlidersHorizontal className="size-4.5" aria-hidden />
           </span>
-          <span className="min-w-0 flex-1 truncate">Choose a format…</span>
+          <span className="line-clamp-2 min-w-0 flex-1">Choose a format…</span>
         </>
       );
   }
