@@ -65,13 +65,21 @@ export function PlaylistRoute() {
 }
 
 /**
- * A watch page; `?list=<playlist id>` plays one of the person's playlists in order from it, and
- * `?share=<share id>` a playlist shared with them.
+ * A watch page; `?list=<playlist id>` plays one of the person's playlists in order from it,
+ * `?share=<share id>` a playlist shared with them, and `?t=<seconds>` starts there (a search
+ * match's moment) instead of where the person left off.
  */
 export function ItemRoute() {
   const entryId = itemRoute.useParams({ select: (p: { entryId: string }) => p.entryId });
   const queue = itemRoute.useSearch({ select: queueOf });
-  return <ItemPage entryId={entryId} queue={queue} />;
+  const startAt = itemRoute.useSearch({ select: startOf });
+  return <ItemPage entryId={entryId} queue={queue} startAt={startAt} />;
+}
+
+/** `?t=`: seconds, 0 or more (the router reads `?t=754` as a number); anything else is none. */
+export function startOf(s: { t?: unknown }): number | null {
+  const t = typeof s.t === "string" && s.t.trim() !== "" ? Number(s.t) : s.t;
+  return typeof t === "number" && Number.isFinite(t) && t >= 0 ? t : null;
 }
 
 function queueOf(s: { list?: unknown; share?: unknown }): PlayQueue | null {

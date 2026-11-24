@@ -1,4 +1,4 @@
-import type { LibraryEntry } from "@uroboros/contract";
+import type { LibraryEntry, LibraryPageEntry } from "@uroboros/contract";
 import { Link } from "@tanstack/react-router";
 import { Download, Eye, EyeOff, Film, ListPlus, MoreVertical, Trash2 } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ResponsiveMenu } from "@/components/ui/responsive-menu";
 import { formatBytes, formatDuration } from "@/downloads/format";
 
+import { MatchLine } from "./MatchLine";
 import { PreviewSurface } from "./ThumbnailPreview";
 
 const added = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -66,14 +67,17 @@ export function VideoThumbnail({
   );
 }
 
-/** A bare tile: the thumbnail, then the avatar, a two-line title, the meta line and ⋮. */
+/**
+ * A bare tile: the thumbnail, then the avatar, a two-line title, the meta line (and, with a search,
+ * where it matched) and ⋮.
+ */
 export function EntryTile({
   entry,
   onRemove,
   onToggleWatched,
   onSaveToPlaylist,
 }: {
-  entry: LibraryEntry;
+  entry: LibraryPageEntry;
   onRemove: () => void;
   onToggleWatched: () => void;
   onSaveToPlaylist: () => void;
@@ -122,6 +126,10 @@ export function EntryTile({
               .filter((part) => part !== null)
               .join(" · ")}
           </p>
+          {/* With a search, where it matched (none when its title or channel did). */}
+          {entry.match == null ? null : (
+            <MatchLine entryId={entry.id} match={entry.match} className={cn("mt-1", tileMeta)} />
+          )}
         </div>
         <ResponsiveMenu
           title={`Actions for ${entry.title}`}

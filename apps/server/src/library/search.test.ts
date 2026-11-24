@@ -14,14 +14,43 @@ const logger = pino({ level: "silent" });
 let testDb: TestDb;
 let alice: SignedIn;
 let bob: SignedIn;
+let carol: SignedIn;
 
 /** Added `n` minutes into 2026: a larger `n` is newer. */
 const at = (n: number) => new Date(Date.UTC(2026, 0, 1, 0, n));
+
+/** Gives `mediaId` an English track whose caption runs are `runs`. */
+async function captions(
+  mediaId: string,
+  runs: { text: string; start_s: number; line_at?: number[]; line_start?: number[] }[],
+) {
+  const sub = await testDb.db
+    .insertInto("subtitles")
+    .values({ media_id: mediaId, lang: "en", storage_key: `subs/${mediaId}.vtt` })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  await testDb.db
+    .insertInto("caption_segments")
+    .values(
+      runs.map((r, seq) => ({
+        subtitle_id: sub.id,
+        media_id: mediaId,
+        seq,
+        text: r.text,
+        start_s: r.start_s,
+        end_s: r.start_s + 4,
+        line_at: r.line_at ?? [0],
+        line_start: r.line_start ?? [r.start_s],
+      })),
+    )
+    .execute();
+}
 
 beforeAll(async () => {
   testDb = await TestDb.create();
   alice = await signedIn(testDb.db, { username: "salice" });
   bob = await signedIn(testDb.db, { username: "sbob" });
+  carol = await signedIn(testDb.db, { username: "scarol" });
   const add = (
     title: string,
     n: number,
@@ -47,26 +76,16 @@ beforeAll(async () => {
   await seedEntry(testDb.db, bob.userId, { title: "Bob's dragon", addedAt: at(12) });
   // Spoken only: the captions hold the word.
   const { mediaId } = await add("Lecture", 13);
-  const sub = await testDb.db
-    .insertInto("subtitles")
-    .values({ media_id: mediaId, lang: "en", storage_key: `subs/${mediaId}.vtt` })
-    .returning("id")
-    .executeTakeFirstOrThrow();
-  await testDb.db
-    .insertInto("caption_segments")
-    .values(
-      [
-        { text: "and then the dragon", start_s: 30, end_s: 34, seq: 0 },
-        { text: "flew over the fair", start_s: 34, end_s: 38, seq: 1 },
-      ].map((s) => ({
-        ...s,
-        subtitle_id: sub.id,
-        media_id: mediaId,
-        line_at: [0],
-        line_start: [s.start_s],
-      })),
-    )
-    .execute();
+  await captions(mediaId, [
+    { text: "and then the dragon", start_s: 30 },
+    { text: "flew over the fair", start_s: 34 },
+  ]);
+  // A title match whose captions hold the word too.
+  const lore = await seedEntry(testDb.db, carol.userId, { title: "Dragon lore", addedAt: at(14) });
+  await captions(lore.mediaId, [
+    { text: "first words", start_s: 2 },
+    { text: "more about the dragon", start_s: 10, line_at: [0, 11], line_start: [10, 12] },
+  ]);
 });
 afterAll(async () => {
   await testDb.close();
@@ -168,6 +187,59 @@ describe("library search", () => {
     }
     // Nothing but spaces is no search at all.
     expect((await page(alice, "?q=%20%20")).entries).toHaveLength(12);
+  });
+});
+
+describe("where a search matched", () => {
+  it("shows a chapter, the description or the captions, with the time to play from", async () => {
+    const p = await page(alice, "?q=dragon");
+    const by = Object.fromEntries(p.entries.map((e) => [e.title, e.match]));
+    // The tile shows a title or channel already.
+    expect(by["Dragons of the North"]).toBeNull();
+    expect(by["Cooking"]).toBeNull();
+    expect(by["Walk"]).toEqual({
+      in: "chapter",
+      snippet: [
+        { text: "The ", mark: false },
+        { text: "dragon", mark: true },
+        { text: "'s lair", mark: false },
+      ],
+      start: 60,
+    });
+    expect(by["Later talk"]).toEqual({
+      in: "description",
+      snippet: [
+        { text: "another ", mark: false },
+        { text: "dragon", mark: true },
+      ],
+      start: null,
+    });
+    expect(by["Lecture"]).toEqual({
+      in: "captions",
+      snippet: [
+        { text: "and then the ", mark: false },
+        { text: "dragon", mark: true },
+      ],
+      start: 30,
+    });
+  });
+
+  it("shows the captions of a title match too, from the line that holds the words", async () => {
+    const [lore] = (await page(carol, "?q=dragon")).entries;
+    expect(lore?.match).toEqual({
+      in: "captions",
+      snippet: [
+        { text: "more about the ", mark: false },
+        { text: "dragon", mark: true },
+      ],
+      start: 12,
+    });
+  });
+
+  it("says nothing of matches without a search", async () => {
+    const res = await app(alice).request("/api/library?limit=1");
+    const body = (await res.json()) as { entries: Record<string, unknown>[] };
+    expect(body.entries[0]).not.toHaveProperty("match");
   });
 });
 

@@ -1,4 +1,9 @@
-import type { DownloadRequest, LibraryEntry, PreviewEntry } from "@uroboros/contract";
+import type {
+  DownloadRequest,
+  LibraryEntry,
+  LibraryPageEntry,
+  PreviewEntry,
+} from "@uroboros/contract";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -59,11 +64,11 @@ function request(over: Partial<DownloadRequest>): DownloadRequest {
   };
 }
 
-const page = (entries: LibraryEntry[]) => Response.json({ entries, nextCursor: null });
+const page = (entries: LibraryPageEntry[]) => Response.json({ entries, nextCursor: null });
 
 /** The library answers words with `byWords` and links with `byLink`; the page's own list is empty. */
 function setup(
-  library: { byWords?: LibraryEntry[]; byLink?: LibraryEntry[] } = {},
+  library: { byWords?: LibraryPageEntry[]; byLink?: LibraryEntry[] } = {},
   routes: Record<string, Handler> = {},
 ) {
   const calls = fakeApi({
@@ -173,6 +178,29 @@ describe("the search palette", () => {
     await userEvent.keyboard("{Enter}");
     await waitFor(() => {
       expect(router.state.location.pathname).toBe(`/library/${bunny.id}`);
+    });
+  });
+
+  it("shows where a match was said, and opens the video at that moment", async () => {
+    const lecture: LibraryPageEntry = {
+      ...entry(3, "Lecture"),
+      match: {
+        in: "captions",
+        snippet: [
+          { text: "and then the ", mark: false },
+          { text: "dragon", mark: true },
+        ],
+        start: 30.4,
+      },
+    };
+    const { router } = setup({ byWords: [lecture] });
+    await userEvent.type(await openPalette(), "dragon");
+    await screen.findByRole("group", { name: "In your library" });
+    expect(options()[0]).toContain("Captions · 0:30");
+    expect(options()[0]).toContain("and then the dragon");
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(router.state.location.href).toBe(`/library/${lecture.id}?t=30`);
     });
   });
 

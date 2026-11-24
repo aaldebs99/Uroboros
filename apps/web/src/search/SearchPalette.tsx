@@ -106,10 +106,17 @@ function useChoose(
   const navigate = useNavigate();
   return (o: PaletteOption) => {
     switch (o.kind) {
-      case "entry":
+      case "entry": {
         close();
-        void navigate({ to: "/library/$entryId", params: { entryId: o.entry.id } });
+        // A chapter or caption match opens at its moment.
+        const start = o.entry.match?.start ?? null;
+        void navigate({
+          to: "/library/$entryId",
+          params: { entryId: o.entry.id },
+          ...(start === null ? {} : { search: { t: Math.floor(start) } }),
+        });
         return;
+      }
       case "all":
         close();
         void navigate({ href: `/?q=${encodeURIComponent(o.query)}` });

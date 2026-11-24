@@ -83,6 +83,12 @@ describe("ItemPage", () => {
     expect(screen.getByRole("button", { name: "less" })).toBeInTheDocument();
   });
 
+  it("plays from a search match's moment rather than where the person left off", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} startAt={754} />);
+    expect(await screen.findByTestId("player")).toHaveAttribute("data-start", "754");
+  });
+
   it("seeks when a chapter is chosen", async () => {
     fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
     await renderInRouter(<ItemPage entryId={ID} />);

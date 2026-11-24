@@ -55,8 +55,24 @@ is stemmed (`src/library/searchTerms.ts`, `src/library/search.ts`).
 - **Bound.** A search runs under `SET LOCAL statement_timeout = '10s'`; one cut short (a common word
   like "the" in a very large library) is 503 `unavailable`, asking for more specific words.
 
+- **Where it matched.** With `q`, each entry carries `match` (`src/library/searchMatches.ts`): the
+  best place it matched that the tile doesn't show already, the first chapter, else the
+  description, else the first caption run holding every term, or null when only its title or
+  channel did. So a title match whose captions hold the words too still shows them. A match is
+  `in` (`chapter`, `description` or `captions`), a `snippet` of parts with every term marked
+  (`src/library/snippet.ts`, ported from Djinn's: one line, 40 characters before the first match
+  and 120 after, `…` where it was cut), and `start`, the chapter's start or the start of the
+  caption line holding the match (`caption_segments.line_at`/`line_start`), null for a
+  description. It is asked of the page's media alone, inside the search's bound, with every
+  predicate wrapped (`(… ILIKE …) IS TRUE`) so the planner reads those media's rows rather than the
+  trigram index's every match.
+
 The web doesn't send fewer than 3 characters: the library page says "Type at least 3
-characters.", and so does the palette.
+characters.", and so does the palette. A tile shows its match as a muted line under its details
+("Captions · 12:34 · …the words…", the terms highlighted; `apps/web/src/library/MatchLine.tsx`); a
+chapter or caption match links to its moment, `/library/{id}?t=<seconds>`, while the thumbnail and
+title still resume where the person left off. Palette rows show it too, and choosing a timed one
+opens at its moment.
 
 The web's **search palette** (Ctrl+K or ⌘K anywhere, or the phone's search button;
 `apps/web/src/search/`) asks this route as the field is typed in: words with `q` and `limit=8`
@@ -96,7 +112,8 @@ the SponsorBlock segments a video keeps, are bands on the timeline that playback
 runs into one; a segment the viewer seeks into plays out (`SponsorSkip.tsx`,
 [automation.md](automation.md#sponsorblock)). When the browser cannot play
 the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand instead
-([transcoding.md](transcoding.md)).
+([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
+(a search match's moment) when the address has it; the next video of a queue never carries it.
 
 Every entry says where it came from (`origin`: `download`, or `upload` for a video someone uploaded)
 and its format profile's name (`profileName`, null for an upload, or once a download's profile went

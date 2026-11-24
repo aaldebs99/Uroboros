@@ -22,9 +22,41 @@ export const LibrarySort = z
   .openapi("LibrarySort");
 export type LibrarySort = z.infer<typeof LibrarySort>;
 
+/** Where a search matched that the tile doesn't show already (docs/library.md "Search"). */
+export const SearchMatchSource = z
+  .enum(["chapter", "description", "captions"])
+  .openapi("SearchMatchSource");
+export type SearchMatchSource = z.infer<typeof SearchMatchSource>;
+
+/** A short line around the match, its terms marked. */
+export const SearchSnippet = z
+  .array(z.object({ text: z.string(), mark: z.boolean() }))
+  .max(64)
+  .openapi("SearchSnippet");
+export type SearchSnippet = z.infer<typeof SearchSnippet>;
+
+export const SearchMatch = z
+  .object({
+    in: SearchMatchSource,
+    snippet: SearchSnippet,
+    /** Where it plays from, in seconds: the chapter's start, or the caption line's; null otherwise. */
+    start: z.number().min(0).nullable(),
+  })
+  .openapi("SearchMatch");
+export type SearchMatch = z.infer<typeof SearchMatch>;
+
+/**
+ * A library page's entry: with `q`, also where it matched (null when only its title or channel
+ * did, which the tile shows).
+ */
+export const LibraryPageEntry = LibraryEntry.extend({
+  match: SearchMatch.nullable().optional(),
+}).openapi("LibraryPageEntry");
+export type LibraryPageEntry = z.infer<typeof LibraryPageEntry>;
+
 export const LibraryPage = z
   .object({
-    entries: z.array(LibraryEntry),
+    entries: z.array(LibraryPageEntry),
     /** Pass as `cursor` for the next page; null on the last one. */
     nextCursor: z.string().nullable(),
   })

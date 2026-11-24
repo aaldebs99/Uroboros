@@ -13,6 +13,7 @@ import { originOf, platformName } from "./platform.ts";
 import { thumbnailUrl } from "./thumbnailUrl.ts";
 import { decodeCursor, encodeCursor, type Cursor } from "./cursor.ts";
 import { hitsTable, underSearchTimeout, WORST_TIER } from "./search.ts";
+import { matchesFor } from "./searchMatches.ts";
 import { searchTerms } from "./searchTerms.ts";
 
 export interface LibraryFilters {
@@ -248,20 +249,37 @@ export async function listLibraryPage(
         sql<boolean>`(${spec.expr}, e.id) ${op} (${spec.cast(cursor.key)}, ${cursor.id}::uuid)`,
       );
     }
+    const searched = terms === null ? [] : [sql<number[]>`h.tiers`.as("tiers")];
     return (qb as SelectQueryBuilder<Database, never, object>)
-      .select([...ENTRY_COLUMNS, (spec.keyExpr ?? spec.expr).as("sort_key")] as never)
+      .select([...ENTRY_COLUMNS, ...searched, (spec.keyExpr ?? spec.expr).as("sort_key")] as never)
       .orderBy(sql`${spec.expr} ${sql.raw(spec.dir)}`)
       .orderBy(sql`e.id ${sql.raw(spec.dir)}`)
       .limit(size + 1)
       .execute()
       .catch(badCursorKey);
   };
-  const rows = terms === null ? await read(db) : await underSearchTimeout(db, read);
-  const typed = rows as unknown as EntryRow[];
-  const pageRows = typed.slice(0, size);
+  // A search's page also says where each entry matched, under the same bound.
+  const pageOf = async (tx: Kysely<Database>) => {
+    const typed = (await read(tx)) as unknown as EntryRow[];
+    const pageRows = typed.slice(0, size);
+    const matches =
+      terms === null
+        ? null
+        : await matchesFor(
+            tx,
+            terms,
+            pageRows.map((r) => ({ media_id: r.media_id, tiers: r.tiers ?? [] })),
+          );
+    return { typed, pageRows, matches };
+  };
+  const { typed, pageRows, matches } =
+    terms === null ? await pageOf(db) : await underSearchTimeout(db, pageOf);
   const last = pageRows.at(-1);
   return {
-    entries: pageRows.map((r) => toEntry(r, as === undefined)),
+    entries: pageRows.map((r) => {
+      const entry = toEntry(r, as === undefined);
+      return matches === null ? entry : { ...entry, match: matches.get(r.media_id) ?? null };
+    }),
     nextCursor:
       typed.length > size && last !== undefined
         ? encodeCursor({ key: keyOf(last.sort_key), id: last.id })
@@ -329,6 +347,8 @@ export interface EntryRow {
   subscription_id: string | null;
   subscription_title: string | null;
   tags: string[];
+  /** With a search: every tier its media matched in (`hitsTable`). */
+  tiers?: number[];
   sort_key: unknown;
 }
 

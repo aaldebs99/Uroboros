@@ -115,7 +115,16 @@ function InPlaylists({ item }: { item: LibraryItem }) {
  * suggestions the rest (at least 18rem). The columns follow the width the page has (a container
  * query), not the window: a narrow page stacks the suggestions under the details.
  */
-export function ItemPage({ entryId, queue = null }: { entryId: string; queue?: PlayQueue | null }) {
+export function ItemPage({
+  entryId,
+  queue = null,
+  startAt = null,
+}: {
+  entryId: string;
+  queue?: PlayQueue | null;
+  /** Where to start (a search match's moment, `?t=`), over where the person left off. */
+  startAt?: number | null;
+}) {
   const item = useItem(entryId);
   const client = useQueryClient();
   const [seek, setSeek] = useState<{ time: number } | null>(null);
@@ -153,9 +162,11 @@ export function ItemPage({ entryId, queue = null }: { entryId: string; queue?: P
       <div className="grid gap-6 @6xl:grid-cols-[minmax(0,13fr)_minmax(18rem,7fr)]">
         <article className="grid min-w-0 content-start gap-4">
           <WatchPlayer
-            key={it.id}
+            key={`${it.id}@${String(startAt)}`}
             item={it}
-            start={it.progress !== null && !it.progress.watched ? it.progress.position : 0}
+            start={
+              startAt ?? (it.progress !== null && !it.progress.watched ? it.progress.position : 0)
+            }
             autoPlay
             seek={seek}
             {...reporter}

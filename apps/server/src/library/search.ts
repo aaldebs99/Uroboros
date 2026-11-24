@@ -25,14 +25,14 @@ const holdsAll = (expr: RawBuilder<unknown>, patterns: string[]) =>
   )})`;
 
 /**
- * The media of `ownerId`'s entries that hold every term, each with its best tier: a derived table
- * (`media_id`, `tier`) to join. The matches are made first (materialised), through the indexes,
+ * The media of `ownerId`'s entries that hold every term, each with its best tier and every tier it
+ * matched in: a derived table (`media_id`, `tier`, `tiers`) to join. The matches are made first (materialised), through the indexes,
  * and only then kept to the owner's, so the planner never walks a whole library to filter it.
  */
 export function hitsTable(
   ownerId: string,
   terms: string[],
-): RawBuilder<{ media_id: string; tier: number }> {
+): RawBuilder<{ media_id: string; tier: number; tiers: number[] }> {
   const p = terms.map(likePattern);
   const owned = sql`(m.id IN (SELECT media_id FROM owned)) IS TRUE`;
   const title = sql`coalesce(m.title, '')`;
@@ -66,7 +66,8 @@ export function hitsTable(
       WHERE ${holdsAll(sql`s.text`, p)}
         AND (s.media_id IN (SELECT media_id FROM owned)) IS TRUE
     )
-    SELECT media_id, min(tier)::integer AS tier
+    SELECT media_id, min(tier)::integer AS tier,
+      array_agg(DISTINCT tier ORDER BY tier)::integer[] AS tiers
     FROM (SELECT * FROM meta UNION ALL SELECT * FROM chap UNION ALL SELECT * FROM caps) u
     GROUP BY media_id
   )`;

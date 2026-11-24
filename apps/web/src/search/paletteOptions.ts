@@ -1,8 +1,8 @@
-import type { LibraryEntry, PreviewEntry } from "@uroboros/contract";
+import type { LibraryPageEntry, PreviewEntry } from "@uroboros/contract";
 
 /** One row the palette's arrow keys move through and Enter chooses. */
 export type PaletteOption =
-  | { kind: "entry"; key: string; entry: LibraryEntry }
+  | { kind: "entry"; key: string; entry: LibraryPageEntry }
   | { kind: "all"; key: string; query: string }
   | { kind: "youtube"; key: string; query: string }
   | { kind: "result"; key: string; result: PreviewEntry }
@@ -26,17 +26,20 @@ export interface PaletteState {
   /** The text, trimmed. */
   typed: string;
   /** The library's matches for the words, or for the link (`undefined` until they come back). */
-  found: readonly LibraryEntry[] | undefined;
+  found: readonly LibraryPageEntry[] | undefined;
   /** YouTube's results for exactly these words, once a search listed them. */
   results: readonly PreviewEntry[] | null;
   /** A YouTube search for these words is under way (or listed them already). */
   searching: boolean;
 }
 
-const entryOptions = (entries: readonly LibraryEntry[]): PaletteOption[] =>
+const entryOptions = (entries: readonly LibraryPageEntry[]): PaletteOption[] =>
   entries.map((entry) => ({ kind: "entry", key: `entry-${entry.id}`, entry }));
 
-function linkSections(url: string, found: readonly LibraryEntry[] | undefined): PaletteSection[] {
+function linkSections(
+  url: string,
+  found: readonly LibraryPageEntry[] | undefined,
+): PaletteSection[] {
   if (found === undefined) return [];
   if (found.length > 0) return [{ label: "In your library", options: entryOptions(found) }];
   return [

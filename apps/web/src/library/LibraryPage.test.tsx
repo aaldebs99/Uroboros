@@ -108,6 +108,49 @@ describe("LibraryPage", () => {
     expect(onFilters).toHaveBeenLastCalledWith({ watched: false, sort: "title" });
   });
 
+  it("shows where a search matched, and a timed match plays from its moment", async () => {
+    const said = {
+      ...entry,
+      id: "0190a3f2-7c1e-7000-8000-0000000000c1",
+      title: "Lecture",
+      match: {
+        in: "captions",
+        snippet: [
+          { text: "and then the ", mark: false },
+          { text: "dragon", mark: true },
+        ],
+        start: 754.6,
+      },
+    };
+    const written = {
+      ...entry,
+      id: "0190a3f2-7c1e-7000-8000-0000000000c2",
+      title: "Talk",
+      match: {
+        in: "description",
+        snippet: [
+          { text: "…met a ", mark: false },
+          { text: "dragon", mark: true },
+        ],
+        start: null,
+      },
+    };
+    const titled = { ...entry, match: null };
+    fakeApi({
+      "GET /api/library": () =>
+        Response.json({ entries: [said, written, titled], nextCursor: null }),
+    });
+    await renderInRouter(<LibraryPage filters={{ q: "dragon" }} />);
+    const timed = await screen.findByRole("link", { name: /Captions · 12:35/ });
+    expect(timed).toHaveAttribute("href", `/library/${said.id}?t=754`);
+    expect(timed.querySelector("mark")?.textContent).toBe("dragon");
+    const described = screen.getByText(/Description/);
+    expect(described.closest("a")).toBeNull();
+    expect(described.closest("p")?.textContent).toBe("Description · …met a dragon");
+    // A title match shows nothing more: the tile has the title.
+    expect(screen.getAllByText(/Captions|Description|Chapter/)).toHaveLength(2);
+  });
+
   it("asks for 3 characters before it searches", async () => {
     const calls = fakeApi({
       "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }),

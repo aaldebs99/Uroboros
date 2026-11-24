@@ -1483,7 +1483,7 @@
         "properties": {
           "entries": {
             "items": {
-              "$ref": "#/components/schemas/LibraryEntry"
+              "$ref": "#/components/schemas/LibraryPageEntry"
             },
             "type": "array"
           },
@@ -1497,6 +1497,21 @@
           "nextCursor"
         ],
         "type": "object"
+      },
+      "LibraryPageEntry": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/LibraryEntry"
+          },
+          {
+            "properties": {
+              "match": {
+                "$ref": "#/components/schemas/SearchMatch"
+              }
+            },
+            "type": "object"
+          }
+        ]
       },
       "LibrarySort": {
         "enum": [
@@ -2921,6 +2936,55 @@
           "member"
         ],
         "type": "string"
+      },
+      "SearchMatch": {
+        "nullable": true,
+        "properties": {
+          "in": {
+            "$ref": "#/components/schemas/SearchMatchSource"
+          },
+          "snippet": {
+            "$ref": "#/components/schemas/SearchSnippet"
+          },
+          "start": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "in",
+          "snippet",
+          "start"
+        ],
+        "type": "object"
+      },
+      "SearchMatchSource": {
+        "enum": [
+          "chapter",
+          "description",
+          "captions"
+        ],
+        "type": "string"
+      },
+      "SearchSnippet": {
+        "items": {
+          "properties": {
+            "mark": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text",
+            "mark"
+          ],
+          "type": "object"
+        },
+        "maxItems": 64,
+        "type": "array"
       },
       "SessionState": {
         "enum": [

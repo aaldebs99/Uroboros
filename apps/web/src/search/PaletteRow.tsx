@@ -9,9 +9,10 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { formatDuration } from "@/downloads/format";
+import { matchLabel, MatchSnippet } from "@/library/MatchLine";
 import { VideoThumbnail } from "@/library/VideoTile";
 
 import type { PaletteOption } from "./paletteOptions";
@@ -20,13 +21,25 @@ import type { ResultState } from "./useYouTubeSearch";
 const iconBox =
   "grid size-9 shrink-0 place-items-center rounded-full bg-raised text-muted-foreground";
 
-function Lines({ title, meta }: { title: string; meta: (string | null)[] }) {
+function Lines({
+  title,
+  meta,
+  extra = null,
+}: {
+  title: string;
+  meta: (string | null)[];
+  /** A line under the meta (a search match's words). */
+  extra?: ReactNode;
+}) {
   const line = meta.filter((part) => part !== null && part !== "").join(" · ");
   return (
     <span className="grid min-w-0 flex-1">
       <span className="line-clamp-2 font-medium">{title}</span>
       {line === "" ? null : (
         <span className="truncate text-xs text-muted-foreground tabular-nums">{line}</span>
+      )}
+      {extra === null ? null : (
+        <span className="truncate text-xs text-muted-foreground">{extra}</span>
       )}
     </span>
   );
@@ -107,8 +120,15 @@ export function PaletteRow({
       return (
         <>
           <VideoThumbnail entry={option.entry} className="w-20 shrink-0 rounded-[0.5rem] md:w-24" />
-          {/* The thumbnail's badge says how long it is. */}
-          <Lines title={option.entry.title} meta={[option.entry.channel]} />
+          {/* The thumbnail's badge says how long it is; a search match, where it matched. */}
+          <Lines
+            title={option.entry.title}
+            meta={[
+              option.entry.channel,
+              option.entry.match == null ? null : matchLabel(option.entry.match),
+            ]}
+            extra={option.entry.match == null ? null : <MatchSnippet match={option.entry.match} />}
+          />
         </>
       );
     case "result":
