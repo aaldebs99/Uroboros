@@ -62,7 +62,7 @@ function errorOf(row: SubscriptionRow): Subscription["error"] {
   return { kind: kind.success ? kind.data : "unknown", message: row.last_error_message };
 }
 
-export function toSubscription(row: ListedRow, nextCheckAt: string | null): Subscription {
+export function toSubscription(row: ListedRow): Subscription {
   return {
     id: row.id,
     kind: row.kind,
@@ -91,7 +91,7 @@ export function toSubscription(row: ListedRow, nextCheckAt: string | null): Subs
     backfill: { mode: row.backfill, count: row.backfill_count },
     retention: { keepLast: row.keep_last, deleteWatchedAfterDays: row.delete_watched_after_days },
     lastCheckedAt: iso(row.last_checked_at),
-    nextCheckAt: row.enabled ? nextCheckAt : null,
+    nextCheckAt: row.enabled ? iso(row.next_check_at) : null,
     checking: row.lease_until !== null && new Date(row.lease_until).getTime() > Date.now(),
     error: errorOf(row),
     failures: row.failures,

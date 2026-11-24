@@ -100,10 +100,36 @@ export function scheduleOf(row: ScheduleRow): CheckSchedule {
   return { kind: "interval", minutes: row.interval_minutes ?? 0 };
 }
 
-/** BullMQ's repeat options for the row: `every` milliseconds, or a cron `pattern` in `tz`. */
-export function repeatOf(row: ScheduleRow): { every: number } | { pattern: string; tz: string } {
-  const schedule = scheduleOf(row);
-  return schedule.kind === "interval"
-    ? { every: schedule.minutes * 60_000 }
-    : { pattern: schedule.expression, tz: schedule.timezone };
+/** The next tick of the row's cron after `after`, in its timezone. */
+function nextCronTick(row: ScheduleRow, after: Date): Date {
+  return CronExpressionParser.parse(row.cron ?? "", {
+    tz: row.cron_tz ?? "UTC",
+    currentDate: after,
+  })
+    .next()
+    .toDate();
+}
+
+/**
+ * When a schedule's first check is due, as it is created, changed or resumed: an interval counts
+ * from the last check (a new one checks at once), never earlier than now; a cron waits for its
+ * next tick.
+ */
+export function firstCheckAt(row: ScheduleRow, lastCheckedAt: Date | null, now: Date): Date {
+  if (row.cron !== null) return nextCronTick(row, now);
+  if (lastCheckedAt === null) return now;
+  const due = lastCheckedAt.getTime() + (row.interval_minutes ?? 0) * 60_000;
+  return new Date(Math.max(now.getTime(), due));
+}
+
+/**
+ * When the check after one due at `due` is: the interval's next step after now, counted from the
+ * due time so the schedule keeps its rhythm, skipping steps missed meanwhile (Djinn's `next_after`);
+ * or the cron's next tick.
+ */
+export function nextCheckAfter(row: ScheduleRow, due: Date, now: Date): Date {
+  if (row.cron !== null) return nextCronTick(row, now);
+  const step = Math.max(1, row.interval_minutes ?? 0) * 60_000;
+  const steps = Math.floor((now.getTime() - due.getTime()) / step) + 1;
+  return new Date(due.getTime() + Math.max(1, steps) * step);
 }

@@ -158,7 +158,7 @@ export function registerSubscriptionRoutes(
       .orderBy("s.title")
       .orderBy("s.id")
       .execute();
-    return c.json(await Promise.all(rows.map((r) => present(d, r))), 200);
+    return c.json(rows.map(present), 200);
   });
 
   app.openapi(createSubscriptionRoute, async (c) => {
@@ -173,7 +173,7 @@ export function registerSubscriptionRoutes(
   app.openapi(getRoute, async (c) => {
     const d = need(ctx);
     const row = await ownSubscription(d.db, currentPrincipal(c).userId, c.req.valid("param").id);
-    return c.json(await present(d, row), 200);
+    return c.json(present(row), 200);
   });
 
   app.openapi(patchRoute, async (c) => {
@@ -196,7 +196,7 @@ export function registerSubscriptionRoutes(
     const row = await ownSubscription(d.db, currentPrincipal(c).userId, c.req.valid("param").id);
     if (!row.enabled) throw new ApiError("conflict", "this subscription is paused");
     await checkNow(d.queues.automation, row.id);
-    return c.json(await present(d, row), 202);
+    return c.json(present(row), 202);
   });
 
   app.openapi(latestRoute, async (c) => {

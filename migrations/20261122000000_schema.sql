@@ -222,8 +222,9 @@ CREATE TABLE renditions (
 );
 
 -- Automation (docs/automation.md): a person following a channel's tabs or a playlist. Each is
--- checked on its own BullMQ job scheduler; `feeds` are the listings followed (`[{name, url,
--- primedAt}]`, each primed by its own first check) and `tabs` every tab the preview offered.
+-- checked when its next_check_at comes round (the leader queues the check); `feeds` are the
+-- listings followed (`[{name, url, primedAt}]`, each primed by its own first check) and `tabs`
+-- every tab the preview offered.
 CREATE TABLE subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
@@ -240,6 +241,8 @@ CREATE TABLE subscriptions (
   cron TEXT CHECK (char_length(cron) BETWEEN 9 AND 120),
   cron_tz TEXT CHECK (char_length(cron_tz) BETWEEN 1 AND 64),
   enabled BOOLEAN NOT NULL DEFAULT true,
+  -- When the next scheduled check is due; null while paused.
+  next_check_at TIMESTAMPTZ,
   notify BOOLEAN NOT NULL DEFAULT true,
   title_include TEXT,
   title_exclude TEXT,
@@ -267,8 +270,10 @@ CREATE TABLE subscriptions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, extractor, source_id),
   CHECK ((interval_minutes IS NULL) <> (cron IS NULL)),
-  CHECK ((cron IS NULL) = (cron_tz IS NULL))
+  CHECK ((cron IS NULL) = (cron_tz IS NULL)),
+  CHECK (next_check_at IS NULL OR enabled)
 );
+CREATE INDEX subscriptions_due ON subscriptions (next_check_at) WHERE enabled;
 
 -- A user's library: entries pointing at shared renditions. Removing one deletes the row only.
 -- Restrict, not cascade: the reaper deleting a rendition that just gained an entry must fail, never

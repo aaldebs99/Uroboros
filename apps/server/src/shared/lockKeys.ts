@@ -36,9 +36,9 @@ export function lockKey(namespace: string, resource: string): bigint {
 }
 
 /**
- * The general leader: one replica holds it at a time and runs the sweeper (expired sessions
- * and pending sign-ins). BullMQ's job schedulers already run each repeatable job exactly once, so
- * scheduling never needs it; it is for singleton work (the media reaper to come, say).
+ * The general leader: one replica holds it at a time and runs the singleton work: the sweeper
+ * (expired sessions, sign-ins and short-lived rows), the reconcilers, the reaper, and queueing the
+ * subscriptions' due checks.
  */
 export const URO_LEAD = roleKey("URO_LEAD");
 

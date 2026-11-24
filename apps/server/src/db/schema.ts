@@ -204,6 +204,8 @@ export interface SubscriptionsTable {
   cron: string | null;
   cron_tz: string | null;
   enabled: Defaulted<boolean>;
+  /** When the next scheduled check is due; null while paused. */
+  next_check_at: Timestamp | null;
   notify: Defaulted<boolean>;
   title_include: string | null;
   title_exclude: string | null;

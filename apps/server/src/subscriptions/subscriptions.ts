@@ -12,15 +12,14 @@ import { publishDownloadEvent } from "../downloads/events.ts";
 import { getProfile } from "../downloads/profiles.ts";
 import { toRequest } from "../downloads/requests.ts";
 import { checkPattern, normalizePattern } from "./patterns.ts";
-import { nextCheckAt, scheduleCheck, unscheduleCheck } from "./queue.ts";
-import { checkSchedule, scheduleColumns } from "./schedule.ts";
+import { checkSchedule, firstCheckAt, scheduleColumns } from "./schedule.ts";
 import { ownSubscription, toSubscription, type ListedRow } from "./store.ts";
 
 const UNIQUE_VIOLATION = "23505";
 
 /** The contract shape, with the scheduler's next run. */
-export async function present(ctx: DownloadContext, row: ListedRow): Promise<Subscription> {
-  return toSubscription(row, await nextCheckAt(ctx.queues.automation, row.id));
+export function present(row: ListedRow): Subscription {
+  return toSubscription(row);
 }
 
 async function checkProfile(ctx: DownloadContext, id: string): Promise<void> {
@@ -109,6 +108,7 @@ export async function createSubscription(
       tabs: JSON.stringify(src.tabs),
       profile_id: body.profileId,
       ...scheduleColumns(body.schedule),
+      next_check_at: firstCheckAt(scheduleColumns(body.schedule), null, new Date()),
       notify: body.notify,
       ...(await filterColumns(ctx, body.filters)),
       delay_hours: body.delayHours,
@@ -117,11 +117,24 @@ export async function createSubscription(
       keep_last: body.retention.keepLast,
       delete_watched_after_days: body.retention.deleteWatchedAfterDays,
     })
-    .returning(["id", "interval_minutes", "cron", "cron_tz", "enabled"])
+    .returning("id")
     .executeTakeFirstOrThrow()
     .catch(refuseDuplicate);
-  await scheduleCheck(ctx.queues.automation, row);
-  return present(ctx, await ownSubscription(ctx.db, userId, row.id));
+  return present(await ownSubscription(ctx.db, userId, row.id));
+}
+
+/**
+ * The next check after an edit of the schedule or of `enabled`: none while paused, otherwise the
+ * new schedule's first (an interval counts from the last check).
+ */
+function nextCheckChange(
+  current: ListedRow,
+  patch: SubscriptionPatch,
+): { next_check_at?: Date | null } {
+  if (patch.schedule === undefined && patch.enabled === undefined) return {};
+  if (!(patch.enabled ?? current.enabled)) return { next_check_at: null };
+  const schedule = patch.schedule === undefined ? current : scheduleColumns(patch.schedule);
+  return { next_check_at: firstCheckAt(schedule, current.last_checked_at, new Date()) };
 }
 
 async function changes(
@@ -150,6 +163,7 @@ async function changes(
           delete_watched_after_days: patch.retention.deleteWatchedAfterDays,
         }),
     ...(patch.enabled === undefined ? {} : { enabled: patch.enabled }),
+    ...nextCheckChange(current, patch),
     ...(patch.notify === undefined ? {} : { notify: patch.notify }),
     updated_at: new Date(),
   };
@@ -158,7 +172,7 @@ async function changes(
 /**
  * Edits a subscription. New filters send what the old ones held back back to `waiting`, as
  * backfill, so the next check reconsiders those videos (behind pasted links, with no notice), and
- * a check running meanwhile records nothing; the schedule follows the interval and `enabled`.
+ * a check running meanwhile records nothing; the next check follows the schedule and `enabled`.
  */
 export async function updateSubscription(
   ctx: DownloadContext,
@@ -168,7 +182,7 @@ export async function updateSubscription(
 ): Promise<Subscription> {
   const current = await ownSubscription(ctx.db, userId, id);
   const set = await changes(ctx, current, patch);
-  const row = await ctx.db.transaction().execute(async (tx) => {
+  await ctx.db.transaction().execute(async (tx) => {
     if (patch.filters !== undefined) {
       await tx
         .updateTable("subscription_items")
@@ -177,17 +191,9 @@ export async function updateSubscription(
         .where("outcome", "=", "filtered")
         .execute();
     }
-    return tx
-      .updateTable("subscriptions")
-      .set(set)
-      .where("id", "=", id)
-      .returning(["id", "interval_minutes", "cron", "cron_tz", "enabled"])
-      .executeTakeFirstOrThrow();
+    await tx.updateTable("subscriptions").set(set).where("id", "=", id).execute();
   });
-  if (patch.schedule !== undefined || patch.enabled !== undefined) {
-    await scheduleCheck(ctx.queues.automation, row);
-  }
-  return present(ctx, await ownSubscription(ctx.db, userId, id));
+  return present(await ownSubscription(ctx.db, userId, id));
 }
 
 /**
@@ -200,7 +206,6 @@ export async function deleteSubscription(
   id: string,
 ): Promise<void> {
   await ownSubscription(ctx.db, userId, id);
-  await unscheduleCheck(ctx.queues.automation, id);
   const cancelled = await ctx.db.transaction().execute(async (tx) => {
     const rows = await tx
       .updateTable("downloads")

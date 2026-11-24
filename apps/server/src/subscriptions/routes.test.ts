@@ -1,3 +1,4 @@
+import { CronExpressionParser } from "cron-parser";
 import { randomUUID } from "node:crypto";
 import {
   ApiErrorBody,
@@ -8,6 +9,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
+import { storedNextCheck } from "../../test/listings.ts";
 import { TestDb } from "../../test/testDb.ts";
 
 let t: TestDb;
@@ -86,6 +88,9 @@ async function created(s: SignedIn, over: Record<string, unknown> = {}): Promise
   return Subscription.parse(await res.json());
 }
 
+const nextCheck = async (id: string): Promise<number> =>
+  (await storedNextCheck(t.db, id))?.getTime() ?? 0;
+
 describe("subscriptions", () => {
   it("subscribes from a channel preview and schedules a check", async () => {
     const sub = await created(alice);
@@ -100,10 +105,9 @@ describe("subscriptions", () => {
     });
     expect(sub.tabs.map((f) => f.name)).toEqual(["Videos", "Shorts", "Live"]);
     expect(sub.channelKey).not.toBeNull();
-    const scheduler = await h.queues.automation.getJobScheduler(sub.id);
-    expect(scheduler?.every).toBe(21_600_000);
-    const jobs = await h.queues.automation.getJobs(["waiting", "delayed", "prioritized"]);
-    expect(jobs.some((j) => j.data.subscriptionId === sub.id)).toBe(true);
+    // A new interval subscription is checked at once: its next check is now.
+    expect(Math.abs((await nextCheck(sub.id)) - Date.now())).toBeLessThan(10_000);
+    expect(sub.nextCheckAt).not.toBeNull();
   });
 
   it("refuses a second subscription to the same channel (409)", async () => {
@@ -136,9 +140,9 @@ describe("subscriptions", () => {
     const cron = { kind: "cron", expression: "0  */6 * * *", timezone: "Europe/Berlin" };
     const sub = await created(alice, { schedule: cron });
     expect(sub.schedule).toEqual({ ...cron, expression: "0 */6 * * *" });
-    expect(sub.nextCheckAt).not.toBeNull();
-    const scheduler = await h.queues.automation.getJobScheduler(sub.id);
-    expect(scheduler).toMatchObject({ pattern: "0 */6 * * *", tz: "Europe/Berlin" });
+    expect(sub.nextCheckAt).toBe(
+      CronExpressionParser.parse("0 */6 * * *", { tz: "Europe/Berlin" }).next().toISOString(),
+    );
     for (const [expression, timezone, message] of [
       ["*/5 * * * *", "UTC", /runs every 5 minutes; the shortest allowed is 60 minutes/],
       ["0,1 9 * * *", "UTC", /runs every 1 minute/],
@@ -156,10 +160,11 @@ describe("subscriptions", () => {
     const sub = await created(alice);
     const cron = { kind: "cron", expression: "30 7 * * 1", timezone: "UTC" };
     const res = await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, { schedule: cron });
-    expect(Subscription.parse(await res.json()).schedule).toEqual(cron);
-    expect(await h.queues.automation.getJobScheduler(sub.id)).toMatchObject({
-      pattern: "30 7 * * 1",
-    });
+    const switched = Subscription.parse(await res.json());
+    expect(switched.schedule).toEqual(cron);
+    expect(switched.nextCheckAt).toBe(
+      CronExpressionParser.parse("30 7 * * 1", { tz: "UTC" }).next().toISOString(),
+    );
     const back = await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, {
       schedule: { kind: "interval", minutes: 720 },
     });
@@ -167,7 +172,8 @@ describe("subscriptions", () => {
       kind: "interval",
       minutes: 720,
     });
-    expect((await h.queues.automation.getJobScheduler(sub.id))?.every).toBe(43_200_000);
+    // Never checked yet, so the interval's first check is now.
+    expect(Math.abs((await nextCheck(sub.id)) - Date.now())).toBeLessThan(10_000);
   });
 
   it("refuses an invalid title pattern (400)", async () => {
@@ -248,10 +254,10 @@ describe("subscriptions", () => {
       enabled: false,
       nextCheckAt: null,
     });
-    expect(await h.queues.automation.getJobScheduler(sub.id)).toBeUndefined();
+    expect(await storedNextCheck(t.db, sub.id)).toBeNull();
     expect((await send(alice, "POST", `/api/subscriptions/${sub.id}/check`)).status).toBe(409);
     await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, { enabled: true });
-    expect((await h.queues.automation.getJobScheduler(sub.id))?.every).toBe(21_600_000);
+    expect(Math.abs((await nextCheck(sub.id)) - Date.now())).toBeLessThan(10_000);
     expect((await send(alice, "POST", `/api/subscriptions/${sub.id}/check`)).status).toBe(202);
   });
 
@@ -307,7 +313,6 @@ describe("subscriptions", () => {
       .where("id", "=", entryId)
       .executeTakeFirstOrThrow();
     expect(kept.subscription_id).toBeNull();
-    expect(await h.queues.automation.getJobScheduler(sub.id)).toBeUndefined();
   });
 
   it("another person's subscription is 404, and lists are one's own", async () => {

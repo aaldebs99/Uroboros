@@ -27,23 +27,27 @@ person's subscription is 404, admins included.
 
 ## Checks
 
-Each enabled subscription has a BullMQ job scheduler on the `automation` queue, keyed by its id
-(`src/subscriptions/queue.ts`); BullMQ fires each schedule once across replicas. A subscription's
-schedule (`CheckSchedule`, `src/subscriptions/schedule.ts`) is one of:
+Each enabled subscription keeps when its next check is due (`next_check_at`). Every 5 s the leader
+queues the due ones on the `automation` queue (`src/subscriptions/due.ts`, as Djinn's scheduler
+does). It claims each with a conditional update that moves its next check on, so a pass racing
+another queues nothing twice, and runs missed meanwhile are skipped, never replayed. A scheduled
+check shares the `check|<id>` key with "check now", so one that falls due while another waits or
+runs is absorbed. A subscription's schedule (`CheckSchedule`, `src/subscriptions/schedule.ts`) is
+one of:
 
 - **Every N minutes** (`interval_minutes`), from `UROBOROS_MIN_CHECK_INTERVAL_MINUTES` (default 60)
-  to a week; the scheduler's first check runs at once. The web app writes it as a number of
+  to a week, counted from each check's due time; a new subscription's first check runs at once.
+  After an edit or a resume, the next check is due an interval after the last one (or at once).
+  The web app writes it as a number of
   minutes, hours or days (6 hours by default).
 - **A cron** (`cron`, `cron_tz`): a standard 5-field expression (minute, hour, day of month, month,
   day of week; no seconds) in an IANA timezone, the browser's by default. It is parsed with
-  `cron-parser` (BullMQ's own) and refused when any two of its next 200 runs are closer than the
+  `cron-parser` and refused when any two of its next 200 runs are closer than the
   minimum interval, so `0,1 9 * * *` is as refused as `*/5 * * * *`. It first runs at its next
   time.
 
-Pausing removes the scheduler and resuming adds it back. The leader re-syncs schedulers with the
-table every five minutes (`src/subscriptions/duties.ts`), comparing `every`, or `pattern` and
-`tz`: a flushed Valkey, or a crash between a commit and the scheduler call, heals itself, and the
-subscriptions of a disabled or revoked account lose theirs.
+Pausing clears the next check and resuming sets it again. The subscriptions of a disabled or
+revoked account are never queued. The API's `nextCheckAt` is the column.
 
 Every replica consumes `automation`, two checks at a time, with a queue-wide limiter of one check
 start per two seconds. A check (`src/subscriptions/check.ts`):
@@ -145,7 +149,7 @@ everyone using the profile.
 
 ## Unsubscribing
 
-Deleting a subscription removes its scheduler and its seen set, cancels its downloads that have not
+Deleting a subscription removes its schedule and its seen set, cancels its downloads that have not
 been dispatched yet, and leaves its library entries in the library as ordinary entries.
 
 ## Notifications

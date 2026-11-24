@@ -77,7 +77,7 @@ connections (`src/server/main.ts`). A migration error exits 1, never ready. `mis
 fails fast. There is no opt-out, and nothing else may run migrations. One replica leads at a time:
 `leadAndRun` over `PgLeaderLock` (a session-level `pg_try_advisory_lock` on a dedicated
 `<app>:leader` connection, pinged every 10 s). The general leader (`URO_LEAD`) runs the sweeper
-(expired sessions and pending sign-ins) and the download reconcile; put singleton work there, never in a BullMQ scheduler's place (those already run once). Every
+(expired sessions and pending sign-ins), the download reconcile and the subscription schedules (`next_check_at`); put singleton work there. Every
 advisory lock key lives in `src/shared/lockKeys.ts`: a role is 8 ASCII bytes, a per-resource lock
 `lockKey(namespace4, resource)`. Shutdown gives up leadership and stops taking jobs, drains HTTP
 (`UROBOROS_SHUTDOWN_GRACE_MS`, 20 s) alongside the running jobs (25 s; a download still running 5 s

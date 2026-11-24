@@ -77,3 +77,13 @@ export async function insertSubscription(
     .executeTakeFirstOrThrow();
   return row.id;
 }
+
+/** A subscription's next scheduled check, as stored (null while paused). */
+export async function storedNextCheck(db: Kysely<Database>, id: string): Promise<Date | null> {
+  const row = await db
+    .selectFrom("subscriptions")
+    .select("next_check_at")
+    .where("id", "=", id)
+    .executeTakeFirstOrThrow();
+  return row.next_check_at;
+}
