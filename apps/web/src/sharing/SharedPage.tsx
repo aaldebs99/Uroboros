@@ -1,53 +1,14 @@
-import type { SharedWithMe } from "@uroboros/contract";
-import { Link } from "@tanstack/react-router";
-import { ListVideo, Share2 } from "lucide-react";
+import { Share2 } from "lucide-react";
 
 import { errorText } from "@/api/client";
 import { useSharedWithMe } from "@/api/sharing";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { TileSkeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
-import { tileGrid, tileMeta, tileTitle } from "../library/VideoTile";
+import { tileGrid } from "../library/VideoTile";
 import { SharedTabs } from "./SharedTabs";
-
-function SharedTile({ share }: { share: SharedWithMe }) {
-  const meta = [
-    `from ${share.owner}`,
-    share.count === null ? null : `${String(share.count)} videos`,
-  ].filter(Boolean);
-  const link =
-    share.kind === "entry"
-      ? ({ to: "/library/$entryId", params: { entryId: share.id } } as const)
-      : ({ to: "/shared/$shareId", params: { shareId: share.shareId } } as const);
-  return (
-    <li className="grid gap-3">
-      <Link
-        {...link}
-        className="grid gap-3 rounded-[0.75rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
-      >
-        <div className="relative aspect-video overflow-hidden rounded-[0.75rem] bg-raised">
-          {share.thumbnailUrl === null ? (
-            <ListVideo
-              className="absolute inset-0 m-auto size-8 text-muted-foreground"
-              aria-hidden
-            />
-          ) : (
-            <img
-              src={share.thumbnailUrl}
-              alt=""
-              loading="lazy"
-              className="size-full object-cover"
-            />
-          )}
-        </div>
-        <span className={tileTitle}>{share.title}</span>
-      </Link>
-      <span className={cn("-mt-2", tileMeta)}>{meta.join(" · ")}</span>
-    </li>
-  );
-}
+import { SharedTile } from "./SharedTile";
 
 /** Shared › With me: the videos and playlists others share with the person. */
 export function SharedPage() {

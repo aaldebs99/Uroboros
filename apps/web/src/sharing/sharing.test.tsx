@@ -113,6 +113,28 @@ describe("the share dialog", () => {
     });
   });
 
+  it("says under a picked group that everyone in it sees the video, later members too", async () => {
+    fakeApi({
+      [`GET /api/shares/entry/${ENTRY}`]: () =>
+        Response.json(
+          state({
+            people: {
+              people: [{ kind: "group", id: FAMILY, name: "Family", members: 3 }],
+              expiresAt: null,
+              expired: false,
+            },
+          }),
+        ),
+      "GET /api/directory": () => Response.json(directory),
+    });
+    await renderInRouter(
+      <ShareDialog kind="entry" id={ENTRY} title="Holiday" open onOpenChange={() => undefined} />,
+    );
+    expect(
+      await screen.findByText("Everyone in Family sees this, including people added later."),
+    ).toBeInTheDocument();
+  });
+
   it("turns the public link on and shows it with Copy", async () => {
     let current = state();
     const calls = fakeApi({

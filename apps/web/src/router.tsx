@@ -9,14 +9,16 @@ import {
 import { ChannelsPage } from "./library/ChannelsPage";
 import { PlaylistsPage } from "./library/PlaylistsPage";
 import { SettingsLoginsPage, SettingsPage, SettingsProfilesPage } from "./routes";
-import { AccountRoute, AdminUsersRoute } from "./routes/account";
+import { AccountRoute, AdminGroupsRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
+import { GroupRoute } from "./routes/groups";
 import { ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
 import { RootLayout } from "./routes/root";
 import { NewSubscriptionRoute, SubscriptionRoute } from "./routes/subscriptions";
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
 import { PublicRoute } from "./routes/public";
 import { SharedPlaylistRoute } from "./routes/shared";
+import { GroupsPage } from "./sharing/GroupsPage";
 import { SharedByMe } from "./sharing/SharedByMe";
 import { SharedPage } from "./sharing/SharedPage";
 
@@ -64,6 +66,12 @@ const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: "/s/$code", component: PublicRoute }),
   createRoute({ getParentRoute: () => rootRoute, path: "/shared", component: SharedPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/shared/by-me", component: SharedByMe }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/shared/groups", component: GroupsPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/shared/groups/$groupId",
+    component: GroupRoute,
+  }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/shared/$shareId",
@@ -85,6 +93,11 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/admin/users",
     component: AdminUsersRoute,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/groups",
+    component: AdminGroupsRoute,
   }),
 ]);
 

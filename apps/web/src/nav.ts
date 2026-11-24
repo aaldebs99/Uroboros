@@ -1,7 +1,23 @@
-import { Download, Library, Rss, Settings, Share2, Users, type LucideIcon } from "lucide-react";
+import {
+  Download,
+  Library,
+  Rss,
+  Settings,
+  Share2,
+  UserRound,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 export type NavItem = {
-  to: "/" | "/downloads" | "/subscriptions" | "/shared" | "/settings" | "/admin/users";
+  to:
+    | "/"
+    | "/downloads"
+    | "/subscriptions"
+    | "/shared"
+    | "/settings"
+    | "/admin/users"
+    | "/admin/groups";
   label: string;
   icon: LucideIcon;
   blurb: string;
@@ -25,7 +41,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     to: "/shared",
     label: "Shared",
     icon: Share2,
-    blurb: "Videos and playlists shared with you, and by you.",
+    blurb: "Videos and playlists shared with you and by you, and your groups.",
   },
   { to: "/settings", label: "Settings", icon: Settings, blurb: "Tune Uroboros to your setup." },
 ];
@@ -73,7 +89,13 @@ export const ADMIN_ITEMS: readonly NavItem[] = [
   {
     to: "/admin/users",
     label: "Users",
-    icon: Users,
+    icon: UserRound,
     blurb: "Who can sign in, and what they can do.",
+  },
+  {
+    to: "/admin/groups",
+    label: "Groups",
+    icon: Users,
+    blurb: "Every group people made, and who runs it.",
   },
 ];
