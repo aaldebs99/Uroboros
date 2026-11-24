@@ -35,9 +35,10 @@ sets for its `admin` / `admin` account (the api logs a warning); never in produc
 
 **Local**: `POST /api/auth/local/login {username, password}` answers 204 with the cookies. A wrong
 password and an unknown username answer the same 401, in about the same time (an unknown name is
-verified against a dummy hash). Attempts are counted in **Valkey**, so the limit holds across
-replicas (Djinn counts per process): 5 failures per username and 30 per client IP within 15
-minutes, then 429. Each attempt is counted before the password is checked, in one transaction, so
+verified against a dummy hash). Attempts are counted in **Postgres** (the unlogged
+`signin_failures` table, [jobs.md](jobs.md)), so the limit holds across replicas (Djinn counts per
+process): 5 failures per username and 30 per client IP within 15 minutes, then 429. Each attempt is
+counted before the password is checked, in one statement, so
 a burst of parallel guesses cannot all slip past the check; a good sign-in takes its attempt back
 off and clears the username's count. The client IP is the last `X-Forwarded-For` entry (the one
 the proxy in front added; entries to its left came from the client) only when

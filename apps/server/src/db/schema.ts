@@ -1,5 +1,10 @@
 import type { ColumnType, Generated } from "kysely";
-import type { DownloadProgressTable, JobLimitsTable, JobsTable } from "./jobsSchema.ts";
+import type {
+  DownloadProgressTable,
+  JobLimitsTable,
+  JobsTable,
+  SigninFailuresTable,
+} from "./jobsSchema.ts";
 import type {
   PlaybackLiveTable,
   PlaybackSegmentsTable,
@@ -442,4 +447,5 @@ export interface Database {
   jobs: JobsTable;
   job_limits: JobLimitsTable;
   download_progress: DownloadProgressTable;
+  signin_failures: SigninFailuresTable;
 }

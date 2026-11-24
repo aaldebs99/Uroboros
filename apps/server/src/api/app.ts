@@ -80,8 +80,6 @@ export interface AuthDeps {
   resolveToken?: ResolveToken;
   /** Sign-in settings; defaults to local sign-in only (what `gen` documents). */
   settings?: AuthConfig;
-  /** Valkey key prefix for the failed sign-in counters. */
-  limiterPrefix?: string;
   /** The OIDC provider when `settings.oidc` is set. */
   oidc?: OidcProvider;
   /** For advisory locks on connections of their own (the claims sync); empty disables those routes' work. */
@@ -155,7 +153,7 @@ function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void 
   registerSessionRoutes(app, {
     db: deps.db,
     settings,
-    limiter: createLimiter(deps.valkey, deps.auth?.limiterPrefix ?? "uroboros"),
+    limiter: createLimiter(deps.db),
     secureCookies,
     oidcMethod: () =>
       oidc === null ? null : { displayName: oidc.displayName, ready: provider?.ready() ?? false },

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { AuthMethods, LogoutResult, Me } from "@uroboros/contract";
 import type { Redis } from "ioredis";
@@ -52,7 +51,7 @@ function makeApp(p: OidcProvider): OpenAPIHono {
       valkey,
       version: "t",
       logger,
-      auth: { secureCookies: true, settings, limiterPrefix: `t:${randomUUID()}`, oidc: p },
+      auth: { secureCookies: true, settings, oidc: p },
     },
     { webDist: null },
   );

@@ -630,3 +630,14 @@ CREATE UNLOGGED TABLE download_progress (
   expires_at TIMESTAMPTZ NOT NULL
 );
 CREATE INDEX download_progress_expiry ON download_progress (expires_at);
+
+-- Failed sign-ins in their 15-minute window, per username and per client IP (docs/auth.md),
+-- shared by every replica. Unlogged: a crash restarts the windows. The leader sweeps expired rows.
+CREATE UNLOGGED TABLE signin_failures (
+  kind TEXT NOT NULL CHECK (kind IN ('user', 'ip')),
+  value TEXT NOT NULL,
+  failures INTEGER NOT NULL CHECK (failures >= 0),
+  expires_at TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (kind, value)
+);
+CREATE INDEX signin_failures_expiry ON signin_failures (expires_at);

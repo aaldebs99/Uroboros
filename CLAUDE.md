@@ -111,7 +111,7 @@ SHA-256 is stored) behind the `uroboros_session` cookie, and every cookie write 
 `X-Uroboros-CSRF` header matching the `uroboros_csrf` cookie; bearer tokens skip CSRF but are
 refused on `/api/admin`, `/api/me/tokens`, `/api/me/password`, `/api/me/sessions`,
 `/api/me/push` and `/api/me/site-logins`. Local passwords are argon2id on Node's built-in `crypto.argon2`; failed sign-ins
-are counted in Valkey so the limit holds across replicas. OIDC uses `openid-client` with PKCE S256
+are counted in Postgres (an unlogged table) so the limit holds across replicas. OIDC uses `openid-client` with PKCE S256
 and checks ID-token signatures against the provider's JWKS; the claims sync redeems refresh tokens
 under the `URO_OSYN` advisory lock, one replica at a time. An account is local or SSO, never both;
 admins manage local accounts in the web app (Admin › Users), and an SSO user's role always comes

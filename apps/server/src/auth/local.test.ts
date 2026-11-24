@@ -1,9 +1,8 @@
-import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { AuthMethods, LogoutResult, Me } from "@uroboros/contract";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { TestDb } from "../../test/testDb.ts";
 import { TestValkey } from "../../test/testValkey.ts";
 import { createApp } from "../api/app.ts";
@@ -32,6 +31,10 @@ beforeAll(async () => {
     })
     .execute();
 });
+// The counters are shared through the database, as across replicas: every test starts clean.
+beforeEach(async () => {
+  await testDb.db.deleteFrom("signin_failures").execute();
+});
 afterAll(async () => {
   valkey.disconnect();
   await testDb.close();
@@ -45,7 +48,7 @@ const settings = (over: Partial<AuthConfig> = {}): AuthConfig => ({
   ...over,
 });
 
-/** A fresh app with its own limiter namespace; `secure` marks cookies Secure. */
+/** A fresh app; `secure` marks cookies Secure. */
 function app(over: Partial<AuthConfig> = {}, secure = false): OpenAPIHono {
   return createApp(
     {
@@ -56,7 +59,6 @@ function app(over: Partial<AuthConfig> = {}, secure = false): OpenAPIHono {
       auth: {
         secureCookies: secure,
         settings: settings(over),
-        limiterPrefix: `test:${randomUUID()}`,
       },
     },
     { webDist: null },
@@ -142,7 +144,6 @@ describe("local sign-in", () => {
   });
 
   it("locks a username after 5 failures in 15 minutes, shared across app instances", async () => {
-    const prefix = `test:${randomUUID()}`;
     const make = () =>
       createApp(
         {
@@ -150,7 +151,7 @@ describe("local sign-in", () => {
           valkey,
           version: "t",
           logger,
-          auth: { secureCookies: false, settings: settings(), limiterPrefix: prefix },
+          auth: { secureCookies: false, settings: settings() },
         },
         { webDist: null },
       );
