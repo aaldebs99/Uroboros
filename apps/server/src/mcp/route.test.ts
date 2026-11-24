@@ -54,6 +54,13 @@ const WRITE_TOOLS = [
   "update_subscription",
 ];
 
+/** The per-request envelope a 2026-07-28 client sends. */
+const MODERN_META = {
+  "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+  "io.modelcontextprotocol/clientInfo": { name: "vitest", version: "1" },
+  "io.modelcontextprotocol/clientCapabilities": {},
+};
+
 const initialize = (a: OpenAPIHono, s: string) =>
   mcpPost(a, s, "initialize", {
     protocolVersion: "2025-06-18",
@@ -82,11 +89,7 @@ describe("the MCP endpoint", () => {
 
   it("serves a client of the 2026-07-28 revision too, in plain JSON", async () => {
     await setMcp(testDb.db, true);
-    const _meta = {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientInfo": { name: "vitest", version: "1" },
-      "io.modelcontextprotocol/clientCapabilities": {},
-    };
+    const _meta = MODERN_META;
     const res = await app.request("/api/mcp", {
       method: "POST",
       headers: {
@@ -116,6 +119,35 @@ describe("the MCP endpoint", () => {
       readOnly: true,
     });
     expect(await toolNames(app, reader)).toEqual([...READ_TOOLS].sort());
+  });
+
+  it("ends a 2026-07-28 client's listen at once, so no stream outlives the request", async () => {
+    await setMcp(testDb.db, true);
+    const res = await app.request("/api/mcp", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${secret}`,
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        "mcp-protocol-version": "2026-07-28",
+        "mcp-method": "subscriptions/listen",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "subscriptions/listen",
+        params: { _meta: MODERN_META, notifications: { toolsListChanged: true } },
+      }),
+    });
+    const ended = await Promise.race([
+      res.text().then(() => true),
+      new Promise<false>((resolve) => {
+        setTimeout(() => {
+          resolve(false);
+        }, 3000);
+      }),
+    ]);
+    expect(ended).toBe(true);
   });
 
   it("keeps no sessions, so a GET for a stream is refused", async () => {

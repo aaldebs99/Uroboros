@@ -72,8 +72,10 @@ with the `mcp` scope through, never the session cookie. Then:
   request and nothing needs sticky routing. 2026-07-28 clients go to the SDK's `createMcpHandler`
   (`legacy: "reject"`, `responseMode: "json"`); 2025-era clients (told apart by `isLegacyRequest`)
   go to a stateless `WebStandardStreamableHTTPServerTransport` with JSON responses, so both get
-  one plain JSON answer, and a GET or DELETE (a 2025 session's stream or end) answers 405. No reply
-  is a stream, so shutdown's drain needs nothing new.
+  one plain JSON answer, and a GET or DELETE (a 2025 session's stream or end) answers 405. The
+  server declares its tool list fixed (`tools.listChanged: false`), so a 2026-07-28 client's
+  `subscriptions/listen` is acknowledged and closed at once rather than held open as an event
+  stream. No reply is a stream, so shutdown's drain needs nothing new.
 - **The caller** travels to the per-request server as the SDK's `authInfo` (`src/mcp/caller.ts`):
   the token's owner, the token, and whether it is read-only.
 - **A member's reach.** The tools run as the token's owner with the role `member`, whatever their

@@ -17,7 +17,12 @@ const INSTRUCTIONS =
 
 /** A fresh server for one request, offering the caller's tools (only reading ones if read-only). */
 export function buildMcpServer(ctx: ToolContext, version: string): McpServer {
-  const server = new McpServer({ name: "uroboros", version }, { instructions: INSTRUCTIONS });
+  // The tool list never changes while a client is connected; saying so (listChanged false) makes
+  // a 2026-07-28 client's subscriptions/listen end at once, so no stream outlives its request.
+  const server = new McpServer(
+    { name: "uroboros", version },
+    { instructions: INSTRUCTIONS, capabilities: { tools: { listChanged: false } } },
+  );
   for (const tool of TOOLS) {
     if (!tool.write || !ctx.caller.readOnly) tool.register(server, ctx);
   }
