@@ -7,6 +7,7 @@ import { Brand } from "@/components/Brand";
 import { DownloadDialog } from "@/components/DownloadDialog";
 import { NavDrawer } from "@/components/NavDrawer";
 import { SearchBar } from "@/components/SearchBar";
+import { SearchPalette } from "@/search/SearchPalette";
 import { SidebarNav } from "@/components/SidebarNav";
 import { TabBar } from "@/components/TabBar";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { AuthGate } from "@/auth/AuthGate";
 import { PublicLayout } from "@/sharing/PublicLayout";
 import { UserMenu } from "@/auth/UserMenu";
 import { DESKTOP_QUERY, useMediaQuery } from "@/lib/media";
+import { usePaletteShortcut } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 import { isWatchPage } from "@/nav";
 import { usePushSync } from "@/push/usePushSync";
@@ -42,11 +44,14 @@ export function RootLayout() {
  * search, "+ Create", avatar) over the side navigation, full or mini; a watch page gives the
  * navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar (menu,
  * brand, search, avatar), the navigation as a drawer that the menu opens or a finger drags in from
- * anywhere, and the bottom tabs. It also mends this browser's push subscription once per launch.
+ * anywhere, and the bottom tabs. Ctrl+K (⌘K), or the phone's search button, opens the search
+ * palette. It also mends this browser's push subscription once per launch.
  */
 function Shell({ me }: { me: Me }) {
   const [mini, setMini] = useState(readMini);
   const [downloading, setDownloading] = useState(false);
+  /** The link the Download a link dialog starts with: the palette's, or none from Create. */
+  const [downloadUrl, setDownloadUrl] = useState("");
   const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -54,7 +59,9 @@ function Shell({ me }: { me: Me }) {
   const desktop = useMediaQuery(DESKTOP_QUERY);
   const isAdmin = me.role === "admin";
   usePushSync();
+  usePaletteShortcut(searching, setSearching);
   const openDownload = () => {
+    setDownloadUrl("");
     setDownloading(true);
   };
   return (
@@ -64,11 +71,6 @@ function Shell({ me }: { me: Me }) {
         watching ? null : mini ? "md:pl-18" : "md:pl-60",
       )}
     >
-      {searching ? (
-        <div className="fixed inset-x-0 top-12 z-30 bg-background px-3 pb-2 md:hidden">
-          <SearchBar />
-        </div>
-      ) : null}
       <header className="fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-2 bg-background px-3 md:h-14 md:gap-4 md:px-4">
         <div className="flex shrink-0 items-center gap-2 md:w-52">
           {/* The menu: the drawer's button on phones, and on a watch page at every size. On a
@@ -105,9 +107,9 @@ function Shell({ me }: { me: Me }) {
             size="icon"
             className="md:hidden"
             aria-label="Open search"
-            aria-expanded={searching}
+            aria-haspopup="dialog"
             onClick={() => {
-              setSearching(!searching);
+              setSearching(true);
             }}
           >
             <Search className="size-5" />
@@ -145,7 +147,16 @@ function Shell({ me }: { me: Me }) {
         <Outlet />
       </main>
       <TabBar onDownload={openDownload} />
-      <DownloadDialog open={downloading} onOpenChange={setDownloading} />
+      <DownloadDialog open={downloading} onOpenChange={setDownloading} initialUrl={downloadUrl} />
+      <SearchPalette
+        open={searching}
+        onOpenChange={setSearching}
+        onChooseFormat={(url) => {
+          setSearching(false);
+          setDownloadUrl(url);
+          setDownloading(true);
+        }}
+      />
       <Toaster />
     </div>
   );

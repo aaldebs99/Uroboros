@@ -5,7 +5,8 @@ A slim top bar with a menu button, and bottom tabs.
 ## Getting around
 
 - **Top bar:** slim, about 48px, on `bg-background`. It holds a ghost menu button at the left,
-  the brand (tile and wordmark at 16px), a ghost search button, and the 28px avatar (the account
+  the brand (tile and wordmark at 16px), a ghost search button that opens the
+  [search palette](shell-and-navigation.md#search-palette-ctrlk), and the 28px avatar (the account
   menu).
 - **The menu button** opens the side navigation as a 240px drawer from the left
   (`components/NavDrawer.tsx`, a native `<dialog>` over the scrim, ported from Djinn), with its own

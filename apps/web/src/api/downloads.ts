@@ -48,6 +48,11 @@ export function useRequest(id: string | null) {
   });
 }
 
+/** Asks a worker to list YouTube's top videos for `query`: a request polled like a pasted link's. */
+export function searchYouTube(query: string): Promise<DownloadRequest> {
+  return postJson("/api/downloads/search", DownloadRequest, { query });
+}
+
 export function queueSelection(id: string, entryIds: string[]) {
   return postJson(`/api/downloads/requests/${encodeURIComponent(id)}/queue`, QueueSelectionResult, {
     entryIds,

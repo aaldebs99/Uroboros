@@ -243,10 +243,12 @@ describe("app shell", () => {
     expect(screen.queryByText("Admin")).not.toBeInTheDocument();
   });
 
-  it("opens a search field under the slim top bar on phones", async () => {
+  it("opens the search palette from the phone's search button", async () => {
     await renderAt("/settings");
-    expect(screen.getAllByRole("searchbox")).toHaveLength(1);
     await userEvent.click(screen.getByRole("button", { name: "Open search" }));
-    expect(screen.getAllByRole("searchbox")).toHaveLength(2);
+    expect(await screen.findByRole("dialog", { name: "Search or download" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Search your library or paste a link" }),
+    ).toHaveFocus();
   });
 });

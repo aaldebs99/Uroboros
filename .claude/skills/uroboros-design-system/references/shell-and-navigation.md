@@ -15,7 +15,9 @@ to right:
 2. The brand: `Brand` (the tile and "Uroboros" in Roboto 700, 18px), a link to the library
    (`<Brand home />`, as in the navigation drawer; the sign-in page and a public link keep the
    bare mark).
-3. The [search](actions-and-forms.md#search), centred and up to about 640px wide.
+3. The [search](actions-and-forms.md#search), centred and up to about 640px wide. While it is
+   empty it shows a `<kbd>` hint for the [search palette](#search-palette-ctrlk) ("Ctrl K", or "⌘K"
+   on a Mac, from `paletteHint()`).
 4. **"+ Create"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500.
 5. The account avatar, a 32px circle, which opens the [account menu](#account-menu).
 
@@ -63,6 +65,28 @@ on a watch page). Pages use all of it:
 - Sign-in, which has no shell, is the one centred page. Dialogs are centred overlays.
 - Not yet followed: Account, Users and Format profiles still centre a `max-w-3xl` to
   `max-w-5xl` column. Bring each one to this rule when you next change it.
+
+## Search palette (Ctrl+K)
+
+`search/SearchPalette.tsx`: one field that finds a video or downloads one. Ctrl+K (⌘K) opens it
+from anywhere, a field included, and closes it again (`usePaletteShortcut` in `lib/shortcuts.ts`,
+which leaves the key alone while another dialog or the drawer is open); the phone's search button
+opens it too.
+
+- The panel is the [dialog](feedback-and-containers.md#dialogs) recipe made wide and anchored near
+  the top (`w-[min(40rem,calc(100vw-2rem))]`, `md:top-[12dvh]`, `top-4` on phones), with no
+  padding: a 56px field row with a `Search` glyph over a hairline (`border-b border-border`), then
+  the list, scrolling inside the panel.
+- The field is a WAI-ARIA combobox over a listbox; the focus never leaves it. The arrow keys move
+  the active row (`bg-accent`), Enter chooses it, a pointer hovers and clicks. Rows are at least
+  44px: a video is a 96px 16:9 thumbnail, a one-line title and a muted channel line; an action is a
+  36px `bg-raised` circle with its glyph and one line of text.
+- Sections carry small muted headings ("In your library", "On YouTube"); the actions ("See all
+  results…", "Search YouTube for “…”", "Download this link", "Choose a format…") have none.
+- Muted lines say where things stand ("Nothing in your library matches", "Checking your
+  library…", "Searching YouTube…" with a spinner); a failure is destructive text with the
+  collapsed yt-dlp output. What a download came to is a toast, and a YouTube result's row keeps it
+  ("Queued" in success, "In your library" muted), so several can be downloaded in a row.
 
 ## Create and the download dialog
 

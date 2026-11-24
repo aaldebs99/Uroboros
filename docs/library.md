@@ -28,6 +28,13 @@ public links in [sharing.md](sharing.md).
 
 Each entry carries the caller's progress and tags, and the key of its channel page.
 
+The web's **search palette** (Ctrl+K or ⌘K anywhere, or the phone's search button;
+`apps/web/src/search/`) asks this route as the field is typed in: words with `q` and `limit=8`
+(once typing rests for 200 ms), a pasted link with `url` and `limit=5`. Words also offer "Search
+YouTube for …" ([downloads.md](downloads.md#flow)), whose results download from the palette one by
+one; a link the library doesn't have offers "Download this link" (the default profile) or "Choose
+a format…" (the Download a link dialog, with the link filled in).
+
 ## Channels and playlists
 
 A channel is the extractor plus the site's channel id, or the channel's name when the site gives no

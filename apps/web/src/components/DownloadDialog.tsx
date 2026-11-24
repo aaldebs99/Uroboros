@@ -1,11 +1,8 @@
-import { type DownloadRequest, type FormatProfile, NewDownloadBody } from "@uroboros/contract";
-import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { type FormatProfile, NewDownloadBody } from "@uroboros/contract";
 import { LoaderCircle } from "lucide-react";
 import { type SyntheticEvent, useState } from "react";
 
-import { errorText } from "@/api/client";
-import { submitDownload, useProfiles } from "@/api/downloads";
+import { useProfiles } from "@/api/downloads";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,22 +13,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, SelectField } from "@/components/ui/field";
-import { notify } from "@/components/ui/sonner";
-import { DOWNLOAD_ERROR_TEXT } from "@/downloads/errorText";
+import { useStartDownload } from "@/downloads/useStartDownload";
 import { YtDlpDetails } from "@/downloads/YtDlpDetails";
 
 /**
- * "Download a link", opened from the Create menu (the top bar's pill, or the phone's "+"): a form
- * dialog that starts a download in one step. A channel or playlist comes back as a preview on the
- * Downloads page, which also offers Subscribe (Subscriptions › Add subscription is
- * `AddSubscriptionDialog`).
+ * "Download a link", opened from the Create menu (the top bar's pill, or the phone's "+"), or by
+ * the Ctrl+K palette's "Choose a format…" with its link filled in: a form dialog that starts a
+ * download in one step. A channel or playlist comes back as a preview on the Downloads page,
+ * which also offers Subscribe (Subscriptions › Add subscription is `AddSubscriptionDialog`).
  */
 export function DownloadDialog({
   open,
   onOpenChange,
+  initialUrl = "",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The link to start with: the Ctrl+K palette's "Choose a format…" hands its own over. */
+  initialUrl?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,6 +40,7 @@ export function DownloadDialog({
           Paste a link and pick a format to start a download.
         </DialogDescription>
         <QuickDownloadForm
+          initialUrl={initialUrl}
           onDone={() => {
             onOpenChange(false);
           }}
@@ -50,66 +50,17 @@ export function DownloadDialog({
   );
 }
 
-/** Where a request is finished or followed: the Downloads page opens it. */
-function requestHref(request: DownloadRequest): string {
-  return `/downloads?request=${encodeURIComponent(request.id)}`;
-}
-
 function defaultLabel(profiles: readonly FormatProfile[] | undefined): string {
   const fallback = profiles?.find((profile) => profile.isDefault);
   return fallback ? `Default (${fallback.name})` : "Default profile";
 }
 
-function QuickDownloadForm({ onDone }: { onDone: () => void }) {
+function QuickDownloadForm({ initialUrl, onDone }: { initialUrl: string; onDone: () => void }) {
   const profiles = useProfiles();
-  const navigate = useNavigate();
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialUrl);
   /** "" means the server's default profile. */
   const [profileId, setProfileId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  /** yt-dlp's own lines when the link's check failed, for the collapsed details under the field. */
-  const [ytdlp, setYtdlp] = useState<readonly string[]>([]);
-
-  const open = (request: DownloadRequest) => {
-    void navigate({ href: requestHref(request) });
-  };
-
-  const submit = useMutation({
-    mutationFn: submitDownload,
-    onSuccess: (request) => {
-      switch (request.state) {
-        case "failed":
-          setError(
-            request.errorKind === null
-              ? (request.errorMessage ?? "That link cannot be downloaded.")
-              : DOWNLOAD_ERROR_TEXT[request.errorKind],
-          );
-          setYtdlp(request.stderrTail);
-          return;
-        case "choosing":
-          // A playlist or channel: the person picks its entries on the Downloads page.
-          onDone();
-          open(request);
-          return;
-        case "probing":
-        case "queued":
-          onDone();
-          notify.success(request.state === "queued" ? "Queued" : "Added, checking the link", {
-            detail: request.title ?? request.url,
-            action: {
-              label: "View",
-              onClick: () => {
-                open(request);
-              },
-            },
-          });
-          return;
-      }
-    },
-    onError: (failure) => {
-      setError(errorText(failure));
-    },
-  });
+  const download = useStartDownload(onDone);
 
   const onSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -118,11 +69,10 @@ function QuickDownloadForm({ onDone }: { onDone: () => void }) {
       ...(profileId === "" ? {} : { profileId }),
     });
     if (!body.success) {
-      setError("Paste an http or https link.");
+      download.fail("Paste an http or https link.");
       return;
     }
-    setError(null);
-    submit.mutate(body.data);
+    download.start(body.data);
   };
 
   return (
@@ -135,14 +85,13 @@ function QuickDownloadForm({ onDone }: { onDone: () => void }) {
         autoComplete="off"
         placeholder="https://"
         value={url}
-        error={error}
+        error={download.error}
         onChange={(event) => {
           setUrl(event.target.value);
-          setError(null);
-          setYtdlp([]);
+          download.clear();
         }}
       />
-      <YtDlpDetails lines={ytdlp} />
+      <YtDlpDetails lines={download.ytdlp} />
       <SelectField
         label="Format"
         value={profileId}
@@ -165,9 +114,9 @@ function QuickDownloadForm({ onDone }: { onDone: () => void }) {
             Cancel
           </Button>
         </DialogClose>
-        <Button type="submit" disabled={submit.isPending}>
-          {submit.isPending ? <LoaderCircle className="animate-spin" aria-hidden /> : null}
-          {submit.isPending ? "Downloading…" : "Download"}
+        <Button type="submit" disabled={download.pending}>
+          {download.pending ? <LoaderCircle className="animate-spin" aria-hidden /> : null}
+          {download.pending ? "Downloading…" : "Download"}
         </Button>
       </DialogFooter>
     </form>

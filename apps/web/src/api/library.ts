@@ -8,7 +8,13 @@ import {
   type LibrarySort,
   type NewFormatProfileBody,
 } from "@uroboros/contract";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { z } from "zod";
 
 import { deleteJson, getJson, patchJson, postJson, putJson, putNoContent } from "./client";
@@ -19,6 +25,8 @@ const libraryKey = ["api", "library"] as const;
 /** What the library is narrowed to; every field maps to a query parameter of `GET /api/library`. */
 export interface LibraryFilters {
   q?: string;
+  /** A pasted link: the entries of the video it points at. */
+  url?: string;
   channel?: string;
   /** A YouTube playlist's id. */
   source?: string;
@@ -27,6 +35,8 @@ export interface LibraryFilters {
   tag?: string;
   watched?: boolean;
   sort?: LibrarySort;
+  /** Entries per page (the server's 60 when omitted). */
+  limit?: number;
 }
 
 export function libraryQuery(f: LibraryFilters, cursor: string | null): string {
@@ -48,6 +58,21 @@ export function useLibraryPages(f: LibraryFilters, enabled = true) {
     queryFn: ({ signal, pageParam }) =>
       getJson(`/api/library${libraryQuery(f, pageParam)}`, LibraryPage, { signal }),
     getNextPageParam: (last) => last.nextCursor,
+  });
+}
+
+/**
+ * A quick look into the library (the Ctrl+K palette): the first `limit` entries that match. While
+ * the next text's answer loads, the last one stays on screen instead of flickering away.
+ */
+export function useLibraryLookup(f: LibraryFilters, enabled: boolean) {
+  return useQuery({
+    queryKey: [...libraryKey, "lookup", f],
+    enabled,
+    queryFn: ({ signal }) =>
+      getJson(`/api/library${libraryQuery(f, null)}`, LibraryPage, { signal }),
+    placeholderData: keepPreviousData,
+    select: (page) => page.entries,
   });
 }
 
