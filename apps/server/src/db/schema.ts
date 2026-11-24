@@ -13,7 +13,10 @@ import type {
 } from "./playbackSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
+import type { NotificationPrefsTable, SharePeopleTable, SharesTable } from "./sharingSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
+
+export type { ShareMode, SharesTable } from "./sharingSchema.ts";
 
 export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts";
 
@@ -393,36 +396,6 @@ export interface PlaylistItemsTable {
   entry_id: string;
   position: number;
   added_at: Created;
-}
-
-export type ShareMode = "people" | "link";
-
-/** `shares`: one thing shared with people or by a public link. */
-export interface SharesTable {
-  id: Generated<string>;
-  owner_id: string;
-  entry_id: string | null;
-  playlist_id: string | null;
-  source_id: string | null;
-  mode: ShareMode;
-  code: string | null;
-  allow_download: Defaulted<boolean>;
-  expires_at: Timestamp | null;
-  created_at: Created;
-  updated_at: Defaulted<Date | string>;
-}
-
-export interface SharePeopleTable {
-  share_id: string;
-  user_id: string | null;
-  group_name: string | null;
-}
-
-export interface NotificationPrefsTable {
-  user_id: string;
-  downloads: Defaulted<boolean>;
-  shares: Defaulted<boolean>;
-  groups: Defaulted<boolean>;
 }
 
 /** `site_logins`: a person's saved login for one yt-dlp site, the password sealed. */
