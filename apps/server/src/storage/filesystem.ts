@@ -1,9 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { copyFile, mkdir, rename, rm, rmdir, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, open, rename, rm, rmdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
+import { checkParts } from "./parts.ts";
 import type { MediaStore } from "./store.ts";
+
+/** An upload's id: the random part of its temp file's name, so nothing else can be named. */
+const UPLOAD_ID = /^[0-9a-f]{24}$/;
 
 function isNotFound(err: unknown): boolean {
   return (err as { code?: string }).code === "ENOENT";
@@ -43,7 +47,57 @@ export function createFilesystemStore(root: string): MediaStore {
       throw err;
     }
   };
+  /** An upload's temp file, beside its target until `completeUpload` renames it. */
+  const uploadPaths = (key: string, uploadId: string) => {
+    if (!UPLOAD_ID.test(uploadId)) throw new Error(`not an upload id: ${uploadId}`);
+    const target = pathOf(key);
+    return { target, temp: join(dirname(target), `.${basename(target)}.${uploadId}.tmp`) };
+  };
+  const sizeOf = async (path: string): Promise<number | null> => {
+    try {
+      return (await stat(path)).size;
+    } catch (err) {
+      if (isNotFound(err)) return null;
+      throw err;
+    }
+  };
   return {
+    async startUpload(key) {
+      const uploadId = randomBytes(12).toString("hex");
+      const { target, temp } = uploadPaths(key, uploadId);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(temp, new Uint8Array(0), { flag: "wx" });
+      return uploadId;
+    },
+    async putPart(key, uploadId, n, offset, bytes) {
+      // `r+` never creates the file: a part arriving after an abort can't bring it back.
+      const handle = await open(uploadPaths(key, uploadId).temp, "r+");
+      try {
+        await handle.write(bytes, 0, bytes.length, offset);
+      } finally {
+        await handle.close();
+      }
+      return { etag: String(n), checksum: null };
+    },
+    async completeUpload(key, uploadId, parts, size) {
+      checkParts(parts);
+      const { target, temp } = uploadPaths(key, uploadId);
+      const written = await sizeOf(temp);
+      if (written === null) {
+        if ((await sizeOf(target)) === size) return { size };
+        throw new Error(`no upload ${uploadId} for ${key}`);
+      }
+      if (written !== size) {
+        throw new Error(`the parts of ${key} hold ${String(written)} bytes, not ${String(size)}`);
+      }
+      await rename(temp, target);
+      return { size };
+    },
+    async abortUpload(key, uploadId) {
+      const { target, temp } = uploadPaths(key, uploadId);
+      await rm(temp, { force: true });
+      await pruneEmpty(base, dirname(target));
+    },
     async put(key, file) {
       const target = pathOf(key);
       await atomically(target, (temp) => copyFile(file, temp));

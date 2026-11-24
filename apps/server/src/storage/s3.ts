@@ -1,18 +1,24 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   ListObjectsV2Command,
   GetObjectCommand,
   HeadObjectCommand,
+  ListPartsCommand,
   PutObjectCommand,
   S3Client,
+  UploadPartCommand,
   type DeleteObjectsCommandOutput,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { StorageConfig } from "./config.ts";
+import { checkParts } from "./parts.ts";
 import type { MediaStore } from "./store.ts";
 
 type S3Config = Extract<StorageConfig, { kind: "s3" }>;
@@ -34,6 +40,10 @@ function client(config: S3Config, endpoint: string): S3Client {
 function isNotFound(err: unknown): boolean {
   const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
   return e.name === "NotFound" || e.name === "NoSuchKey" || e.$metadata?.httpStatusCode === 404;
+}
+
+function isNoSuchUpload(err: unknown): boolean {
+  return (err as { name?: string }).name === "NoSuchUpload" || isNotFound(err);
 }
 
 /** "bytes 2-5/10" → 10. */
@@ -61,7 +71,93 @@ export function createS3Store(config: S3Config): MediaStore {
   const s3 = client(config, config.endpoint);
   const signer = config.publicUrl === null ? null : client(config, config.publicUrl);
   const Bucket = config.bucket;
+  const sizeOf = async (key: string): Promise<number | null> => {
+    try {
+      return (await s3.send(new HeadObjectCommand({ Bucket, Key: key }))).ContentLength ?? 0;
+    } catch (err) {
+      if (isNotFound(err)) return null;
+      throw err;
+    }
+  };
+  /** The bytes an unfinished upload's parts hold, as S3 lists them. */
+  const uploadedBytes = async (key: string, uploadId: string): Promise<number> => {
+    let total = 0;
+    let marker: string | undefined;
+    do {
+      const page = await s3.send(
+        new ListPartsCommand({ Bucket, Key: key, UploadId: uploadId, PartNumberMarker: marker }),
+      );
+      for (const part of page.Parts ?? []) total += part.Size ?? 0;
+      marker = page.IsTruncated === true ? page.NextPartNumberMarker : undefined;
+    } while (marker !== undefined);
+    return total;
+  };
   return {
+    // CRC32 checksums on every part, as lib-storage's managed uploads send them.
+    async startUpload(key, contentType) {
+      const res = await s3.send(
+        new CreateMultipartUploadCommand({
+          Bucket,
+          Key: key,
+          ContentType: contentType,
+          ChecksumAlgorithm: "CRC32",
+        }),
+      );
+      if (res.UploadId === undefined) throw new Error(`S3 gave no upload id for ${key}`);
+      return res.UploadId;
+    },
+    async putPart(key, uploadId, n, _offset, bytes) {
+      const res = await s3.send(
+        new UploadPartCommand({
+          Bucket,
+          Key: key,
+          UploadId: uploadId,
+          PartNumber: n,
+          Body: bytes,
+          ContentLength: bytes.length,
+          ChecksumAlgorithm: "CRC32",
+        }),
+      );
+      if (res.ETag === undefined) throw new Error(`S3 gave no ETag for part ${String(n)}`);
+      return { etag: res.ETag, checksum: res.ChecksumCRC32 ?? null };
+    },
+    async completeUpload(key, uploadId, parts, size) {
+      const sorted = checkParts(parts);
+      let held: number;
+      try {
+        held = await uploadedBytes(key, uploadId);
+      } catch (err) {
+        if (!isNoSuchUpload(err)) throw err;
+        // Completed already (a retry), or aborted.
+        if ((await sizeOf(key)) === size) return { size };
+        throw new Error(`no upload ${uploadId} for ${key}`, { cause: err });
+      }
+      if (held !== size) {
+        throw new Error(`the parts of ${key} hold ${String(held)} bytes, not ${String(size)}`);
+      }
+      await s3.send(
+        new CompleteMultipartUploadCommand({
+          Bucket,
+          Key: key,
+          UploadId: uploadId,
+          MultipartUpload: {
+            Parts: sorted.map((p) => ({
+              PartNumber: p.n,
+              ETag: p.etag,
+              ...(p.checksum === null ? {} : { ChecksumCRC32: p.checksum }),
+            })),
+          },
+        }),
+      );
+      return { size };
+    },
+    async abortUpload(key, uploadId) {
+      try {
+        await s3.send(new AbortMultipartUploadCommand({ Bucket, Key: key, UploadId: uploadId }));
+      } catch (err) {
+        if (!isNoSuchUpload(err)) throw err;
+      }
+    },
     async put(key, file, contentType) {
       await new Upload({
         client: s3,
@@ -88,13 +184,8 @@ export function createS3Store(config: S3Config): MediaStore {
       };
     },
     async stat(key) {
-      try {
-        const head = await s3.send(new HeadObjectCommand({ Bucket, Key: key }));
-        return { size: head.ContentLength ?? 0 };
-      } catch (err) {
-        if (isNotFound(err)) return null;
-        throw err;
-      }
+      const size = await sizeOf(key);
+      return size === null ? null : { size };
     },
     async delete(key) {
       await s3.send(new DeleteObjectCommand({ Bucket, Key: key }));

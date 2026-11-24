@@ -25,6 +25,8 @@ async function text(stream: ReadableStream<Uint8Array>): Promise<string> {
   return new Response(stream).text();
 }
 
+const MIB = 1024 * 1024;
+
 const backends: [string, () => Promise<StorageConfig>][] = [
   ["s3", () => TestS3.bucket()],
   [
@@ -121,6 +123,68 @@ describe.each(backends)("MediaStore (%s)", (kind, make) => {
 
   it("has no download URL without a public endpoint", async () => {
     expect(await store.downloadUrl("x/two.bin", "two.bin")).toBeNull();
+  });
+
+  describe("writing in parts", () => {
+    // S3 refuses a part under 5 MiB unless it is the last one.
+    const first = Buffer.alloc(5 * MIB, "a");
+    const tail = Buffer.from("the end");
+    const size = first.length + tail.length;
+
+    async function bytesOf(key: string): Promise<Buffer> {
+      return Buffer.from(await new Response((await store.open(key)).body).arrayBuffer());
+    }
+
+    it("assembles parts sent out of order, and completing twice is fine", async () => {
+      const key = "up/parts/video.mp4";
+      const id = await store.startUpload(key, "video/mp4");
+      const two = await store.putPart(key, id, 2, first.length, tail);
+      const one = await store.putPart(key, id, 1, 0, first);
+      const parts = [
+        { n: 1, ...one },
+        { n: 2, ...two },
+      ];
+      expect(await store.completeUpload(key, id, parts, size)).toEqual({ size });
+      expect(await store.completeUpload(key, id, parts, size)).toEqual({ size });
+      expect(await store.stat(key)).toEqual({ size });
+      expect(Buffer.compare(await bytesOf(key), Buffer.concat([first, tail]))).toBe(0);
+    });
+
+    it("refuses to complete with the wrong size, keeping the upload", async () => {
+      const key = "up/short/video.mp4";
+      const id = await store.startUpload(key, "video/mp4");
+      const one = await store.putPart(key, id, 1, 0, first);
+      await expect(store.completeUpload(key, id, [{ n: 1, ...one }], size)).rejects.toThrow();
+      expect(await store.stat(key)).toBeNull();
+      const two = await store.putPart(key, id, 2, first.length, tail);
+      const parts = [
+        { n: 1, ...one },
+        { n: 2, ...two },
+      ];
+      expect(await store.completeUpload(key, id, parts, size)).toEqual({ size });
+    });
+
+    it("aborts an upload, and a part sent after it is refused", async () => {
+      const key = "up/gone/video.mp4";
+      const id = await store.startUpload(key, "video/mp4");
+      await store.putPart(key, id, 1, 0, first);
+      await store.abortUpload(key, id);
+      await expect(store.putPart(key, id, 2, first.length, tail)).rejects.toThrow();
+      expect(await store.stat(key)).toBeNull();
+      await expect(store.abortUpload(key, id)).resolves.toBeUndefined();
+      if (config.kind === "filesystem") {
+        expect(await readdir(join(config.root, "up/gone")).catch(() => [])).toEqual([]);
+      }
+    });
+
+    if (kind === "filesystem") {
+      it("refuses an upload id that is not its own, and a key outside the root", async () => {
+        const key = "up/odd/video.mp4";
+        await store.startUpload(key, "video/mp4");
+        await expect(store.putPart(key, "../../evil", 1, 0, tail)).rejects.toThrow();
+        await expect(store.startUpload("../outside.mp4", "video/mp4")).rejects.toThrow();
+      });
+    }
   });
 
   if (kind === "filesystem") {

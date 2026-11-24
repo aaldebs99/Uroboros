@@ -6,8 +6,44 @@ export interface OpenedFile {
   contentType: string | null;
 }
 
+/** A part written by `putPart`, as `completeUpload` needs it back. */
+export interface StoredPart {
+  n: number;
+  etag: string;
+  /** S3's CRC32 of the part (base64), sent back on completion; null on the filesystem. */
+  checksum: string | null;
+}
+
 /** Where media lives: S3 (opaque keys) or a filesystem (organized folders). docs/downloads.md. */
 export interface MediaStore {
+  /**
+   * Starts writing `key` in parts (an upload from a browser, docs/uploads.md): S3's multipart
+   * upload, or a temp file beside the target. Returns the upload's id.
+   */
+  startUpload(key: string, contentType: string): Promise<string>;
+  /**
+   * Writes part `n` (1-based) at byte `offset`, in any order, from any replica. Refused once the
+   * upload was aborted or completed.
+   */
+  putPart(
+    key: string,
+    uploadId: string,
+    n: number,
+    offset: number,
+    bytes: Uint8Array,
+  ): Promise<Omit<StoredPart, "n">>;
+  /**
+   * Puts the parts together under `key`. Refused (leaving the upload as it was) unless they add
+   * up to `size`; done again once `key` holds `size` bytes, so a retry is harmless.
+   */
+  completeUpload(
+    key: string,
+    uploadId: string,
+    parts: StoredPart[],
+    size: number,
+  ): Promise<{ size: number }>;
+  /** Drops an unfinished upload and what it wrote; an upload already gone is fine. */
+  abortUpload(key: string, uploadId: string): Promise<void>;
   /** Stores a local file under `key`, replacing what was there. */
   put(key: string, file: string, contentType: string): Promise<{ size: number }>;
   /** Stores bytes under `key` (a playback session's segment), replacing what was there. */
