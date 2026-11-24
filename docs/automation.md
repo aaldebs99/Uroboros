@@ -180,12 +180,13 @@ been dispatched yet, and leaves its library entries in the library as ordinary e
 
 ## Notifications
 
-The `notify` queue's consumer (`src/worker/notify.ts`) sends each job through `Pusher.notify`, and
-drops it while push is off. A check that queued at least one video outside a backfill sends "N new
-videos from <subscription>" (one: "New from <subscription>") with the first three titles, opening
-the subscription's page; a newer one replaces it (tag `subscription-<id>`). The third failed check
-in a row sends "<subscription>: checks are failing" at high urgency, once per failing streak.
-Each subscription can turn its notifications off.
+Through `sendNotice` ([push.md](push.md)): each notice is filed in the person's notification list
+and pushed through the `notify` queue, whose consumer (`src/worker/notify.ts`) drops it while push
+is off. A check that queued at least one video outside a backfill sends "N new videos from
+<subscription>" (one: "New from <subscription>") with the first three titles, opening the
+subscription's page; a newer one replaces it (tag `subscription-<id>`). The third failed check in a
+row sends "<subscription>: checks are failing" at high urgency, once per failing streak. Each
+subscription can turn its pushes off; its notices still reach the list.
 
 ## Retention and Keep
 

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
 import { queuedData } from "../../test/jobs.ts";
 import { seedEntry } from "../../test/library.ts";
+import { listedNotices } from "../../test/notices.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { ExportJob, NotifyJob } from "../downloads/queues.ts";
@@ -106,6 +107,9 @@ describe("making a copy without sponsors", () => {
       title: "Ready to save",
       path: "/downloads",
     });
+    expect(await listedNotices(t.db, copy.userId)).toMatchObject([
+      { kind: "downloads", title: "Ready to save", tag: `export-${copy.id}` },
+    ]);
   });
 
   it("moves on to the CPU when the GPU fails before any output, and remembers it", async () => {

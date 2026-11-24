@@ -3,22 +3,12 @@ import { Film, RotateCcw, X } from "lucide-react";
 
 import { DownloadBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { ProgressBar } from "@/components/ui/progress-bar";
 
 import { DOWNLOAD_ERROR_TEXT } from "./errorText";
 import { LoginHint } from "./LoginHint";
 import { YtDlpDetails } from "./YtDlpDetails";
-import { formatBytes, formatDuration } from "./format";
-
-/** "12.4 MB/s · 38 s left", from whatever the progress knows. */
-function detailOf(progress: DownloadProgress | null): string {
-  if (progress === null) return "";
-  return [
-    progress.speed === null ? null : `${formatBytes(progress.speed)}/s`,
-    progress.eta === null ? null : `${formatDuration(progress.eta)} left`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
+import { progressDetail } from "./format";
 
 /** The badge, the detail and, only with a real fraction, the percentage and the glowing bar. */
 function StateLine({
@@ -32,7 +22,7 @@ function StateLine({
 }) {
   const running = download.state === "running" ? progress : null;
   const percent = running?.percent == null ? null : Math.round(running.percent);
-  const detail = running === null ? meta : detailOf(running) || meta;
+  const detail = running === null ? meta : progressDetail(running) || meta;
   return (
     <div className="grid grid-cols-1 gap-1.5">
       <div className="flex items-center gap-2.5">
@@ -45,19 +35,7 @@ function StateLine({
         )}
       </div>
       {percent === null ? null : (
-        <div
-          role="progressbar"
-          aria-label={`${download.title ?? download.url} progress`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-          className="h-2 overflow-hidden rounded-full bg-raised"
-        >
-          <div
-            className="h-full rounded-full bg-linear-to-r from-primary-strong to-primary shadow-[0_0_0.75rem] shadow-primary/60 transition-[width]"
-            style={{ width: `${String(percent)}%` }}
-          />
-        </div>
+        <ProgressBar label={`${download.title ?? download.url} progress`} percent={percent} />
       )}
     </div>
   );

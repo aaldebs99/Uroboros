@@ -36,7 +36,8 @@ gaps.
 ## Live progress
 
 \`GET /api/downloads/events\` is a server-sent event stream of the caller's download changes
-(state and progress), from whichever replica serves it.
+(state and progress), from whichever replica serves it, and of a \`notice\` nudge whenever their
+notifications (\`GET /api/notices\`) change.
 `;
 
 /** The one OpenAPI document config, shared by the runtime route and `gen`. */

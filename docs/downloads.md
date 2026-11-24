@@ -83,9 +83,18 @@ channel ([jobs.md](jobs.md)).
 - **For page loads.** The latest progress is kept for a minute in the unlogged `download_progress`
   table, which the leader sweeps.
 - **The stream.** Every replica's listener feeds `GET /api/downloads/events` (`src/downloads/sse.ts`),
-  which streams `DownloadEvent`s for the caller's downloads (`?all=true`: everyone's, admins only).
+  which streams `DownloadEvent`s for the caller's downloads (`?all=true`: everyone's, admins only),
+  and a `notice` event whenever the caller's notification list changes ([push.md](push.md#the-list-in-the-app)).
+- **One stream per browser.** The web app follows the caller's stream from the shell, for the bell
+  and the Downloads page alike, and only in one tab: a browser allows about six HTTP/1.1
+  connections to one origin, so the tab holding a Web Lock streams and passes every message to the
+  others over a BroadcastChannel, and the next tab takes over when it closes
+  (`apps/web/src/api/liveEvents.ts`). The admin's everyone view opens a stream of its own.
 - **Dropped streams.** When the listener reconnects, every open stream ends, since events may have
-  been lost meanwhile. The web app refetches the list whenever its stream drops.
+  been lost meanwhile. The web app refetches whenever its stream drops, or another tab takes it
+  over.
+- **What is active.** `GET /api/downloads?active=true` lists only the queued and running downloads,
+  which the bell starts from.
 
 ## Format profiles
 
@@ -195,5 +204,5 @@ while the committed list differs from the image's yt-dlp, so a yt-dlp bump regen
 
 ## Not yet
 
-Push notifications for finished downloads, per-site rate limits and per-user cookies. Subscriptions,
+Per-site rate limits and per-user cookies. Subscriptions,
 retention and the reaper are in [automation.md](automation.md).

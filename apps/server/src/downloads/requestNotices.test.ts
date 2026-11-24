@@ -5,6 +5,7 @@ import type { NotifyJob } from "./queues.ts";
 import { signedIn } from "../../test/auth.ts";
 import { downloadHarness, seededDefault } from "../../test/downloads.ts";
 import { seedEntry } from "../../test/library.ts";
+import { listedNotices } from "../../test/notices.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { DownloadsTable } from "../db/schema.ts";
 import { retryDownload } from "./dispatch.ts";
@@ -230,7 +231,7 @@ describe("Ready and Failed notifications", () => {
     expect(await notices(u.userId)).toHaveLength(1);
   });
 
-  it("downloads turned off sends nothing", async () => {
+  it("downloads turned off pushes nothing, but lists the notice", async () => {
     const u = await signedIn(t.db, { username: "rn-off" });
     await t.db
       .insertInto("notification_prefs")
@@ -240,5 +241,8 @@ describe("Ready and Failed notifications", () => {
     const d = await download(u.userId, req, "done");
     await noticeFinishedRequests(deps(), [d]);
     expect(await notices(u.userId)).toEqual([]);
+    expect(await listedNotices(t.db, u.userId)).toMatchObject([
+      { kind: "downloads", tag: `request-${req}` },
+    ]);
   });
 });

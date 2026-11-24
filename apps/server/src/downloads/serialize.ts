@@ -8,10 +8,13 @@ export type DownloadRow = Selectable<DownloadsTable> & { owner_name: string };
 
 const iso = (d: Date | null) => (d === null ? null : d.toISOString());
 
-/** Downloads with their owner's name; `userId` null lists everyone's. Active first, then newest. */
+/**
+ * Downloads with their owner's name; `userId` null lists everyone's, `active` only the queued and
+ * running ones. Active first, then newest.
+ */
 export async function downloadRows(
   db: Kysely<Database>,
-  opts: { userId: string | null; ids?: string[]; limit?: number },
+  opts: { userId: string | null; ids?: string[]; limit?: number; active?: boolean },
 ): Promise<DownloadRow[]> {
   return db
     .selectFrom("downloads as d")
@@ -20,6 +23,7 @@ export async function downloadRows(
     .select("u.display_name as owner_name")
     .$if(opts.userId !== null, (qb) => qb.where("d.user_id", "=", opts.userId ?? ""))
     .$if(opts.ids !== undefined, (qb) => qb.where("d.id", "in", opts.ids ?? []))
+    .$if(opts.active === true, (qb) => qb.where("d.state", "in", ["queued", "running"]))
     .orderBy((eb) => eb.case().when("d.state", "in", ["queued", "running"]).then(0).else(1).end())
     .orderBy("d.created_at", "desc")
     .limit(opts.limit ?? 500)

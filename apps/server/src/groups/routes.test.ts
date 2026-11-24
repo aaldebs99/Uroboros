@@ -13,6 +13,7 @@ import { z } from "zod";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness } from "../../test/downloads.ts";
 import { queuedData } from "../../test/jobs.ts";
+import { listedNotices } from "../../test/notices.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 import type { NotifyJob } from "../downloads/queues.ts";
@@ -299,7 +300,7 @@ describe("being added", () => {
     return jobs.filter((d) => d.userId === userId);
   }
 
-  it("tells each person added, once, unless they turned group notices off", async () => {
+  it("tells each person added, once, pushing unless they turned group notices off", async () => {
     const quiet = await someone();
     const loud = await someone();
     const res = await send(quiet, "PUT", "/api/me/notifications", {
@@ -312,6 +313,7 @@ describe("being added", () => {
     await add(ann, g.id, [quiet.userId, loud.userId]);
     await add(ann, g.id, [loud.userId]);
     expect(await notices(quiet.userId)).toEqual([]);
+    expect(await listedNotices(t.db, quiet.userId)).toMatchObject([{ kind: "groups" }]);
     const got = await notices(loud.userId);
     expect(got).toHaveLength(1);
     expect(got[0]?.message).toEqual({

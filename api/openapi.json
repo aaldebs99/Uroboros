@@ -608,6 +608,20 @@
               "id"
             ],
             "type": "object"
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "notice"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -1620,6 +1634,18 @@
         ],
         "type": "object"
       },
+      "MarkNoticesReadBody": {
+        "properties": {
+          "upTo": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upTo"
+        ],
+        "type": "object"
+      },
       "Me": {
         "properties": {
           "displayName": {
@@ -1923,6 +1949,72 @@
           "filename",
           "size",
           "title"
+        ],
+        "type": "object"
+      },
+      "Notice": {
+        "properties": {
+          "body": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/NoticeKind"
+          },
+          "path": {
+            "type": "string"
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "body",
+          "path",
+          "createdAt",
+          "read"
+        ],
+        "type": "object"
+      },
+      "NoticeKind": {
+        "enum": [
+          "downloads",
+          "shares",
+          "subscriptions",
+          "groups"
+        ],
+        "type": "string"
+      },
+      "NoticeList": {
+        "properties": {
+          "notices": {
+            "items": {
+              "$ref": "#/components/schemas/Notice"
+            },
+            "type": "array"
+          },
+          "unread": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "notices",
+          "unread"
         ],
         "type": "object"
       },
@@ -3635,7 +3727,7 @@
     }
   },
   "info": {
-    "description": "Everything the web app does goes through this API, so a script can do it too.\n\n## Signing in\n\n**With a token** (scripts): create a personal API token in the web app under Account › Tokens\nand send it as `Authorization: Bearer <token>`. A token acts as its owner, needs no CSRF header,\nand is refused (403) on `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`,\n`/api/me/sessions*`, `/api/me/push*` and `/api/me/site-logins*`, so a leaked token cannot\nmint another, act as an admin, change the password, move notifications or touch saved site logins.\nClick **Authorize** above and paste a token to try the routes here.\n\n**With the browser's session**: the `uroboros_session` cookie, set by signing in. Every write\n(anything but GET, HEAD and OPTIONS) must also send the `X-Uroboros-CSRF` header with the value\nof the `uroboros_csrf` cookie.\n\nRoutes marked with no security (health, readiness, sign-in, and public links under\n`/api/public/s/{code}`) need neither: a public link's code is its own key.\n\n## Errors\n\nEvery error is an `ApiErrorBody`, `{ \"code\": \"...\", \"message\": \"...\" }`; `code` decides the\nstatus: `bad_request` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404,\n`conflict` 409, `payload_too_large` 413 (bodies over 64 KiB), `unprocessable` 422,\n`too_many_requests` 429, `internal` 500, `unavailable` 503 (starting, or a dependency is down).\nAnother person's things answer 404, never 403.\n\n## Paging\n\nLists that can grow page with a keyset cursor: pass the `nextCursor` of one page as `cursor`\nfor the next; it is `null` on the last. Things added while you page never cause duplicates or\ngaps.\n\n## Live progress\n\n`GET /api/downloads/events` is a server-sent event stream of the caller's download changes\n(state and progress), from whichever replica serves it.\n",
+    "description": "Everything the web app does goes through this API, so a script can do it too.\n\n## Signing in\n\n**With a token** (scripts): create a personal API token in the web app under Account › Tokens\nand send it as `Authorization: Bearer <token>`. A token acts as its owner, needs no CSRF header,\nand is refused (403) on `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`,\n`/api/me/sessions*`, `/api/me/push*` and `/api/me/site-logins*`, so a leaked token cannot\nmint another, act as an admin, change the password, move notifications or touch saved site logins.\nClick **Authorize** above and paste a token to try the routes here.\n\n**With the browser's session**: the `uroboros_session` cookie, set by signing in. Every write\n(anything but GET, HEAD and OPTIONS) must also send the `X-Uroboros-CSRF` header with the value\nof the `uroboros_csrf` cookie.\n\nRoutes marked with no security (health, readiness, sign-in, and public links under\n`/api/public/s/{code}`) need neither: a public link's code is its own key.\n\n## Errors\n\nEvery error is an `ApiErrorBody`, `{ \"code\": \"...\", \"message\": \"...\" }`; `code` decides the\nstatus: `bad_request` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404,\n`conflict` 409, `payload_too_large` 413 (bodies over 64 KiB), `unprocessable` 422,\n`too_many_requests` 429, `internal` 500, `unavailable` 503 (starting, or a dependency is down).\nAnother person's things answer 404, never 403.\n\n## Paging\n\nLists that can grow page with a keyset cursor: pass the `nextCursor` of one page as `cursor`\nfor the next; it is `null` on the last. Things added while you page never cause duplicates or\ngaps.\n\n## Live progress\n\n`GET /api/downloads/events` is a server-sent event stream of the caller's download changes\n(state and progress), from whichever replica serves it, and of a `notice` nudge whenever their\nnotifications (`GET /api/notices`) change.\n",
     "title": "Uroboros API",
     "version": "0.0.0"
   },
@@ -4214,6 +4306,20 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Only queued and running",
+            "in": "query",
+            "name": "active",
+            "required": false,
+            "schema": {
+              "description": "Only queued and running",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4241,7 +4347,7 @@
             "description": "all=true needs an admin"
           }
         },
-        "summary": "The caller's downloads (everyone's with all=true, admins only), active first",
+        "summary": "The caller's downloads (everyone's with all=true, admins only), active first; active=true: only those",
         "tags": [
           "downloads"
         ]
@@ -4325,7 +4431,7 @@
             "description": "all=true needs an admin"
           }
         },
-        "summary": "Server-sent events: the caller's download state changes and progress (all=true: everyone's, admins only)",
+        "summary": "Server-sent events: the caller's download state changes and progress (all=true: everyone's, admins only), and a nudge when their notifications change",
         "tags": [
           "downloads"
         ]
@@ -7409,6 +7515,60 @@
         "summary": "Revoke one of the caller's API tokens",
         "tags": [
           "tokens"
+        ]
+      }
+    },
+    "/api/notices": {
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "Cleared"
+          }
+        },
+        "summary": "Clear the caller's notifications",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticeList"
+                }
+              }
+            },
+            "description": "Newest first"
+          }
+        },
+        "summary": "The caller's newest notifications and how many are unread",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notices/read": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkNoticesReadBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Marked"
+          }
+        },
+        "summary": "Mark read the caller's notifications up to the newest one they saw",
+        "tags": [
+          "notifications"
         ]
       }
     },

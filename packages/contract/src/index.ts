@@ -147,6 +147,7 @@ export {
   UploadState,
 } from "./uploads.ts";
 export { Export, ExportState } from "./exports.ts";
+export { MarkNoticesReadBody, Notice, NoticeKind, NoticeList } from "./notices.ts";
 export {
   AdminGroup,
   GROUP_NAME_CHARS,

@@ -149,6 +149,22 @@ describe("GET /api/downloads/events", () => {
     expect(events[0]).toMatchObject({ type: "state" });
   });
 
+  it("nudges a person, an admin's everyone view included, only about their own notices", async () => {
+    const [a, b] = [
+      await user(),
+      await signedIn(testDb.db, { username: `ssenot${String(++n)}`, role: "admin" }),
+    ];
+    const events = await collect(
+      await app(b).request("/api/downloads/events?all=true"),
+      async () => {
+        await publishDownloadEvent(testDb.db, { kind: "notice", userId: a.userId });
+        await publishDownloadEvent(testDb.db, { kind: "notice", userId: b.userId });
+      },
+      (e) => e.length >= 1,
+    );
+    expect(events).toEqual([{ type: "notice" }]);
+  });
+
   it("forwards progress only for fetches the caller waits on", async () => {
     const a = await user();
     const d = await queued(a.userId, "sse-prog");

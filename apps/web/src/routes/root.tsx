@@ -16,10 +16,12 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthGate } from "@/auth/AuthGate";
 import { PublicLayout } from "@/sharing/PublicLayout";
 import { UserMenu } from "@/auth/UserMenu";
+import { LiveEventsProvider } from "@/downloads/LiveEvents";
 import { DESKTOP_QUERY, useMediaQuery } from "@/lib/media";
 import { usePaletteShortcut } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 import { isWatchPage } from "@/nav";
+import { NoticesButton } from "@/notices/NoticesButton";
 import { usePushSync } from "@/push/usePushSync";
 import { UploadDialog } from "@/uploads/UploadDialog";
 import { UploadProvider } from "@/uploads/UploadProvider";
@@ -44,18 +46,21 @@ export function RootLayout() {
 
 /**
  * The app shell, on the page colour throughout. From `md` up: a 3.5rem top bar (menu, brand,
- * search, "+ Add", avatar) over the side navigation, full or mini; a watch page gives the
- * navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar (menu,
- * brand, search, avatar), the navigation as a drawer that the menu opens or a finger drags in from
- * anywhere, and the bottom tabs. Ctrl+K (⌘K), or the phone's search button, opens the search
- * palette. It also mends this browser's push subscription once per launch. Uploads in progress
- * live in the shell, so they go on while the person moves around the app.
+ * search, "+ Add", the bell, avatar) over the side navigation, full or mini; a watch page gives
+ * the navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar
+ * (menu, brand, search, "+", the bell, avatar), the navigation as a drawer that the menu opens or a
+ * finger drags in from anywhere, and the bottom tabs. Ctrl+K (⌘K), or the phone's search button,
+ * opens the search palette. It also mends this browser's push subscription once per launch.
+ * Uploads in progress and the live event stream live in the shell, so they go on while the person
+ * moves around the app.
  */
 function Shell({ me }: { me: Me }) {
   return (
-    <UploadProvider>
-      <ShellFrame me={me} />
-    </UploadProvider>
+    <LiveEventsProvider>
+      <UploadProvider>
+        <ShellFrame me={me} />
+      </UploadProvider>
+    </LiveEventsProvider>
   );
 }
 
@@ -145,6 +150,7 @@ function ShellFrame({ me }: { me: Me }) {
               </Button>
             }
           />
+          <NoticesButton />
           <UserMenu
             me={me}
             onOpenSettings={() => {

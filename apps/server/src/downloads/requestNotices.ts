@@ -1,10 +1,9 @@
 import { sql, type Kysely } from "kysely";
 import type { JobQueue } from "../jobs/queues.ts";
 import type { Database } from "../db/schema.ts";
+import { sendNotice } from "../notices/send.ts";
 import type { Message } from "../push/pusher.ts";
-import { wantsNotice } from "../push/prefs.ts";
 import type { Urgency } from "../push/sender.ts";
-import { enqueueNotice } from "../subscriptions/notices.ts";
 import type { NotifyJob } from "./queues.ts";
 
 interface Done {
@@ -115,9 +114,8 @@ async function noticeOne(db: Kysely<Database>, notify: JobQueue<NotifyJob>, requ
     .filter((d) => d.state === "failed")
     .map((d) => ({ title: d.title ?? d.video_id, message: d.error_message }));
   if (done.length + failed.length === 0) return;
-  if (!(await wantsNotice(db, r.user_id, "downloads"))) return;
   const { message, urgency } = readyNotice({ id: requestId, title: r.title }, done, failed);
-  await enqueueNotice(notify, r.user_id, message, urgency);
+  await sendNotice({ db, notify }, { userId: r.user_id, kind: "downloads", message, urgency });
 }
 
 /**

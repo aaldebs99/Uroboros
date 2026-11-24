@@ -3,9 +3,8 @@ import type { ReactNode } from "react";
 import { Toaster as Sonner, type ToasterProps, toast } from "sonner";
 
 import { useTheme } from "@/lib/theme";
+import { recordToast, type ToastTone as Tone } from "@/lib/toastLog";
 import { cn } from "@/lib/utils";
-
-type Tone = "success" | "error" | "info";
 
 const TONE = {
   success: { icon: CircleCheck, className: "text-success" },
@@ -20,6 +19,8 @@ type NotifyOptions = {
   /** At most one action ("View", "Undo"). */
   action?: { label: string; onClick: () => void };
   duration?: number;
+  /** False keeps it out of the bell's "Earlier in this tab" (a passing notice, such as a skip). */
+  log?: boolean;
 };
 
 function ToastCard({
@@ -29,7 +30,7 @@ function ToastCard({
   detail,
   action,
   duration,
-}: NotifyOptions & { id: string | number; duration: number }) {
+}: Omit<NotifyOptions, "log"> & { id: string | number; duration: number }) {
   const { icon: Icon, className } = TONE[tone];
   return (
     <div
@@ -64,8 +65,12 @@ function ToastCard({
   );
 }
 
-/** Reports what an action came to, in the design system's card with its timer line. */
-function notify({ duration = 5000, ...options }: NotifyOptions) {
+/**
+ * Reports what an action came to, in the design system's card with its timer line, and keeps it in
+ * this tab's toast log for the bell.
+ */
+function notify({ duration = 5000, log = true, ...options }: NotifyOptions) {
+  if (log) recordToast(options);
   return toast.custom((id) => <ToastCard id={id} duration={duration} {...options} />, {
     duration,
   });
@@ -81,10 +86,15 @@ notify.success = shortcut("success");
 notify.error = shortcut("error");
 notify.info = shortcut("info");
 
+/** Dismisses every toast on screen (they stay in the bell's toast log). */
+function dismissToasts(): void {
+  toast.dismiss();
+}
+
 /** Themed from our own store (`useTheme`), not next-themes. Top right, unstyled cards. */
 function Toaster(props: ToasterProps) {
   const { theme } = useTheme();
   return <Sonner theme={theme} position="top-right" offset="4.5rem" {...props} />;
 }
 
-export { Toaster, notify };
+export { Toaster, dismissToasts, notify };

@@ -213,4 +213,19 @@ describe("GET /api/downloads", () => {
     }[];
     expect(all.map((d) => d.videoId)).toEqual(expect.arrayContaining(["list-a", "list-b"]));
   });
+
+  it("lists only the queued and running ones with active=true", async () => {
+    const a = await user();
+    await queue(a.userId, "act-q");
+    const done = await queue(a.userId, "act-done");
+    await testDb.db
+      .updateTable("downloads")
+      .set({ state: "done", finished_at: new Date() })
+      .where("id", "=", done)
+      .execute();
+    const active = (await (await h.app(a).request("/api/downloads?active=true")).json()) as {
+      videoId: string;
+    }[];
+    expect(active.map((d) => d.videoId)).toEqual(["act-q"]);
+  });
 });

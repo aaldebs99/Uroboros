@@ -39,6 +39,10 @@ beforeEach(() => {
     "/api/me/push": () =>
       Response.json({ enabled: false, publicKey: null, devices: [], maxDevices: 10 }),
     "/api/subscriptions": () => Response.json([]),
+    "/api/notices": () => Response.json({ notices: [], unread: 0 }),
+    "/api/downloads?active=true": () => Response.json([]),
+    "/api/uploads": () => Response.json([]),
+    "/api/exports": () => Response.json([]),
   });
 });
 
@@ -107,6 +111,16 @@ describe("app shell", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(header).not.toContainElement(nav);
     expect(within(nav).queryByText("Uroboros")).not.toBeInTheDocument();
+  });
+
+  it("puts the bell between Add and the account menu, at every width", async () => {
+    await renderAt("/");
+
+    const header = screen.getByRole("banner");
+    const buttons = within(header)
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"));
+    expect(buttons.slice(-3)).toEqual(["Add", "Notifications", "Account menu for Alice"]);
   });
 
   it("takes the brand in the top bar to the library, dropping a search", async () => {

@@ -1,0 +1,56 @@
+import type { DownloadProgress } from "@uroboros/contract";
+import { useQueryClient } from "@tanstack/react-query";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+
+import { applyDownloadChange, downloadKeys } from "@/api/downloads";
+import { followLiveEvents } from "@/api/liveEvents";
+import { noticesKey } from "@/api/notices";
+
+const Progress = createContext<ReadonlyMap<string, DownloadProgress> | null>(null);
+
+const lists = { list: downloadKeys.list(false), active: downloadKeys.active };
+
+/**
+ * The shell's one live stream (shared by this browser's tabs, `followLiveEvents`): download changes
+ * go into the person's cached lists, progress into a map by fetch key, and a notice nudge fetches
+ * the notifications again. After a gap all three are fetched again.
+ */
+export function LiveEventsProvider({ children }: { children: ReactNode }) {
+  const client = useQueryClient();
+  const [progress, setProgress] = useState<ReadonlyMap<string, DownloadProgress>>(() => new Map());
+  useEffect(
+    () =>
+      followLiveEvents((message) => {
+        if (message.kind === "gap") {
+          for (const queryKey of [lists.list, lists.active, noticesKey]) {
+            void client.invalidateQueries({ queryKey });
+          }
+          return;
+        }
+        const event = message.event;
+        switch (event.type) {
+          case "progress":
+            setProgress((old) => new Map(old).set(event.fetchKey, event.progress));
+            return;
+          case "state":
+            applyDownloadChange(client, lists, { download: event.download });
+            return;
+          case "removed":
+            applyDownloadChange(client, lists, { removed: event.id });
+            return;
+          case "notice":
+            void client.invalidateQueries({ queryKey: noticesKey });
+            return;
+        }
+      }),
+    [client],
+  );
+  return <Progress.Provider value={progress}>{children}</Progress.Provider>;
+}
+
+/** The live progress of the person's fetches, by fetch key (inside `LiveEventsProvider`). */
+export function useMyDownloadProgress(): ReadonlyMap<string, DownloadProgress> {
+  const progress = useContext(Progress);
+  if (progress === null) throw new Error("useMyDownloadProgress needs a LiveEventsProvider");
+  return progress;
+}

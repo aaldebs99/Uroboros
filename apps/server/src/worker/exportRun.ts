@@ -19,8 +19,7 @@ import { cutSeconds, keptRanges, remapChapters } from "../exports/cuts.ts";
 import { exportKey } from "../exports/store.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import type { Processor } from "../jobs/queues.ts";
-import { wantsNotice } from "../push/prefs.ts";
-import { enqueueNotice } from "../subscriptions/notices.ts";
+import { sendNotice } from "../notices/send.ts";
 import { choosePipeline, encoderOf, pipelinesFor, sourceKey } from "../transcode/hwaccel.ts";
 import { h264Level, outputSize, rungFor } from "../transcode/ladder.ts";
 import type { WorkerDeps } from "./deps.ts";
@@ -310,16 +309,18 @@ async function storeCopy(
     await deps.store.delete(key);
     throw new Gone();
   }
-  if (!(await wantsNotice(deps.db, row.user_id, "downloads"))) return;
-  await enqueueNotice(
-    deps.queues.notify,
-    row.user_id,
+  await sendNotice(
+    { db: deps.db, notify: deps.queues.notify },
     {
-      title: "Ready to save",
-      body: `${row.title ?? row.video_id}, without its sponsor segments`,
-      path: "/downloads",
-      tag: `export-${row.id}`,
+      userId: row.user_id,
+      kind: "downloads",
+      message: {
+        title: "Ready to save",
+        body: `${row.title ?? row.video_id}, without its sponsor segments`,
+        path: "/downloads",
+        tag: `export-${row.id}`,
+      },
+      urgency: "normal",
     },
-    "normal",
   );
 }

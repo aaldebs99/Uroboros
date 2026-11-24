@@ -62,7 +62,7 @@ const eventsRoute = createRoute({
   path: "/api/downloads/events",
   tags: ["downloads"],
   summary:
-    "Server-sent events: the caller's download state changes and progress (all=true: everyone's, admins only)",
+    "Server-sent events: the caller's download state changes and progress (all=true: everyone's, admins only), and a nudge when their notifications change",
   request: { query: allQuery },
   responses: {
     200: {
@@ -88,6 +88,8 @@ function translator(
         ? { type: "progress", fetchKey: e.fetchKey, progress: e.progress }
         : null;
     }
+    // A person's own list, even on an admin's everyone view.
+    if (e.kind === "notice") return e.userId === viewer.userId ? { type: "notice" } : null;
     if (!viewer.all && e.userId !== viewer.userId) return null;
     const [download] = await toDownloads(
       ctx,

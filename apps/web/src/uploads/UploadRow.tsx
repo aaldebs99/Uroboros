@@ -4,29 +4,11 @@ import { useId } from "react";
 
 import { UploadBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { notify } from "@/components/ui/sonner";
 import { formatBytes } from "@/downloads/format";
 
 import type { LocalUpload } from "./UploadProvider";
-
-function Bar({ title, sent, size }: { title: string; sent: number; size: number }) {
-  const percent = size === 0 ? 100 : Math.round((sent / size) * 100);
-  return (
-    <div
-      role="progressbar"
-      aria-label={`${title} upload`}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={percent}
-      className="h-2 overflow-hidden rounded-full bg-raised"
-    >
-      <div
-        className="h-full rounded-full bg-linear-to-r from-primary-strong to-primary shadow-[0_0_0.75rem] shadow-primary/60 transition-[width]"
-        style={{ width: `${String(percent)}%` }}
-      />
-    </div>
-  );
-}
 
 /** Picks the same file again (name and size) to send the rest of an upload a reload stopped. */
 function ChooseAgain({ upload, onFile }: { upload: Upload; onFile: (file: File) => void }) {
@@ -155,7 +137,12 @@ export function UploadRow({
               : `${upload.filename} · ${formatBytes(upload.size)}`}
           </span>
         </div>
-        {sending ? <Bar title={upload.title} sent={local.sent} size={upload.size} /> : null}
+        {sending ? (
+          <ProgressBar
+            label={`${upload.title} upload`}
+            percent={upload.size === 0 ? 100 : (local.sent / upload.size) * 100}
+          />
+        ) : null}
         {state === "receiving" && local === undefined ? (
           <ChooseAgain upload={upload} onFile={onResume} />
         ) : null}

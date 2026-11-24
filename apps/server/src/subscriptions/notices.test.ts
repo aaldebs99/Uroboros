@@ -4,6 +4,7 @@ import type { NotifyJob } from "../downloads/queues.ts";
 import { signedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
 import { insertSubscription, listing } from "../../test/listings.ts";
+import { listedNotices } from "../../test/notices.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import { checkProcessor } from "./check.ts";
@@ -85,7 +86,7 @@ describe("subscription notices", () => {
     ]);
   });
 
-  it("stays quiet when the person turned notices off", async () => {
+  it("pushes nothing when the person turned its notices off, but lists them", async () => {
     const u = await signedIn(t.db, { username: "quiet" });
     const id = await insertSubscription(t.db, {
       userId: u.userId,
@@ -97,6 +98,9 @@ describe("subscription notices", () => {
     const deps = await h.deps({ steps: [{ stdout: listing(videos, [{ id: "q0" }]) }] });
     await checkProcessor(deps)({ data: { subscriptionId: id } });
     expect(await notices(u.userId)).toEqual([]);
+    expect(await listedNotices(t.db, u.userId)).toMatchObject([
+      { kind: "subscriptions", title: "New from Blender", path: `/subscriptions/${id}` },
+    ]);
   });
 
   it("notifies once when checks start failing", async () => {

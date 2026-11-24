@@ -31,14 +31,17 @@ export const sendPart = (
 export const sendThumbnail = (id: string, image: Blob, signal: AbortSignal) =>
   putBytesWithProgress(path(id, "/thumbnail"), image, { signal });
 
-/** The person's unfinished and failed uploads, asked again every 3 s while any is unfinished. */
-export function useUploadList() {
+/**
+ * The person's unfinished and failed uploads, asked again every 3 s while any is unfinished. The
+ * shell's bell passes `processingOnly`: an upload a reload stopped stays `receiving` for a day, and
+ * nothing there changes until the person chooses its file again.
+ */
+export function useUploadList({ processingOnly = false }: { processingOnly?: boolean } = {}) {
+  const busy = (u: Upload) =>
+    u.state === "processing" || (!processingOnly && u.state === "receiving");
   return useQuery({
     queryKey: uploadsKey,
     queryFn: ({ signal }) => getJson("/api/uploads", z.array(Upload), { signal }),
-    refetchInterval: (query) =>
-      query.state.data?.some((u) => u.state === "receiving" || u.state === "processing") === true
-        ? 3000
-        : false,
+    refetchInterval: (query) => (query.state.data?.some(busy) === true ? 3000 : false),
   });
 }

@@ -3,9 +3,8 @@ import type { JobQueue } from "../jobs/queues.ts";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import type { NotifyJob } from "../downloads/queues.ts";
+import { sendNotice } from "../notices/send.ts";
 import type { Message } from "../push/pusher.ts";
-import { wantsNotice } from "../push/prefs.ts";
-import { enqueueNotice } from "../subscriptions/notices.ts";
 
 /** "<owner> shared <title> with you", opening the video, or the shared playlist's page. */
 export function sharedNotice(
@@ -24,7 +23,7 @@ export function sharedNotice(
   };
 }
 
-/** Tells each person a share newly reaches, unless they turned shared-with-me notices off. */
+/** Tells each person a share newly reaches (pushed unless they turned shared-with-me pushes off). */
 export async function noticeShared(
   db: Kysely<Database>,
   notify: JobQueue<NotifyJob>,
@@ -32,8 +31,6 @@ export async function noticeShared(
   message: Message,
 ): Promise<void> {
   for (const userId of people) {
-    if (await wantsNotice(db, userId, "shares")) {
-      await enqueueNotice(notify, userId, message, "normal");
-    }
+    await sendNotice({ db, notify }, { userId, kind: "shares", message, urgency: "normal" });
   }
 }

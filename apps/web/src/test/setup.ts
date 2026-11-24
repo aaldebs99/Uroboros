@@ -3,8 +3,11 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
+import { clearToastLog } from "@/lib/toastLog";
+
 afterEach(() => {
   cleanup();
+  clearToastLog();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });

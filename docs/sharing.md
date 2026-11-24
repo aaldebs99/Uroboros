@@ -132,8 +132,9 @@ with absolute URLs on `UROBOROS_PUBLIC_BASE_URL` (else the request's origin), pl
 
 ## Notifications
 
-Through the `notify` queue (`docs/push.md`), each kind switchable per person in Settings ›
-Notifications (`GET` and `PUT /api/me/notifications`, all on by default):
+Through `sendNotice` (`docs/push.md`): each is filed in the person's notification list, and pushed
+unless the person turned the kind's pushes off in Settings › Notifications (`GET` and `PUT
+/api/me/notifications`, all on by default; the list keeps them either way):
 
 - **Downloads**: one notification per pasted link, when the fetch consumer settles its last pending
   download (`src/downloads/requestNotices.ts`): "Ready: _title_" for one video (opening it), "_N_

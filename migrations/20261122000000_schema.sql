@@ -873,3 +873,21 @@ $$;
 
 CREATE TRIGGER exports_trash BEFORE DELETE ON exports
   FOR EACH ROW EXECUTE FUNCTION trash_export();
+
+-- Everything the server told a person (docs/push.md#the-list-in-the-app), pushed to their devices
+-- or not: the bell's list. A newer notice with the same tag replaces the older one (an untagged one
+-- never does); the leader drops them after 30 days.
+CREATE TABLE notices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('downloads', 'shares', 'subscriptions', 'groups')),
+  title TEXT NOT NULL CHECK (title <> ''),
+  body TEXT,
+  -- Where it leads in the app.
+  path TEXT NOT NULL CHECK (path LIKE '/%'),
+  tag TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  read_at TIMESTAMPTZ,
+  UNIQUE (user_id, tag)
+);
+CREATE INDEX notices_user ON notices (user_id, created_at DESC);

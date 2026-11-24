@@ -30,7 +30,10 @@ export function failingNotice(sub: Named, message: string): Message {
   return { title: `${nameOf(sub)}: checks are failing`, body: message, ...where(sub) };
 }
 
-/** Queues one push for the `notify` consumer (one attempt: the sender retries on its own). */
+/**
+ * Queues one push for the `notify` consumer (one attempt: the sender retries on its own). Features
+ * call `sendNotice` (notices/send.ts), which files the notice in the person's list first.
+ */
 export async function enqueueNotice(
   q: JobQueue<NotifyJob>,
   userId: string,

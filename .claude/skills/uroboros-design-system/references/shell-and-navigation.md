@@ -21,10 +21,10 @@ to right:
 4. **"+ Add"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500,
    opening the [Add menu](#add-menu-and-its-dialogs). On phones it is a 40px round "+" with no
    label ([phone](phone.md#getting-around)).
-5. The account avatar, a 32px circle, which opens the [account menu](#account-menu).
+5. **The bell**: a ghost icon button with `Bell`, opening the [notifications](#notifications).
+6. The account avatar, a 32px circle, which opens the [account menu](#account-menu).
 
-The bell slot stays empty until an in-app notification list exists. There's no separate theme
-button: the theme lives in the account menu.
+There's no separate theme button: the theme lives in the account menu.
 
 ## Side navigation
 
@@ -122,6 +122,38 @@ opens it too.
   is in the library; the toast "Uploaded: <title>" with an Open action reports it. Unfinished
   uploads also show on the Downloads page under **Uploads**, with the same badge and bar, and
   "Choose the file" to finish one a reload stopped.
+
+## Notifications
+
+The bell (`notices/NoticesButton.tsx`) sits between Add and the avatar at every width.
+
+- **The button:** a 40px ghost icon button with a 20px `Bell`. Unread notifications show as a
+  count pill at its top right (`bg-primary text-primary-foreground`, 18px tall, "9+" past nine).
+  While anything is in progress a 2px ring (`border-primary/25 border-t-primary`) turns around it;
+  under reduced motion it stands still. The label says both: "Notifications, 2 unread, 1 in
+  progress".
+- **The panel:** `components/ui/responsive-panel.tsx`, a Radix popover from `md` up
+  (`w-[min(25rem,calc(100vw-2rem))]`, scrolling inside `max-h-[min(36rem,calc(100dvh-5rem))]`, no
+  padding) and the phone's bottom sheet below. A header row holds "Notifications" (16/700) and a
+  text pill **Clear**.
+- **Sections**, each under a hairline with a 12/500 muted heading, shown only with rows:
+  1. **In progress**, with a "See all" link to Downloads: queued and running downloads with their
+     live progress, uploads, copies being made and subscriptions being checked, five at most, then
+     "and N more". A row is a 36px `bg-raised` glyph circle, a one-line title, the state's
+     [badge](feedback-and-containers.md#status-badges) with a muted detail, and the 8px glowing
+     bar (`components/ui/progress-bar.tsx`) when there is a real percentage.
+  2. **Notifications**, newest first: a kind glyph (`Download`, `Share2`, `Rss`, `Users`), the
+     title at 500 (two lines), the body muted (two lines), the time muted. One that was unread
+     when the panel opened carries an 8px `bg-primary` dot and an sr-only "Unread".
+  3. **Earlier in this tab**: this tab's toasts with their tone icon, title, detail and time, and
+     their action as a compact text pill.
+- Rows lead somewhere and fill `bg-accent` on hover and focus, like the palette's. Following one
+  closes the panel.
+- **Empty:** a 64px circled `Bell`, "You're all caught up", and a muted line.
+- **Opening it** dismisses the toasts on screen (they are in its list) and marks the notifications
+  read up to the newest one shown.
+- A toast that means nothing later (the player's "Skipped sponsor" with its Undo) passes
+  `log: false` and stays out of the list.
 
 ## Account menu
 

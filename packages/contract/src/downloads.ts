@@ -260,6 +260,8 @@ export const DownloadEvent = z
     z.object({ type: z.literal("state"), download: Download }),
     z.object({ type: z.literal("progress"), fetchKey: z.string(), progress: DownloadProgress }),
     z.object({ type: z.literal("removed"), id: Id }),
+    /** The caller's notifications changed (docs/push.md#the-list-in-the-app): fetch them again. */
+    z.object({ type: z.literal("notice") }),
   ])
   .openapi("DownloadEvent");
 export type DownloadEvent = z.infer<typeof DownloadEvent>;

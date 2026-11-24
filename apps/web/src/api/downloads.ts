@@ -1,21 +1,23 @@
 import {
   Download,
-  DownloadEvent,
   DownloadRequest,
   FormatProfile,
   QueueSelectionResult,
   type DownloadProgress,
   type NewDownloadBody,
 } from "@uroboros/contract";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
 import { getJson, postJson, postNoContent } from "./client";
+import { openStream } from "./liveEvents";
 
 export const downloadKeys = {
   profiles: ["api", "format-profiles"] as const,
   list: (all: boolean) => ["api", "downloads", all ? "all" : "mine"] as const,
+  /** The caller's queued and running downloads, for the bell. */
+  active: ["api", "downloads", "active"] as const,
   request: (id: string) => ["api", "downloads", "requests", id] as const,
 };
 
@@ -68,43 +70,68 @@ export function useDownloads(all: boolean) {
   });
 }
 
+/** The caller's queued and running downloads, kept current by the live events. */
+export function useActiveDownloads() {
+  return useQuery({
+    queryKey: downloadKeys.active,
+    queryFn: ({ signal }) => getJson("/api/downloads?active=true", z.array(Download), { signal }),
+  });
+}
+
+const isActive = (d: Download) => d.state === "queued" || d.state === "running";
+
+/**
+ * Puts a download's change into the cached lists: the newest first in the full list, and in or
+ * out of the active one. A list not loaded yet stays unloaded.
+ */
+export function applyDownloadChange(
+  client: QueryClient,
+  lists: { list: readonly unknown[]; active?: readonly unknown[] },
+  change: { download: Download } | { removed: string },
+): void {
+  const id = "download" in change ? change.download.id : change.removed;
+  const put = (keep: boolean) => (old: Download[] | undefined) => {
+    if (old === undefined) return undefined;
+    const rest = old.filter((d) => d.id !== id);
+    return "download" in change && keep ? [change.download, ...rest] : rest;
+  };
+  client.setQueryData<Download[]>(lists.list, put(true));
+  if (lists.active !== undefined) {
+    const keep = "download" in change && isActive(change.download);
+    client.setQueryData<Download[]>(lists.active, put(keep));
+  }
+}
+
 export const cancelDownload = (id: string) =>
   postNoContent(`/api/downloads/${encodeURIComponent(id)}/cancel`);
 export const retryDownload = (id: string) =>
   postNoContent(`/api/downloads/${encodeURIComponent(id)}/retry`);
 
 /**
- * Follows `/api/downloads/events`: state changes go into the list's cache, progress into the
- * returned map (by fetch key). A dropped stream reconnects by itself; the list is refetched then.
+ * Follows everyone's live download events, for an admin's everyone view: state changes go into
+ * that list's cache, progress into the returned map (by fetch key). The caller's own view uses the
+ * shell's shared stream instead (`useMyDownloadProgress`).
  */
-export function useDownloadEvents(all: boolean): Map<string, DownloadProgress> {
+export function useEveryoneDownloadEvents(enabled: boolean): Map<string, DownloadProgress> {
   const client = useQueryClient();
   const [progress, setProgress] = useState(() => new Map<string, DownloadProgress>());
   useEffect(() => {
-    if (typeof EventSource === "undefined") return;
-    const key = downloadKeys.list(all);
-    const source = new EventSource(`/api/downloads/events${all ? "?all=true" : ""}`);
-    source.onmessage = (message: MessageEvent<string>) => {
-      const parsed = DownloadEvent.safeParse(JSON.parse(message.data));
-      if (!parsed.success) return;
-      const event = parsed.data;
-      if (event.type === "progress") {
-        setProgress((old) => new Map(old).set(event.fetchKey, event.progress));
+    if (!enabled || typeof EventSource === "undefined") return;
+    const list = downloadKeys.list(true);
+    return openStream("/api/downloads/events?all=true", (message) => {
+      if (message.kind === "gap") {
+        void client.invalidateQueries({ queryKey: list });
         return;
       }
-      client.setQueryData<Download[]>(key, (old = []) => {
-        const rest = old.filter(
-          (d) => d.id !== (event.type === "state" ? event.download.id : event.id),
-        );
-        return event.type === "state" ? [event.download, ...rest] : rest;
-      });
-    };
-    source.onerror = () => {
-      void client.invalidateQueries({ queryKey: key });
-    };
-    return () => {
-      source.close();
-    };
-  }, [all, client]);
+      const event = message.event;
+      if (event.type === "progress") {
+        setProgress((old) => new Map(old).set(event.fetchKey, event.progress));
+      } else if (event.type === "state") {
+        applyDownloadChange(client, { list }, { download: event.download });
+      } else if (event.type === "removed") {
+        applyDownloadChange(client, { list }, { removed: event.id });
+      }
+    });
+  }, [enabled, client]);
   return progress;
 }

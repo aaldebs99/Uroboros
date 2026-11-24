@@ -2,18 +2,20 @@ import type { DownloadErrorKind } from "@uroboros/contract";
 import { RequeueError } from "../jobs/errors.ts";
 import { toDownloadError } from "../downloads/errors.ts";
 import { recordPlaylistItems } from "../downloads/sources.ts";
+import { sendNotice, type NoticeDeps } from "../notices/send.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
 import { withLoginsOf } from "../worker/logins.ts";
 import { filterAll } from "./decisions.ts";
 import { freeLease, releaseLease, renewLease, takeLease } from "./lease.ts";
 import { candidateKey, listFeed, type Candidate } from "./listing.ts";
-import { enqueueNotice, FAILING_AFTER, failingNotice, newVideosNotice } from "./notices.ts";
+import { FAILING_AFTER, failingNotice, newVideosNotice } from "./notices.ts";
 import { PatternTimeout } from "./patterns.ts";
 import type { CheckJob } from "./queue.ts";
 import { recordAndQueue, type Decision } from "./record.ts";
 import type { SubscriptionRow } from "./store.ts";
 
 const keyOf = candidateKey;
+const noticeDeps = (deps: WorkerDeps): NoticeDeps => ({ db: deps.db, notify: deps.queues.notify });
 
 /** What a failed check records. */
 export function checkFailure(err: unknown): { kind: DownloadErrorKind; message: string } {
@@ -164,9 +166,15 @@ async function runCheck(
   const { decisions, backfill } = await decideAll(deps, sub, fresh, known, signal);
   const result = await recordAndQueue(deps, sub, decisions, backfill);
   if (result === "stale") return "stale";
-  if (sub.notify && result.queuedNew.length > 0) {
+  if (result.queuedNew.length > 0) {
     const titles = result.queuedNew.map((c) => c.title ?? c.videoId);
-    await enqueueNotice(deps.queues.notify, sub.user_id, newVideosNotice(sub, titles), "normal");
+    await sendNotice(noticeDeps(deps), {
+      userId: sub.user_id,
+      kind: "subscriptions",
+      message: newVideosNotice(sub, titles),
+      urgency: "normal",
+      push: sub.notify,
+    });
   }
   const primedUrls = sub.feeds.filter((f) => (f.primedAt ?? null) === null).map((f) => f.url);
   await releaseLease(deps.db, sub.id, { ok: true, primedUrls, warning });
@@ -198,13 +206,14 @@ export function checkProcessor(deps: WorkerDeps, signal?: AbortSignal) {
       const failure = checkFailure(err);
       const { failures } = await releaseLease(deps.db, sub.id, { ok: false, ...failure });
       // Once per failing streak: the count only passes 3 again after a check succeeds.
-      if (sub.notify && failures === FAILING_AFTER) {
-        await enqueueNotice(
-          deps.queues.notify,
-          sub.user_id,
-          failingNotice(sub, failure.message),
-          "high",
-        );
+      if (failures === FAILING_AFTER) {
+        await sendNotice(noticeDeps(deps), {
+          userId: sub.user_id,
+          kind: "subscriptions",
+          message: failingNotice(sub, failure.message),
+          urgency: "high",
+          push: sub.notify,
+        });
       }
     }
     // The same job again, at once, without spending an attempt (the queue runs it again).

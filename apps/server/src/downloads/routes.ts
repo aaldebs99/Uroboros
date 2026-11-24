@@ -84,12 +84,20 @@ const queueRoute = createRoute({
   },
 });
 
+const listQuery = allQuery.extend({
+  active: z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({ param: { name: "active", in: "query" }, description: "Only queued and running" }),
+});
+
 const listRoute = createRoute({
   method: "get",
   path: "/api/downloads",
   tags: ["downloads"],
-  summary: "The caller's downloads (everyone's with all=true, admins only), active first",
-  request: { query: allQuery },
+  summary:
+    "The caller's downloads (everyone's with all=true, admins only), active first; active=true: only those",
+  request: { query: listQuery },
   responses: { 200: json(z.array(Download), "Downloads"), 403: error("all=true needs an admin") },
 });
 
@@ -157,9 +165,13 @@ export function registerDownloadRoutes(app: OpenAPIHono, ctx: DownloadContext | 
   app.openapi(listRoute, async (c) => {
     const d = need(ctx);
     const principal = currentPrincipal(c);
-    const all = c.req.valid("query").all === "true";
+    const query = c.req.valid("query");
+    const all = query.all === "true";
     if (all) requireAdmin(principal);
-    const rows = await downloadRows(d.db, { userId: all ? null : principal.userId });
+    const rows = await downloadRows(d.db, {
+      userId: all ? null : principal.userId,
+      active: query.active === "true",
+    });
     return c.json(await toDownloads(d, rows), 200);
   });
 

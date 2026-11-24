@@ -50,8 +50,9 @@ skill, this skill wins. The existing files are listed in each reference.
    bar, whose menu button opens the navigation as a drawer, and the **bottom tab bar**. Nothing
    may widen a 375px page. Touch targets are at least 44px. At every width a section's page title
    is for screen readers only; a page about one thing shows its title (`showTitle`).
-9. **Show only real features.** No bell, Pause, watched bar, subscriber count or Add menu
-   item until the feature behind it exists.
+9. **Show only real features.** No Pause, watched bar, subscriber count or Add menu item until
+   the feature behind it exists. The bell exists: the top bar's notifications and work in
+   progress ([shell](references/shell-and-navigation.md#notifications)).
 10. **Pages use the whole page.** A page fills the main area from its left margin to its right:
     grids, lists, tables and the watch page grow with the window. Never centre a page in an
     `mx-auto max-w-*` column that leaves empty bands either side. A block that reads badly
@@ -101,6 +102,6 @@ sheets, `rounded-[0.25rem]` (4) duration badges, and `rounded-full` pills. Write
 | A 6px flat `bg-primary` progress bar                           | An 8px pill bar with an accent gradient and glow, plus `role="progressbar"`   |
 | `bg-black/75` on a duration badge                              | `bg-overlay text-overlay-foreground`                                          |
 | A navy sidebar (`bg-sidebar`)                                  | Side navigation on the canvas colour, with the current row filled `bg-raised` |
-| A Pause button, a bell or a subscriber count                   | Only when the feature exists                                                  |
+| A Pause button or a subscriber count                           | Only when the feature exists                                                  |
 | A pixel size (`w-[168px]`, `rounded-[12px]`, `text-[13px]`)    | A spacing step or rem: `w-42`, `rounded-[0.75rem]`, `text-[0.8125rem]`        |
 | A page centred in `mx-auto max-w-4xl` with empty bands beside  | The page at full width; a form or settings column capped and left-aligned     |

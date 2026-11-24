@@ -61,12 +61,39 @@ Each push carries `TTL: 86400` (a day a push service may hold it for a device th
 an `Urgency`: `normal` for the test and routine news, `high` for failures once those are sent. A
 link is absolute, built on `UROBOROS_PUBLIC_BASE_URL`.
 
-Besides the test (`POST /api/me/push/devices/{id}/test`, a tap opening Settings), features push
-through the `notify` queue ([jobs.md](jobs.md)), whose consumer sends with `Pusher.notify(userId, message,
-urgency)` to all of a user's devices: what subscriptions find and a subscription that keeps failing
-([automation.md](automation.md)), finished and failed downloads, and what is shared with someone
-([sharing.md](sharing.md)). A person turns the download and share kinds off in Settings ›
-Notifications (`GET` and `PUT /api/me/notifications`; subscriptions have their own switch each).
+Besides the test (`POST /api/me/push/devices/{id}/test`, a tap opening Settings), features tell
+people things through `sendNotice` (`apps/server/src/notices/send.ts`): what subscriptions find and
+a subscription that keeps failing ([automation.md](automation.md)), finished and failed downloads, a
+copy ready to save ([transcoding.md](transcoding.md)), what is shared with someone and being added
+to a group ([sharing.md](sharing.md)). It files the notice in the person's
+[list](#the-list-in-the-app), then pushes it through the `notify` queue ([jobs.md](jobs.md)), whose
+consumer sends with `Pusher.notify(userId, message, urgency)` to all of the person's devices. A
+person turns the download, share and group pushes off in Settings › Notifications (`GET` and `PUT
+/api/me/notifications`; subscriptions have their own switch each). The switches only stop pushes:
+the list keeps everything.
+
+## The list in the app
+
+The bell in the top bar lists what the server told a person, whether it was pushed or not (push may
+be off, muted, or the device asleep), so it is also how someone without push hears of a finished
+download.
+
+- **The table.** `notices` holds the kind (`downloads`, `shares`, `subscriptions` or `groups`), the
+  push's title, body and path, its tag, when, and when it was read. A newer notice with the same
+  tag replaces the older one, comes to the top and is unread again (a request's "Ready" replacing
+  its progress, the latest "N new videos"); an untagged one never replaces anything. The leader's
+  sweeper drops notices after 30 days.
+- **The routes.** `GET /api/notices` answers the newest 50 and the unread count. `POST
+  /api/notices/read` with `upTo`, the newest one the person saw, marks those created at or before
+  it read, so one that arrived while the panel was open stays unread. `DELETE /api/notices` clears
+  the list. Each is the caller's own.
+- **Live.** Filing a notice publishes `{ kind: "notice", userId }` on `uroboros_downloads`, and the
+  event stream (`GET /api/downloads/events`, [downloads.md](downloads.md#live-progress)) sends that
+  person a `notice` event, on which the web app fetches the list again.
+- **The panel.** Besides the notifications, it shows what is in progress (queued and running
+  downloads with their live progress, uploads, copies being made, subscriptions being checked) and
+  this tab's toasts with their actions, kept in memory (`apps/web/src/lib/toastLog.ts`). Opening it
+  dismisses the toasts on screen and marks the notifications read.
 
 ## How a push is sent
 
@@ -157,8 +184,7 @@ notifications blocked in the browser's settings. Below that is the list of devic
 marked, each with when it was last reached, Send test (the outcome is a toast) and Turn off.
 
 Not here yet, and deliberately: Djinn's presence reporting (pushing only when no copy of the app is
-on screen), which matters for chat replies and not for downloads, and per-event preferences, which
-come with the events.
+on screen), which matters for chat replies and not for downloads.
 
 ## Setting it up
 

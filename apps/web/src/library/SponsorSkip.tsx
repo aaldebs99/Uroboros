@@ -55,6 +55,8 @@ export function SponsorSkip({
       v.currentTime = end;
       last = end;
       notify.info(skippedTitle(span), {
+        // An Undo means nothing once the moment has passed: kept out of the bell's list.
+        log: false,
         action: {
           label: "Undo",
           onClick: () => {

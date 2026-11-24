@@ -1,3 +1,5 @@
+import type { DownloadProgress } from "@uroboros/contract";
+
 const UNITS = ["B", "KB", "MB", "GB", "TB"];
 
 export function formatBytes(bytes: number | null): string {
@@ -18,4 +20,15 @@ export function formatDuration(seconds: number | null): string {
   const m = Math.floor((s % 3600) / 60);
   const rest = String(s % 60).padStart(2, "0");
   return h > 0 ? `${String(h)}:${String(m).padStart(2, "0")}:${rest}` : `${String(m)}:${rest}`;
+}
+
+/** "12.4 MB/s · 38 s left", from whatever the progress knows. */
+export function progressDetail(progress: DownloadProgress | null): string {
+  if (progress === null) return "";
+  return [
+    progress.speed === null ? null : `${formatBytes(progress.speed)}/s`,
+    progress.eta === null ? null : `${formatDuration(progress.eta)} left`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }

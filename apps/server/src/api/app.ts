@@ -26,6 +26,7 @@ import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerUploadRoutes } from "../uploads/routes.ts";
 import { registerExportRoutes, type ExportContext } from "../exports/routes.ts";
+import { registerNoticeRoutes } from "../notices/routes.ts";
 import type { UploadContext } from "../uploads/store.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
 import { registerSiteLoginRoutes } from "../siteLogins/routes.ts";
@@ -279,6 +280,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerNotificationPrefRoutes(app, deps.db);
+  registerNoticeRoutes(app, deps.db);
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
   registerUploadRoutes(app, uploadContext(deps));

@@ -6,6 +6,7 @@ import type { NotifyJob } from "../downloads/queues.ts";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness } from "../../test/downloads.ts";
 import { seedEntry } from "../../test/library.ts";
+import { listedNotices } from "../../test/notices.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 import { sharedNotice } from "./notices.ts";
@@ -95,7 +96,7 @@ describe("shared with you", () => {
     expect(await notices(alice.userId)).toEqual([]);
   });
 
-  it("someone who turned shares off hears nothing", async () => {
+  it("someone who turned shares off gets no push, only the notice in their list", async () => {
     const dave = await signedIn(t.db, { username: "sndave" });
     await t.db
       .insertInto("notification_prefs")
@@ -107,5 +108,8 @@ describe("shared with you", () => {
       expiresAt: null,
     });
     expect(await notices(dave.userId)).toEqual([]);
+    expect(await listedNotices(t.db, dave.userId)).toMatchObject([
+      { kind: "shares", path: `/library/${e.entryId}` },
+    ]);
   });
 });

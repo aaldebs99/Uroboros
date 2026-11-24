@@ -6,6 +6,7 @@ import { fakeApi } from "@/test/fakeApi";
 import { renderInRouter, renderWithQuery } from "@/test/render";
 
 import { DownloadsPage } from "./DownloadsPage";
+import { LiveEventsProvider } from "./LiveEvents";
 
 const T = "2026-11-22T10:00:00.000Z";
 const PID = "0190a3f2-7c1e-7000-8000-0000000000a1";
@@ -120,7 +121,11 @@ describe("DownloadsPage", () => {
       [`GET /api/downloads/requests/${choosingRequest.id}`]: () =>
         Response.json({ ...choosingRequest, state: "queued", kind: "video", groups: [] }),
     });
-    renderWithQuery(<DownloadsPage me={member} requestId={null} />);
+    renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
     await userEvent.type(await screen.findByLabelText("Link"), "https://www.youtube.com/watch?v=a");
     await userEvent.click(screen.getByRole("button", { name: "Download" }));
     await waitFor(() => {
@@ -136,7 +141,11 @@ describe("DownloadsPage", () => {
       [`POST /api/downloads/requests/${choosingRequest.id}/queue`]: () =>
         Response.json({ queued: 2, skipped: 0 }),
     });
-    await renderInRouter(<DownloadsPage me={member} requestId={choosingRequest.id} />);
+    await renderInRouter(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={choosingRequest.id} />
+      </LiveEventsProvider>,
+    );
     expect(await screen.findByRole("checkbox", { name: "Video v1" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Video s1" })).not.toBeChecked();
     await userEvent.click(screen.getByRole("button", { name: "Queue 2 videos" }));
@@ -151,7 +160,11 @@ describe("DownloadsPage", () => {
     api({
       [`GET /api/downloads/requests/${choosingRequest.id}`]: () => Response.json(choosingRequest),
     });
-    await renderInRouter(<DownloadsPage me={member} requestId={choosingRequest.id} />);
+    await renderInRouter(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={choosingRequest.id} />
+      </LiveEventsProvider>,
+    );
     expect(await screen.findByRole("link", { name: /Subscribe/ })).toHaveAttribute(
       "href",
       `/subscriptions/new?request=${choosingRequest.id}`,
@@ -169,7 +182,11 @@ describe("DownloadsPage", () => {
       stderrTail: [line],
     };
     api({ [`GET /api/downloads/requests/${failed.id}`]: () => Response.json(failed) });
-    await renderInRouter(<DownloadsPage me={member} requestId={failed.id} />);
+    await renderInRouter(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={failed.id} />
+      </LiveEventsProvider>,
+    );
     expect(await screen.findByText(/wants a signed-in account/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open Settings › Logins" })).toHaveAttribute(
       "href",
@@ -184,7 +201,11 @@ describe("DownloadsPage", () => {
     api({
       [`GET /api/downloads/requests/${choosingRequest.id}`]: () => Response.json(choosingRequest),
     });
-    await renderInRouter(<DownloadsPage me={member} requestId={choosingRequest.id} />);
+    await renderInRouter(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={choosingRequest.id} />
+      </LiveEventsProvider>,
+    );
     await userEvent.click(await screen.findByRole("button", { name: "Select none" }));
     expect(screen.getByRole("button", { name: /Queue 0 videos/ })).toBeDisabled();
   });
@@ -199,7 +220,11 @@ describe("DownloadsPage", () => {
       "GET /api/downloads": () => Response.json([failed]),
       [`POST /api/downloads/${failed.id}/retry`]: () => new Response(null, { status: 204 }),
     });
-    renderWithQuery(<DownloadsPage me={member} requestId={null} />);
+    renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
     expect(await screen.findByText("This video is private.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Open Settings › Logins" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByText("yt-dlp output"));
@@ -216,7 +241,11 @@ describe("DownloadsPage", () => {
       "GET /api/downloads": () => Response.json([running]),
       [`POST /api/downloads/${running.id}/cancel`]: () => new Response(null, { status: 204 }),
     });
-    renderWithQuery(<DownloadsPage me={member} requestId={null} />);
+    renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
     await userEvent.click(await screen.findByRole("button", { name: "Cancel" }));
     await waitFor(() => {
       expect(calls.some((c) => c.path === `/api/downloads/${running.id}/cancel`)).toBe(true);
@@ -225,18 +254,30 @@ describe("DownloadsPage", () => {
 
   it("shows the Everyone toggle to admins only", async () => {
     api();
-    const { unmount } = renderWithQuery(<DownloadsPage me={member} requestId={null} />);
+    const { unmount } = renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
     await screen.findByLabelText("Link");
     expect(screen.queryByLabelText("Everyone")).not.toBeInTheDocument();
     unmount();
-    renderWithQuery(<DownloadsPage me={admin} requestId={null} />);
+    renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={admin} requestId={null} />
+      </LiveEventsProvider>,
+    );
     expect(await screen.findByLabelText("Everyone")).toBeInTheDocument();
   });
 
   it("applies live progress to the row waiting on that fetch", async () => {
     vi.stubGlobal("EventSource", FakeEventSource);
     api({ "GET /api/downloads": () => Response.json([download()]) });
-    renderWithQuery(<DownloadsPage me={member} requestId={null} />);
+    renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
     const row = await screen.findByRole("listitem");
     act(() => {
       FakeEventSource.last?.push({

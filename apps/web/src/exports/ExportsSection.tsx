@@ -5,28 +5,9 @@ import { errorText } from "@/api/client";
 import { useExports, useRemoveExport, useStartExport } from "@/api/exports";
 import { ExportBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { notify } from "@/components/ui/sonner";
 import { formatBytes, formatDuration } from "@/downloads/format";
-
-/** How far the encode is, as the design system's thick bar. */
-function Bar({ title, progress }: { title: string; progress: number }) {
-  const percent = Math.round(progress * 100);
-  return (
-    <div
-      role="progressbar"
-      aria-label={`${title} copy`}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={percent}
-      className="h-2 overflow-hidden rounded-full bg-raised"
-    >
-      <div
-        className="h-full rounded-full bg-linear-to-r from-primary-strong to-primary shadow-[0_0_0.75rem] shadow-primary/60 transition-[width]"
-        style={{ width: `${String(percent)}%` }}
-      />
-    </div>
-  );
-}
 
 /** The muted line beside the badge: what the copy is, and how far or how big. */
 function detail(copy: Export): string {
@@ -63,7 +44,9 @@ function ExportRow({ copy }: { copy: Export }) {
             {detail(copy)}
           </span>
         </div>
-        {copy.state === "running" ? <Bar title={copy.title} progress={copy.progress ?? 0} /> : null}
+        {copy.state === "running" ? (
+          <ProgressBar label={`${copy.title} copy`} percent={(copy.progress ?? 0) * 100} />
+        ) : null}
         {copy.state === "failed" && copy.error !== null ? (
           <p className="text-sm text-destructive">{copy.error}</p>
         ) : null}

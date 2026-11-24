@@ -12,6 +12,7 @@ import type {
   RenditionKeyframesTable,
 } from "./playbackSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
+import type { NoticesTable } from "./noticesSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
 import type { NotificationPrefsTable, SharePeopleTable, SharesTable } from "./sharingSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
@@ -453,4 +454,5 @@ export interface Database {
   uploads: UploadsTable;
   upload_parts: UploadPartsTable;
   exports: ExportsTable;
+  notices: NoticesTable;
 }

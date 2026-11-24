@@ -7,8 +7,9 @@ A slim top bar with a menu button, and bottom tabs.
 - **Top bar:** slim, about 48px, on `bg-background`. It holds a ghost menu button at the left,
   the brand's tile alone (`<Brand home compact />`: the wordmark shows from `md` up), a ghost search
   button that opens the [search palette](shell-and-navigation.md#search-palette-ctrlk), the Add
-  button (a 40px round "+" on `bg-raised`, `aria-label="Add"`; the "+ Add" pill from `md` up), and
-  the 28px avatar (the account menu).
+  button (a 40px round "+" on `bg-raised`, `aria-label="Add"`; the "+ Add" pill from `md` up), the
+  [bell](shell-and-navigation.md#notifications) (its panel a bottom sheet here), and the 28px
+  avatar (the account menu).
 - **The menu button** opens the side navigation as a 240px drawer from the left
   (`components/NavDrawer.tsx`, a native `<dialog>` over the scrim, ported from Djinn), with its own
   menu button and brand where the top bar's sit. It holds everything the side navigation does on

@@ -4,7 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
-import { cancelDownload, retryDownload, useDownloadEvents, useDownloads } from "@/api/downloads";
+import {
+  cancelDownload,
+  retryDownload,
+  useDownloads,
+  useEveryoneDownloadEvents,
+} from "@/api/downloads";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,6 +18,7 @@ import { notify } from "@/components/ui/sonner";
 import { ExportsSection } from "@/exports/ExportsSection";
 import { UploadsSection } from "@/uploads/UploadsSection";
 
+import { useMyDownloadProgress } from "./LiveEvents";
 import { PasteForm } from "./PasteForm";
 import { RequestPanel } from "./Preview";
 import { QueueRow } from "./QueueRow";
@@ -28,8 +34,12 @@ export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | n
   }
   const [all, setAll] = useState(false);
   const isAdmin = me.role === "admin";
-  const downloads = useDownloads(all && isAdmin);
-  const progress = useDownloadEvents(all && isAdmin);
+  const everyone = all && isAdmin;
+  const downloads = useDownloads(everyone);
+  // The person's own progress comes from the shell's shared stream; everyone's needs its own.
+  const mine = useMyDownloadProgress();
+  const theirs = useEveryoneDownloadEvents(everyone);
+  const progress = everyone ? theirs : mine;
   const act = (fn: (id: string) => Promise<void>) => (id: string) => {
     fn(id)
       .then(() => client.invalidateQueries({ queryKey: ["api", "downloads"] }))
