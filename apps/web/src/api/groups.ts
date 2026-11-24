@@ -5,7 +5,7 @@ import {
   GroupSummary,
   type GroupRole,
 } from "@uroboros/contract";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { deleteJson, getJson, patchJson, postJson } from "./client";
@@ -58,12 +58,34 @@ export function useGroupAction<A, R>(fn: (arg: A) => Promise<R>) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: fn,
+    onSuccess: () => refetchLists(client),
+  });
+}
+
+const refetchLists = (client: QueryClient) =>
+  Promise.all(
+    [groupsKey, adminKey, ["api", "directory"], ["api", "shared"], ["api", "shares"]].map(
+      (queryKey) => client.invalidateQueries({ queryKey }),
+    ),
+  );
+
+/**
+ * Leaving or deleting group `groupId`: once it succeeds, `onGone` runs first (it leaves the
+ * group's page), then the group's own queries are dropped rather than fetched again (they would
+ * only answer 404), and the lists are fetched again.
+ */
+export function useGroupExit<A>(
+  fn: (arg: A) => Promise<void>,
+  groupId: string,
+  onGone: () => Promise<void>,
+) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
     onSuccess: async () => {
-      await Promise.all(
-        [groupsKey, adminKey, ["api", "directory"], ["api", "shared"], ["api", "shares"]].map(
-          (queryKey) => client.invalidateQueries({ queryKey }),
-        ),
-      );
+      await onGone();
+      client.removeQueries({ queryKey: [...groupsKey, groupId] });
+      await refetchLists(client);
     },
   });
 }

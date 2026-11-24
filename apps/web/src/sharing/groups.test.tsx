@@ -132,13 +132,12 @@ describe("Shared › Groups", () => {
         ]),
     });
     await renderInRouter(<GroupsPage />);
-    const family = await screen.findByRole("link", { name: "Family" });
+    // The whole row is the link (a 44px+ target on phones), not only its name.
+    const family = await screen.findByRole("link", { name: /^Family/ });
     expect(family).toHaveAttribute("href", `/shared/groups/${G}`);
-    const row = family.closest("li");
-    expect(row).not.toBeNull();
-    expect(within(row as HTMLElement).getByText("Manager")).toBeInTheDocument();
-    expect(within(row as HTMLElement).getByText("3 people")).toBeInTheDocument();
-    expect(screen.getByText("1 person")).toBeInTheDocument();
+    expect(within(family).getByText("Manager")).toBeInTheDocument();
+    expect(within(family).getByText("3 people")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: /^Club/ })).getByText("1 person")).toBeVisible();
   });
 
   it("makes a group by name and opens its page", async () => {
@@ -265,6 +264,64 @@ describe("a group's page", () => {
     );
     expect(within(region).getByText("yours")).toBeInTheDocument();
     expect(within(region).getByText("from Bob · 4 videos")).toBeInTheDocument();
+  });
+});
+
+describe("leaving or deleting a group", () => {
+  function showInApp(role: "manager" | "member") {
+    const calls = fakeApi({
+      "GET /api/ready": () => Response.json({ status: "ok", failing: [] }),
+      "GET /api/info": () =>
+        Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
+      "GET /api/me": () => Response.json(me),
+      "GET /api/groups": () => Response.json([]),
+      [`GET /api/groups/${G}`]: () => Response.json(detail(role)),
+      [`GET /api/groups/${G}/shares`]: () => Response.json([]),
+      "GET /api/directory": () => Response.json(directory),
+      [`DELETE /api/groups/${G}`]: () => new Response(null, { status: 204 }),
+      [`DELETE /api/groups/${G}/members/${ME}`]: () => new Response(null, { status: 204 }),
+    });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: [`/shared/groups/${G}`] }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    return { calls, router };
+  }
+  const askedAfterDelete = (calls: { method: string; path: string }[]) => {
+    const at = calls.findIndex((c) => c.method === "DELETE");
+    return calls
+      .slice(at + 1)
+      .filter((c) => c.method === "GET" && c.path.startsWith(`/api/groups/${G}`));
+  };
+
+  it("leaving goes straight back to the list, without asking for the group again", async () => {
+    const { calls, router } = showInApp("member");
+    await userEvent.click(await screen.findByRole("button", { name: "Leave" }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Leave" }),
+    );
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/shared/groups");
+    });
+    expect(await screen.findByText("No groups yet")).toBeInTheDocument();
+    expect(askedAfterDelete(calls)).toEqual([]);
+  });
+
+  it("deleting goes straight back to the list, without asking for the group again", async () => {
+    const { calls, router } = showInApp("manager");
+    await userEvent.click(await screen.findByRole("button", { name: "Delete" }));
+    await userEvent.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }),
+    );
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/shared/groups");
+    });
+    expect(askedAfterDelete(calls)).toEqual([]);
   });
 });
 

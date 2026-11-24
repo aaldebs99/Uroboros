@@ -20,6 +20,7 @@ import {
   setMemberRole,
   useGroup,
   useGroupAction,
+  useGroupExit,
   useGroupShares,
 } from "@/api/groups";
 import { useDirectory } from "@/api/sharing";
@@ -44,10 +45,11 @@ const fail = (error: unknown) => {
 function GroupActions({ group, myId }: { group: GroupDetail; myId: string | undefined }) {
   const [renaming, setRenaming] = useState(false);
   const confirm = useConfirm();
-  const remove = useGroupAction(deleteGroup);
-  const leave = useGroupAction(removeMember);
   const navigate = useNavigate();
-  const toList = () => void navigate({ to: "/shared/groups" });
+  const toList = () => navigate({ to: "/shared/groups" });
+  const remove = useGroupExit(deleteGroup, group.id, toList);
+  const leave = useGroupExit(removeMember, group.id, toList);
+  const busy = remove.isPending || leave.isPending;
   return (
     <div className="flex flex-wrap gap-2">
       {group.role === "manager" ? (
@@ -62,6 +64,7 @@ function GroupActions({ group, myId }: { group: GroupDetail; myId: string | unde
           </Button>
           <Button
             variant="destructive"
+            disabled={busy}
             onClick={() => {
               confirm.ask({
                 title: `Delete "${group.name}"?`,
@@ -69,7 +72,7 @@ function GroupActions({ group, myId }: { group: GroupDetail; myId: string | unde
                 confirmLabel: "Delete",
                 destructive: true,
                 onConfirm: () => {
-                  remove.mutate(group.id, { onSuccess: toList, onError: fail });
+                  remove.mutate(group.id, { onError: fail });
                 },
               });
             }}
@@ -80,7 +83,7 @@ function GroupActions({ group, myId }: { group: GroupDetail; myId: string | unde
       ) : null}
       <Button
         variant="ghost"
-        disabled={myId === undefined}
+        disabled={myId === undefined || busy}
         onClick={() => {
           confirm.ask({
             title: `Leave "${group.name}"?`,
@@ -88,10 +91,7 @@ function GroupActions({ group, myId }: { group: GroupDetail; myId: string | unde
             confirmLabel: "Leave",
             destructive: true,
             onConfirm: () => {
-              leave.mutate(
-                { id: group.id, userId: myId ?? "" },
-                { onSuccess: toList, onError: fail },
-              );
+              leave.mutate({ id: group.id, userId: myId ?? "" }, { onError: fail });
             },
           });
         }}

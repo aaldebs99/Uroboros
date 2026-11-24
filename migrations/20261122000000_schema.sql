@@ -576,20 +576,23 @@ END $$;
 CREATE TRIGGER group_members_gone AFTER DELETE ON group_members
   FOR EACH ROW EXECUTE FUNCTION group_member_gone();
 
--- A disabled manager (all that ever happens to an SSO account) no longer runs their groups.
+-- A disabled manager (all that ever happens to an SSO account) no longer runs their groups; a
+-- re-enabled member can run a group left with no enabled manager while they were away.
 CREATE FUNCTION user_disabled_groups() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
   gid UUID;
 BEGIN
   FOR gid IN
-    SELECT group_id FROM group_members WHERE user_id = NEW.id AND manager ORDER BY group_id
+    SELECT group_id FROM group_members
+    WHERE user_id = NEW.id AND (manager OR NEW.disabled_at IS NULL)
+    ORDER BY group_id
   LOOP
     PERFORM ensure_group_manager(gid);
   END LOOP;
   RETURN NULL;
 END $$;
 CREATE TRIGGER users_disabled_groups AFTER UPDATE OF disabled_at ON users
-  FOR EACH ROW WHEN (OLD.disabled_at IS NULL AND NEW.disabled_at IS NOT NULL)
+  FOR EACH ROW WHEN (OLD.disabled_at IS DISTINCT FROM NEW.disabled_at)
   EXECUTE FUNCTION user_disabled_groups();
 
 -- A share of one thing (an entry, a manual playlist, or a YouTube playlist the owner has), either

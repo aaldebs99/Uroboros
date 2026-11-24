@@ -18,21 +18,23 @@ const peopleText = (n: number) => `${String(n)} ${n === 1 ? "person" : "people"}
 
 function GroupRow({ group }: { group: GroupSummary }) {
   return (
-    <li className="flex items-center gap-3 rounded-[0.75rem] p-3 hover:bg-raised">
-      <Avatar name={group.name} className="size-12 shrink-0 text-base" />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/shared/groups/$groupId"
-            params={{ groupId: group.id }}
-            className="truncate text-base font-medium hover:underline focus-visible:rounded-[0.25rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
-          >
-            {group.name}
-          </Link>
-          {group.role === "manager" ? <Badge>Manager</Badge> : null}
-        </div>
-        <p className="truncate text-xs text-muted-foreground">{peopleText(group.members)}</p>
-      </div>
+    <li>
+      <Link
+        to="/shared/groups/$groupId"
+        params={{ groupId: group.id }}
+        className="flex items-center gap-3 rounded-[0.75rem] p-3 hover:bg-raised focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
+      >
+        <Avatar name={group.name} className="size-12 shrink-0 text-base" />
+        <span className="grid min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-base font-medium">{group.name}</span>
+            {group.role === "manager" ? <Badge>Manager</Badge> : null}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">
+            {peopleText(group.members)}
+          </span>
+        </span>
+      </Link>
     </li>
   );
 }

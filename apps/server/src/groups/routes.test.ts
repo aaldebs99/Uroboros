@@ -249,6 +249,27 @@ describe("a group always keeps a manager", () => {
     expect(roleOf(d, asleep.userId)).toBe("member");
   });
 
+  it("re-enabling a member of a group left without an enabled manager makes them its manager", async () => {
+    const boss = await someone();
+    const g = await create(boss, "Dormant");
+    const sleepy = await someone();
+    await add(boss, g.id, [sleepy.userId]);
+    await t.db
+      .updateTable("users")
+      .set({ disabled_at: new Date() })
+      .where("id", "=", sleepy.userId)
+      .execute();
+    // No other enabled member, so the last manager may leave; nobody can be promoted yet.
+    expect((await remove(boss, g.id, boss.userId)).status).toBe(204);
+    await t.db
+      .updateTable("users")
+      .set({ disabled_at: null })
+      .where("id", "=", sleepy.userId)
+      .execute();
+    const d = await detail(await send(sleepy, "GET", `/api/groups/${g.id}`));
+    expect(roleOf(d, sleepy.userId)).toBe("manager");
+  });
+
   it("deleting the account of a group's only member deletes the group", async () => {
     const loner = await someone();
     const g = await create(loner, "Alone");
