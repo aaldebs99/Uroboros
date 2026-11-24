@@ -27,6 +27,15 @@
 }
 
 /*
+ * Fullscreen keeps the windowed size: the skin enlarges its controls there on a big screen (1.25
+ * times from 1280 pixels of screen width, up to 1.75 times from 1920), which reads as too large.
+ * Unlayered, so it outranks the skin's layered rule.
+ */
+.uro-player:fullscreen {
+  --media-scale: 1;
+}
+
+/*
  * The buttons' row: play, volume and time at the left, captions, settings, cast, picture in
  * picture and fullscreen at the right. The skin centres them around the inline timeline; with the
  * timeline on its own row, the end group takes the leftover space instead.
