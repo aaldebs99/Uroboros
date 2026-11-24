@@ -6,13 +6,18 @@ import { cn } from "@/lib/utils";
 
 import { addedAgo, VideoThumbnail } from "./VideoTile";
 
-/** The thumbnail's share of a row: 40% of it, never under 10.5rem (a phone's column). */
-const thumb = "w-[40%] min-w-42 shrink-0 rounded-[0.5rem]";
+/**
+ * The thumbnail's share of a row: 40% of it, never under 10.5rem (a phone's column). Stacked under
+ * the details (the watch page's container under `@6xl`), it stops at 20rem, so a long list of wide
+ * rows doesn't make the page endless; beside the player it fills its 40%.
+ */
+const thumb = "w-[40%] min-w-42 max-w-80 shrink-0 rounded-[0.5rem] @6xl:max-w-none";
 
 /**
  * What to watch next, beside the player: for now the newest videos in the library, without the
  * one playing. One per row, each one link across the whole column: the thumbnail grows with it
- * (`thumb`), and the title, channel and when it was added fill the rest beside it.
+ * (`thumb`, capped when stacked under the details), and the title, channel and when it was added
+ * fill the rest beside it.
  */
 export function Suggestions({ currentId }: { currentId: string }) {
   const library = useLibrary();

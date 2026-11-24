@@ -94,7 +94,8 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   the suggestions stack under the details.
 - The suggestions are "From your library" rows, one per row however wide the column (beside the
   player, or under the details on a narrow page): the thumbnail takes 40% of the row (never under
-  168px, a phone's), and the title, channel and when it was added fill the rest beside it.
+  168px, a phone's; at most 320px when stacked under the details, `@6xl:max-w-none` beside the
+  player), and the title, channel and when it was added fill the rest beside it.
 
 ## Player
 

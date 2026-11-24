@@ -26,7 +26,8 @@ describe("Suggestions", () => {
     expect(rows).toHaveLength(3);
     const link = within(rows[0] as HTMLElement).getByRole("link", { name: /Sintel/ });
     const thumbnail = link.firstElementChild;
-    expect(thumbnail).toHaveClass("w-[40%]", "min-w-42");
+    // Capped when stacked under the details, filling its 40% beside the player.
+    expect(thumbnail).toHaveClass("w-[40%]", "min-w-42", "max-w-80", "@6xl:max-w-none");
     expect(thumbnail?.nextElementSibling).toHaveClass("flex-1");
   });
 });
