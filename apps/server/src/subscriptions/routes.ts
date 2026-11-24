@@ -15,11 +15,13 @@ import type { DownloadContext } from "../downloads/dispatch.ts";
 import { need } from "../downloads/routes.ts";
 import { downloadItem } from "./itemDownload.ts";
 import { listItems } from "./items.ts";
-import { checkNow, queueLatest } from "./queue.ts";
-import { listedQuery, ownSubscription } from "./store.ts";
+import { queueLatest } from "./queue.ts";
+import { ownSubscription } from "./store.ts";
 import {
+  checkSubscriptionNow,
   createSubscription,
   deleteSubscription,
+  listSubscriptions,
   present,
   updateSubscription,
 } from "./subscriptions.ts";
@@ -153,12 +155,7 @@ export function registerSubscriptionRoutes(
   ctx: DownloadContext | undefined,
 ): void {
   app.openapi(listRoute, async (c) => {
-    const d = need(ctx);
-    const rows = await listedQuery(d.db, currentPrincipal(c).userId)
-      .orderBy("s.title")
-      .orderBy("s.id")
-      .execute();
-    return c.json(rows.map(present), 200);
+    return c.json(await listSubscriptions(need(ctx).db, currentPrincipal(c).userId), 200);
   });
 
   app.openapi(createSubscriptionRoute, async (c) => {
@@ -192,11 +189,12 @@ export function registerSubscriptionRoutes(
   });
 
   app.openapi(checkRoute, async (c) => {
-    const d = need(ctx);
-    const row = await ownSubscription(d.db, currentPrincipal(c).userId, c.req.valid("param").id);
-    if (!row.enabled) throw new ApiError("conflict", "this subscription is paused");
-    await checkNow(d.queues.automation, row.id);
-    return c.json(present(row), 202);
+    const sub = await checkSubscriptionNow(
+      need(ctx),
+      currentPrincipal(c).userId,
+      c.req.valid("param").id,
+    );
+    return c.json(sub, 202);
   });
 
   app.openapi(latestRoute, async (c) => {

@@ -13,13 +13,35 @@ import { visibleProfile } from "../downloads/profiles.ts";
 import { toRequest } from "../downloads/requests.ts";
 import { checkPattern, normalizePattern } from "./patterns.ts";
 import { checkSchedule, firstCheckAt, scheduleColumns } from "./schedule.ts";
-import { ownSubscription, toSubscription, type ListedRow } from "./store.ts";
+import { checkNow } from "./queue.ts";
+import { listedQuery, ownSubscription, toSubscription, type ListedRow } from "./store.ts";
 
 const UNIQUE_VIOLATION = "23505";
 
 /** The contract shape, with the scheduler's next run. */
 export function present(row: ListedRow): Subscription {
   return toSubscription(row);
+}
+
+/** The person's subscriptions, by title. */
+export async function listSubscriptions(
+  db: DownloadContext["db"],
+  userId: string,
+): Promise<Subscription[]> {
+  const rows = await listedQuery(db, userId).orderBy("s.title").orderBy("s.id").execute();
+  return rows.map(present);
+}
+
+/** Asks for a check of one of the person's subscriptions now; a paused one answers 409. */
+export async function checkSubscriptionNow(
+  ctx: DownloadContext,
+  userId: string,
+  id: string,
+): Promise<Subscription> {
+  const row = await ownSubscription(ctx.db, userId, id);
+  if (!row.enabled) throw new ApiError("conflict", "this subscription is paused");
+  await checkNow(ctx.queues.automation, row.id);
+  return present(row);
 }
 
 /** A profile the subscriber may use: a built-in or one of their own. */

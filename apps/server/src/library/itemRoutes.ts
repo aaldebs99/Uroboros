@@ -27,6 +27,7 @@ import type { MediaStore } from "../storage/index.ts";
 import { extname } from "node:path";
 import { editDetails, replaceThumbnail } from "./details.ts";
 import { getItem } from "./item.ts";
+import { setKept } from "./kept.ts";
 import { saveProgress, setWatched } from "./progress.ts";
 import { requestSkipsRefetch } from "./skipRefetch.ts";
 import { replaceTags } from "./tags.ts";
@@ -250,12 +251,12 @@ export function registerItemRoutes(
   });
 
   app.openapi(keptRoute, async (c) => {
-    const entry = await ownEntry(db, currentPrincipal(c).userId, c.req.valid("param").id);
-    await db
-      .updateTable("library_entries")
-      .set({ kept: c.req.valid("json").kept })
-      .where("id", "=", entry.id)
-      .execute();
+    await setKept(
+      db,
+      currentPrincipal(c).userId,
+      c.req.valid("param").id,
+      c.req.valid("json").kept,
+    );
     return c.body(null, 204);
   });
 
