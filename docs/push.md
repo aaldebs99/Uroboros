@@ -62,7 +62,7 @@ an `Urgency`: `normal` for the test and routine news, `high` for failures once t
 link is absolute, built on `UROBOROS_PUBLIC_BASE_URL`.
 
 Besides the test (`POST /api/me/push/devices/{id}/test`, a tap opening Settings), features push
-through the `notify` BullMQ queue, whose consumer sends with `Pusher.notify(userId, message,
+through the `notify` queue ([jobs.md](jobs.md)), whose consumer sends with `Pusher.notify(userId, message,
 urgency)` to all of a user's devices: what subscriptions find and a subscription that keeps failing
 ([automation.md](automation.md)), finished and failed downloads, and what is shared with someone
 ([sharing.md](sharing.md)). A person turns the download and share kinds off in Settings ›

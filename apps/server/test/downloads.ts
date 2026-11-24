@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { Redis } from "ioredis";
 import type { Kysely } from "kysely";
@@ -10,20 +9,19 @@ import { createDownloadQueues } from "../src/downloads/queues.ts";
 import { defaultProfile, type ProfileRow } from "../src/downloads/profiles.ts";
 import { createValkey, waitReady } from "../src/shared/valkey.ts";
 import { asUser, type SignedIn } from "./auth.ts";
+import { liveJobs } from "./jobs.ts";
 import { TestValkey } from "./testValkey.ts";
 
 const logger = pino({ level: "silent" });
 
-/** A download context on the shared test Valkey under a fresh prefix, plus an app factory. */
+/** A download context on the test database, plus an app factory. */
 export async function downloadHarness(db: Kysely<Database>, limit = 3) {
-  const prefix = `t-${randomUUID()}`;
+  // The app still pings Valkey for readiness.
   const valkey: Redis = createValkey(TestValkey.url(), "api", logger);
   await waitReady(valkey, 5000);
-  const queues = createDownloadQueues(valkey, prefix, db);
+  const queues = createDownloadQueues(db);
   const ctx: DownloadContext = {
     db,
-    valkey,
-    prefix,
     queues,
     limits: { maxActivePerUser: limit, maxPlaylistEntries: 1000, minCheckIntervalMinutes: 60 },
     logger,
@@ -32,17 +30,16 @@ export async function downloadHarness(db: Kysely<Database>, limit = 3) {
     asUser(createApp({ db, valkey, version: "t", logger, downloads: ctx }, { webDist: null }), s);
   return {
     ctx,
-    prefix,
+    valkey,
     queues,
     app,
+    /** The keys of the fetch jobs waiting or running. */
     async jobIds(): Promise<string[]> {
-      const jobs = await queues.download.getJobs(["waiting", "active", "delayed", "prioritized"]);
-      return jobs.map((j) => j.id ?? "").sort();
+      return (await liveJobs(db, "download")).map((j) => j.key ?? "").sort();
     },
-    async close(): Promise<void> {
-      await queues.close();
+    close(): Promise<void> {
       valkey.disconnect();
-      await TestValkey.clear(prefix);
+      return Promise.resolve();
     },
   };
 }

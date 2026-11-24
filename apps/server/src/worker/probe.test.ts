@@ -66,7 +66,7 @@ describe("probe", () => {
       .where("request_id", "=", id)
       .executeTakeFirstOrThrow();
     expect(d.dispatched_at).not.toBeNull();
-    expect(await h.queues.download.getJob(d.fetch_key)).toBeDefined();
+    expect(await h.queues.download.get(d.fetch_key)).toBeDefined();
   });
 
   it("refuses a single video pasted to subscribe to, downloading nothing", async () => {

@@ -1,8 +1,8 @@
 import { access, mkdir, rm } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { download, ffprobe, type DownloadedFile } from "@uroboros/ytdlp";
-import { DelayedError, UnrecoverableError } from "bullmq";
 import { dispatchFor } from "../downloads/dispatch.ts";
+import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import { StorageError, toDownloadError, type DownloadFailure } from "../downloads/errors.ts";
 import { publishDownloadEvents } from "../downloads/events.ts";
 import { noticeFinishedRequests } from "../downloads/requestNotices.ts";
@@ -60,8 +60,6 @@ export interface FetchJobLike {
   data: FetchJob;
   attemptsMade: number;
   opts: { attempts?: number | undefined };
-  /** BullMQ's, so a fetch cut by shutdown goes back to the queue without spending an attempt. */
-  moveToDelayed?: (timestamp: number, token?: string) => Promise<void>;
 }
 
 /** How long a fetch cut by shutdown waits before another replica may take it. */
@@ -276,7 +274,7 @@ async function store(
   return rendition;
 }
 
-/** Records a failure: retryable ones stay running for BullMQ's next attempt. Returns whether it is final. */
+/** Records a failure: retryable ones stay running for the queue's next attempt. Returns whether it is final. */
 async function recordFailure(
   deps: WorkerDeps,
   job: FetchJobLike,
@@ -353,7 +351,7 @@ async function downloadAndSettle(
 
 /** Downloads one video in one profile revision and settles everyone waiting on it. */
 export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
-  return async (job: FetchJobLike, token?: string): Promise<void> => {
+  return async (job: FetchJobLike): Promise<void> => {
     const data = job.data;
     if ((await waitingUsers(deps, data.fetchKey)).length === 0) return;
     const stored = await existingRendition(deps, data);
@@ -369,11 +367,7 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
       if (controller.signal.reason instanceof ShutdownAbort) {
         // Back to the queue as it was: no failure, no cancel, and no attempt spent.
         deps.logger.info({ fetchKey: data.fetchKey }, "fetch cut by shutdown; requeued");
-        if (job.moveToDelayed !== undefined && token !== undefined) {
-          await job.moveToDelayed(Date.now() + SHUTDOWN_REQUEUE_DELAY_MS, token);
-          throw new DelayedError();
-        }
-        throw new Error("interrupted by shutdown; retrying", { cause: err });
+        throw new RequeueError(SHUTDOWN_REQUEUE_DELAY_MS, { cause: err });
       }
       if (controller.signal.aborted) {
         // Someone may have started waiting while the cancel was on its way; their dispatch found

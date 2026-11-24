@@ -201,7 +201,7 @@ describe("POST /api/downloads/requests/{id}/queue", () => {
       .executeTakeFirstOrThrow();
     expect(d.state).toBe("done");
     expect(d.rendition_id).not.toBeNull();
-    expect(await h.queues.download.getJob(d.fetch_key)).toBeUndefined();
+    expect(await h.queues.download.get(d.fetch_key)).toBeUndefined();
     const lib = await testDb.db
       .selectFrom("library_entries")
       .selectAll()

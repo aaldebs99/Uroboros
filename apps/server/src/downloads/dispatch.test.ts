@@ -1,18 +1,13 @@
-import { Worker } from "bullmq";
-import type { Redis } from "ioredis";
-import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { testBus } from "../../test/bus.ts";
 import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
-import { createValkey } from "../shared/valkey.ts";
+import { claim } from "../jobs/store.ts";
 import { dispatchFor, queueDownload } from "./dispatch.ts";
 import { fetchKey } from "./fetchKey.ts";
 import type { FetchJob } from "./queues.ts";
 
-const logger = pino({ level: "silent" });
 let testDb: TestDb;
 let h: Awaited<ReturnType<typeof downloadHarness>>;
 
@@ -106,7 +101,7 @@ describe("per-user dispatch", () => {
     const id = await queue(u.userId, "snap-1");
     await dispatchFor(h.ctx, u.userId);
     const p = await seededDefault(testDb.db);
-    const job = await h.queues.download.getJob(fetchKey("youtube", "snap-1", p.id, p.revision));
+    const job = await h.queues.download.get(fetchKey("youtube", "snap-1", p.id, p.revision));
     await testDb.db
       .updateTable("format_profiles")
       .set({ format: "b", revision: "edited00000" })
@@ -141,25 +136,15 @@ describe("cancel and retry", () => {
     const p = await seededDefault(testDb.db);
     const key = fetchKey("youtube", "cancel-1", p.id, p.revision);
     expect((await post(h.app(a), `/api/downloads/${da}/cancel`)).status).toBe(204);
-    expect(await h.queues.download.getJob(key)).toBeDefined();
+    expect(await h.queues.download.get(key)).toBeDefined();
     expect((await post(h.app(b), `/api/downloads/${db}/cancel`)).status).toBe(204);
-    expect(await h.queues.download.getJob(key)).toBeUndefined();
+    expect(await h.queues.download.get(key)).toBeUndefined();
   });
 
   it("asks the worker to stop a fetch that is already running", async () => {
     const u = await user();
     const id = await queue(u.userId, "running-1");
     await dispatchFor(h.ctx, u.userId);
-    const releases: (() => void)[] = [];
-    const conn: Redis = createValkey(TestValkey.url(), "worker", logger);
-    const worker = new Worker(
-      "download",
-      () =>
-        new Promise<void>((resolve) => {
-          releases.push(resolve);
-        }),
-      { connection: conn, prefix: h.prefix, concurrency: 100 },
-    );
     const bus = testBus(testDb);
     await bus.ready;
     const messages: string[] = [];
@@ -167,12 +152,11 @@ describe("cancel and retry", () => {
     try {
       const p = await seededDefault(testDb.db);
       const key = fetchKey("youtube", "running-1", p.id, p.revision);
-      await vi.waitFor(
-        async () => {
-          expect(await (await h.queues.download.getJob(key))?.getState()).toBe("active");
-        },
-        { timeout: 10_000 },
-      );
+      // A worker takes it.
+      expect(
+        await claim(testDb.db, "download", { limit: 100, leaseMs: 60_000, worker: "w" }),
+      ).not.toHaveLength(0);
+      expect((await h.queues.download.get(key))?.state).toBe("running");
       expect((await post(h.app(u), `/api/downloads/${id}/cancel`)).status).toBe(204);
       await vi.waitFor(() => {
         expect(messages.map((m) => (JSON.parse(m) as { fetchKey: string }).fetchKey)).toContain(
@@ -180,9 +164,6 @@ describe("cancel and retry", () => {
         );
       });
     } finally {
-      for (const r of releases) r();
-      await worker.close();
-      conn.disconnect();
       await bus.close();
     }
   });

@@ -34,10 +34,10 @@ request handler.
    at once and a library entry is added; otherwise it waits as `queued`.
 5. **Dispatch** (`dispatchFor`): under a per-user transaction lock, a person's oldest waiting
    downloads are dispatched until `UROBOROS_MAX_ACTIVE_DOWNLOADS_PER_USER` (3) of theirs are
-   dispatched and active. Dispatching adds the fetch job, whose BullMQ job id is the **fetch key**
-   `fetch|<extractor>|<videoId>|<profileId>|<revision>` (each part URI-encoded; BullMQ refuses `:`).
-   A second add of a live id is ignored, so two people asking for the same video and profile at
-   once share one fetch. Whenever a download settles, its owner's next one is dispatched.
+   dispatched and active. Dispatching adds the fetch job ([jobs.md](jobs.md)) in the same
+   transaction, keyed by the **fetch key** `fetch|<extractor>|<videoId>|<profileId>|<revision>`
+   (each part URI-encoded). A second add of a live key does nothing, so two people asking for the
+   same video and profile at once share one fetch. Whenever a download settles, its owner's next one is dispatched.
 6. **Fetch** (`src/worker/fetch.ts`): in a scratch directory under `UROBOROS_WORK_DIR`, yt-dlp
    downloads with the snapshot's arguments (plus a jpg thumbnail and the `.info.json`), ffprobe
    reads the codecs, and the file and its sidecars go to the store. Then one transaction records
@@ -57,7 +57,7 @@ probe lists its top `YOUTUBE_SEARCH_RESULTS` (10) with `--playlist-items=1:10` a
 into one unticked `YouTube` group, recording no playlist (`sources`). Queueing its entries leaves it
 `choosing`, so the results download one by one from the same search; it expires like any preview.
 
-A job can also vanish while downloads still wait on it: past BullMQ's stall limit, or when a cancel
+A job can also vanish while downloads still wait on it: dropped after stalling too often, or when a cancel
 or a finished fetch races someone else's dispatch of the same key. The api leader's reconciler
 (`src/downloads/reconcile.ts`, every minute) adds the job back, from the row's snapshot, for every
 active download dispatched more than two minutes ago whose job is gone, so nobody's slots are held

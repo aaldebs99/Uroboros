@@ -1,5 +1,4 @@
 import type { Kysely } from "kysely";
-import type { Redis } from "ioredis";
 import type { Logger } from "pino";
 import type { Config } from "../config.ts";
 import type { Database } from "../db/schema.ts";
@@ -15,8 +14,6 @@ import type { PgBus } from "../db/notifications.ts";
 /** The connections a server process opens once and shares between HTTP and its job consumers. */
 export interface SharedResources {
   db: Kysely<Database>;
-  /** A non-blocking connection: queue producers and playback keys. */
-  valkey: Redis;
   /** The process's listener connection: download events, cancels and job wakes. */
   bus: PgBus;
   queues: DownloadQueues;
@@ -27,16 +24,9 @@ export interface SharedResources {
 }
 
 /** What the probe and fetch processors run with, on the process's shared connections. */
-export function workerDeps(
-  shared: SharedResources,
-  config: Config,
-  prefix: string,
-  logger: Logger,
-): WorkerDeps {
+export function workerDeps(shared: SharedResources, config: Config, logger: Logger): WorkerDeps {
   return {
     db: shared.db,
-    valkey: shared.valkey,
-    prefix,
     queues: shared.queues,
     limits: config.downloads,
     logger,

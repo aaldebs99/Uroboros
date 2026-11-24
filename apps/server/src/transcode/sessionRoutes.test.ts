@@ -9,6 +9,7 @@ import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness } from "../../test/downloads.ts";
 import { seedEntry } from "../../test/library.ts";
 import { testBus } from "../../test/bus.ts";
+import { liveJobs } from "../../test/jobs.ts";
 import type { PgBus } from "../db/notifications.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
@@ -72,7 +73,7 @@ const app = (): OpenAPIHono =>
   createApp(
     {
       db: t.db,
-      valkey: h.ctx.valkey,
+      valkey: h.valkey,
       version: "t",
       logger,
       downloads: h.ctx,
@@ -114,8 +115,8 @@ describe("creating a playback session", () => {
       masterUrl: `${base()}/sessions/${s.id}/master.m3u8`,
       error: null,
     });
-    const jobs = await h.queues.playback.getJobs(["waiting", "prioritized", "delayed"]);
-    expect(jobs.map((j) => j.id)).toContain(`playback|${s.id}`);
+    const jobs = await liveJobs(t.db, "playback");
+    expect(jobs.map((j) => j.key)).toContain(`playback|${s.id}`);
     expect(await isAlive({ db: t.db }, s.id)).toBe(true);
   });
 

@@ -35,16 +35,20 @@ export async function checkDueSubscriptions(ctx: DownloadContext): Promise<numbe
     ORDER BY s.next_check_at LIMIT ${BATCH}`.execute(ctx.db);
   let queued = 0;
   for (const row of due.rows) {
-    const claimed = await ctx.db
-      .updateTable("subscriptions")
-      .set({ next_check_at: nextCheckAfter(row, row.due, row.now) })
-      .where("id", "=", row.id)
-      .where("enabled", "=", true)
-      .where(sql<boolean>`next_check_at = ${row.expected}::timestamptz`)
-      .executeTakeFirst();
-    if (claimed.numUpdatedRows === 0n) continue;
-    await checkNow(ctx.queues.automation, row.id);
-    queued++;
+    // The claim and the check commit together: a claimed tick always has its check.
+    const won = await ctx.db.transaction().execute(async (tx) => {
+      const claimed = await tx
+        .updateTable("subscriptions")
+        .set({ next_check_at: nextCheckAfter(row, row.due, row.now) })
+        .where("id", "=", row.id)
+        .where("enabled", "=", true)
+        .where(sql<boolean>`next_check_at = ${row.expected}::timestamptz`)
+        .executeTakeFirst();
+      if (claimed.numUpdatedRows === 0n) return false;
+      await checkNow(ctx.queues.automation, row.id, tx);
+      return true;
+    });
+    if (won) queued++;
   }
   return queued;
 }

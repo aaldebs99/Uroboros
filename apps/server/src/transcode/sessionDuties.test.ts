@@ -2,6 +2,7 @@ import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { downloadHarness } from "../../test/downloads.ts";
 import { seedEntry } from "../../test/library.ts";
+import { liveJobs } from "../../test/jobs.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { insertUser } from "../../test/users.ts";
 import type { PlaybackState } from "../db/schema.ts";
@@ -70,10 +71,7 @@ const state = async (id: string) =>
   )?.state;
 const trash = async () =>
   (await t.db.selectFrom("storage_trash").select("key").execute()).map((r) => r.key);
-const jobIds = async () =>
-  (await h.queues.playback.getJobs(["waiting", "prioritized", "delayed", "active"])).map(
-    (j) => j.id,
-  );
+const jobIds = async () => (await liveJobs(t.db, "playback")).map((j) => j.key);
 
 describe("reconcileSessions", () => {
   it("re-adds the lost run of a session whose viewer is still there", async () => {

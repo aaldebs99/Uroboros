@@ -1,62 +1,47 @@
-import { Worker } from "bullmq";
-import type { Redis } from "ioredis";
+import type { Consumer } from "../jobs/worker.ts";
 import { checkProcessor } from "../subscriptions/check.ts";
 import { latestProcessor } from "../subscriptions/latest.ts";
-import { AUTOMATION_QUEUE, type CheckJob } from "../subscriptions/queue.ts";
-import { PLAYBACK_QUEUE, type PlaybackJob } from "../transcode/sessionQueue.ts";
+import type { CheckJob } from "../subscriptions/queue.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { sessionProcessor } from "./session.ts";
 
-/** Checks at once per replica; few, so a burst of schedules never hammers a site. */
+/** Checks at once per replica; few, so a burst of due checks never hammers a site. */
 export const CHECK_CONCURRENCY = 2;
-/** Across every replica, at most one check starts per this many ms (BullMQ's queue-wide limiter). */
-export const CHECK_START_EVERY_MS = 2000;
 
-export interface AutomationWorkers {
-  workers: Worker[];
-  /** Stops running checks for shutdown; each records nothing and runs again on schedule. */
+export interface AutomationConsumers {
+  consumers: Consumer[];
+  /** Stops running checks and playback runs for shutdown (checks record nothing; runs requeue). */
   abortRunning(): void;
 }
 
-/** The `automation` (subscription checks) and `playback` consumers on `connection`. */
-export function startAutomationWorkers(
-  connection: Redis,
-  deps: WorkerDeps,
-  opts: { prefix: string },
-): AutomationWorkers {
+/**
+ * The `automation` (subscription checks, at most one starting every 2 s across replicas) and
+ * `playback` consumers; none of the latter on a replica told to take none, so only GPU replicas
+ * need to.
+ */
+export function automationConsumers(deps: WorkerDeps): AutomationConsumers {
   const stop = new AbortController();
   const checks = checkProcessor(deps, stop.signal);
   const latest = latestProcessor(deps);
   // One queue, two kinds of job: a check (scheduled or now), or a "download the latest N".
   const automation = (job: { name: string; data: CheckJob }) =>
     job.name === "latest" ? latest(job) : checks(job);
-  const check = new Worker<CheckJob>(AUTOMATION_QUEUE, automation, {
-    connection,
-    prefix: opts.prefix,
-    concurrency: CHECK_CONCURRENCY,
-    limiter: { max: 1, duration: CHECK_START_EVERY_MS },
-  });
-  // Playback sessions: none on a replica told to take none (so only GPU replicas need to).
-  const playback =
-    deps.transcodeConcurrency > 0
-      ? [
-          new Worker<PlaybackJob>(PLAYBACK_QUEUE, sessionProcessor(deps, stop.signal), {
-            connection,
-            prefix: opts.prefix,
-            concurrency: deps.transcodeConcurrency,
-            // A session's job lives as long as its viewer: renew the lock often enough that a busy
-            // event loop never loses it.
-            lockDuration: 60_000,
-          }),
-        ]
-      : [];
-  for (const w of [check, ...playback]) {
-    w.on("error", (err) => {
-      deps.logger.error({ err, queue: w.name }, "worker error");
+  const consumers: Consumer[] = [
+    {
+      queue: "automation",
+      concurrency: CHECK_CONCURRENCY,
+      process: automation as Consumer["process"],
+    },
+  ];
+  if (deps.transcodeConcurrency > 0) {
+    consumers.push({
+      queue: "playback",
+      concurrency: deps.transcodeConcurrency,
+      process: sessionProcessor(deps, stop.signal) as Consumer["process"],
     });
   }
   return {
-    workers: [check, ...playback],
+    consumers,
     abortRunning() {
       stop.abort();
     },

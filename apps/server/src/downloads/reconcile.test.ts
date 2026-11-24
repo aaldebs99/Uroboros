@@ -39,7 +39,7 @@ async function orphan(videoId: string, dispatchedAgoMs: number): Promise<string>
     .select("fetch_key")
     .where("video_id", "=", videoId)
     .executeTakeFirstOrThrow();
-  await (await h.queues.download.getJob(row.fetch_key))?.remove();
+  await testDb.db.deleteFrom("jobs").where("key", "=", row.fetch_key).execute();
   await testDb.db
     .updateTable("downloads")
     .set({ dispatched_at: new Date(Date.now() - dispatchedAgoMs), state: "running" })
@@ -52,20 +52,19 @@ describe("reconcileOnce", () => {
   it("adds the job back for an active, dispatched download whose job is gone", async () => {
     const key = await orphan("rc-old", 5 * 60_000);
     expect(await reconcileOnce(h.ctx)).toBeGreaterThanOrEqual(1);
-    expect(await h.queues.download.getJob(key)).toBeDefined();
+    expect(await h.queues.download.get(key)).toBeDefined();
   });
 
   it("leaves a download dispatched a moment ago alone", async () => {
     const key = await orphan("rc-new", 1000);
     await reconcileOnce(h.ctx);
-    expect(await h.queues.download.getJob(key)).toBeUndefined();
+    expect(await h.queues.download.get(key)).toBeUndefined();
   });
 
   it("does nothing for a key whose job exists", async () => {
     const key = await orphan("rc-live", 5 * 60_000);
     await reconcileOnce(h.ctx);
-    const before = await h.queues.download.getJob(key);
     expect(await reconcileOnce(h.ctx)).toBe(0);
-    expect((await h.queues.download.getJob(key))?.id).toBe(before?.id);
+    expect((await h.jobIds()).filter((k) => k === key)).toHaveLength(1);
   });
 });

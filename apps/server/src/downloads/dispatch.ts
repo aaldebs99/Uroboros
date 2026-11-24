@@ -1,4 +1,3 @@
-import type { Redis } from "ioredis";
 import { sql, type Kysely, type Transaction } from "kysely";
 import type { Logger } from "pino";
 import type { Database } from "../db/schema.ts";
@@ -14,10 +13,6 @@ import type { DownloadQueues, FetchJob } from "./queues.ts";
 /** What queueing, dispatching and cancelling need, in the api and in workers alike. */
 export interface DownloadContext {
   db: Kysely<Database>;
-  /** The BullMQ queues' and the playback keys' connection (a normal command connection). */
-  valkey: Redis;
-  /** The BullMQ and playback key prefix. */
-  prefix: string;
   queues: DownloadQueues;
   limits: DownloadLimits;
   logger: Logger;
@@ -146,8 +141,15 @@ export interface FetchRow {
   profile_name: string;
 }
 
-/** Adds the fetch job for `r` (ignored by BullMQ while a job with that id is live). */
-export async function addFetchJob(ctx: DownloadContext, r: FetchRow): Promise<void> {
+/**
+ * Adds the fetch job for `r`, keyed by its fetch key, so a second add while one is live does
+ * nothing; on a transaction (`on`), it commits with the caller's rows.
+ */
+export async function addFetchJob(
+  ctx: DownloadContext,
+  r: FetchRow,
+  on?: Kysely<Database>,
+): Promise<void> {
   const job: FetchJob = {
     fetchKey: r.fetch_key,
     extractor: r.extractor,
@@ -158,21 +160,24 @@ export async function addFetchJob(ctx: DownloadContext, r: FetchRow): Promise<vo
     revision: r.profile_revision,
     args: r.args as ProfileArgs,
   };
-  await ctx.queues.download.add("fetch", job, {
-    jobId: r.fetch_key,
-    attempts: FETCH_ATTEMPTS,
-    backoff: { type: "exponential", delay: BACKOFF_MS },
-    removeOnComplete: true,
-    removeOnFail: true,
-  });
+  await ctx.queues.download.add(
+    "fetch",
+    job,
+    {
+      key: r.fetch_key,
+      attempts: FETCH_ATTEMPTS,
+      backoff: { type: "exponential", delayMs: BACKOFF_MS },
+    },
+    on,
+  );
 }
 
 /**
  * Dispatches a person's waiting downloads (pasted links and new uploads before backfills, then
  * oldest first) until they have `maxActivePerUser` dispatched, under a
  * per-user transaction lock so concurrent calls never over-dispatch. Each dispatch adds the fetch
- * job inside the transaction (a failed add rolls the dispatch back); BullMQ ignores a second add of
- * a live job id, so a shared fetch is fetched once. Returns how many were dispatched.
+ * job inside the transaction, so the two commit together; a second add of a live fetch key does
+ * nothing, so a shared fetch is fetched once. Returns how many were dispatched.
  */
 export async function dispatchFor(ctx: DownloadContext, userId: string): Promise<number> {
   const picked = await ctx.db.transaction().execute(async (tx) => {
@@ -218,7 +223,9 @@ export async function dispatchFor(ctx: DownloadContext, userId: string): Promise
         rows.map((r) => r.id),
       )
       .execute();
-    for (const r of rows) await addFetchJob(ctx, r);
+    // In key order, as every dispatch does: two adding the same keys never deadlock.
+    const byKey = [...rows].sort((a, b) => (a.fetch_key < b.fetch_key ? -1 : 1));
+    for (const r of byKey) await addFetchJob(ctx, r, tx);
     return rows;
   });
   return picked.length;
@@ -245,20 +252,11 @@ async function stopFetchIfUnwanted(ctx: DownloadContext, key: string): Promise<v
     .where("state", "in", ACTIVE)
     .executeTakeFirst();
   if (waiting !== undefined) return;
-  const job = await ctx.queues.download.getJob(key);
+  const job = await ctx.queues.download.get(key);
   if (job === undefined) return;
-  const state = await job.getState();
-  if (state === "active") await publishCancel(ctx.db, key);
-  else if (state === "waiting" || state === "delayed" || state === "prioritized") {
-    await job.remove().catch((err: unknown) => {
-      // It may have just started: then the cancel reaches it.
-      ctx.logger.warn(
-        { err, key },
-        "removing a waiting fetch failed; asking the worker to stop it",
-      );
-      return publishCancel(ctx.db, key);
-    });
-  }
+  if (job.state === "queued" && (await ctx.queues.download.removeQueued(key))) return;
+  // It runs, or a worker claimed it since the look: the replica running it aborts.
+  await publishCancel(ctx.db, key);
 }
 
 export async function cancelDownload(

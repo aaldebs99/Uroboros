@@ -22,16 +22,27 @@ export async function reconcileSessions(
   ctx: DownloadContext,
 ): Promise<{ readded: number; stopped: number; swept: number }> {
   const keys = { db: ctx.db };
+  // Live sessions whose run is gone (the replica running it died, or its job stalled too often).
   const live = await ctx.db
-    .selectFrom("playback_sessions")
-    .select("id")
-    .where("state", "in", LIVE)
-    .where("created_at", "<", ago(STARTING_MS))
+    .selectFrom("playback_sessions as s")
+    .select("s.id")
+    .where("s.state", "in", LIVE)
+    .where("s.created_at", "<", ago(STARTING_MS))
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("jobs")
+            .select("jobs.id")
+            .where("jobs.queue", "=", "playback")
+            .whereRef("jobs.key", "=", sql<string>`'playback|' || s.id`),
+        ),
+      ),
+    )
     .execute();
   let readded = 0;
   let stopped = 0;
   for (const { id } of live) {
-    if ((await ctx.queues.playback.getJob(`playback|${id}`)) !== undefined) continue;
     if (await isAlive(keys, id)) {
       await addPlaybackJob(ctx.queues.playback, id);
       readded++;

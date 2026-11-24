@@ -1,13 +1,13 @@
 import { sql } from "kysely";
 import { addFetchJob, type DownloadContext } from "./dispatch.ts";
 
-/** A dispatch this recent may still be adding its job, so it is left alone. */
+/** A download dispatched this recently is left alone (its fetch may be settling). */
 export const RECONCILE_GRACE_S = 120;
 export const RECONCILE_EVERY_MS = 60_000;
 
 /**
- * Finds active, dispatched downloads whose fetch job no longer exists (a job past BullMQ's stall
- * limit, a cancel or settle racing a new requester) and adds the job back from the row's snapshot,
+ * Finds active, dispatched downloads whose fetch job no longer exists (a job dropped after too
+ * many stalls, a cancel or settle racing a new requester) and adds the job back from the row's snapshot,
  * so a person's slots are never held by work nobody will do. Returns how many jobs it re-added.
  */
 export async function reconcileOnce(ctx: DownloadContext): Promise<number> {
@@ -28,11 +28,21 @@ export async function reconcileOnce(ctx: DownloadContext): Promise<number> {
     .where("d.state", "in", ["queued", "running"])
     .where("d.dispatched_at", "is not", null)
     .where("d.dispatched_at", "<", sql<Date>`now() - make_interval(secs => ${RECONCILE_GRACE_S})`)
+    .where((eb) =>
+      eb.not(
+        eb.exists(
+          eb
+            .selectFrom("jobs")
+            .select("jobs.id")
+            .where("jobs.queue", "=", "download")
+            .whereRef("jobs.key", "=", "d.fetch_key"),
+        ),
+      ),
+    )
     .orderBy("d.fetch_key")
     .execute();
   let added = 0;
   for (const r of rows) {
-    if ((await ctx.queues.download.getJob(r.fetch_key)) !== undefined) continue;
     await addFetchJob(ctx, r);
     added++;
     ctx.logger.warn({ fetchKey: r.fetch_key }, "re-added a fetch job that had gone missing");

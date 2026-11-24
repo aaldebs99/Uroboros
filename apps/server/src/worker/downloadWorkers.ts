@@ -1,38 +1,32 @@
-import { Worker } from "bullmq";
-import type { Redis } from "ioredis";
 import type { PgBus } from "../db/notifications.ts";
-import { DOWNLOAD_QUEUE, type FetchJob } from "../downloads/queues.ts";
 import { startJobWorker } from "../jobs/worker.ts";
 import type { Consumer, JobWorker } from "../jobs/worker.ts";
-import { notifyProcessor } from "./notify.ts";
-import { startAutomationWorkers } from "./automationWorkers.ts";
+import { selfTest } from "../transcode/hwaccel.ts";
+import { automationConsumers } from "./automationWorkers.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
+import { notifyProcessor } from "./notify.ts";
 import { probeProcessor } from "./probe.ts";
-import { selfTest } from "../transcode/hwaccel.ts";
 
 /** Pushes sent at once per replica. */
 const NOTIFY_CONCURRENCY = 4;
 
 export interface DownloadWorkers {
-  workers: Worker[];
-  /** The consumers of the queues on Postgres (docs/jobs.md). */
+  /** The consumers of every queue (docs/jobs.md). */
   jobs: JobWorker;
-  /** Aborts every running fetch for shutdown; each goes back to the queue unrecorded. */
+  /** Cuts every running fetch and playback run for shutdown; each goes back to its queue. */
   abortRunning(): void;
-  /** Stops listening for cancels (the workers are closed by the caller with the others). */
+  /** Stops listening for cancels (the job worker is drained by the caller first). */
   close(): Promise<void>;
 }
 
 /**
- * The probe, download, automation and notify consumers on `connection` (which must allow blocking
- * commands), and a listener on the bus's cancel channel that aborts a running fetch when the api
- * asks.
+ * Every consumer of the replica on one job worker (docs/jobs.md), and a listener on the bus's
+ * cancel channel that aborts a running fetch when the api asks.
  */
 export async function startDownloadWorkers(
-  connection: Redis,
   deps: WorkerDeps,
-  opts: { prefix: string; concurrency: number; bus: PgBus },
+  opts: { concurrency: number; bus: PgBus },
 ): Promise<DownloadWorkers> {
   const cancels = createCancelRegistry();
   const offCancels = opts.bus.on("uroboros_cancel", (message) => {
@@ -43,19 +37,6 @@ export async function startDownloadWorkers(
       deps.logger.warn({ err }, "ignoring a malformed cancel message");
     }
   });
-  const download = new Worker<FetchJob>(DOWNLOAD_QUEUE, fetchProcessor(deps, cancels), {
-    connection,
-    prefix: opts.prefix,
-    concurrency: opts.concurrency,
-    // Long downloads: renew the lock often enough that a busy event loop never loses it.
-    lockDuration: 60_000,
-    maxStalledCount: 2,
-  });
-  for (const w of [download]) {
-    w.on("error", (err) => {
-      deps.logger.error({ err, queue: w.name }, "worker error");
-    });
-  }
   // A replica that runs playback sessions tries its GPU once; a broken one sends runs to the CPU.
   if (deps.transcodeConcurrency > 0) {
     deps.transcoder.gpuWorks = await selfTest({
@@ -66,7 +47,7 @@ export async function startDownloadWorkers(
       logger: deps.logger,
     });
   }
-  const automation = startAutomationWorkers(connection, deps, { prefix: opts.prefix });
+  const automation = automationConsumers(deps);
   const consumers: Consumer[] = [
     {
       queue: "probe",
@@ -74,22 +55,27 @@ export async function startDownloadWorkers(
       process: probeProcessor(deps) as Consumer["process"],
     },
     {
+      queue: "download",
+      concurrency: opts.concurrency,
+      process: fetchProcessor(deps, cancels) as Consumer["process"],
+    },
+    {
       queue: "notify",
       concurrency: NOTIFY_CONCURRENCY,
       process: notifyProcessor(deps.push, deps.logger) as Consumer["process"],
     },
+    ...automation.consumers,
   ];
   const jobs = startJobWorker({ db: deps.db, bus: opts.bus, logger: deps.logger, consumers });
   return {
-    workers: [download, ...automation.workers],
     jobs,
     abortRunning() {
       cancels.abortAll();
       automation.abortRunning();
     },
-    async close() {
+    close() {
       offCancels();
-      await Promise.resolve();
+      return Promise.resolve();
     },
   };
 }

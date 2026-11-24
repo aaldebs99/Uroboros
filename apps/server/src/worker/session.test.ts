@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
+import { RequeueError } from "../jobs/errors.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DelayedError } from "bullmq";
 import type { Scenario } from "@uroboros/ytdlp/testing";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { fmp4Stream } from "../../test/fmp4.ts";
@@ -92,13 +92,10 @@ function start(
   shutdown = new AbortController(),
   timings: Partial<SessionTimings> = {},
 ) {
-  const moveToDelayed = vi.fn(() => Promise.resolve());
-  const job = { id: `playback|${sid}`, data: { sessionId: sid }, moveToDelayed };
-  const done = sessionProcessor(deps, shutdown.signal, { ...FAST, ...timings })(
-    job as never,
-    "lock-token",
-  );
-  return { done, moveToDelayed, shutdown };
+  const done = sessionProcessor(deps, shutdown.signal, { ...FAST, ...timings })({
+    data: { sessionId: sid },
+  });
+  return { done, shutdown };
 }
 
 /** ffmpeg's output for these keyframe times, one fragment per write, a little apart. */
@@ -221,8 +218,8 @@ describe("a playback session's runner", () => {
     const run = start(d, sid);
     await until(async () => stored(sid, -1));
     run.shutdown.abort();
-    await expect(run.done).rejects.toBeInstanceOf(DelayedError);
-    expect(run.moveToDelayed).toHaveBeenCalledOnce();
+    // Back to the queue without spending an attempt.
+    await expect(run.done).rejects.toBeInstanceOf(RequeueError);
     expect((await row(sid)).state).toBe("queued");
     await leave(sid);
   });

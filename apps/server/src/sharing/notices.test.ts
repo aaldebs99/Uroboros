@@ -37,7 +37,7 @@ afterAll(async () => {
 const app = (s: SignedIn): OpenAPIHono =>
   asUser(
     createApp(
-      { db: t.db, valkey: h.ctx.valkey, version: "t", logger, downloads: h.ctx },
+      { db: t.db, valkey: h.valkey, version: "t", logger, downloads: h.ctx },
       { webDist: null },
     ),
     s,

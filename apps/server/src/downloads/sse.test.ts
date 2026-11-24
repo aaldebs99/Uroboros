@@ -37,7 +37,7 @@ const app = (s: SignedIn): OpenAPIHono =>
     createApp(
       {
         db: testDb.db,
-        valkey: h.ctx.valkey,
+        valkey: h.valkey,
         version: "t",
         logger,
         downloads: h.ctx,
@@ -185,7 +185,7 @@ describe("GET /api/downloads/events", () => {
     const res = await createApp(
       {
         db: testDb.db,
-        valkey: h.ctx.valkey,
+        valkey: h.valkey,
         version: "t",
         logger,
         downloads: h.ctx,

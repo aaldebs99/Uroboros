@@ -1,15 +1,11 @@
-import { Queue } from "bullmq";
-import type { Redis } from "ioredis";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { JobQueue } from "../jobs/queues.ts";
 import type { Message } from "../push/pusher.ts";
 import type { Urgency } from "../push/sender.ts";
-import { AUTOMATION_QUEUE, type CheckJob } from "../subscriptions/queue.ts";
-import { PLAYBACK_QUEUE, type PlaybackJob } from "../transcode/sessionQueue.ts";
+import type { CheckJob } from "../subscriptions/queue.ts";
+import type { PlaybackJob } from "../transcode/sessionQueue.ts";
 import type { ProfileArgs } from "./profiles.ts";
-
-export const DOWNLOAD_QUEUE = "download";
 
 /** Probe a pasted link (docs/downloads.md). */
 export interface ProbeJob {
@@ -36,37 +32,22 @@ export interface NotifyJob {
 }
 
 export interface DownloadQueues {
-  /** On Postgres (docs/jobs.md). */
   probe: JobQueue<ProbeJob>;
-  download: Queue<FetchJob>;
-  /** Subscription checks (docs/automation.md). */
-  automation: Queue<CheckJob>;
-  /** On Postgres (docs/jobs.md). */
+  download: JobQueue<FetchJob>;
+  /** Subscription checks and "latest" downloads (docs/automation.md). */
+  automation: JobQueue<CheckJob>;
   notify: JobQueue<NotifyJob>;
   /** Playback sessions' runs (docs/transcoding.md). */
-  playback: Queue<PlaybackJob>;
-  close(): Promise<void>;
+  playback: JobQueue<PlaybackJob>;
 }
 
-/** The producer side of the queues: BullMQ's on `connection`, ours on `db`. */
-export function createDownloadQueues(
-  connection: Redis,
-  prefix: string,
-  db: Kysely<Database>,
-): DownloadQueues {
-  const probe = new JobQueue<ProbeJob>(db, "probe");
-  const download = new Queue<FetchJob>(DOWNLOAD_QUEUE, { connection, prefix });
-  const automation = new Queue<CheckJob>(AUTOMATION_QUEUE, { connection, prefix });
-  const notify = new JobQueue<NotifyJob>(db, "notify");
-  const playback = new Queue<PlaybackJob>(PLAYBACK_QUEUE, { connection, prefix });
+/** The producer side of every queue (docs/jobs.md). */
+export function createDownloadQueues(db: Kysely<Database>): DownloadQueues {
   return {
-    probe,
-    download,
-    automation,
-    notify,
-    playback,
-    async close() {
-      await Promise.all([download, automation, playback].map((q) => q.close()));
-    },
+    probe: new JobQueue<ProbeJob>(db, "probe"),
+    download: new JobQueue<FetchJob>(db, "download"),
+    automation: new JobQueue<CheckJob>(db, "automation"),
+    notify: new JobQueue<NotifyJob>(db, "notify"),
+    playback: new JobQueue<PlaybackJob>(db, "playback"),
   };
 }

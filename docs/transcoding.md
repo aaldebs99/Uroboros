@@ -95,8 +95,8 @@ on `pagehide`, best effort: a session nobody asks for stops by itself).
 
 ## How a segment gets made
 
-Segment requests can land on any replica. The session's **runner** is one BullMQ job
-(`playback|<id>`) on the `playback` queue, taken by any replica whose
+Segment requests can land on any replica. The session's **runner** is one job
+(`playback|<id>`) on the `playback` queue ([jobs.md](jobs.md)), taken by any replica whose
 `UROBOROS_TRANSCODE_CONCURRENCY` is above 0, so only GPU replicas need to transcode. The replicas
 talk over Postgres ([jobs.md](jobs.md)):
 

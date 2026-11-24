@@ -7,8 +7,8 @@ run as several replicas. It ships with:
   (readiness), `GET /api/info`, OpenAPI generated from the routes and Swagger UI, typed
   `{ code, message }` errors, and the SPA served behind a deep-link fallback. The server is
   stateless and runs as several replicas; one of them at a time holds the leader lock.
-- **Download jobs**: [BullMQ](https://bullmq.io) on Valkey, consumed by every replica beside its
-  HTTP, with a heartbeat and a graceful shutdown that hands a running download to another replica.
+- **Download jobs**: a job queue on Postgres ([docs/jobs.md](docs/jobs.md)), consumed by every
+  replica beside its HTTP, with a graceful shutdown that hands a running download to another replica.
   They run [yt-dlp](https://github.com/yt-dlp/yt-dlp), the only downloader, and ffmpeg.
 - **Database**: Postgres through [Kysely](https://kysely.dev), with forward-only migrations named
   by their UTC creation time, applied by the server itself as it starts, under an advisory lock.
@@ -95,9 +95,9 @@ compose healthcheck probes `/api/ready`, and Caddy waits for it before taking tr
 One replica at a time leads: it holds a session-level Postgres advisory lock (`URO_LEAD`) on a
 connection of its own and pings it every 10 s. When that replica dies or loses its connection, the
 server frees the lock and another replica takes it within about 15 s; a stopping replica gives it
-up at once. The leader sweeps expired sessions and pending sign-ins and re-adds download jobs that
-went missing; BullMQ's job schedulers already run each repeatable job exactly once, so they need
-no leader. The machinery,
+up at once. The leader sweeps expired sessions, sign-ins and short-lived rows, re-adds download jobs
+that went missing, puts back jobs whose worker vanished, and queues the subscriptions' due checks.
+The machinery,
 ported from Djinn, is `apps/server/src/shared/leader.ts`, and every lock key is in
 `shared/lockKeys.ts`.
 

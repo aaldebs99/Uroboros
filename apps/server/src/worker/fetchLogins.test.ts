@@ -1,4 +1,4 @@
-import { UnrecoverableError } from "bullmq";
+import { UnrecoverableError } from "../jobs/errors.ts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadScenario, downloadStates, fetchJob, queuedFetch } from "../../test/fetchJobs.ts";

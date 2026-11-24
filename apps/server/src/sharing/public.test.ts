@@ -45,7 +45,7 @@ const anon = (path: string, init?: RequestInit) =>
   createApp(
     {
       db: t.db,
-      valkey: h.ctx.valkey,
+      valkey: h.valkey,
       version: "t",
       logger,
       downloads: h.ctx,

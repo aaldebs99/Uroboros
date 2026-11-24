@@ -1,12 +1,12 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { DelayedError, UnrecoverableError } from "bullmq";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { downloadScenario, downloadStates, fetchJob, queuedFetch } from "../../test/fetchJobs.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { FetchJob } from "../downloads/queues.ts";
+import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
 
 let testDb: TestDb;
@@ -131,7 +131,7 @@ describe("fetch", () => {
     expect(s?.stderr_tail.join("\n")).toMatch(/Private video/);
   });
 
-  it("leaves a network failure running for BullMQ to retry, counting the attempt", async () => {
+  it("leaves a network failure running for the queue to retry, counting the attempt", async () => {
     const u = await user();
     const data = await queued("net-1", [u]);
     const deps = await h.deps({
@@ -239,7 +239,6 @@ describe("shutdown", () => {
     const u = await user();
     const data = await queued("shutdown-1", [u]);
     const registry = createCancelRegistry();
-    const moveToDelayed = vi.fn(() => Promise.resolve());
     const running = fetchProcessor(
       await h.deps(
         await downloadScenario([
@@ -248,13 +247,13 @@ describe("shutdown", () => {
         ]),
       ),
       registry,
-    )({ ...job(data), moveToDelayed }, "token-1");
+    )(job(data));
     await vi.waitFor(async () => {
       expect((await states("shutdown-1"))[0]?.state).toBe("running");
     });
     registry.abortAll();
-    await expect(running).rejects.toBeInstanceOf(DelayedError);
-    expect(moveToDelayed).toHaveBeenCalledWith(expect.any(Number), "token-1");
+    // Back to the queue without spending an attempt.
+    await expect(running).rejects.toBeInstanceOf(RequeueError);
     expect(await readdir(h.workDir)).toEqual([]);
     const [row] = await states("shutdown-1");
     expect(row?.state).toBe("running");

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
 import { downloadHarness, seededDefault } from "../../test/downloads.ts";
 import { insertSubscription } from "../../test/listings.ts";
+import { liveJobs } from "../../test/jobs.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { checkDueSubscriptions } from "./due.ts";
 
@@ -58,8 +59,7 @@ async function nextCheck(id: string): Promise<Date | null> {
   return row.next_check_at;
 }
 
-const queuedChecks = async () =>
-  (await h.queues.automation.getJobs(["waiting", "delayed", "prioritized"])).map((j) => j.id ?? "");
+const queuedChecks = async () => (await liveJobs(t.db, "automation")).map((j) => j.key ?? "");
 
 describe("the due-check pass", () => {
   it("queues a due check and moves it on by its interval, skipping runs missed meanwhile", async () => {

@@ -1,12 +1,10 @@
-import { randomUUID } from "node:crypto";
-import { hostname } from "node:os";
-import { Redis } from "ioredis";
+import { Writable } from "node:stream";
 import { pino } from "pino";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Logger } from "pino";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiConfig } from "../../test/apiConfig.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import type { RunningApi } from "../api/main.ts";
 import { MIGRATE_KEY_NAME } from "../shared/lockKeys.ts";
 import { main, startServer } from "./main.ts";
@@ -14,17 +12,9 @@ import { main, startServer } from "./main.ts";
 const logger = pino({ level: "silent" });
 const WAIT = { timeout: 15_000, interval: 50 };
 const cleanups: (() => Promise<unknown>)[] = [];
-let prefix: string;
-let redis: Redis;
-
-beforeEach(() => {
-  prefix = `test-${randomUUID()}`;
-  redis = new Redis(TestValkey.url());
-});
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
-  redis.disconnect();
 });
 
 async function migratedDb(): Promise<string> {
@@ -38,33 +28,42 @@ function track(server: RunningApi): RunningApi {
   return server;
 }
 
-const heartbeat = () => `${prefix}:worker:${hostname()}:${String(process.pid)}`;
+/** A logger that keeps every message it logs. */
+function recording(): { logger: Logger; messages: string[] } {
+  const messages: string[] = [];
+  const out = new Writable({
+    write(chunk: Buffer, _enc, done) {
+      messages.push((JSON.parse(chunk.toString()) as { msg: string }).msg);
+      done();
+    },
+  });
+  return { logger: pino(out), messages };
+}
 
 describe("one server process", () => {
   it("starts its job consumers only once the database is attached, and stops them on close", async () => {
     const url = await migratedDb();
+    const { logger: log, messages } = recording();
     const server = await withAdmin(url, async (c) => {
       // Another runner holds the migration lock, so this replica cannot attach yet.
       await c.query("SELECT pg_advisory_lock(hashtext($1))", [MIGRATE_KEY_NAME]);
-      const s = track(await startServer(apiConfig(url), logger, { prefix }));
+      const s = track(await startServer(apiConfig(url), log));
       await new Promise((r) => setTimeout(r, 300));
-      expect(await redis.exists(heartbeat())).toBe(0);
+      expect(messages).not.toContain("job consumers started");
       await c.query("SELECT pg_advisory_unlock(hashtext($1))", [MIGRATE_KEY_NAME]);
       return s;
     });
     await server.attached;
-    await vi.waitFor(async () => {
-      expect(await redis.exists(heartbeat())).toBe(1);
+    await vi.waitFor(() => {
+      expect(messages).toContain("job consumers started");
     }, WAIT);
     await server.close();
-    expect(await redis.exists(heartbeat())).toBe(0);
   });
 
   it("budgets its shutdown for the longer of the HTTP drain and the consumers' grace", async () => {
     const url = await migratedDb();
     const server = track(
       await startServer(apiConfig(url, { shutdownGraceMs: 1000 }), logger, {
-        prefix,
         worker: { shutdownGraceMs: 3000 },
       }),
     );
@@ -75,13 +74,11 @@ describe("one server process", () => {
     const url = await migratedDb();
     const server = track(
       await startServer(apiConfig(url), logger, {
-        prefix,
-        // BullMQ refuses a queue name with a colon.
-        worker: { queueName: "bad:name" },
+        worker: { consumers: () => Promise.reject(new Error("no consumers today")) },
       }),
     );
     const { err } = await server.crashed;
-    expect(String(err)).toMatch(/:/);
+    expect(String(err)).toMatch(/no consumers today/);
   });
 });
 

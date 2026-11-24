@@ -9,6 +9,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
+import { liveJobs } from "../../test/jobs.ts";
 import { storedNextCheck } from "../../test/listings.ts";
 import { TestDb } from "../../test/testDb.ts";
 
@@ -197,9 +198,10 @@ describe("subscriptions", () => {
     const path = `/api/subscriptions/${sub.id}/latest`;
     expect((await send(alice, "POST", path, { count: 10 })).status).toBe(202);
     expect((await send(alice, "POST", path, { count: 20 })).status).toBe(202);
-    const job = await h.queues.automation.getJob(`latest|${sub.id}`);
-    expect(job?.name).toBe("latest");
-    expect(job?.data).toEqual({ subscriptionId: sub.id, count: 10 });
+    const jobs = await liveJobs(t.db, "automation");
+    expect(jobs.filter((j) => j.key === `latest|${sub.id}`)).toMatchObject([
+      { name: "latest", data: { subscriptionId: sub.id, count: 10 } },
+    ]);
     expect((await send(alice, "POST", path, { count: 51 })).status).toBe(400);
     expect((await send(bob, "POST", path, { count: 5 })).status).toBe(404);
     await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, { enabled: false });

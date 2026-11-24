@@ -1,4 +1,5 @@
 import type { DownloadErrorKind } from "@uroboros/contract";
+import { RequeueError } from "../jobs/errors.ts";
 import { toDownloadError } from "../downloads/errors.ts";
 import { recordPlaylistItems } from "../downloads/sources.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
@@ -8,7 +9,7 @@ import { freeLease, releaseLease, renewLease, takeLease } from "./lease.ts";
 import { candidateKey, listFeed, type Candidate } from "./listing.ts";
 import { enqueueNotice, FAILING_AFTER, failingNotice, newVideosNotice } from "./notices.ts";
 import { PatternTimeout } from "./patterns.ts";
-import { checkNow, type CheckJob } from "./queue.ts";
+import type { CheckJob } from "./queue.ts";
 import { recordAndQueue, type Decision } from "./record.ts";
 import type { SubscriptionRow } from "./store.ts";
 
@@ -180,12 +181,13 @@ export function checkProcessor(deps: WorkerDeps, signal?: AbortSignal) {
   return async (job: { data: CheckJob }): Promise<void> => {
     const sub = await takeLease(deps.db, job.data.subscriptionId);
     if (sub === undefined) return;
+    let stale = false;
     try {
       // The owner's logins sign in the listing and the full probes.
       if ((await runCheck(await withLoginsOf(deps, sub.user_id), sub, signal)) === "stale") {
         // Decided under filters the person has since changed: check again under the new ones.
         await freeLease(deps.db, sub.id);
-        await checkNow(deps.queues.automation, sub.id);
+        stale = true;
       }
     } catch (err) {
       if (signal?.aborted === true) {
@@ -205,5 +207,7 @@ export function checkProcessor(deps: WorkerDeps, signal?: AbortSignal) {
         );
       }
     }
+    // The same job again, at once, without spending an attempt (the queue runs it again).
+    if (stale) throw new RequeueError(0);
   };
 }

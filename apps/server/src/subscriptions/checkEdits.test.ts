@@ -4,6 +4,7 @@ import { seededDefault } from "../../test/downloads.ts";
 import { insertSubscription, listing, sleep } from "../../test/listings.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
+import { RequeueError } from "../jobs/errors.ts";
 import { checkProcessor } from "./check.ts";
 import { updateSubscription } from "./subscriptions.ts";
 
@@ -85,7 +86,8 @@ describe("edits made while a check runs", () => {
     const running = checkProcessor(deps)({ data: { subscriptionId: id } });
     await sleep(200);
     await updateSubscription(h.ctx, u.userId, id, { filters: loose });
-    await running;
+    // Stale: the job goes back to the queue, unspent, to run again under the new filters.
+    await expect(running).rejects.toBeInstanceOf(RequeueError);
     const items = await t.db
       .selectFrom("subscription_items")
       .select("outcome")
@@ -93,7 +95,6 @@ describe("edits made while a check runs", () => {
       .execute();
     expect(items).toEqual([]);
     expect((await row(id)).feeds[0]?.primedAt ?? null).toBeNull();
-    expect(await h.queues.automation.getJob(`check|${id}`)).toBeDefined();
     // The re-check decides under the new filters, still as the backfill.
     await checkProcessor(
       await h.deps({ steps: [{ stdout: listing(videos, [{ id: "f0", duration: 300 }]) }] }),

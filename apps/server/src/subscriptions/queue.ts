@@ -1,13 +1,9 @@
-import type { Queue } from "bullmq";
-
+import type { Kysely } from "kysely";
+import type { Database } from "../db/schema.ts";
+import type { JobQueue } from "../jobs/queues.ts";
 /**
- * Subscription checks (docs/automation.md): the leader queues one when a subscription's next check
- * comes round (`due.ts`), and people can ask for one now.
- */
-export const AUTOMATION_QUEUE = "automation";
-
-/**
- * A job on the queue: a `check` of one subscription (scheduled or now), or a `latest` that
+ * A job on the `automation` queue (docs/automation.md): a `check` of one subscription (queued by
+ * the leader when its next check comes round, `due.ts`, or asked for now), or a `latest` that
  * downloads its newest `count` videos (`latest.ts`).
  */
 export interface CheckJob {
@@ -16,11 +12,13 @@ export interface CheckJob {
   count?: number;
 }
 
-const JOB_OPTS = { removeOnComplete: true, removeOnFail: true } as const;
-
-/** A one-off check; a second while one waits is the same job (`check|<id>`). */
-export async function checkNow(q: Queue<CheckJob>, id: string): Promise<void> {
-  await q.add("check", { subscriptionId: id }, { jobId: `check|${id}`, ...JOB_OPTS });
+/** A one-off check; a second while one waits or runs is the same job (`check|<id>`). */
+export async function checkNow(
+  q: JobQueue<CheckJob>,
+  id: string,
+  on?: Kysely<Database>,
+): Promise<void> {
+  await q.add("check", { subscriptionId: id }, { key: `check|${id}` }, on);
 }
 
 /** How long a `latest` waits for a running check to let go of the subscription, between tries. */
@@ -31,15 +29,10 @@ const LATEST_RETRY_MS = 30_000;
  * consumers run it. One waiting already (`latest|<id>`) absorbs another; while a check holds the
  * subscription it tries again every 30 s, for a while.
  */
-export async function queueLatest(q: Queue<CheckJob>, id: string, count: number): Promise<void> {
+export async function queueLatest(q: JobQueue<CheckJob>, id: string, count: number): Promise<void> {
   await q.add(
     "latest",
     { subscriptionId: id, count },
-    {
-      jobId: `latest|${id}`,
-      attempts: 20,
-      backoff: { type: "fixed", delay: LATEST_RETRY_MS },
-      ...JOB_OPTS,
-    },
+    { key: `latest|${id}`, attempts: 20, backoff: { type: "fixed", delayMs: LATEST_RETRY_MS } },
   );
 }

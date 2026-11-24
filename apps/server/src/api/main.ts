@@ -19,7 +19,6 @@ import { createPgBus } from "../db/notifications.ts";
 import { createEventHub } from "../downloads/sse.ts";
 import { createPlaybackBus } from "../transcode/bus.ts";
 import { createStore } from "../storage/index.ts";
-import { DEFAULT_PREFIX } from "../worker/queues.ts";
 import type { SharedResources } from "../worker/wiring.ts";
 import { ensureBootstrapAdmin } from "../auth/bootstrap.ts";
 import { startClaimsSync } from "../auth/claimsSync.ts";
@@ -81,8 +80,6 @@ export interface StartApiOptions {
     start: (shared: SharedResources, signal: AbortSignal) => Promise<Consumers>;
     graceMs: number;
   };
-  /** Test seam: the BullMQ and event key prefix (default "uroboros"). */
-  prefix?: string;
   /** Test seam: adds routes to the app before it listens (a slow route for the shutdown tests). */
   configure?: (app: OpenAPIHono, db: Kysely<Database>) => void;
   /** Test seam: how often a replica that does not lead tries the lock again (default 5 s). */
@@ -123,9 +120,8 @@ export async function startApi(
   const push = createPushService(config.push, db, logger);
   const oidc =
     config.auth.oidc === null ? undefined : createOidcProvider(config.auth.oidc, { logger });
-  const prefix = opts.prefix ?? DEFAULT_PREFIX;
-  // The producers; the consumers (when this process runs them) share the same connection.
-  const queues = createDownloadQueues(valkey, prefix, db);
+  // The producers; the consumers (when this process runs them) share the pool.
+  const queues = createDownloadQueues(db);
   const store = createStore(config.storage);
   // One listener connection per replica (started once the database is migrated) carries the
   // download events every open stream hears, fetch cancels and job wakes.
@@ -135,8 +131,6 @@ export async function startApi(
   const playbackBus = createPlaybackBus(bus, db, logger);
   const downloadContext = {
     db,
-    valkey,
-    prefix,
     queues,
     limits: config.downloads,
     logger,
@@ -234,7 +228,7 @@ export async function startApi(
       logger,
     });
     const starting = opts.consumers?.start(
-      { db, valkey, bus, queues, store, push, playbackBus },
+      { db, bus, queues, store, push, playbackBus },
       stop.signal,
     );
     if (starting !== undefined) {
@@ -278,7 +272,7 @@ export async function startApi(
       closeConsumers(),
     ]);
     playbackBus.close();
-    await settlesWithin(Promise.all([queues.close(), bus.close()]), CLEANUP_MS);
+    await settlesWithin(bus.close(), CLEANUP_MS);
     valkey.disconnect();
     const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), CLEANUP_MS);
     if (!drained) {

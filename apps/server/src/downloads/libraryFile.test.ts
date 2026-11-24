@@ -73,7 +73,7 @@ afterAll(async () => {
 const app = (s: SignedIn, st: MediaStore = store): OpenAPIHono =>
   asUser(
     createApp(
-      { db: testDb.db, valkey: h.ctx.valkey, version: "t", logger, store: st },
+      { db: testDb.db, valkey: h.valkey, version: "t", logger, store: st },
       { webDist: null },
     ),
     s,

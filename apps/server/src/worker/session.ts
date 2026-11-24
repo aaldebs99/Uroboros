@@ -1,4 +1,4 @@
-import { DelayedError, type Job } from "bullmq";
+import { RequeueError } from "../jobs/errors.ts";
 import { type BusMessage, isAlive, nextRunToken } from "../transcode/bus.ts";
 import type { PlaybackJob } from "../transcode/sessionQueue.ts";
 import { LIVE, planOf, type SessionRow } from "../transcode/sessions.ts";
@@ -12,10 +12,10 @@ export type { SessionTimings } from "./sessionLoop.ts";
 /** A session cut by shutdown waits this long before another replica takes it. */
 const SHUTDOWN_REQUEUE_DELAY_MS = 1000;
 
-/** The job, as much of BullMQ's as the processor uses. */
-type PlaybackJobLike = Pick<Job<PlaybackJob>, "data"> & {
-  moveToDelayed?: (timestamp: number, token?: string) => Promise<void>;
-};
+/** The job, as much of it as the processor uses. */
+interface PlaybackJobLike {
+  data: PlaybackJob;
+}
 
 const keysOf = (deps: WorkerDeps) => ({ db: deps.db });
 
@@ -55,12 +55,7 @@ async function finish(deps: WorkerDeps, sid: string, end: LoopEnd): Promise<void
 }
 
 /** Back to the queue as it was: another replica picks it up, and no attempt is spent. */
-async function requeue(
-  deps: WorkerDeps,
-  job: PlaybackJobLike,
-  token: string | undefined,
-  sid: string,
-) {
+async function requeue(deps: WorkerDeps, sid: string): Promise<never> {
   await deps.db
     .updateTable("playback_sessions")
     .set({ state: "queued" })
@@ -68,11 +63,7 @@ async function requeue(
     .where("state", "in", ["starting", "running"])
     .execute();
   deps.logger.info({ sid }, "playback session cut by shutdown; requeued");
-  if (job.moveToDelayed !== undefined && token !== undefined) {
-    await job.moveToDelayed(Date.now() + SHUTDOWN_REQUEUE_DELAY_MS, token);
-    throw new DelayedError();
-  }
-  throw new Error("interrupted by shutdown; retrying");
+  throw new RequeueError(SHUTDOWN_REQUEUE_DELAY_MS);
 }
 
 /** Prepares the source and runs the loop, watching for the viewer going and for shutdown. */
@@ -150,7 +141,7 @@ export function sessionProcessor(
   timings: Partial<SessionTimings> = {},
 ) {
   const t: SessionTimings = { ...DEFAULT_TIMINGS, ...timings };
-  return async (job: PlaybackJobLike, lockToken?: string): Promise<void> => {
+  return async (job: PlaybackJobLike): Promise<void> => {
     const sid = job.data.sessionId;
     const row = await liveRow(deps, sid);
     if (row === undefined) return;
@@ -168,7 +159,7 @@ export function sessionProcessor(
       .where("state", "=", "queued")
       .execute();
     const end = await runSession(deps, row, token, t, shutdown);
-    if (end.kind === "shutdown") return requeue(deps, job, lockToken, sid);
+    if (end.kind === "shutdown") return requeue(deps, sid);
     if (end.kind === "fenced") return;
     await finish(deps, sid, end);
   };

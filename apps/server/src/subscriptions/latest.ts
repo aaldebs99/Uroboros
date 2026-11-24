@@ -10,7 +10,7 @@ import { candidateKey, listFeed, type Candidate } from "./listing.ts";
 import type { CheckJob } from "./queue.ts";
 import type { SubscriptionRow } from "./store.ts";
 
-/** Thrown while a check holds the subscription: BullMQ tries the job again shortly. */
+/** Thrown while a check holds the subscription: the queue tries the job again shortly. */
 export class SubscriptionBusy extends Error {
   override readonly name = "SubscriptionBusy";
 }

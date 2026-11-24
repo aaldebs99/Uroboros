@@ -2,7 +2,7 @@
 
 Uroboros replaces ytdl-material: a self-hosted web UI, API and downloader, one server process run
 as several replicas. It is a TypeScript pnpm monorepo (packages named `@uroboros/*`) with a Hono
-API and BullMQ download jobs on Valkey in the same process, Postgres through Kysely, and a React/Vite UI. Tools and tasks all come from mise
+API and its job consumers in the same process, on Postgres alone (Kysely; jobs, messages and short-lived state too, docs/jobs.md), and a React/Vite UI. Tools and tasks all come from mise
 (`.mise/config.toml`).
 
 ## Definition of done
@@ -123,7 +123,7 @@ provider (needs `openssl` on PATH).
 
 `docs/downloads.md` is the design. A pasted link is a `download_requests` row probed on the
 `probe` queue; each video is a `downloads` row waiting on a shared **fetch key** (the
-BullMQ job id on the `download` queue, `|`-separated because BullMQ refuses `:`). `dispatchFor`
+key of its job on the `download` queue, `|`-separated). `dispatchFor`
 dispatches at most `UROBOROS_MAX_ACTIVE_DOWNLOADS_PER_USER` per person under a per-user advisory
 lock (`lockKey("DOWN", userId)`); the fetch stores the file through `MediaStore` (`s3` or organized
 `filesystem` folders, one contract suite for both) and settles every waiting download in one

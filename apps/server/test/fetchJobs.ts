@@ -62,7 +62,7 @@ export async function queuedFetch(
   };
 }
 
-/** The BullMQ job a fetch processor is handed. */
+/** The job a fetch processor is handed. */
 export const fetchJob = (data: FetchJob, attemptsMade = 0) => ({
   id: data.fetchKey,
   data,
