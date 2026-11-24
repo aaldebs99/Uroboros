@@ -36,7 +36,6 @@ export function workerDeps(shared: SharedResources, config: Config, logger: Logg
     // The process's own Node solves sites' JavaScript challenges (yt-dlp-ejs).
     ytdlp: {
       binary: config.worker.ytdlpPath,
-      cookiesFile: config.worker.cookiesFile,
       secretsKey: config.secretsKey,
       jsRuntime: process.execPath,
     },

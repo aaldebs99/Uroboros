@@ -58,8 +58,6 @@ export interface MigrateConfig {
 export interface WorkerSettings {
   /** Scratch space for downloads in progress (`UROBOROS_WORK_DIR`; a tmpfs in compose). */
   workDir: string;
-  /** A Netscape cookies file for yt-dlp (`UROBOROS_YTDLP_COOKIES_FILE`, a mounted file). */
-  cookiesFile: string | null;
   /** Subtitles captured with each download: yt-dlp `--sub-langs` (null: none), and auto captions. */
   subtitles: { langs: string | null; automatic: boolean };
   /** Parallel download jobs per process. */
@@ -162,7 +160,6 @@ const allowedHosts = z
 /** The job consumers' variables. */
 const workerEnvSchema = z.object({
   UROBOROS_WORK_DIR: unsetIfEmpty(z.string().optional()),
-  UROBOROS_YTDLP_COOKIES_FILE: unsetIfEmpty(z.string().optional()),
   UROBOROS_WORKER_CONCURRENCY: unsetIfEmpty(
     positiveInt("UROBOROS_WORKER_CONCURRENCY").prefault(String(DEFAULT_WORKER_CONCURRENCY)),
   ),
@@ -311,7 +308,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     downloads: toDownloadLimits(e),
     worker: {
       workDir: e.UROBOROS_WORK_DIR ?? join(tmpdir(), "uroboros-work"),
-      cookiesFile: e.UROBOROS_YTDLP_COOKIES_FILE ?? null,
       subtitles: {
         langs:
           e.UROBOROS_SUBTITLE_LANGS === undefined

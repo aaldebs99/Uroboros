@@ -25,7 +25,7 @@ request handler.
      for a failed download. A site that wants a signed-in account (yt-dlp's login wall: Vimeo's
      own video pages need one with current yt-dlp) is `login_required`, and a saved login the
      site refused is `login_failed`; both point to Settings › Logins ([site logins](#site-logins)).
-     The server can also sign in with a cookies file (`UROBOROS_YTDLP_COOKIES_FILE`).
+     Credentials are always a person's own: the server has no account of its own to sign in with.
 3. `POST /api/downloads/requests/{id}/queue {entryIds}` turns the ticked entries into downloads.
    Entries the person already has, or is already getting, are skipped and counted. A preview
    nobody queues expires after a day (the leader's sweeper deletes it).

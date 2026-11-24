@@ -76,12 +76,10 @@ x-server-env: &server-env
   # How long a starting replica retries an unreachable Postgres, in seconds (default 0: until it
   # answers). It waits for Postgres to be healthy anyway, so this only matters on a restart.
   UROBOROS_DB_STARTUP_GRACE_SECS: ${UROBOROS_DB_STARTUP_GRACE_SECS:-}
-  # The download jobs: scratch space, parallel downloads per replica (default 4), a Netscape
-  # cookies file for yt-dlp (mount it and set the path to use one), and the subtitles saved with
-  # each download (yt-dlp --sub-langs; an explicitly empty value saves none).
+  # The download jobs: scratch space, parallel downloads per replica (default 4), and the subtitles
+  # saved with each download (yt-dlp --sub-langs; an explicitly empty value saves none).
   UROBOROS_WORK_DIR: /work
   UROBOROS_WORKER_CONCURRENCY: ${UROBOROS_WORKER_CONCURRENCY:-}
-  UROBOROS_YTDLP_COOKIES_FILE: ${UROBOROS_YTDLP_COOKIES_FILE:-}
   # The key people's saved site logins (Settings › Logins) are sealed with: 32 random bytes in
   # base64 (openssl rand -base64 32). Unset, saving logins is off; changing it voids saved ones.
   UROBOROS_SECRETS_KEY: ${UROBOROS_SECRETS_KEY:-}

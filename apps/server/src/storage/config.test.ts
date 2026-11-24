@@ -90,16 +90,12 @@ describe("storage settings", () => {
     });
   });
 
-  it("gives the job consumers their work dir and cookies", () => {
-    const c = loadConfig({
-      ...base,
-      ...s3,
-      UROBOROS_WORK_DIR: "/work",
-      UROBOROS_YTDLP_COOKIES_FILE: "/secrets/cookies.txt",
-    });
-    expect(c.worker).toMatchObject({ workDir: "/work", cookiesFile: "/secrets/cookies.txt" });
+  it("gives the job consumers their work dir, and no credentials of the server's own", () => {
+    const c = loadConfig({ ...base, ...s3, UROBOROS_WORK_DIR: "/work" });
+    expect(c.worker.workDir).toBe("/work");
+    // Credentials are people's own (Settings › Logins), never the whole server's.
+    expect(c.worker).not.toHaveProperty("cookiesFile");
     expect(c.storage.kind).toBe("s3");
-    expect(loadConfig({ ...base, ...s3 }).worker.cookiesFile).toBeNull();
   });
 
   it("reads the subtitle settings: English by default, empty turns them off", () => {

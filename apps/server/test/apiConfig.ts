@@ -32,7 +32,6 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
     downloads: { maxActivePerUser: 3, maxPlaylistEntries: 1000, minCheckIntervalMinutes: 60 },
     worker: {
       workDir: "/tmp/uroboros-api-test-work",
-      cookiesFile: null,
       subtitles: { langs: null, automatic: false },
       concurrency: 2,
       ytdlpPath: "yt-dlp",

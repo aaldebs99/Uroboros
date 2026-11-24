@@ -59,7 +59,6 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
         ytdlp: {
           binary: run.options.binary,
           env: run.options.env,
-          cookiesFile: null,
           secretsKey: null,
           jsRuntime: "/usr/local/bin/node",
         },

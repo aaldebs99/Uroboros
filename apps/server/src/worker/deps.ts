@@ -16,7 +16,6 @@ export interface WorkerDeps extends DownloadContext {
   ytdlp: {
     binary: string;
     env?: Record<string, string>;
-    cookiesFile: string | null;
     /**
      * `UROBOROS_SECRETS_KEY`, which opens people's saved site logins for their runs; null runs
      * without any.

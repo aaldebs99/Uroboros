@@ -338,7 +338,6 @@ async function downloadAndSettle(
   const result = await download(data.url, {
     binary: deps.ytdlp.binary,
     ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
-    ...(deps.ytdlp.cookiesFile === null ? {} : { cookiesFile: deps.ytdlp.cookiesFile }),
     logins,
     ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
     workDir: scratch,

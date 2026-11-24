@@ -24,7 +24,6 @@ export function ytdlpOptions(deps: Deps) {
   return {
     binary: deps.ytdlp.binary,
     ...(deps.ytdlp.env === undefined ? {} : { env: deps.ytdlp.env }),
-    ...(deps.ytdlp.cookiesFile === null ? {} : { cookiesFile: deps.ytdlp.cookiesFile }),
     ...(deps.ytdlp.logins === undefined ? {} : { logins: deps.ytdlp.logins }),
     ...(deps.ytdlp.jsRuntime === undefined ? {} : { jsRuntime: deps.ytdlp.jsRuntime }),
     timeoutMs: PROBE_TIMEOUT_MS,

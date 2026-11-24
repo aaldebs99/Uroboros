@@ -5,7 +5,7 @@ export const DOWNLOAD_ERROR_TEXT = {
   unavailable: "This video is unavailable.",
   private: "This video is private.",
   geo_blocked: "This video isn't available in the server's country.",
-  age_restricted: "This video needs a signed-in, age-verified account (add cookies).",
+  age_restricted: "This video needs a signed-in, age-verified account.",
   login_required:
     "The site wants a signed-in account for this. Save your login for it under Settings › Logins.",
   login_failed: "The site refused your saved login. Check it under Settings › Logins.",
