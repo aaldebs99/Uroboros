@@ -7,8 +7,9 @@ import { useSharedWithMe } from "@/api/sharing";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { TileSkeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
-import { tileGrid } from "../library/VideoTile";
+import { tileGrid, tileMeta, tileTitle } from "../library/VideoTile";
 import { SharedTabs } from "./SharedTabs";
 
 function SharedTile({ share }: { share: SharedWithMe }) {
@@ -41,11 +42,9 @@ function SharedTile({ share }: { share: SharedWithMe }) {
             />
           )}
         </div>
-        <span className="line-clamp-2 font-medium md:text-[0.9375rem]/[1.3125rem]">
-          {share.title}
-        </span>
+        <span className={tileTitle}>{share.title}</span>
       </Link>
-      <span className="-mt-2 text-xs text-muted-foreground">{meta.join(" · ")}</span>
+      <span className={cn("-mt-2", tileMeta)}>{meta.join(" · ")}</span>
     </li>
   );
 }

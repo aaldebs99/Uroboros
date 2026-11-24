@@ -49,9 +49,9 @@ when writing `index.css`.
 | Section heading           | 16 / 1.3 / 700           |
 | Body                      | 14 / 20 / 400            |
 | Labels and button text    | 14 / 500                 |
-| Video title in a tile     | 15 / 21 / 500, two lines |
+| Video title in a tile     | 16 / 22 / 500, two lines |
 | Video title in a list row | 16 / 22 / 500            |
-| Meta                      | 12, muted                |
+| Meta                      | 12, muted (a tile's: 14) |
 | Badge                     | 11.5 / 500               |
 
 There is no negative letter-spacing, and no display font.

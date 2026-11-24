@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { notify } from "@/components/ui/sonner";
 
-import { tileGrid, VideoThumbnail } from "../library/VideoTile";
+import { tileGrid, tileMeta, tileTitle, VideoThumbnail } from "../library/VideoTile";
 
 /** A video of a shared playlist: it opens on the watch page, playing the playlist in order. */
 function SharedTile({ entry, shareId }: { entry: LibraryEntry; shareId: string }) {
@@ -24,12 +24,8 @@ function SharedTile({ entry, shareId }: { entry: LibraryEntry; shareId: string }
       >
         <VideoThumbnail entry={entry} className="md:rounded-[0.75rem]" />
         <span className="grid gap-0.5">
-          <span className="line-clamp-2 font-medium md:text-[0.9375rem]/[1.3125rem]">
-            {entry.title}
-          </span>
-          {entry.channel === null ? null : (
-            <span className="text-xs text-muted-foreground">{entry.channel}</span>
-          )}
+          <span className={tileTitle}>{entry.title}</span>
+          {entry.channel === null ? null : <span className={tileMeta}>{entry.channel}</span>}
         </span>
       </Link>
     </li>

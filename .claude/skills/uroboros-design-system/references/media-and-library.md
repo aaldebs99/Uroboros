@@ -49,7 +49,11 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
 </li>
 ```
 
-- The grid is `grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-x-4 gap-y-8`.
+- The grid is YouTube's size: `tileGrid` in `library/VideoTile.tsx`, auto-filled columns of at least
+  20rem (`minmax(min(20rem,100%),1fr)`, four across a 1920-pixel window beside the side navigation,
+  three at 1440), `gap-x-4 gap-y-10`. Every tile grid (videos, playlists, shared) uses it.
+- The title and meta use `tileTitle` (two lines, 16/22 at 500 from `md` up, 14/20 on phones) and
+  `tileMeta` (muted, 14 from `md` up, 12 on phones).
 - There's no card, no border and no padded body.
 - With no thumbnail, `bg-raised` holds a muted 32px `Film` icon.
 - The meta line uses `LibraryEntry`'s fields: profile name, size, and when it was added. There's

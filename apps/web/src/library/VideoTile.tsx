@@ -81,22 +81,25 @@ export function EntryTile({
           <Link
             to="/library/$entryId"
             params={{ entryId: entry.id }}
-            className="line-clamp-2 font-medium hover:underline focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none md:text-[0.9375rem]/[1.3125rem]"
+            className={cn(
+              tileTitle,
+              "hover:underline focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none",
+            )}
           >
             {entry.title}
           </Link>
           {entry.channel === null ? null : entry.channelKey === null ? (
-            <p className="text-xs text-muted-foreground">{entry.channel}</p>
+            <p className={tileMeta}>{entry.channel}</p>
           ) : (
             <Link
               to="/library/channels/$channelKey"
               params={{ channelKey: entry.channelKey }}
-              className="block text-xs text-muted-foreground hover:text-foreground hover:underline"
+              className={cn("block hover:text-foreground hover:underline", tileMeta)}
             >
               {entry.channel}
             </Link>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className={tileMeta}>
             {entry.profileName} · {formatBytes(entry.sizeBytes)} · {addedAgo(entry.addedAt)}
           </p>
         </div>
@@ -128,6 +131,16 @@ export function EntryTile({
   );
 }
 
-/** The tile grid: one column edge to edge on phones, auto-filled 16rem columns from md up. */
+/**
+ * The tile grid, at YouTube's sizes: one column edge to edge on phones; from md up auto-filled
+ * columns of at least 20rem (four across a 1920-pixel window beside the side navigation, three at
+ * 1440), 1rem apart, rows 2.5rem apart.
+ */
 export const tileGrid =
-  "grid gap-y-3.5 md:grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] md:gap-x-4 md:gap-y-8";
+  "grid gap-y-3.5 md:grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] md:gap-x-4 md:gap-y-10";
+
+/** A tile's two-line title: YouTube's 16/22 at 500 from md up, the body's 14/20 on phones. */
+export const tileTitle = "line-clamp-2 font-medium md:text-base/[1.375rem]";
+
+/** A tile's channel and meta lines: muted, 14 from md up (YouTube's), 12 on phones. */
+export const tileMeta = "text-xs text-muted-foreground md:text-sm";

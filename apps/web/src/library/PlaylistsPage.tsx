@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 
 import { PlaylistDialog } from "./PlaylistDialog";
-import { tileGrid } from "./VideoTile";
+import { tileGrid, tileMeta, tileTitle } from "./VideoTile";
 import { ViewTabs } from "./ViewTabs";
 
 /** A video tile that looks like a stack, with the count on the thumbnail. */
@@ -52,10 +52,8 @@ function PlaylistTile({ source }: { source: PlaylistSummary }) {
           </div>
         </div>
         <span className="grid gap-0.5">
-          <span className="line-clamp-2 font-medium md:text-[0.9375rem]/[1.3125rem]">
-            {source.name}
-          </span>
-          <span className="text-xs text-muted-foreground">
+          <span className={tileTitle}>{source.name}</span>
+          <span className={tileMeta}>
             {source.kind === "youtube" ? "From YouTube" : "Playlist"} · {source.count} videos
           </span>
         </span>
