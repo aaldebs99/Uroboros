@@ -6,9 +6,11 @@ import {
   ADMIN_ITEMS,
   inLibrary,
   inSettings,
+  inShared,
   LIBRARY_VIEWS,
   NAV_ITEMS,
   SETTINGS_VIEWS,
+  SHARED_VIEWS,
   type NavItem,
 } from "@/nav";
 
@@ -18,7 +20,7 @@ const rowFocus = "outline-none focus-visible:ring-[0.1875rem] focus-visible:ring
 interface Section {
   listLabel: string;
   views: readonly {
-    to: (typeof LIBRARY_VIEWS | typeof SETTINGS_VIEWS)[number]["to"];
+    to: (typeof LIBRARY_VIEWS | typeof SHARED_VIEWS | typeof SETTINGS_VIEWS)[number]["to"];
     label: string;
   }[];
   here: (pathname: string) => boolean;
@@ -26,12 +28,13 @@ interface Section {
 
 const SECTIONS: Partial<Record<NavItem["to"], Section>> = {
   "/": { listLabel: "Library views", views: LIBRARY_VIEWS, here: inLibrary },
+  "/shared": { listLabel: "Shared views", views: SHARED_VIEWS, here: inShared },
   "/settings": { listLabel: "Settings views", views: SETTINGS_VIEWS, here: inSettings },
 };
 
 /**
  * The side navigation below the top bar, on the page colour. Full (15rem rows, with the library's
- * views indented under Library and Settings' under Settings) or mini (a 4.5rem rail with the label
+ * views indented under Library, Shared's under Shared and Settings' under Settings) or mini (a 4.5rem rail with the label
  * under the icon), switched by the top bar's menu button.
  */
 export function SidebarNav({
@@ -104,8 +107,8 @@ function NavLink({ item, mini }: { item: NavItem; mini: boolean }) {
 }
 
 /**
- * A section (Library, Settings) and, in the full navigation, its views indented under it (Videos,
- * Channels, Playlists; Notifications, Logins). The current view is the filled row; the section
+ * A section (Library, Shared, Settings) and, in the full navigation, its views indented under it
+ * (Videos, Channels, Playlists; With me, By me; Notifications, Logins). The current view is the filled row; the section
  * itself only turns medium while one of its pages is open. The mini rail has no room for the
  * views, so there the section fills on any of its pages.
  */

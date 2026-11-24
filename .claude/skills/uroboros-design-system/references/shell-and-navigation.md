@@ -38,8 +38,8 @@ A list of sections in the page colour, below the top bar, not a separate coloure
 - Groups today: the primary group (Library, Downloads, Subscriptions, Shared, Settings), then
   **Admin** for admins (Users, Groups).
 - **A section's views are indented under it** (`SECTIONS` in `components/SidebarNav.tsx`, the
-  lists in `nav.ts`): Library's Videos, Channels and Playlists, and Settings' Notifications,
-  Logins, Profiles and Groups, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
+  lists in `nav.ts`): Library's Videos, Channels and Playlists, Shared's With me and By me, and
+  Settings' Notifications, Logins, Profiles and Groups, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
   turns medium while one of its pages is open. On phones the same views are underlined tabs atop
   the page (`ViewTabs`, `RouteTabs phoneOnly`); the mini rail has no room for them.
 - When subscriptions exist, a **Subscriptions** group lists channels with 24px round avatars.

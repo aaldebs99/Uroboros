@@ -53,6 +53,12 @@ export const LIBRARY_VIEWS = [
   { to: "/library/playlists", label: "Playlists" },
 ] as const;
 
+/** Shared's views, the same way: indented under Shared in the side navigation, tabs on phones. */
+export const SHARED_VIEWS = [
+  { to: "/shared", label: "With me" },
+  { to: "/shared/by-me", label: "By me" },
+] as const;
+
 /** Settings' views, the same way: indented under Settings in the side navigation, tabs on phones. */
 export const SETTINGS_VIEWS = [
   { to: "/settings", label: "Notifications" },
@@ -64,6 +70,11 @@ export const SETTINGS_VIEWS = [
 /** Whether `pathname` is one of Settings' views. */
 export function inSettings(pathname: string): boolean {
   return pathname === "/settings" || pathname.startsWith("/settings/");
+}
+
+/** Whether `pathname` is one of Shared's pages (its views, a playlist shared with the person). */
+export function inShared(pathname: string): boolean {
+  return pathname === "/shared" || pathname.startsWith("/shared/");
 }
 
 /** Whether `pathname` is one of the library's pages (its views, a channel, a playlist, a video). */

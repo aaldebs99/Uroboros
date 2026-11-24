@@ -242,6 +242,18 @@ describe("Shared", () => {
     );
   });
 
+  it("shows its view tabs on phones only: the side navigation lists them from md up", async () => {
+    fakeApi({ "GET /api/shared": () => Response.json([]) });
+    await renderInRouter(<SharedPage />);
+    const tabs = await screen.findByRole("navigation", { name: "Shared views" });
+    expect(tabs).toHaveClass("md:hidden");
+    expect(
+      within(tabs)
+        .getAllByRole("link")
+        .map((l) => l.textContent),
+    ).toEqual(["With me", "By me"]);
+  });
+
   it("revokes a link under By me", async () => {
     const calls = fakeApi({
       "GET /api/shares": () => Response.json([state({ link: link({ expired: true }) })]),

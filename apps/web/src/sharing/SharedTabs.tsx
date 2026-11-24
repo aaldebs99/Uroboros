@@ -1,11 +1,7 @@
 import { RouteTabs } from "@/components/ui/route-tabs";
+import { SHARED_VIEWS } from "@/nav";
 
-const TABS = [
-  { to: "/shared", label: "With me" },
-  { to: "/shared/by-me", label: "By me" },
-] as const;
-
-/** Shared's two views as underlined tabs. */
+/** Shared's two views as underlined tabs on phones; from `md` up they are in the side navigation. */
 export function SharedTabs() {
-  return <RouteTabs label="Shared views" tabs={TABS} />;
+  return <RouteTabs label="Shared views" tabs={SHARED_VIEWS} phoneOnly />;
 }
