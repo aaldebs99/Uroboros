@@ -132,12 +132,12 @@ export function EntryTile({
 }
 
 /**
- * The tile grid, at YouTube's sizes: one column edge to edge on phones; from md up auto-filled
- * columns of at least 20rem (four across a 1920-pixel window beside the side navigation, three at
- * 1440), 1rem apart, rows 2.5rem apart.
+ * The tile grid: one column edge to edge on phones; from md up auto-filled columns of at least
+ * 30rem, half again YouTube's (three across a 1920-pixel window beside the side navigation, two at
+ * 1440, four at 2560), 1rem apart, rows 2.5rem apart.
  */
 export const tileGrid =
-  "grid gap-y-3.5 md:grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] md:gap-x-4 md:gap-y-10";
+  "grid gap-y-3.5 md:grid-cols-[repeat(auto-fill,minmax(min(30rem,100%),1fr))] md:gap-x-4 md:gap-y-10";
 
 /** A tile's two-line title: YouTube's 16/22 at 500 from md up, the body's 14/20 on phones. */
 export const tileTitle = "line-clamp-2 font-medium md:text-base/[1.375rem]";
