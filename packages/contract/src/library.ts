@@ -80,6 +80,11 @@ export const LibraryItem = LibraryEntry.extend({
   chapters: z.array(Chapter),
   /** The SponsorBlock segments the player skips (a video keeps them; an audio file had them cut). */
   skipSegments: z.array(SkipSegment),
+  /**
+   * The caller's own downloaded YouTube video, whose profile skips SponsorBlock categories: they may
+   * fetch its segments again (`POST /api/library/{id}/skip-segments/refetch`).
+   */
+  skipSegmentsRefetchable: z.boolean(),
   subtitles: z.array(SubtitleTrack),
   /** Inline, range-capable; may redirect to a presigned URL. */
   streamUrl: z.string(),

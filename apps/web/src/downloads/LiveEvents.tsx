@@ -3,9 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 
 import { applyDownloadChange, downloadKeys } from "@/api/downloads";
+import { itemKey } from "@/api/library";
 import { followLiveEvents } from "@/api/liveEvents";
 import { noticesKey } from "@/api/notices";
 import { previewsKey } from "@/api/previews";
+import { notify } from "@/components/ui/sonner";
+
+import { skipsOutcome } from "./skipsOutcome";
 
 const Progress = createContext<ReadonlyMap<string, DownloadProgress> | null>(null);
 
@@ -14,8 +18,8 @@ const lists = { list: downloadKeys.list(false), active: downloadKeys.active };
 /**
  * The shell's one live stream (shared by this browser's tabs, `followLiveEvents`): download changes
  * go into the person's cached lists, progress into a map by fetch key, and a notice or previews
- * nudge fetches the notifications or the hover previews being made again. After a gap all of them
- * are fetched again.
+ * nudge fetches the notifications or the hover previews being made again. A SponsorBlock refetch's
+ * outcome fetches its entry again and says how it went. After a gap all of them are fetched again.
  */
 export function LiveEventsProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
@@ -45,6 +49,10 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
             return;
           case "previews":
             void client.invalidateQueries({ queryKey: previewsKey });
+            return;
+          case "skips":
+            void client.invalidateQueries({ queryKey: itemKey(event.entryId) });
+            notify(skipsOutcome(event));
             return;
         }
       }),

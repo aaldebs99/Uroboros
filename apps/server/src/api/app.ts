@@ -276,7 +276,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerDownloadRoutes(app, deps.downloads);
   registerEventRoutes(app, deps.downloads, deps.downloadEvents);
   registerLibraryRoutes(app, deps.db, deps.store);
-  registerItemRoutes(app, deps.db, deps.store, deps.storage);
+  registerItemRoutes(app, deps.db, deps.store, deps.storage, deps.downloads?.queues.probe);
   registerPlaylistRoutes(app, deps.db);
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);

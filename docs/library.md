@@ -112,8 +112,9 @@ Video.js 10 (`@videojs/react`, the Neutral video skin in the app's accent): subt
 in its captions menu, chapters are a text track its time slider divides into sections, and the page
 also lists the chapters to jump to (`apps/web/src/library/Player.tsx`). The item's `skipSegments`,
 the SponsorBlock segments a video keeps, are bands on the timeline that playback jumps over when it
-runs into one; a segment the viewer seeks into plays out (`SponsorSkip.tsx`,
-[automation.md](automation.md#sponsorblock)). When the browser cannot play
+runs into one, without a toast; a segment the viewer seeks into plays out (`SponsorSkip.tsx`,
+[automation.md](automation.md#sponsorblock)). The owner can fetch a video's segments again from
+the page (Refetch SponsorBlock segments, [automation.md](automation.md#sponsorblock)). When the browser cannot play
 the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand instead
 ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.

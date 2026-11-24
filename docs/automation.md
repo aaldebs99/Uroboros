@@ -164,6 +164,21 @@ shared by everyone using the profile and revision. What happens to the segments 
   Every audio packet starts a part cleanly, so the cut is exact, and a music player that knows
   nothing of SponsorBlock never plays them. Its rendition has no `skip_segments`.
 
+**Fetching them again.** The segments a download stored are SponsorBlock's at that moment, and
+people keep submitting them, most of all in a video's first days, just when a subscription fetches
+it. The owner of an entry whose file keeps segments (a YouTube video, a video profile with
+categories; the item's `skipSegmentsRefetchable`) has a Refetch SponsorBlock segments button on its
+item page: `POST /api/library/{id}/skip-segments/refetch` (202; 404 for anyone else's entry, a
+shared one included; 409 when there is nothing to fetch) queues a `skips` job on the `probe` queue,
+one per entry at a time (key `skips:<entryId>`, one attempt). The job (`src/worker/refetchSkips.ts`)
+takes the profile arguments and link from the latest download that made the file
+(`src/library/skipRefetch.ts`), probes the link with `--sponsorblock-mark=<categories>` (yt-dlp asks
+SponsorBlock before it prints the probe, so nothing is downloaded), and puts what
+`skipSegmentsFor` keeps on the rendition, for everyone whose entry it is. A failed run, or a probe
+in which yt-dlp never asked SponsorBlock (no `sponsorblock_chapters` at all), keeps the segments
+the file had. Either way a `skips` event on the live stream tells the person who asked what came of
+it: the web app fetches the entry again and toasts the segments found, none yet, or the failure.
+
 To save a video to a device without its segments, the item page's Save offers a copy re-encoded
 without them, cut exactly and in sync
 ([transcoding.md](transcoding.md#saving-without-sponsorblock-segments)).

@@ -294,7 +294,7 @@ async function store(
       size_bytes: size,
       container: ext,
       ...facts,
-      skip_segments: JSON.stringify(skipSegmentsFor(data.args, info.sponsorSegments)),
+      skip_segments: JSON.stringify(skipSegmentsFor(data.args, info.sponsorSegments ?? [])),
     })
     .onConflict((oc) => oc.columns(["media_id", "profile_id", "profile_revision"]).doNothing())
     .execute();

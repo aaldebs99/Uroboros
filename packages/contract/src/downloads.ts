@@ -264,6 +264,17 @@ export const DownloadEvent = z
     z.object({ type: z.literal("notice") }),
     /** The caller's hover previews being made changed (docs/library.md): fetch them again. */
     z.object({ type: z.literal("previews") }),
+    /**
+     * How the caller's SponsorBlock refetch of an entry went (docs/automation.md#sponsorblock):
+     * `found` segments to skip now, or why it failed (`error`, and `found` null). Fetch the entry
+     * again.
+     */
+    z.object({
+      type: z.literal("skips"),
+      entryId: Id,
+      found: z.number().int().min(0).nullable(),
+      error: z.string().nullable(),
+    }),
   ])
   .openapi("DownloadEvent");
 export type DownloadEvent = z.infer<typeof DownloadEvent>;

@@ -11,16 +11,16 @@ what each feature does with it.
 Background work runs as jobs in `src/jobs/`. Each job is a row in `jobs`, waiting (`queued`, due at
 `run_at`) or running. A finished job's row is deleted, so every row is live.
 
-| Queue        | Runs                                  | Lease | Stalls before it is dropped |
-| ------------ | ------------------------------------- | ----- | --------------------------- |
-| `probe`      | a pasted link's probe                 | 30 s  | 1                           |
-| `download`   | a fetch, shared by everyone waiting   | 60 s  | 2                           |
-| `notify`     | a push notification                   | 30 s  | 1                           |
-| `playback`   | a playback session's runner           | 60 s  | 1                           |
-| `automation` | a subscription check, or its "latest" | 30 s  | 1                           |
-| `upload`     | filing a finished upload              | 60 s  | 2                           |
-| `export`     | a copy without SponsorBlock segments  | 60 s  | 1                           |
-| `preview`    | a video's hover preview clip          | 60 s  | 1                           |
+| Queue        | Runs                                                       | Lease | Stalls before it is dropped |
+| ------------ | ---------------------------------------------------------- | ----- | --------------------------- |
+| `probe`      | a pasted link's probe, or a SponsorBlock refetch (`skips`) | 30 s  | 1                           |
+| `download`   | a fetch, shared by everyone waiting                        | 60 s  | 2                           |
+| `notify`     | a push notification                                        | 30 s  | 1                           |
+| `playback`   | a playback session's runner                                | 60 s  | 1                           |
+| `automation` | a subscription check, or its "latest"                      | 30 s  | 1                           |
+| `upload`     | filing a finished upload                                   | 60 s  | 2                           |
+| `export`     | a copy without SponsorBlock segments                       | 60 s  | 1                           |
+| `preview`    | a video's hover preview clip                               | 60 s  | 1                           |
 
 **Adding.** `JobQueue.add(name, data, {key, delayMs, attempts, backoff}, on?)` inserts the row and
 wakes the workers on `uroboros_jobs`.

@@ -39,6 +39,15 @@ export function list<T extends z.ZodType>(item: T) {
     );
 }
 
+/** As `list`, but null rather than empty when the field is missing or not an array at all. */
+export function maybeList<T extends z.ZodType>(item: T) {
+  return z
+    .array(z.unknown())
+    .nullish()
+    .catch(null)
+    .transform((values) => (values == null ? null : list(item).parse(values)));
+}
+
 /** A record of arrays (yt-dlp's subtitles by language), each array as lenient as `list`. */
 export function listRecord<T extends z.ZodType>(item: T) {
   const values = list(item);

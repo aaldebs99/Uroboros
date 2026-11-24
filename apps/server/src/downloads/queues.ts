@@ -12,6 +12,15 @@ export interface ProbeJob {
   requestId: string;
 }
 
+/**
+ * Fetch a video's SponsorBlock segments again for one person's entry (the probe queue's `skips`
+ * jobs; docs/automation.md#sponsorblock).
+ */
+export interface SkipsJob {
+  entryId: string;
+  userId: string;
+}
+
 /** Fetch one video in one profile revision; every download waiting on `fetchKey` is settled. */
 export interface FetchJob {
   fetchKey: string;
@@ -47,7 +56,8 @@ export interface NotifyJob {
 }
 
 export interface DownloadQueues {
-  probe: JobQueue<ProbeJob>;
+  /** Pasted links' probes, and (`skips`) SponsorBlock refetches: both one quick yt-dlp probe. */
+  probe: JobQueue<ProbeJob | SkipsJob>;
   download: JobQueue<FetchJob>;
   /** Subscription checks and "latest" downloads (docs/automation.md). */
   automation: JobQueue<CheckJob>;
@@ -65,7 +75,7 @@ export interface DownloadQueues {
 /** The producer side of every queue (docs/jobs.md). */
 export function createDownloadQueues(db: Kysely<Database>): DownloadQueues {
   return {
-    probe: new JobQueue<ProbeJob>(db, "probe"),
+    probe: new JobQueue<ProbeJob | SkipsJob>(db, "probe"),
     download: new JobQueue<FetchJob>(db, "download"),
     automation: new JobQueue<CheckJob>(db, "automation"),
     notify: new JobQueue<NotifyJob>(db, "notify"),

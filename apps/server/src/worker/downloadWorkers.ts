@@ -10,6 +10,8 @@ import { probeProcessor } from "./probe.ts";
 import { uploadProcessor } from "../uploads/process.ts";
 import { exportProcessor } from "./exportRun.ts";
 import { previewProcessor } from "./previewRun.ts";
+import { refetchSkipsProcessor } from "./refetchSkips.ts";
+import type { ProbeJob, SkipsJob } from "../downloads/queues.ts";
 
 /** Pushes sent at once per replica. */
 const NOTIFY_CONCURRENCY = 4;
@@ -60,11 +62,16 @@ export async function startDownloadWorkers(
   const uploads = uploadProcessor(deps);
   const exports = exportProcessor(deps);
   const previews = previewProcessor(deps);
+  const probes = probeProcessor(deps);
+  const skips = refetchSkipsProcessor(deps);
+  // One queue, two kinds of job: a pasted link's probe, or a SponsorBlock refetch (`skips`).
+  const probeQueue = (job: { name: string; data: ProbeJob | SkipsJob }) =>
+    job.name === "skips" ? skips(job as { data: SkipsJob }) : probes(job as { data: ProbeJob });
   const consumers: Consumer[] = [
     {
       queue: "probe",
       concurrency: Math.max(4, opts.concurrency),
-      process: probeProcessor(deps) as Consumer["process"],
+      process: probeQueue as Consumer["process"],
     },
     {
       queue: "download",

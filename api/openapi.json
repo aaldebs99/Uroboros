@@ -636,6 +636,36 @@
               "type"
             ],
             "type": "object"
+          },
+          {
+            "properties": {
+              "entryId": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "error": {
+                "nullable": true,
+                "type": "string"
+              },
+              "found": {
+                "minimum": 0,
+                "nullable": true,
+                "type": "integer"
+              },
+              "type": {
+                "enum": [
+                  "skips"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "entryId",
+              "found",
+              "error"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -1409,6 +1439,9 @@
                 },
                 "type": "array"
               },
+              "skipSegmentsRefetchable": {
+                "type": "boolean"
+              },
               "sources": {
                 "items": {
                   "properties": {
@@ -1459,6 +1492,7 @@
               "description",
               "chapters",
               "skipSegments",
+              "skipSegmentsRefetchable",
               "subtitles",
               "streamUrl",
               "webpageUrl",
@@ -6638,6 +6672,60 @@
           }
         },
         "summary": "Where the caller is in this video; watched past 90%",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/skip-segments/refetch": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Queued (or already on its way)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry of the caller's own"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The video has no SponsorBlock segments to fetch"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Downloads are not available"
+          }
+        },
+        "summary": "Fetch the video's SponsorBlock segments again; a `skips` live event says how it went",
         "tags": [
           "library"
         ]

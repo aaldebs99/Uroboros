@@ -1,11 +1,19 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ExternalLink, LibraryBig, ListPlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
+import {
+  ExternalLink,
+  LibraryBig,
+  ListPlus,
+  Pencil,
+  RefreshCw,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
-import { itemKey, setKept, setWatched, useRemoveEntry } from "@/api/library";
+import { itemKey, refetchSkipSegments, setKept, setWatched, useRemoveEntry } from "@/api/library";
 import { addToLibrary } from "@/api/sharing";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
@@ -84,16 +92,24 @@ function IconAction({
   label,
   icon: Icon,
   variant = "icon",
+  disabled = false,
   onClick,
 }: {
   label: string;
   icon: LucideIcon;
   variant?: "icon" | "destructive";
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <Tooltip label={label}>
-      <Button variant={variant} size="icon" aria-label={label} onClick={onClick}>
+      <Button
+        variant={variant}
+        size="icon"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+      >
         <Icon aria-hidden />
       </Button>
     </Tooltip>
@@ -161,6 +177,36 @@ function AddToMine({ item }: { item: LibraryItem }) {
   );
 }
 
+/**
+ * Refetch SponsorBlock segments, on the person's own YouTube video whose profile skips some
+ * (docs/automation.md#sponsorblock): the server asks again, and the live stream's outcome toast
+ * says what it found (`LiveEvents`).
+ */
+function RefetchSkipsButton({ item }: { item: LibraryItem }) {
+  const [busy, setBusy] = useState(false);
+  if (!item.skipSegmentsRefetchable) return null;
+  return (
+    <IconAction
+      label="Refetch SponsorBlock segments"
+      icon={RefreshCw}
+      disabled={busy}
+      onClick={() => {
+        setBusy(true);
+        refetchSkipSegments(item.id)
+          .then(() => {
+            notify.info("Fetching SponsorBlock segments");
+          })
+          .catch((err: unknown) => {
+            notify.error(errorText(err));
+          })
+          .finally(() => {
+            setBusy(false);
+          });
+      }}
+    />
+  );
+}
+
 /** Edit details, on a video the person uploaded (docs/uploads.md). */
 function EditButton({ item }: { item: LibraryItem }) {
   const [editing, setEditing] = useState(false);
@@ -184,7 +230,8 @@ const actionRow = "flex items-center gap-4 md:gap-2";
 
 /**
  * The person's own actions on their entry: Keep, then the icon buttons, each named in its
- * tooltip: Edit details (an upload), Save, Save to playlist, Share, Remove.
+ * tooltip: Edit details (an upload), Refetch SponsorBlock segments (a video that skips some), Save,
+ * Save to playlist, Share, Remove.
  */
 function OwnActions({ item }: { item: LibraryItem }) {
   const [saving, setSaving] = useState(false);
@@ -193,6 +240,7 @@ function OwnActions({ item }: { item: LibraryItem }) {
       <KeepSwitch item={item} />
       <div className={actionRow}>
         <EditButton item={item} />
+        <RefetchSkipsButton item={item} />
         <SaveFile item={item} />
         <IconAction
           label="Save to playlist"

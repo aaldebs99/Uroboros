@@ -62,6 +62,7 @@ const item = (n: number, playlists: { id: string; name: string }[] = []) => ({
   description: null,
   chapters: [],
   skipSegments: [],
+  skipSegmentsRefetchable: false,
   subtitles: [],
   streamUrl: `/api/library/${id(n)}/stream`,
   webpageUrl: null,

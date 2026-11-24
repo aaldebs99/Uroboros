@@ -14,6 +14,7 @@ import {
 import { bodyLimit } from "hono/body-limit";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
+import type { DownloadQueues } from "../downloads/queues.ts";
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { ownEntry } from "../downloads/library.ts";
@@ -27,6 +28,7 @@ import { extname } from "node:path";
 import { editDetails, replaceThumbnail } from "./details.ts";
 import { getItem } from "./item.ts";
 import { saveProgress, setWatched } from "./progress.ts";
+import { requestSkipsRefetch } from "./skipRefetch.ts";
 import { replaceTags } from "./tags.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
@@ -127,6 +129,20 @@ const addRoute = createRoute({
   },
 });
 
+const refetchSkipsRoute = createRoute({
+  method: "post",
+  path: "/api/library/{id}/skip-segments/refetch",
+  tags: ["library"],
+  summary: "Fetch the video's SponsorBlock segments again; a `skips` live event says how it went",
+  request: { params: z.object({ id }) },
+  responses: {
+    202: { description: "Queued (or already on its way)" },
+    404: error("No such entry of the caller's own"),
+    409: error("The video has no SponsorBlock segments to fetch"),
+    503: error("Downloads are not available"),
+  },
+});
+
 const detailsRoute = createRoute({
   method: "patch",
   path: "/api/library/{id}/details",
@@ -175,6 +191,7 @@ export function registerItemRoutes(
   db: Kysely<Database>,
   store: MediaStore | undefined,
   storage?: StorageConfig,
+  probe?: DownloadQueues["probe"],
 ): void {
   app.openapi(itemRoute, async (c) =>
     c.json(await getItem(db, currentPrincipal(c).userId, c.req.valid("param").id), 200),
@@ -240,6 +257,11 @@ export function registerItemRoutes(
       .where("id", "=", entry.id)
       .execute();
     return c.body(null, 204);
+  });
+
+  app.openapi(refetchSkipsRoute, async (c) => {
+    await requestSkipsRefetch(db, probe, currentPrincipal(c).userId, c.req.valid("param").id);
+    return c.body(null, 202);
   });
 
   app.openapi(detailsRoute, async (c) => {

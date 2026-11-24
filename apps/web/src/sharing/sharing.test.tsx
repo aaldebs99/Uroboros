@@ -338,6 +338,7 @@ describe("a video someone shared with me", () => {
     description: null,
     chapters: [],
     skipSegments: [],
+    skipSegmentsRefetchable: false,
     subtitles: [],
     streamUrl: `/api/library/${ENTRY}/stream`,
     webpageUrl: null,

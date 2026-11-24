@@ -6,14 +6,16 @@ import type { Database } from "../db/schema.ts";
 
 /**
  * What replicas tell each other on the `uroboros_downloads` channel: downloads' changes, that a
- * person's notification list changed (docs/push.md#the-list-in-the-app), and that some people's
- * hover previews being made changed (docs/library.md "Hover previews").
+ * person's notification list changed (docs/push.md#the-list-in-the-app), that some people's
+ * hover previews being made changed (docs/library.md "Hover previews"), and how a person's
+ * SponsorBlock refetch went (`found` segments to skip, or the `error`; docs/automation.md).
  */
 export type InternalEvent =
   | { kind: "state"; downloadId: string; userId: string }
   | { kind: "progress"; fetchKey: string; progress: DownloadProgress }
   | { kind: "notice"; userId: string }
-  | { kind: "previews"; userIds: string[] };
+  | { kind: "previews"; userIds: string[] }
+  | { kind: "skips"; userId: string; entryId: string; found: number | null; error: string | null };
 
 /** How long the latest progress of a fetch is kept for page loads. */
 export const PROGRESS_TTL_S = 60;

@@ -24,6 +24,7 @@ import {
   getJson,
   patchJson,
   postJson,
+  postNoContent,
   putBytes,
   putJson,
   putNoContent,
@@ -168,6 +169,13 @@ export const setWatched = (id: string, watched: boolean) =>
 /** Keep an entry from a subscription: retention never removes it. */
 export const setKept = (id: string, kept: boolean) =>
   putNoContent(`/api/library/${encodeURIComponent(id)}/kept`, { kept });
+
+/**
+ * Fetch the video's SponsorBlock segments again (its owner's, docs/automation.md#sponsorblock): the
+ * live stream's `skips` event says how it went.
+ */
+export const refetchSkipSegments = (id: string) =>
+  postNoContent(`/api/library/${encodeURIComponent(id)}/skip-segments/refetch`);
 
 /** An uploaded video's new details (its uploader only, docs/uploads.md). */
 export const editDetails = (id: string, details: EntryDetailsBody) =>

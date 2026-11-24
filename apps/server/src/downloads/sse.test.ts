@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -189,6 +190,37 @@ describe("GET /api/downloads/events", () => {
       (got) => got.length >= 1,
     );
     expect(theirs).toEqual([{ type: "notice" }]);
+  });
+
+  it("tells only its person, an admin's everyone view included, how a SponsorBlock refetch went", async () => {
+    const [a, b] = [
+      await user(),
+      await signedIn(testDb.db, { username: `ssesk${String(++n)}`, role: "admin" }),
+    ];
+    const [entryA, entryB] = [randomUUID(), randomUUID()];
+    const events = await collect(
+      await app(b).request("/api/downloads/events?all=true"),
+      async () => {
+        await publishDownloadEvent(testDb.db, {
+          kind: "skips",
+          userId: a.userId,
+          entryId: entryA,
+          found: 2,
+          error: null,
+        });
+        await publishDownloadEvent(testDb.db, {
+          kind: "skips",
+          userId: b.userId,
+          entryId: entryB,
+          found: null,
+          error: "yt-dlp failed",
+        });
+      },
+      (e) => e.length >= 1,
+    );
+    expect(events).toEqual([
+      { type: "skips", entryId: entryB, found: null, error: "yt-dlp failed" },
+    ]);
   });
 
   it("forwards progress only for fetches the caller waits on", async () => {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { bool, list, listRecord, num, str } from "./lenient.ts";
+import { bool, list, listRecord, maybeList, num, str } from "./lenient.ts";
 
 /**
  * The parts of yt-dlp's info JSON (`--dump-single-json` and the `.info.json` it writes) that
@@ -147,7 +147,7 @@ export const VideoInfo = z
     height: num,
     formats: list(Format),
     chapters: list(Chapter),
-    sponsorblock_chapters: list(SponsorSegment),
+    sponsorblock_chapters: maybeList(SponsorSegment),
     subtitles: listRecord(SubtitleTrack),
     automatic_captions: listRecord(SubtitleTrack),
     playlist_id: str,
@@ -174,7 +174,10 @@ export const VideoInfo = z
     height: raw.height,
     formats: raw.formats,
     chapters: raw.chapters,
-    /** SponsorBlock's segments, in the info.json a download writes (empty in a probe). */
+    /**
+     * SponsorBlock's segments, when yt-dlp asked for them (`--sponsorblock-mark` or `-remove`, on a
+     * site SponsorBlock covers); null when it never asked, as in a plain probe.
+     */
     sponsorSegments: raw.sponsorblock_chapters,
     subtitles: raw.subtitles,
     automaticCaptions: raw.automatic_captions,

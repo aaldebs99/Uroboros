@@ -115,7 +115,12 @@ describe("lenient validation", () => {
       { startTime: 49.04, endTime: 69, category: "sponsor", type: "skip" },
       { startTime: 120, endTime: 120, category: "poi_highlight", type: "poi" },
     ]);
-    expect(VideoInfo.parse({ id: "y" }).sponsorSegments).toEqual([]);
+    expect(VideoInfo.parse({ id: "y", sponsorblock_chapters: [] }).sponsorSegments).toEqual([]);
+  });
+
+  it("says when SponsorBlock was never asked: no sponsorblock_chapters at all", () => {
+    expect(VideoInfo.parse({ id: "y" }).sponsorSegments).toBeNull();
+    expect(VideoInfo.parse({ id: "y", sponsorblock_chapters: "soon" }).sponsorSegments).toBeNull();
   });
 
   it("drops null playlist entries (unavailable videos) rather than failing", () => {

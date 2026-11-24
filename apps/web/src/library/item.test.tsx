@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Toaster } from "@/components/ui/sonner";
 import { fakeApi } from "@/test/fakeApi";
 import { ITEM_ID as ID, itemFixture as item } from "@/test/libraryItem";
 import { renderInRouter } from "@/test/render";
@@ -231,6 +232,37 @@ describe("ItemPage Keep", () => {
     expect(screen.getByRole("link", { name: "Save" })).toHaveTextContent("");
     await userEvent.hover(share);
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Share");
+  });
+
+  it("fetches the video's SponsorBlock segments again when asked", async () => {
+    const calls = fakeApi({
+      [`GET /api/library/${ID}`]: () => Response.json({ ...item, skipSegmentsRefetchable: true }),
+      [`POST /api/library/${ID}/skip-segments/refetch`]: () => new Response(null, { status: 202 }),
+    });
+    await renderInRouter(
+      <>
+        <ItemPage entryId={ID} />
+        <Toaster />
+      </>,
+    );
+    const refetch = await screen.findByRole("button", { name: "Refetch SponsorBlock segments" });
+    expect(refetch).toHaveTextContent("");
+    await userEvent.click(refetch);
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (c) => c.method === "POST" && c.path === `/api/library/${ID}/skip-segments/refetch`,
+        ),
+      ).toBe(true);
+    });
+    expect(await screen.findByText("Fetching SponsorBlock segments")).toBeInTheDocument();
+  });
+
+  it("offers no refetch on a video with no SponsorBlock segments to fetch", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await screen.findByRole("button", { name: "Share" });
+    expect(screen.queryByRole("button", { name: "Refetch SponsorBlock segments" })).toBeNull();
   });
 
   it("links the URLs in the description, opening them in a new tab", async () => {

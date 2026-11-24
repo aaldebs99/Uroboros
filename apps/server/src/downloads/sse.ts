@@ -92,6 +92,11 @@ function translator(
     if (e.kind === "notice") return e.userId === viewer.userId ? { type: "notice" } : null;
     if (e.kind === "previews")
       return e.userIds.includes(viewer.userId) ? { type: "previews" } : null;
+    if (e.kind === "skips") {
+      return e.userId === viewer.userId
+        ? { type: "skips", entryId: e.entryId, found: e.found, error: e.error }
+        : null;
+    }
     if (!viewer.all && e.userId !== viewer.userId) return null;
     const [download] = await toDownloads(
       ctx,

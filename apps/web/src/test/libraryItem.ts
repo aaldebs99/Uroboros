@@ -30,6 +30,7 @@ export const itemFixture: LibraryItem = {
     { start: 60, end: 596, title: "The chase" },
   ],
   skipSegments: [],
+  skipSegmentsRefetchable: false,
   subtitles: [
     {
       id: "0190a3f2-7c1e-7000-8000-0000000000c3",

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Kysely } from "kysely";
 import type { Database } from "../src/db/schema.ts";
+import { argsOf, type ProfileArgs } from "../src/downloads/profiles.ts";
 import { seededDefault } from "./downloads.ts";
 
 export interface SeededEntry {
@@ -136,4 +137,51 @@ export async function seedProfileless(
     .returning("id")
     .executeTakeFirstOrThrow();
   return { entryId: entry.id, mediaId: media.id, renditionId: rendition.id };
+}
+
+/**
+ * Gives `userId` a downloaded entry (`seedEntry`) and the finished download that made its file,
+ * whose `args` snapshot the default profile unless `args` changes them: what a SponsorBlock refetch
+ * asks yt-dlp with (`src/library/skipRefetch.ts`).
+ */
+export async function seedDownloadedEntry(
+  db: Kysely<Database>,
+  userId: string,
+  opts: { videoId?: string; args?: Partial<ProfileArgs>; extractor?: string } = {},
+): Promise<SeededEntry & { url: string }> {
+  const seeded = await seedEntry(
+    db,
+    userId,
+    opts.videoId === undefined ? {} : { videoId: opts.videoId },
+  );
+  if (opts.extractor !== undefined) {
+    await db
+      .updateTable("media")
+      .set({ extractor: opts.extractor })
+      .where("id", "=", seeded.mediaId)
+      .execute();
+  }
+  const p = await seededDefault(db);
+  const media = await db
+    .selectFrom("media")
+    .select("video_id")
+    .where("id", "=", seeded.mediaId)
+    .executeTakeFirstOrThrow();
+  const url = `https://www.youtube.com/watch?v=${media.video_id}`;
+  await db
+    .insertInto("downloads")
+    .values({
+      user_id: userId,
+      profile_id: p.id,
+      profile_revision: p.revision,
+      args: JSON.stringify({ ...argsOf(p), ...opts.args }),
+      extractor: "youtube",
+      video_id: media.video_id,
+      url,
+      fetch_key: `youtube|${media.video_id}|${p.id}|${p.revision}`,
+      state: "done",
+      rendition_id: seeded.renditionId,
+    })
+    .execute();
+  return { ...seeded, url };
 }
