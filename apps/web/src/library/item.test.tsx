@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
+import { ITEM_ID as ID, itemFixture as item } from "@/test/libraryItem";
 import { renderInRouter } from "@/test/render";
 
 import { ItemPage } from "./ItemPage";
@@ -60,56 +61,6 @@ vi.mock("./Player", () => ({
     </div>
   ),
 }));
-
-const ID = "0190a3f2-7c1e-7000-8000-0000000000c1";
-const item = {
-  id: ID,
-  mediaId: "0190a3f2-7c1e-7000-8000-0000000000c2",
-  title: "Big Buck Bunny",
-  channel: "Blender",
-  uploadDate: "2008-05-20",
-  duration: 596,
-  thumbnailUrl: null,
-  profileName: "Best up to 1080p (MP4)",
-  origin: "download",
-  sizeBytes: 1024,
-  container: "mp4",
-  addedAt: "2026-11-22T10:00:00.000Z",
-  progress: { position: 42, duration: 596, watched: false },
-  tags: ["movies"],
-  kept: false,
-  subscription: null,
-  channelKey: "a2V5",
-  description: "A large rabbit deals with three tiny bullies. ".repeat(20),
-  chapters: [
-    { start: 0, end: 60, title: "Opening" },
-    { start: 60, end: 596, title: "The chase" },
-  ],
-  skipSegments: [],
-  subtitles: [
-    {
-      id: "0190a3f2-7c1e-7000-8000-0000000000c3",
-      lang: "en",
-      name: null,
-      automatic: false,
-      url: `/api/library/${ID}/subtitles/x`,
-    },
-  ],
-  streamUrl: `/api/library/${ID}/stream`,
-  videoCodec: "h264",
-  audioCodec: "aac",
-  playbackUrl: `/api/library/${ID}/playback`,
-  videoCodecs: null,
-  audioCodecs: null,
-  width: null,
-  height: null,
-  qualities: [],
-  webpageUrl: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
-  sources: [],
-  playlists: [],
-  sharedBy: null,
-  editable: false,
-};
 
 afterEach(() => {
   vi.useRealTimers();
@@ -262,6 +213,29 @@ describe("ItemPage Keep", () => {
     await waitFor(() => {
       expect(calls.find((c) => c.path.endsWith("/kept"))?.body).toEqual({ kept: true });
     });
+  });
+
+  it("shows its actions as icon buttons, each named in a tooltip", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    const share = await screen.findByRole("button", { name: "Share" });
+    for (const name of ["Save to playlist", "Share", "Remove"]) {
+      expect(screen.getByRole("button", { name })).toHaveTextContent("");
+    }
+    expect(screen.getByRole("link", { name: "Save" })).toHaveTextContent("");
+    await userEvent.hover(share);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Share");
+  });
+
+  it("links the URLs in the description, opening them in a new tab", async () => {
+    fakeApi({
+      [`GET /api/library/${ID}`]: () =>
+        Response.json({ ...item, description: "Support us: https://blender.org/fund. Thanks" }),
+    });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    const link = await screen.findByRole("link", { name: "https://blender.org/fund" });
+    expect(link).toHaveAttribute("href", "https://blender.org/fund");
+    expect(link).toHaveAttribute("target", "_blank");
   });
 
   it("shows no Keep for an entry no subscription brought", async () => {

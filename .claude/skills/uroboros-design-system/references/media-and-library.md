@@ -71,9 +71,16 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   are 24px, so the player starts at the left margin. It takes 65% of the page and the suggestions
   column the rest (at least 18rem), 24px away; the player isn't wider than that, because a
   full-width player on a large screen is too much.
-- Under the player: the title (20/700), the channel row with the actions (Watched, Keep on a
-  subscription's entry, Save, Remove, Open on the site), the clamped description, tags, the
-  playlists it is in, and chapters.
+- Under the player: the title (20/700), the channel row with the actions, the clamped
+  description, tags, the playlists it is in, and chapters.
+- The actions: Watched, Keep on a subscription's entry, then a row of
+  [icon buttons](actions-and-forms.md#icon-buttons) each named in a tooltip (Edit details on an
+  upload, Save, Save to playlist, Share, Remove, the last one tonal danger; `gap-4`, `md:gap-2`),
+  and Open on the site.
+- The description's http(s) URLs are accent links opening in a new tab (`LinkifiedText`); nothing
+  else in it becomes markup. Playlist descriptions and a public link's do the same.
+- The player has no `title` (it is `aria-label`led, so no tooltip hangs over the picture) and no
+  focus ring of its own: it takes the focus for its shortcuts, and its controls keep theirs.
 - The columns follow the page's width (`@container`, two columns from `@6xl`); on a narrower page
   the suggestions stack under the details.
 - The suggestions are "From your library" rows: a 168px thumbnail with the title, channel and

@@ -12,6 +12,7 @@ import {
   usePlaylist,
   usePlaylistAction,
 } from "@/api/playlists";
+import { LinkifiedText } from "@/components/LinkifiedText";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -218,7 +219,11 @@ export function PlaylistPage({ playlistId }: { playlistId: string }) {
           )
         }
       />
-      {p?.description ? <p className="whitespace-pre-wrap text-sm">{p.description}</p> : null}
+      {p?.description ? (
+        <p className="whitespace-pre-wrap text-sm">
+          <LinkifiedText text={p.description} />
+        </p>
+      ) : null}
       {p === undefined ? null : <PlaylistBody playlist={p} editing={editing} />}
     </section>
   );

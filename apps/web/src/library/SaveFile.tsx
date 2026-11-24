@@ -1,17 +1,19 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDown, Download, Scissors } from "lucide-react";
+import { Download, Scissors } from "lucide-react";
 
 import { errorText } from "@/api/client";
 import { useExports, useStartExport } from "@/api/exports";
 import { Button } from "@/components/ui/button";
 import { type MenuAction, ResponsiveMenu } from "@/components/ui/responsive-menu";
 import { notify } from "@/components/ui/sonner";
+import { Tooltip } from "@/components/ui/tooltip";
 
 /**
- * Save: the stored file as it is, or, on a video that keeps SponsorBlock segments, a menu that
- * also offers a copy without them (re-encoded by the server; docs/transcoding.md), which appears
- * under Downloads › Copies to save. Once that copy is made, it saves straight away.
+ * Save, an icon button named in its tooltip: the stored file as it is, or, on a video that keeps
+ * SponsorBlock segments, a menu that also offers a copy without them (re-encoded by the server;
+ * docs/transcoding.md), which appears under Downloads › Copies to save. Once that copy is made, it
+ * saves straight away.
  */
 export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "skipSegments"> }) {
   const start = useStartExport();
@@ -20,11 +22,13 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "skipSegment
   const fileUrl = `/api/library/${item.id}/file`;
   if (item.skipSegments.length === 0) {
     return (
-      <Button variant="secondary" asChild>
-        <a href={fileUrl} download>
-          <Download aria-hidden /> Save
-        </a>
-      </Button>
+      <Tooltip label="Save">
+        <Button variant="icon" size="icon" asChild>
+          <a href={fileUrl} download aria-label="Save">
+            <Download aria-hidden />
+          </a>
+        </Button>
+      </Tooltip>
     );
   }
   const made = copies.data?.find((c) => c.entryId === item.id && c.fileUrl !== null)?.fileUrl;
@@ -59,9 +63,11 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "skipSegment
       title="Save"
       align="start"
       trigger={
-        <Button variant="secondary" disabled={start.isPending}>
-          <Download aria-hidden /> Save <ChevronDown aria-hidden />
-        </Button>
+        <Tooltip label="Save">
+          <Button variant="icon" size="icon" aria-label="Save" disabled={start.isPending}>
+            <Download aria-hidden />
+          </Button>
+        </Tooltip>
       }
       actions={[{ label: "Original file", icon: Download, href: fileUrl }, withoutSponsors]}
     />

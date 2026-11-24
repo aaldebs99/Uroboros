@@ -31,6 +31,11 @@ disabled.
 - Hover: `bg-accent text-primary`.
 - A destructive icon (cancel, delete) stays danger on hover: `text-destructive
   hover:bg-destructive/13`, never the accent hover.
+- **A row of icon-only actions** (the watch page's) names each in a tooltip as well as its
+  `aria-label`: `components/ui/tooltip.tsx`, a `bg-overlay text-overlay-foreground` label at 12/500,
+  `rounded-[0.5rem] px-2 py-1`, 6px under the button after 300ms, on hover and keyboard focus
+  only (never on touch). `Tooltip` passes its props and ref to its trigger, so it wraps a menu's
+  trigger button too. Such a row is `gap-4`, closing to `md:gap-2`.
 
 ## Links
 

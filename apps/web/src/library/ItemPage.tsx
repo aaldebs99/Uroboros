@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { ApiError, errorText } from "@/api/client";
 import { itemKey, reportProgress, setTags, useItem } from "@/api/library";
+import { LinkifiedText } from "@/components/LinkifiedText";
 import { EmptyState } from "@/components/ui/empty-state";
 import { notify } from "@/components/ui/sonner";
 import { formatDuration } from "@/downloads/format";
@@ -21,7 +22,9 @@ function Description({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-[0.75rem] bg-raised p-3 text-sm">
-      <p className={open ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"}>{text}</p>
+      <p className={open ? "whitespace-pre-wrap" : "line-clamp-3 whitespace-pre-wrap"}>
+        <LinkifiedText text={text} />
+      </p>
       <button
         type="button"
         className="mt-1 font-medium hover:underline"

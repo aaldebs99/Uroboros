@@ -5,6 +5,7 @@ import { Copy, Play, SearchX, Share2 } from "lucide-react";
 import { ApiError, errorText } from "@/api/client";
 import { saveShared, useSharedDetail, useSharedPages } from "@/api/sharing";
 import { usePlaylistAction } from "@/api/playlists";
+import { LinkifiedText } from "@/components/LinkifiedText";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -101,7 +102,11 @@ export function SharedPlaylistPage({ shareId }: { shareId: string }) {
           </div>
         }
       />
-      {d.description ? <p className="whitespace-pre-wrap text-sm">{d.description}</p> : null}
+      {d.description ? (
+        <p className="whitespace-pre-wrap text-sm">
+          <LinkifiedText text={d.description} />
+        </p>
+      ) : null}
       {pages.isSuccess && entries.length === 0 ? (
         <EmptyState icon={SearchX} title="Nothing in this playlist." />
       ) : (

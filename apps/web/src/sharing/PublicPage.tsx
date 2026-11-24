@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { ApiError, errorText } from "@/api/client";
 import { usePublicItem, usePublicShare } from "@/api/public";
+import { LinkifiedText } from "@/components/LinkifiedText";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDuration } from "@/downloads/format";
@@ -37,7 +38,7 @@ function Details({ item }: { item: PublicItem }) {
       </div>
       {item.description === null || item.description.trim() === "" ? null : (
         <p className="rounded-[0.75rem] bg-raised p-3 text-sm whitespace-pre-wrap">
-          {item.description}
+          <LinkifiedText text={item.description} />
         </p>
       )}
     </>

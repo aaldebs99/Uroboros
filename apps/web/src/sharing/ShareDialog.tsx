@@ -13,6 +13,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tooltip } from "@/components/ui/tooltip";
 
 import { LinkSection } from "./LinkSection";
 import { PeopleSection } from "./PeopleSection";
@@ -67,19 +68,36 @@ export function ShareDialog({
   );
 }
 
-/** A Share button opening the dialog. */
-export function ShareButton({ kind, id, title }: { kind: ShareKind; id: string; title: string }) {
+/** A Share button opening the dialog: labelled, or an icon with a tooltip. */
+export function ShareButton({
+  kind,
+  id,
+  title,
+  iconOnly = false,
+}: {
+  kind: ShareKind;
+  id: string;
+  title: string;
+  /** An icon button named in its tooltip (the watch page's row), not a labelled one. */
+  iconOnly?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const show = () => {
+    setOpen(true);
+  };
   return (
     <>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        <Share2 aria-hidden /> Share
-      </Button>
+      {iconOnly ? (
+        <Tooltip label="Share">
+          <Button variant="icon" size="icon" aria-label="Share" onClick={show}>
+            <Share2 aria-hidden />
+          </Button>
+        </Tooltip>
+      ) : (
+        <Button variant="secondary" onClick={show}>
+          <Share2 aria-hidden /> Share
+        </Button>
+      )}
       {open ? <ShareDialog kind={kind} id={id} title={title} open onOpenChange={setOpen} /> : null}
     </>
   );

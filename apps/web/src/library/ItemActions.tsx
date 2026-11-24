@@ -1,7 +1,7 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ExternalLink, LibraryBig, ListPlus, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, LibraryBig, ListPlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { notify } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip } from "@/components/ui/tooltip";
 import { formatDuration } from "@/downloads/format";
 
 import { ShareButton } from "../sharing/ShareDialog";
@@ -78,13 +79,36 @@ function KeepSwitch({ item }: { item: LibraryItem }) {
   );
 }
 
+/** One of the watch page's actions: an icon button named by its tooltip and its label. */
+function IconAction({
+  label,
+  icon: Icon,
+  variant = "icon",
+  onClick,
+}: {
+  label: string;
+  icon: LucideIcon;
+  variant?: "icon" | "destructive";
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip label={label}>
+      <Button variant={variant} size="icon" aria-label={label} onClick={onClick}>
+        <Icon aria-hidden />
+      </Button>
+    </Tooltip>
+  );
+}
+
 function RemoveButton({ item }: { item: LibraryItem }) {
   const confirm = useConfirm();
   const remove = useRemoveEntry();
   const navigate = useNavigate();
   return (
     <>
-      <Button
+      <IconAction
+        label="Remove"
+        icon={Trash2}
         variant="destructive"
         onClick={() => {
           confirm.ask({
@@ -102,9 +126,7 @@ function RemoveButton({ item }: { item: LibraryItem }) {
             },
           });
         }}
-      >
-        <Trash2 aria-hidden /> Remove
-      </Button>
+      />
       {confirm.dialog}
     </>
   );
@@ -145,40 +167,43 @@ function EditButton({ item }: { item: LibraryItem }) {
   if (!item.editable) return null;
   return (
     <>
-      <Button
-        variant="secondary"
+      <IconAction
+        label="Edit details"
+        icon={Pencil}
         onClick={() => {
           setEditing(true);
         }}
-      >
-        <Pencil aria-hidden /> Edit details
-      </Button>
+      />
       {editing ? <EditDetailsDialog item={item} open onOpenChange={setEditing} /> : null}
     </>
   );
 }
 
+/** The watch page's icon buttons sit closer from `md` up, where a pointer can't miss. */
+const actionRow = "flex items-center gap-4 md:gap-2";
+
 /**
- * The person's own actions on their entry: Keep, Edit details (an upload), Save, Save to
- * playlist, Share, Remove.
+ * The person's own actions on their entry: Keep, then the icon buttons, each named in its
+ * tooltip: Edit details (an upload), Save, Save to playlist, Share, Remove.
  */
 function OwnActions({ item }: { item: LibraryItem }) {
   const [saving, setSaving] = useState(false);
   return (
     <>
       <KeepSwitch item={item} />
-      <EditButton item={item} />
-      <SaveFile item={item} />
-      <Button
-        variant="secondary"
-        onClick={() => {
-          setSaving(true);
-        }}
-      >
-        <ListPlus aria-hidden /> Save to playlist
-      </Button>
-      <ShareButton kind="entry" id={item.id} title={item.title} />
-      <RemoveButton item={item} />
+      <div className={actionRow}>
+        <EditButton item={item} />
+        <SaveFile item={item} />
+        <IconAction
+          label="Save to playlist"
+          icon={ListPlus}
+          onClick={() => {
+            setSaving(true);
+          }}
+        />
+        <ShareButton kind="entry" id={item.id} title={item.title} iconOnly />
+        <RemoveButton item={item} />
+      </div>
       {saving ? (
         <AddToPlaylist entryId={item.id} title={item.title} open onOpenChange={setSaving} />
       ) : null}
@@ -215,8 +240,10 @@ export function ItemActions({ item }: { item: LibraryItem }) {
       ) : (
         <>
           <span className="text-sm text-muted-foreground">Shared by {item.sharedBy}</span>
-          <SaveFile item={item} />
-          <AddToMine item={item} />
+          <div className={actionRow}>
+            <SaveFile item={item} />
+            <AddToMine item={item} />
+          </div>
         </>
       )}
       {item.webpageUrl === null ? null : (
