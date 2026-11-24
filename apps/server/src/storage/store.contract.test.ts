@@ -86,6 +86,29 @@ describe.each(backends)("MediaStore (%s)", (kind, make) => {
     await store.deletePrefix("nothing-here/");
   });
 
+  it("puts bytes, replacing what was there", async () => {
+    await store.putBytes("seg/s1/seg-3.m4s", Buffer.from("first"), "video/mp4");
+    await store.putBytes("seg/s1/seg-3.m4s", Buffer.from([0, 1, 2, 255]), "video/mp4");
+    const opened = await store.open("seg/s1/seg-3.m4s");
+    expect(opened.size).toBe(4);
+    expect(Buffer.from(await new Response(opened.body).arrayBuffer())).toEqual(
+      Buffer.from([0, 1, 2, 255]),
+    );
+  });
+
+  it("gives the transcoder a URL to read on S3 (it has a path on the filesystem)", async () => {
+    await store.put("read/f.txt", await source("readable"), "text/plain");
+    const url = await store.readUrl("read/f.txt");
+    if (kind === "filesystem") {
+      expect(url).toBeNull();
+    } else {
+      expect(url).not.toBeNull();
+      const res = await fetch(url ?? "");
+      expect(await res.text()).toBe("readable");
+      expect(new URL(url ?? "").searchParams.get("X-Amz-Expires")).toBe("21600");
+    }
+  });
+
   it("gives a local path only on the filesystem", async () => {
     await store.put("local/e.txt", await source("e"), "text/plain");
     const path = store.localPath("local/e.txt");

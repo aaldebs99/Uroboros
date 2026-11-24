@@ -6,7 +6,9 @@ import {
   ListObjectsV2Command,
   GetObjectCommand,
   HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
+  type DeleteObjectsCommandOutput,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -17,6 +19,8 @@ type S3Config = Extract<StorageConfig, { kind: "s3" }>;
 
 /** Presigned download URLs live this long, in seconds. */
 export const PRESIGN_SECONDS = 15 * 60;
+/** The transcoder's read URLs live this long, in seconds: a run reading a long film. */
+export const READ_URL_SECONDS = 6 * 60 * 60;
 
 function client(config: S3Config, endpoint: string): S3Client {
   return new S3Client({
@@ -38,6 +42,20 @@ function totalOf(contentRange: string | undefined, fallback: number): number {
   return total === undefined || total === "*" ? fallback : Number(total);
 }
 
+/**
+ * Throws when a DeleteObjects batch left keys behind (Quiet mode reports only those), so a prefix
+ * in the trash stays there for the reaper's next pass instead of being dropped half-deleted.
+ */
+export function checkDeleted(result: Pick<DeleteObjectsCommandOutput, "Errors">): void {
+  const errors = result.Errors ?? [];
+  if (errors.length === 0) return;
+  const which = errors
+    .slice(0, 5)
+    .map((e) => `${e.Key ?? "?"} (${e.Code ?? "?"})`)
+    .join(", ");
+  throw new Error(`S3 could not delete ${String(errors.length)} keys: ${which}`);
+}
+
 /** An S3-compatible bucket with opaque keys; multipart uploads for large files. */
 export function createS3Store(config: S3Config): MediaStore {
   const s3 = client(config, config.endpoint);
@@ -50,6 +68,11 @@ export function createS3Store(config: S3Config): MediaStore {
         params: { Bucket, Key: key, Body: createReadStream(file), ContentType: contentType },
       }).done();
       return { size: (await stat(file)).size };
+    },
+    async putBytes(key, bytes, contentType) {
+      await s3.send(
+        new PutObjectCommand({ Bucket, Key: key, Body: bytes, ContentType: contentType }),
+      );
     },
     async open(key, range) {
       const Range =
@@ -96,8 +119,10 @@ export function createS3Store(config: S3Config): MediaStore {
           o.Key === undefined ? [] : [{ Key: o.Key }],
         );
         if (keys.length > 0) {
-          await s3.send(
-            new DeleteObjectsCommand({ Bucket, Delete: { Objects: keys, Quiet: true } }),
+          checkDeleted(
+            await s3.send(
+              new DeleteObjectsCommand({ Bucket, Delete: { Objects: keys, Quiet: true } }),
+            ),
           );
         }
         token = page.IsTruncated === true ? page.NextContinuationToken : undefined;
@@ -105,6 +130,11 @@ export function createS3Store(config: S3Config): MediaStore {
     },
     localPath() {
       return null;
+    },
+    readUrl(key) {
+      return getSignedUrl(s3, new GetObjectCommand({ Bucket, Key: key }), {
+        expiresIn: READ_URL_SECONDS,
+      });
     },
   };
 }

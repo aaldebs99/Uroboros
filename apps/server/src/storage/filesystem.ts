@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { copyFile, mkdir, rename, rm, rmdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, rename, rm, rmdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import type { MediaStore } from "./store.ts";
@@ -28,22 +28,29 @@ export function createFilesystemStore(root: string): MediaStore {
     if (!path.startsWith(base + sep)) throw new Error(`storage key escapes the root: ${key}`);
     return path;
   };
+  /** Writes `target` atomically: into a temp file beside it, then a rename. */
+  const atomically = async (target: string, write: (temp: string) => Promise<void>) => {
+    await mkdir(dirname(target), { recursive: true });
+    const temp = join(
+      dirname(target),
+      `.${basename(target)}.${randomBytes(6).toString("hex")}.tmp`,
+    );
+    try {
+      await write(temp);
+      await rename(temp, target);
+    } catch (err) {
+      await rm(temp, { force: true });
+      throw err;
+    }
+  };
   return {
     async put(key, file) {
       const target = pathOf(key);
-      await mkdir(dirname(target), { recursive: true });
-      const temp = join(
-        dirname(target),
-        `.${basename(target)}.${randomBytes(6).toString("hex")}.tmp`,
-      );
-      try {
-        await copyFile(file, temp);
-        await rename(temp, target);
-      } catch (err) {
-        await rm(temp, { force: true });
-        throw err;
-      }
+      await atomically(target, (temp) => copyFile(file, temp));
       return { size: (await stat(target)).size };
+    },
+    async putBytes(key, bytes) {
+      await atomically(pathOf(key), (temp) => writeFile(temp, bytes));
     },
     async open(key, range) {
       const path = pathOf(key);
@@ -84,6 +91,9 @@ export function createFilesystemStore(root: string): MediaStore {
     },
     localPath(key) {
       return pathOf(key);
+    },
+    readUrl() {
+      return Promise.resolve(null);
     },
   };
 }

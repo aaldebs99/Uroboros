@@ -10,6 +10,8 @@ export interface OpenedFile {
 export interface MediaStore {
   /** Stores a local file under `key`, replacing what was there. */
   put(key: string, file: string, contentType: string): Promise<{ size: number }>;
+  /** Stores bytes under `key` (a playback session's segment), replacing what was there. */
+  putBytes(key: string, bytes: Buffer, contentType: string): Promise<void>;
   /** `range.end` is inclusive. */
   open(key: string, range?: { start: number; end?: number }): Promise<OpenedFile>;
   stat(key: string): Promise<{ size: number } | null>;
@@ -21,4 +23,9 @@ export interface MediaStore {
   deletePrefix(prefix: string): Promise<void>;
   /** The file's path on this machine (the filesystem backend), or null (S3). */
   localPath(key: string): string | null;
+  /**
+   * A URL the transcoder's ffmpeg can read the file from on the store's own endpoint (S3: an
+   * internal presigned GET, never the public one), or null where `localPath` has it.
+   */
+  readUrl(key: string): Promise<string | null>;
 }
