@@ -1,5 +1,6 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { LibraryItem } from "@uroboros/contract";
+import { sql } from "kysely";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
@@ -8,7 +9,7 @@ import { liveJobs } from "../../test/jobs.ts";
 import { seedDownloadedEntry, seedEntry, seedProfileless } from "../../test/library.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
-import { skipsJobKey } from "./skipRefetch.ts";
+import { latestDownload, skipsJobKey } from "./skipRefetch.ts";
 
 const logger = pino({ level: "silent" });
 let t: TestDb;
@@ -94,5 +95,16 @@ describe("refetching an entry's SponsorBlock segments", () => {
     const me = await user();
     const e = await seedDownloadedEntry(t.db, me.userId);
     expect((await item(me, e.entryId)).skipSegmentsRefetchable).toBe(true);
+  });
+
+  it("finds the file's latest download by index, not by reading the whole download history", async () => {
+    const me = await user();
+    const e = await seedDownloadedEntry(t.db, me.userId);
+    const plan = await t.db.transaction().execute(async (tx) => {
+      await sql`SET LOCAL enable_seqscan = off`.execute(tx);
+      const rows = await latestDownload(tx, e.renditionId).explain();
+      return rows.map((r) => String(r["QUERY PLAN"])).join("\n");
+    });
+    expect(plan).toContain("downloads_rendition_idx");
   });
 });

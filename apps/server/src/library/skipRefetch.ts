@@ -20,6 +20,22 @@ export interface RefetchSource {
 }
 
 /**
+ * The latest download that made a YouTube file: every item page asks, so it reads
+ * `downloads_rendition_idx` rather than the whole download history.
+ */
+export function latestDownload(db: Kysely<Database>, renditionId: string) {
+  return db
+    .selectFrom("renditions as r")
+    .innerJoin("media as m", "m.id", "r.media_id")
+    .innerJoin("downloads as d", "d.rendition_id", "r.id")
+    .where("r.id", "=", renditionId)
+    .where("m.extractor", "=", "youtube")
+    .select(["d.args", "d.url"])
+    .orderBy("d.created_at", "desc")
+    .limit(1);
+}
+
+/**
  * Where a file's segments can be fetched again: from the latest download that made it (every
  * download of one file shares its profile revision, so its arguments). Null for a file no download
  * made (an upload), a site SponsorBlock doesn't cover (it has YouTube's alone), an audio file (its
@@ -29,16 +45,7 @@ export async function refetchSource(
   db: Kysely<Database>,
   renditionId: string,
 ): Promise<RefetchSource | null> {
-  const row = await db
-    .selectFrom("renditions as r")
-    .innerJoin("media as m", "m.id", "r.media_id")
-    .innerJoin("downloads as d", "d.rendition_id", "r.id")
-    .where("r.id", "=", renditionId)
-    .where("m.extractor", "=", "youtube")
-    .select(["d.args", "d.url"])
-    .orderBy("d.created_at", "desc")
-    .limit(1)
-    .executeTakeFirst();
+  const row = await latestDownload(db, renditionId).executeTakeFirst();
   if (row === undefined) return null;
   const args = row.args as ProfileArgs;
   if (args.audioOnly || (args.sponsorblockRemove ?? []).length === 0) return null;

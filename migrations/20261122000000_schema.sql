@@ -410,6 +410,9 @@ CREATE UNIQUE INDEX downloads_one_active ON downloads (user_id, fetch_key)
   WHERE state IN ('queued', 'running');
 CREATE INDEX downloads_user_idx ON downloads (user_id, created_at DESC);
 CREATE INDEX downloads_fetch_idx ON downloads (fetch_key) WHERE state IN ('queued', 'running');
+-- A file's latest download, which a SponsorBlock refetch reads its profile arguments from; every
+-- item page asks (src/library/skipRefetch.ts).
+CREATE INDEX downloads_rendition_idx ON downloads (rendition_id, created_at DESC);
 
 -- What a subscription has seen: an entry with a final outcome is never reconsidered (so a video
 -- retention removed is not fetched again); `waiting` ones (upcoming, or held for the delay) are.
