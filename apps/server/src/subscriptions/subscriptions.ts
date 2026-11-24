@@ -214,7 +214,7 @@ export async function deleteSubscription(
     return rows;
   });
   for (const d of cancelled) {
-    await publishDownloadEvent(ctx.valkey, ctx.prefix, {
+    await publishDownloadEvent(ctx.db, {
       kind: "state",
       downloadId: d.id,
       userId: d.user_id,

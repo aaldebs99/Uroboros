@@ -1,13 +1,12 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
+import { cutListeners, testBus } from "../../test/bus.ts";
 import { downloadHarness, seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import { createApp } from "../api/app.ts";
-import { createValkey } from "../shared/valkey.ts";
+import type { PgBus } from "../db/notifications.ts";
 import { queueDownload } from "./dispatch.ts";
 import { publishDownloadEvent } from "./events.ts";
 import { createEventHub, type EventHub } from "./sse.ts";
@@ -16,18 +15,19 @@ const logger = pino({ level: "silent" });
 let testDb: TestDb;
 let h: Awaited<ReturnType<typeof downloadHarness>>;
 let hub: EventHub;
-let subscriber: Redis;
+let bus: PgBus;
 let n = 0;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
   h = await downloadHarness(testDb.db);
-  subscriber = createValkey(TestValkey.url(), "worker", logger);
-  hub = createEventHub(subscriber, h.prefix, logger);
+  bus = testBus(testDb);
+  hub = createEventHub(bus, logger);
   await hub.ready;
 });
 afterAll(async () => {
   hub.close();
+  await bus.close();
   await h.close();
   await testDb.close();
 });
@@ -114,12 +114,12 @@ describe("GET /api/downloads/events", () => {
     const events = await collect(
       res,
       async () => {
-        await publishDownloadEvent(h.ctx.valkey, h.prefix, {
+        await publishDownloadEvent(testDb.db, {
           kind: "state",
           downloadId: theirs.id,
           userId: b.userId,
         });
-        await publishDownloadEvent(h.ctx.valkey, h.prefix, {
+        await publishDownloadEvent(testDb.db, {
           kind: "state",
           downloadId: mine.id,
           userId: a.userId,
@@ -140,7 +140,7 @@ describe("GET /api/downloads/events", () => {
     const events = await collect(
       await app(admin).request("/api/downloads/events?all=true"),
       () =>
-        publishDownloadEvent(h.ctx.valkey, h.prefix, {
+        publishDownloadEvent(testDb.db, {
           kind: "state",
           downloadId: d.id,
           userId: a.userId,
@@ -164,12 +164,12 @@ describe("GET /api/downloads/events", () => {
     const events = await collect(
       await app(a).request("/api/downloads/events"),
       async () => {
-        await publishDownloadEvent(h.ctx.valkey, h.prefix, {
+        await publishDownloadEvent(testDb.db, {
           kind: "progress",
           fetchKey: "fetch|other",
           progress,
         });
-        await publishDownloadEvent(h.ctx.valkey, h.prefix, {
+        await publishDownloadEvent(testDb.db, {
           kind: "progress",
           fetchKey: d.fetchKey,
           progress,
@@ -200,5 +200,16 @@ describe("GET /api/downloads/events", () => {
     ).request("/api/downloads/events", { headers: { authorization: `Bearer ${"a".repeat(64)}` } });
     expect(res.status).toBe(200);
     await res.body?.cancel();
+  });
+  it("ends every open stream when the listener reconnects, so pages refetch", async () => {
+    const a = await user();
+    const res = await app(a).request("/api/downloads/events");
+    const reader = (res.body ?? new ReadableStream<Uint8Array>()).getReader();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(await cutListeners(testDb.db)).toBe(1);
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+    }
   });
 });

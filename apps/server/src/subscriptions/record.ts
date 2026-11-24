@@ -126,7 +126,7 @@ export async function recordAndQueue(
   });
   if (result === "stale") return "stale";
   for (const downloadId of result.ids) {
-    await publishDownloadEvent(deps.valkey, deps.prefix, {
+    await publishDownloadEvent(deps.db, {
       kind: "state",
       downloadId,
       userId: sub.user_id,

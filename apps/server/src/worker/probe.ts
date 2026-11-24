@@ -139,7 +139,7 @@ async function queueVideo(
     return queued;
   });
   if (out.downloadId !== null) {
-    await publishDownloadEvent(deps.valkey, deps.prefix, {
+    await publishDownloadEvent(deps.db, {
       kind: "state",
       downloadId: out.downloadId,
       userId: req.user_id,

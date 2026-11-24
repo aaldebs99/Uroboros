@@ -147,7 +147,7 @@ export async function queueSelection(
     return counts;
   });
   for (const downloadId of result.ids) {
-    await publishDownloadEvent(ctx.valkey, ctx.prefix, {
+    await publishDownloadEvent(ctx.db, {
       kind: "state",
       downloadId,
       userId: req.user_id,

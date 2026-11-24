@@ -4,7 +4,7 @@ import { download, ffprobe, type DownloadedFile } from "@uroboros/ytdlp";
 import { DelayedError, UnrecoverableError } from "bullmq";
 import { dispatchFor } from "../downloads/dispatch.ts";
 import { StorageError, toDownloadError, type DownloadFailure } from "../downloads/errors.ts";
-import { publishDownloadEvent } from "../downloads/events.ts";
+import { publishDownloadEvents } from "../downloads/events.ts";
 import { noticeFinishedRequests } from "../downloads/requestNotices.ts";
 import { ytdlpArgsFor } from "../downloads/profiles.ts";
 import type { FetchJob } from "../downloads/queues.ts";
@@ -83,13 +83,10 @@ async function publishAll(
   deps: WorkerDeps,
   rows: { id: string; user_id: string }[],
 ): Promise<void> {
-  for (const r of rows) {
-    await publishDownloadEvent(deps.valkey, deps.prefix, {
-      kind: "state",
-      downloadId: r.id,
-      userId: r.user_id,
-    });
-  }
+  await publishDownloadEvents(
+    deps.db,
+    rows.map((r) => ({ kind: "state", downloadId: r.id, userId: r.user_id })),
+  );
 }
 
 async function dispatchUsers(deps: WorkerDeps, rows: { user_id: string }[]): Promise<void> {
@@ -328,7 +325,7 @@ async function downloadAndSettle(
   scratch: string,
   signal: AbortSignal,
 ): Promise<void> {
-  const progress = createProgressPublisher(deps.valkey, deps.prefix, data.fetchKey);
+  const progress = createProgressPublisher(deps.db, data.fetchKey);
   const { format, extraArgs: profileArgs } = ytdlpArgsFor(data.args);
   const extraArgs = [...profileArgs, ...subtitleArgs(deps.subtitles)];
   // Whoever waits on this fetch now: per site, the earliest waiter's saved login.

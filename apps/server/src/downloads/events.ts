@@ -1,46 +1,83 @@
 import { DownloadProgress } from "@uroboros/contract";
-import type { Redis } from "ioredis";
+import { sql } from "kysely";
+import type { Kysely } from "kysely";
+import { notify, notifyAll } from "../db/notifications.ts";
+import type { Database } from "../db/schema.ts";
 
-/** What replicas tell each other about downloads, on one Valkey channel. */
+/** What replicas tell each other about downloads, on the `uroboros_downloads` channel. */
 export type InternalEvent =
   | { kind: "state"; downloadId: string; userId: string }
-  | { kind: "progress"; fetchKey: string; progress: DownloadProgress }
-  | { kind: "removed"; downloadId: string; userId: string };
-
-export const eventsChannel = (prefix: string): string => `${prefix}:downloads:events`;
-/** `{ fetchKey }`: the replica running that fetch aborts it. */
-export const cancelChannel = (prefix: string): string => `${prefix}:downloads:cancel`;
-export const progressKey = (prefix: string, key: string): string => `${prefix}:progress:${key}`;
+  | { kind: "progress"; fetchKey: string; progress: DownloadProgress };
 
 /** How long the latest progress of a fetch is kept for page loads. */
 export const PROGRESS_TTL_S = 60;
 
 export async function publishDownloadEvent(
-  valkey: Redis,
-  prefix: string,
+  db: Kysely<Database>,
   event: InternalEvent,
 ): Promise<void> {
-  await valkey.publish(eventsChannel(prefix), JSON.stringify(event));
+  await notify(db, "uroboros_downloads", JSON.stringify(event));
 }
 
-export async function publishCancel(valkey: Redis, prefix: string, key: string): Promise<void> {
-  await valkey.publish(cancelChannel(prefix), JSON.stringify({ fetchKey: key }));
+/** Several events in one statement (a fetch settling for everyone who waited on it). */
+export async function publishDownloadEvents(
+  db: Kysely<Database>,
+  events: readonly InternalEvent[],
+): Promise<void> {
+  await notifyAll(
+    db,
+    "uroboros_downloads",
+    events.map((e) => JSON.stringify(e)),
+  );
+}
+
+/** Asks whichever replica runs the fetch with `key` to abort it. */
+export async function publishCancel(db: Kysely<Database>, key: string): Promise<void> {
+  await notify(db, "uroboros_cancel", JSON.stringify({ fetchKey: key }));
+}
+
+/** Keeps a fetch's latest progress for a minute and tells every replica, in one statement. */
+export async function saveProgress(
+  db: Kysely<Database>,
+  key: string,
+  progress: DownloadProgress,
+): Promise<void> {
+  const event: InternalEvent = { kind: "progress", fetchKey: key, progress };
+  await sql`
+    WITH saved AS (
+      INSERT INTO download_progress (fetch_key, progress, expires_at)
+      VALUES (${key}, ${JSON.stringify(progress)}::jsonb, now() + make_interval(secs => ${PROGRESS_TTL_S}))
+      ON CONFLICT (fetch_key) DO UPDATE SET progress = excluded.progress, expires_at = excluded.expires_at
+      RETURNING fetch_key)
+    SELECT set_config('synchronous_commit', 'off', true), pg_notify('uroboros_downloads', ${JSON.stringify(event)})
+    FROM saved`.execute(db);
 }
 
 /** The latest progress of each fetch key that has one. */
 export async function latestProgress(
-  valkey: Redis,
-  prefix: string,
+  db: Kysely<Database>,
   keys: readonly string[],
 ): Promise<Map<string, DownloadProgress>> {
   const out = new Map<string, DownloadProgress>();
   if (keys.length === 0) return out;
-  const values = await valkey.mget(...keys.map((k) => progressKey(prefix, k)));
-  keys.forEach((key, i) => {
-    const raw = values[i];
-    if (raw === null || raw === undefined) return;
-    const parsed = DownloadProgress.safeParse(JSON.parse(raw));
-    if (parsed.success) out.set(key, parsed.data);
-  });
+  const rows = await db
+    .selectFrom("download_progress")
+    .select(["fetch_key", "progress"])
+    .where("fetch_key", "in", keys)
+    .where("expires_at", ">", sql<Date>`now()`)
+    .execute();
+  for (const row of rows) {
+    const parsed = DownloadProgress.safeParse(row.progress);
+    if (parsed.success) out.set(row.fetch_key, parsed.data);
+  }
   return out;
+}
+
+/** Deletes expired progress (readers skip it anyway); a leader duty. Returns how many rows. */
+export async function sweepExpiredProgress(db: Kysely<Database>): Promise<number> {
+  const r = await db
+    .deleteFrom("download_progress")
+    .where("expires_at", "<=", sql<Date>`now()`)
+    .executeTakeFirst();
+  return Number(r.numDeletedRows);
 }

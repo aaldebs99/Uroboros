@@ -3,12 +3,12 @@ import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
+import { testBus } from "../../test/bus.ts";
 import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { TestValkey } from "../../test/testValkey.ts";
 import { createValkey } from "../shared/valkey.ts";
 import { dispatchFor, queueDownload } from "./dispatch.ts";
-import { cancelChannel } from "./events.ts";
 import { fetchKey } from "./fetchKey.ts";
 import type { FetchJob } from "./queues.ts";
 
@@ -160,10 +160,10 @@ describe("cancel and retry", () => {
         }),
       { connection: conn, prefix: h.prefix, concurrency: 100 },
     );
-    const sub: Redis = createValkey(TestValkey.url(), "worker", logger);
+    const bus = testBus(testDb);
+    await bus.ready;
     const messages: string[] = [];
-    await sub.subscribe(cancelChannel(h.prefix));
-    sub.on("message", (_ch, m) => messages.push(m));
+    bus.on("uroboros_cancel", (m) => messages.push(m));
     try {
       const p = await seededDefault(testDb.db);
       const key = fetchKey("youtube", "running-1", p.id, p.revision);
@@ -183,7 +183,7 @@ describe("cancel and retry", () => {
       for (const r of releases) r();
       await worker.close();
       conn.disconnect();
-      sub.disconnect();
+      await bus.close();
     }
   });
 

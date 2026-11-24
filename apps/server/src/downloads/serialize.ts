@@ -30,7 +30,7 @@ export async function toDownloads(ctx: DownloadContext, rows: DownloadRow[]): Pr
   const active = rows
     .filter((r) => r.state === "running" || r.state === "queued")
     .map((r) => r.fetch_key);
-  const progress = await latestProgress(ctx.valkey, ctx.prefix, [...new Set(active)]);
+  const progress = await latestProgress(ctx.db, [...new Set(active)]);
   return rows.map((r) => {
     const kind = DownloadErrorKind.safeParse(r.error_kind);
     return {

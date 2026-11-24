@@ -1,29 +1,38 @@
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 import { ApiErrorBody, DownloadEvent, type DownloadEvent as Event } from "@uroboros/contract";
 import { streamSSE } from "hono/streaming";
-import type { Redis } from "ioredis";
 import type { Logger } from "pino";
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { requireAdmin } from "../auth/guard.ts";
 import type { DownloadContext } from "./dispatch.ts";
-import { eventsChannel, type InternalEvent } from "./events.ts";
+import type { PgBus } from "../db/notifications.ts";
+import type { InternalEvent } from "./events.ts";
 import { allQuery, need } from "./routes.ts";
 import { downloadRows, toDownloads } from "./serialize.ts";
 
 const PING_MS = 25_000;
 
-/** One Valkey subscription per replica, fanned out to every open stream. */
+/** The replica's listener, fanned out to every open stream. */
 export interface EventHub {
-  /** Settles once the subscription is in place (ioredis renews it after a reconnect). */
+  /** Settles once the listener is in place. */
   ready: Promise<void>;
   subscribe(listener: (e: InternalEvent) => void, onClose: () => void): () => void;
   close(): void;
 }
 
-export function createEventHub(subscriber: Redis, prefix: string, logger: Logger): EventHub {
+/**
+ * Feeds every open download stream from the bus's `uroboros_downloads` channel. When the listener
+ * reconnects, events may have been lost, so every open stream is ended: the browser reconnects and
+ * refetches the list.
+ */
+export function createEventHub(bus: PgBus, logger: Logger): EventHub {
   const listeners = new Map<(e: InternalEvent) => void, () => void>();
-  subscriber.on("message", (_channel, message) => {
+  const endAll = () => {
+    for (const onClose of listeners.values()) onClose();
+    listeners.clear();
+  };
+  const offEvents = bus.on("uroboros_downloads", (message) => {
     let event: InternalEvent;
     try {
       event = JSON.parse(message) as InternalEvent;
@@ -33,23 +42,17 @@ export function createEventHub(subscriber: Redis, prefix: string, logger: Logger
     }
     for (const listener of listeners.keys()) listener(event);
   });
-  // Not awaited by the caller: the api listens before Valkey may be reachable.
-  const ready = subscriber.subscribe(eventsChannel(prefix)).then(
-    () => undefined,
-    (err: unknown) => {
-      logger.warn({ err }, "subscribing to download events failed; retrying on reconnect");
-    },
-  );
+  const offResync = bus.onResync(endAll);
   return {
-    ready,
+    ready: bus.ready,
     subscribe(listener, onClose) {
       listeners.set(listener, onClose);
       return () => listeners.delete(listener);
     },
     close() {
-      for (const onClose of listeners.values()) onClose();
-      listeners.clear();
-      subscriber.disconnect();
+      offEvents();
+      offResync();
+      endAll();
     },
   };
 }
@@ -86,7 +89,6 @@ function translator(
         : null;
     }
     if (!viewer.all && e.userId !== viewer.userId) return null;
-    if (e.kind === "removed") return { type: "removed", id: e.downloadId };
     const [download] = await toDownloads(
       ctx,
       await downloadRows(ctx.db, { userId: null, ids: [e.downloadId] }),

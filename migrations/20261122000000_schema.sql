@@ -604,3 +604,12 @@ CREATE UNLOGGED TABLE job_limits (
   queue TEXT PRIMARY KEY,
   next_start_at TIMESTAMPTZ NOT NULL
 );
+
+-- The latest progress of each running fetch, for pages that load mid-download (live pages hear it
+-- on the bus). Unlogged and short-lived: readers skip expired rows, the leader sweeps them.
+CREATE UNLOGGED TABLE download_progress (
+  fetch_key TEXT PRIMARY KEY,
+  progress JSONB NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX download_progress_expiry ON download_progress (expires_at);

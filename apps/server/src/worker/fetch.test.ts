@@ -1,21 +1,14 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { DelayedError, UnrecoverableError } from "bullmq";
-import type { Redis } from "ioredis";
-import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import { downloadScenario, downloadStates, fetchJob, queuedFetch } from "../../test/fetchJobs.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
-import { eventsChannel } from "../downloads/events.ts";
 import type { FetchJob } from "../downloads/queues.ts";
-import { createValkey } from "../shared/valkey.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
-import { createProgressPublisher } from "./progress.ts";
 
-const logger = pino({ level: "silent" });
 let testDb: TestDb;
 let h: Awaited<ReturnType<typeof workerHarness>>;
 let n = 0;
@@ -289,50 +282,5 @@ describe("cancel races", () => {
     await queued("race-c", [b]);
     registry.cancel(data.fetchKey);
     await expect(running).rejects.toThrow(/still waits/);
-  });
-});
-
-describe("progress", () => {
-  it("publishes at most two per second plus every phase change", async () => {
-    const sub: Redis = createValkey(TestValkey.url(), "worker", logger);
-    const seen: string[] = [];
-    await sub.subscribe(eventsChannel(h.prefix));
-    sub.on("message", (_c, m) => seen.push(m));
-    try {
-      const publish = createProgressPublisher(h.ctx.valkey, h.prefix, "k");
-      const base = {
-        videoId: null,
-        filename: null,
-        totalIsEstimate: false,
-        speed: 1,
-        eta: 1,
-        elapsed: 1,
-        fragmentIndex: null,
-        fragmentCount: null,
-        postprocessor: null,
-      };
-      for (let i = 0; i < 20; i++) {
-        publish({
-          ...base,
-          phase: "downloading",
-          state: "running",
-          downloadedBytes: i,
-          totalBytes: 20,
-        });
-      }
-      publish({
-        ...base,
-        phase: "merging",
-        state: "started",
-        downloadedBytes: null,
-        totalBytes: null,
-      });
-      await vi.waitFor(() => {
-        expect(seen.some((m) => m.includes("merging"))).toBe(true);
-      });
-      expect(seen.length).toBeLessThanOrEqual(3);
-    } finally {
-      sub.disconnect();
-    }
   });
 });

@@ -1,6 +1,9 @@
 import type { ColumnType, Generated } from "kysely";
 
-/** The job queue's tables (docs/jobs.md), kept apart from schema.ts for its length. */
+/**
+ * The job queue's tables and the short-lived state replicas share (docs/jobs.md), kept apart from
+ * schema.ts for its length.
+ */
 
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
@@ -32,4 +35,12 @@ export interface JobsTable {
 export interface JobLimitsTable {
   queue: string;
   next_start_at: Timestamp;
+}
+
+/** `download_progress`: a running fetch's latest progress, kept a minute (unlogged). */
+export interface DownloadProgressTable {
+  fetch_key: string;
+  /** Written as a JSON string. */
+  progress: ColumnType<unknown, string, string>;
+  expires_at: Timestamp;
 }

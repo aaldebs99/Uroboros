@@ -15,6 +15,7 @@ import { LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/leader.ts";
 import { URO_LEAD } from "../shared/lockKeys.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createDownloadQueues } from "../downloads/queues.ts";
+import { createPgBus } from "../db/notifications.ts";
 import { createEventHub } from "../downloads/sse.ts";
 import { createPlaybackBus } from "../transcode/bus.ts";
 import { createStore } from "../storage/index.ts";
@@ -125,12 +126,10 @@ export async function startApi(
   // The producers; the consumers (when this process runs them) share the same connection.
   const queues = createDownloadQueues(valkey, prefix);
   const store = createStore(config.storage);
-  // One subscription per replica feeds every open download event stream.
-  const downloadEvents = createEventHub(
-    createValkey(config.valkeyUrl, "worker", logger),
-    prefix,
-    logger,
-  );
+  // One listener connection per replica (started once the database is migrated) carries the
+  // download events every open stream hears, fetch cancels and job wakes.
+  const bus = createPgBus(config.databaseUrl, { logger });
+  const downloadEvents = createEventHub(bus, logger);
   // One subscription per replica carries the playback sessions' want/ready/stop messages.
   const playbackBus = createPlaybackBus(
     createValkey(config.valkeyUrl, "worker", logger),
@@ -206,6 +205,7 @@ export async function startApi(
       waitReady(valkey, 2000),
     ]);
     logMigrations(logger, outcome);
+    bus.start();
     const bootstrap = config.auth.local.bootstrap;
     if (bootstrap?.weak === true) {
       logger.warn(
@@ -237,7 +237,7 @@ export async function startApi(
       logger,
     });
     const starting = opts.consumers?.start(
-      { db, valkey, queues, store, push, playbackBus },
+      { db, valkey, bus, queues, store, push, playbackBus },
       stop.signal,
     );
     if (starting !== undefined) {
@@ -281,7 +281,7 @@ export async function startApi(
       closeConsumers(),
     ]);
     playbackBus.close();
-    await settlesWithin(queues.close(), CLEANUP_MS);
+    await settlesWithin(Promise.all([queues.close(), bus.close()]), CLEANUP_MS);
     valkey.disconnect();
     const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), CLEANUP_MS);
     if (!drained) {

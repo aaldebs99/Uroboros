@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
-import { cancelChannel } from "../downloads/events.ts";
+import type { PgBus } from "../db/notifications.ts";
 import { DOWNLOAD_QUEUE, PROBE_QUEUE, type FetchJob, type ProbeJob } from "../downloads/queues.ts";
 import { startAutomationWorkers } from "./automationWorkers.ts";
 import type { WorkerDeps } from "./deps.ts";
@@ -17,17 +17,17 @@ export interface DownloadWorkers {
 }
 
 /**
- * The probe, download, automation and notify consumers on `connection` (which must allow blocking commands), and a
- * subscriber on its own connection that aborts a running fetch when the api asks.
+ * The probe, download, automation and notify consumers on `connection` (which must allow blocking
+ * commands), and a listener on the bus's cancel channel that aborts a running fetch when the api
+ * asks.
  */
 export async function startDownloadWorkers(
   connection: Redis,
   deps: WorkerDeps,
-  opts: { prefix: string; concurrency: number },
+  opts: { prefix: string; concurrency: number; bus: PgBus },
 ): Promise<DownloadWorkers> {
   const cancels = createCancelRegistry();
-  const subscriber = connection.duplicate();
-  subscriber.on("message", (_channel, message) => {
+  const offCancels = opts.bus.on("uroboros_cancel", (message) => {
     try {
       const { fetchKey } = JSON.parse(message) as { fetchKey?: unknown };
       if (typeof fetchKey === "string") cancels.cancel(fetchKey);
@@ -35,7 +35,6 @@ export async function startDownloadWorkers(
       deps.logger.warn({ err }, "ignoring a malformed cancel message");
     }
   });
-  await subscriber.subscribe(cancelChannel(opts.prefix));
   const probe = new Worker<ProbeJob>(PROBE_QUEUE, probeProcessor(deps), {
     connection,
     prefix: opts.prefix,
@@ -72,7 +71,7 @@ export async function startDownloadWorkers(
       automation.abortRunning();
     },
     async close() {
-      subscriber.disconnect();
+      offCancels();
       await Promise.resolve();
     },
   };

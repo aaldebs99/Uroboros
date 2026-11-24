@@ -14,9 +14,9 @@ import type { DownloadQueues, FetchJob } from "./queues.ts";
 /** What queueing, dispatching and cancelling need, in the api and in workers alike. */
 export interface DownloadContext {
   db: Kysely<Database>;
-  /** For events and cancels (a normal command connection). */
+  /** The BullMQ queues' and the playback keys' connection (a normal command connection). */
   valkey: Redis;
-  /** The BullMQ and event key prefix. */
+  /** The BullMQ and playback key prefix. */
   prefix: string;
   queues: DownloadQueues;
   limits: DownloadLimits;
@@ -248,7 +248,7 @@ async function stopFetchIfUnwanted(ctx: DownloadContext, key: string): Promise<v
   const job = await ctx.queues.download.getJob(key);
   if (job === undefined) return;
   const state = await job.getState();
-  if (state === "active") await publishCancel(ctx.valkey, ctx.prefix, key);
+  if (state === "active") await publishCancel(ctx.db, key);
   else if (state === "waiting" || state === "delayed" || state === "prioritized") {
     await job.remove().catch((err: unknown) => {
       // It may have just started: then the cancel reaches it.
@@ -256,7 +256,7 @@ async function stopFetchIfUnwanted(ctx: DownloadContext, key: string): Promise<v
         { err, key },
         "removing a waiting fetch failed; asking the worker to stop it",
       );
-      return publishCancel(ctx.valkey, ctx.prefix, key);
+      return publishCancel(ctx.db, key);
     });
   }
 }
@@ -276,7 +276,7 @@ export async function cancelDownload(
     .executeTakeFirst();
   if (updated === undefined) throw new ApiError("conflict", "this download is not active");
   await stopFetchIfUnwanted(ctx, row.fetch_key);
-  await publishDownloadEvent(ctx.valkey, ctx.prefix, {
+  await publishDownloadEvent(ctx.db, {
     kind: "state",
     downloadId: id,
     userId: row.user_id,
@@ -315,7 +315,7 @@ export async function retryDownload(
     throw err;
   }
   if (row.request_id !== null) await reopenNotice(ctx.db, row.request_id);
-  await publishDownloadEvent(ctx.valkey, ctx.prefix, {
+  await publishDownloadEvent(ctx.db, {
     kind: "state",
     downloadId: id,
     userId: row.user_id,

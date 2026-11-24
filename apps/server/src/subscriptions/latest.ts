@@ -88,7 +88,7 @@ async function queueAll(deps: WorkerDeps, sub: SubscriptionRow, videos: Candidat
     return queued;
   });
   for (const downloadId of ids) {
-    await publishDownloadEvent(deps.valkey, deps.prefix, {
+    await publishDownloadEvent(deps.db, {
       kind: "state",
       downloadId,
       userId: sub.user_id,

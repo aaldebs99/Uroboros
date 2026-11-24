@@ -57,7 +57,7 @@ export async function downloadItem(
     return out.downloadId;
   });
   if (downloadId === null) return { queued: 0, skipped: 1 };
-  await publishDownloadEvent(ctx.valkey, ctx.prefix, { kind: "state", downloadId, userId });
+  await publishDownloadEvent(ctx.db, { kind: "state", downloadId, userId });
   await dispatchFor(ctx, userId);
   return { queued: 1, skipped: 0 };
 }

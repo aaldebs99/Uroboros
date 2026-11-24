@@ -44,6 +44,7 @@ export function startServer(
             startDownloadWorkers(connection, workerDeps(shared, config, prefix, logger), {
               prefix,
               concurrency: config.worker.concurrency,
+              bus: shared.bus,
             }),
           ...workerOverrides,
         }),

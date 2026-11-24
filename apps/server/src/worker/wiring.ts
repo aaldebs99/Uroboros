@@ -10,12 +10,15 @@ import type { PlaybackBus } from "../transcode/bus.ts";
 import { transcoderPaths } from "../transcode/binaries.ts";
 import { PipelineMemo } from "../transcode/hwaccel.ts";
 import type { WorkerDeps } from "./deps.ts";
+import type { PgBus } from "../db/notifications.ts";
 
 /** The connections a server process opens once and shares between HTTP and its job consumers. */
 export interface SharedResources {
   db: Kysely<Database>;
-  /** A non-blocking connection: progress and events, queue producers. */
+  /** A non-blocking connection: queue producers and playback keys. */
   valkey: Redis;
+  /** The process's listener connection: download events, cancels and job wakes. */
+  bus: PgBus;
   queues: DownloadQueues;
   store: MediaStore;
   push: PushService;

@@ -38,14 +38,36 @@ export async function notify(
   channel: Channel,
   payload: string,
 ): Promise<void> {
-  if (Buffer.byteLength(payload) > MAX_PAYLOAD_BYTES) {
-    throw new Error(`a ${channel} message must be shorter than 8000 bytes`);
-  }
+  checkSize(channel, payload);
   await (db.isTransaction
     ? sql`SELECT pg_notify(${channel}, ${payload})`.execute(db)
     : sql`SELECT set_config('synchronous_commit', 'off', true), pg_notify(${channel}, ${payload})`.execute(
         db,
       ));
+}
+
+/** Sends several payloads on `channel` in one statement (one transaction on the pool). */
+export async function notifyAll(
+  db: Kysely<Database>,
+  channel: Channel,
+  payloads: readonly string[],
+): Promise<void> {
+  if (payloads.length === 0) return;
+  if (payloads.length === 1) {
+    await notify(db, channel, payloads[0] ?? "");
+    return;
+  }
+  for (const p of payloads) checkSize(channel, p);
+  const relax = db.isTransaction ? sql`` : sql`set_config('synchronous_commit', 'off', true),`;
+  await sql`SELECT ${relax} pg_notify(${channel}, p) FROM unnest(${[...payloads]}::text[]) AS p`.execute(
+    db,
+  );
+}
+
+function checkSize(channel: Channel, payload: string): void {
+  if (Buffer.byteLength(payload) > MAX_PAYLOAD_BYTES) {
+    throw new Error(`a ${channel} message must be shorter than 8000 bytes`);
+  }
 }
 
 export interface PgBus {

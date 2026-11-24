@@ -67,19 +67,25 @@ instead of finishing quietly.
 ## Cancel and retry
 
 Cancelling marks that person's download `cancelled`. Only when no other active download waits on
-the fetch key is the fetch stopped: a waiting job is removed, a running one gets a message on
-`<prefix>:downloads:cancel`, and the replica running it aborts (yt-dlp's process group is killed and
-its partial files removed). Retrying a failed or cancelled download queues it again from scratch.
+the fetch key is the fetch stopped: a waiting job is removed, a running one gets a message on the
+`uroboros_cancel` channel ([jobs.md](jobs.md)), and the replica running it aborts (yt-dlp's process
+group is killed and its partial files removed). Retrying a failed or cancelled download queues it again from scratch.
 Members act on their own downloads; admins on anyone's.
 
 ## Live progress
 
-The replica running a fetch publishes progress (at most twice a second per fetch, plus every phase change:
-downloading, merging, postprocessing, storing) and state changes on `<prefix>:downloads:events`,
-and keeps the latest progress in `<prefix>:progress:<fetchKey>` for a minute. Every api replica
-subscribes once (`src/downloads/sse.ts`); `GET /api/downloads/events` streams `DownloadEvent`s for
-the caller's downloads (`?all=true`: everyone's, admins only). The web app falls back to
-refetching the list when the stream drops.
+The replica running a fetch publishes progress and state changes on the `uroboros_downloads`
+channel ([jobs.md](jobs.md)).
+
+- **How often.** Progress goes out at most twice a second per fetch, plus at every phase change
+  (downloading, merging, postprocessing, storing). Only one write is in flight at a time, and a
+  newer value replaces any still waiting.
+- **For page loads.** The latest progress is kept for a minute in the unlogged `download_progress`
+  table, which the leader sweeps.
+- **The stream.** Every replica's listener feeds `GET /api/downloads/events` (`src/downloads/sse.ts`),
+  which streams `DownloadEvent`s for the caller's downloads (`?all=true`: everyone's, admins only).
+- **Dropped streams.** When the listener reconnects, every open stream ends, since events may have
+  been lost meanwhile. The web app refetches the list whenever its stream drops.
 
 ## Format profiles
 
