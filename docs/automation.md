@@ -27,13 +27,22 @@ person's subscription is 404, admins included.
 
 ## Checks
 
-Each enabled subscription has a BullMQ job scheduler on the `automation` queue, keyed by its id and
-firing every `interval_minutes` (`src/subscriptions/queue.ts`); BullMQ fires each schedule once
-across replicas and runs a new one's first check at once. Intervals run from
-`UROBOROS_MIN_CHECK_INTERVAL_MINUTES` (default 60) to a week; the web app offers 1, 3, 6 (default)
-and 12 hours, a day and a week. Pausing removes the scheduler and resuming adds it back. The
-leader re-syncs schedulers with the table every five minutes (`src/subscriptions/duties.ts`): a
-flushed Valkey, or a crash between a commit and the scheduler call, heals itself, and the
+Each enabled subscription has a BullMQ job scheduler on the `automation` queue, keyed by its id
+(`src/subscriptions/queue.ts`); BullMQ fires each schedule once across replicas. A subscription's
+schedule (`CheckSchedule`, `src/subscriptions/schedule.ts`) is one of:
+
+- **Every N minutes** (`interval_minutes`), from `UROBOROS_MIN_CHECK_INTERVAL_MINUTES` (default 60)
+  to a week; the scheduler's first check runs at once. The web app writes it as a number of
+  minutes, hours or days (6 hours by default).
+- **A cron** (`cron`, `cron_tz`): a standard 5-field expression (minute, hour, day of month, month,
+  day of week; no seconds) in an IANA timezone, the browser's by default. It is parsed with
+  `cron-parser` (BullMQ's own) and refused when any two of its next 200 runs are closer than the
+  minimum interval, so `0,1 9 * * *` is as refused as `*/5 * * * *`. It first runs at its next
+  time.
+
+Pausing removes the scheduler and resuming adds it back. The leader re-syncs schedulers with the
+table every five minutes (`src/subscriptions/duties.ts`), comparing `every`, or `pattern` and
+`tz`: a flushed Valkey, or a crash between a commit and the scheduler call, heals itself, and the
 subscriptions of a disabled or revoked account lose theirs.
 
 Every replica consumes `automation`, two checks at a time, with a queue-wide limiter of one check

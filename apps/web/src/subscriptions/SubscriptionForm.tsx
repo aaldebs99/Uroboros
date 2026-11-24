@@ -1,4 +1,4 @@
-import { CHECK_INTERVAL_PRESETS, type BackfillMode } from "@uroboros/contract";
+import { MAX_LATEST, type BackfillMode } from "@uroboros/contract";
 import { LoaderCircle } from "lucide-react";
 import { useState, type SyntheticEvent } from "react";
 
@@ -10,8 +10,7 @@ import { Notice } from "@/components/ui/notice";
 import { SettingsGroup, SettingsRow } from "@/components/ui/settings-row";
 import { Switch } from "@/components/ui/switch";
 
-import { intervalLabel } from "./format";
-import { backfillWarning, type FormValues } from "./formValues";
+import { backfillWarning, type EveryUnit, type FormValues } from "./formValues";
 
 type Set = <K extends keyof FormValues>(key: K, value: FormValues[K]) => void;
 interface SectionProps {
@@ -92,24 +91,108 @@ function What({ v, set, kind, tabs }: SectionProps & { tabs: string[] }) {
   );
 }
 
-function When({ v, set }: SectionProps) {
-  const presets: number[] = [...CHECK_INTERVAL_PRESETS];
-  const choices = presets.includes(v.intervalMinutes) ? presets : [...presets, v.intervalMinutes];
+/** A radio row: the native control, its label beside it, at a full touch-target height. */
+function Choice({
+  name,
+  label,
+  checked,
+  onPick,
+}: {
+  name: string;
+  label: string;
+  checked: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <label className="flex min-h-11 items-center gap-3">
+      <input
+        type="radio"
+        name={name}
+        className="size-4.5 accent-primary"
+        checked={checked}
+        onChange={onPick}
+      />
+      {label}
+    </label>
+  );
+}
+
+const UNITS: [EveryUnit, string][] = [
+  ["minutes", "Minutes"],
+  ["hours", "Hours"],
+  ["days", "Days"],
+];
+
+/** How often to check: every N minutes, hours or days, or on a cron in the browser's timezone. */
+function Schedule({ v, set }: SectionProps) {
+  return (
+    <fieldset className="grid gap-3">
+      <legend className="mb-1 text-sm font-medium">Check for new videos</legend>
+      <div className="flex flex-wrap gap-x-6">
+        <Choice
+          name="schedule"
+          label="Every"
+          checked={v.scheduleMode === "interval"}
+          onPick={() => {
+            set("scheduleMode", "interval");
+          }}
+        />
+        <Choice
+          name="schedule"
+          label="On a cron schedule"
+          checked={v.scheduleMode === "cron"}
+          onPick={() => {
+            set("scheduleMode", "cron");
+          }}
+        />
+      </div>
+      {v.scheduleMode === "interval" ? (
+        <div className="grid grid-cols-[minmax(0,8rem)_minmax(0,12rem)] gap-3">
+          <Field
+            label="Check every"
+            type="number"
+            min={1}
+            required
+            value={v.everyValue}
+            onChange={(e) => {
+              set("everyValue", e.target.value);
+            }}
+          />
+          <SelectField
+            label="Unit"
+            value={v.everyUnit}
+            onChange={(e) => {
+              set("everyUnit", e.target.value as EveryUnit);
+            }}
+          >
+            {UNITS.map(([unit, label]) => (
+              <option key={unit} value={unit}>
+                {label}
+              </option>
+            ))}
+          </SelectField>
+        </div>
+      ) : (
+        <Field
+          label="Cron schedule"
+          mono
+          required
+          value={v.cron}
+          help={`Minute, hour, day of month, month, day of week, in ${v.timezone}. 0 9 * * * checks every day at 09:00; 0 */6 * * * every 6 hours.`}
+          onChange={(e) => {
+            set("cron", e.target.value);
+          }}
+        />
+      )}
+    </fieldset>
+  );
+}
+
+function When(props: SectionProps) {
+  const { v, set } = props;
   return (
     <SettingsRow label="When" wide>
-      <SelectField
-        label="Check for new videos"
-        value={String(v.intervalMinutes)}
-        onChange={(e) => {
-          set("intervalMinutes", Number(e.target.value));
-        }}
-      >
-        {choices.map((m) => (
-          <option key={m} value={m}>
-            {intervalLabel(m)}
-          </option>
-        ))}
-      </SelectField>
+      <Schedule {...props} />
       <SelectField
         label="Wait before downloading"
         help="SponsorBlock segments are submitted in the hours after a video goes up."
@@ -192,18 +275,23 @@ function Filters({ v, set, kind }: SectionProps) {
 
 function Backfill({ v, set, kind }: SectionProps) {
   const choices: [BackfillMode, string][] = [
-    ["none", "Only new uploads"],
-    ...(kind === "channel" ? ([["newest", "The newest"]] as [BackfillMode, string][]) : []),
+    ["none", "None, only new uploads"],
+    ...(kind === "channel"
+      ? ([["newest", `The newest of each tab (up to ${String(MAX_LATEST)})`]] as [
+          BackfillMode,
+          string,
+        ][])
+      : []),
     ["all", "All of them"],
   ];
   return (
     <SettingsRow
-      label="Videos already there"
+      label="Download existing videos"
       wide
-      description="Downloaded behind anything you paste."
+      description="What's already there when you subscribe. It downloads behind anything you paste."
     >
       <fieldset className="grid gap-1">
-        <legend className="sr-only">Videos already there</legend>
+        <legend className="sr-only">Download existing videos</legend>
         {choices.map(([mode, label]) => (
           <label key={mode} className="flex min-h-11 items-center gap-3">
             <input
@@ -224,6 +312,7 @@ function Backfill({ v, set, kind }: SectionProps) {
           label="How many of each tab"
           type="number"
           min={1}
+          max={MAX_LATEST}
           value={v.backfillCount}
           onChange={(e) => {
             set("backfillCount", e.target.value);

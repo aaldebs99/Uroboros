@@ -16,6 +16,7 @@
     "@uroboros/contract": "workspace:*",
     "@uroboros/ytdlp": "workspace:*",
     "bullmq": "6.7.8",
+    "cron-parser": "5.10.6",
     "hono": "4.13.19",
     "ioredis": "6.0.0",
     "kysely": "0.29.9",

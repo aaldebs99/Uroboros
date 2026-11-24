@@ -19,7 +19,7 @@ export const subscriptionFixture = (over: Partial<Subscription> = {}): Subscript
   ],
   profileId: "0190a3f2-7c1e-7000-8000-000000000001",
   profileName: "Best up to 1080p (MP4)",
-  intervalMinutes: 360,
+  schedule: { kind: "interval", minutes: 360 },
   enabled: true,
   notify: true,
   filters: {

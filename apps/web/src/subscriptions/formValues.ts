@@ -1,19 +1,26 @@
-import type {
-  Backfill,
-  BackfillMode,
-  DownloadRequest,
-  NewSubscriptionBody,
-  Retention,
-  Subscription,
-  SubscriptionFilters,
-  SubscriptionPatch,
+import {
+  MAX_LATEST,
+  type Backfill,
+  type BackfillMode,
+  type CheckSchedule,
+  type DownloadRequest,
+  type NewSubscriptionBody,
+  type Retention,
+  type Subscription,
+  type SubscriptionFilters,
+  type SubscriptionPatch,
 } from "@uroboros/contract";
 
 /** The subscription form's state: number fields stay text until they are sent. */
 export interface FormValues {
   feeds: string[];
   profileId: string;
-  intervalMinutes: number;
+  /** Checks run every `everyValue` `everyUnit`, or on `cron` in `timezone`. */
+  scheduleMode: CheckSchedule["kind"];
+  everyValue: string;
+  everyUnit: EveryUnit;
+  cron: string;
+  timezone: string;
   delayHours: number;
   titleInclude: string;
   titleExclude: string;
@@ -29,7 +36,54 @@ export interface FormValues {
   notify: boolean;
 }
 
-export const DEFAULT_INTERVAL = 360;
+export type EveryUnit = "minutes" | "hours" | "days";
+
+/** Minutes in one of each unit an interval is written in. */
+export const UNIT_MINUTES: Record<EveryUnit, number> = { minutes: 1, hours: 60, days: 1440 };
+
+/** The browser's own timezone, which a new cron schedule runs in; UTC when it can't say. */
+export function browserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+/** An interval in the largest unit that divides it: 1440 → 1 day, 360 → 6 hours, 90 → 90 minutes. */
+function everyOf(minutes: number): { everyValue: string; everyUnit: EveryUnit } {
+  if (minutes % 1440 === 0) return { everyValue: String(minutes / 1440), everyUnit: "days" };
+  if (minutes % 60 === 0) return { everyValue: String(minutes / 60), everyUnit: "hours" };
+  return { everyValue: String(minutes), everyUnit: "minutes" };
+}
+
+/** A new subscription checks every 6 hours; a cron starts as the same, in the browser's zone. */
+const DEFAULT_SCHEDULE = {
+  scheduleMode: "interval",
+  everyValue: "6",
+  everyUnit: "hours",
+  cron: "0 */6 * * *",
+} as const satisfies Partial<FormValues>;
+
+export function scheduleOf(v: FormValues): CheckSchedule {
+  if (v.scheduleMode === "cron") {
+    return { kind: "cron", expression: v.cron.trim(), timezone: v.timezone };
+  }
+  const n = Number(v.everyValue);
+  const minutes = Number.isFinite(n) && n > 0 ? Math.round(n * UNIT_MINUTES[v.everyUnit]) : 0;
+  return { kind: "interval", minutes: Math.max(1, minutes) };
+}
+
+function scheduleFields(schedule: CheckSchedule) {
+  return schedule.kind === "interval"
+    ? { ...DEFAULT_SCHEDULE, ...everyOf(schedule.minutes), timezone: browserTimezone() }
+    : {
+        ...DEFAULT_SCHEDULE,
+        scheduleMode: "cron" as const,
+        cron: schedule.expression,
+        timezone: schedule.timezone,
+      };
+}
 
 const text = (s: string): string | null => (s.trim() === "" ? null : s.trim());
 const whole = (s: string): number | null => {
@@ -67,7 +121,7 @@ export function retentionOf(v: FormValues): Retention {
 
 export function backfillOf(v: FormValues): Backfill {
   return v.backfillMode === "newest"
-    ? { mode: "newest", count: Math.max(1, whole(v.backfillCount) ?? 1) }
+    ? { mode: "newest", count: Math.min(MAX_LATEST, Math.max(1, whole(v.backfillCount) ?? 1)) }
     : { mode: v.backfillMode, count: null };
 }
 
@@ -94,7 +148,8 @@ export function fromRequest(req: DownloadRequest): FormValues {
     ...blank,
     feeds: ticked.length > 0 ? ticked : req.groups.slice(0, 1).map((g) => g.name),
     profileId: req.profileId,
-    intervalMinutes: DEFAULT_INTERVAL,
+    ...DEFAULT_SCHEDULE,
+    timezone: browserTimezone(),
   };
 }
 
@@ -103,7 +158,7 @@ export function fromSubscription(sub: Subscription): FormValues {
   return {
     feeds: sub.feeds.map((x) => x.name),
     profileId: sub.profileId,
-    intervalMinutes: sub.intervalMinutes,
+    ...scheduleFields(sub.schedule),
     delayHours: sub.delayHours,
     titleInclude: f.titleInclude ?? "",
     titleExclude: f.titleExclude ?? "",
@@ -125,7 +180,7 @@ export function toCreateBody(v: FormValues, requestId: string): NewSubscriptionB
     requestId,
     feeds: v.feeds,
     profileId: v.profileId,
-    intervalMinutes: v.intervalMinutes,
+    schedule: scheduleOf(v),
     filters: filtersOf(v),
     delayHours: v.delayHours,
     backfill: backfillOf(v),
@@ -141,7 +196,7 @@ export function toPatch(v: FormValues, initial: FormValues): SubscriptionPatch {
   const patch: SubscriptionPatch = {};
   if (!same(v.feeds, initial.feeds)) patch.feeds = v.feeds;
   if (v.profileId !== initial.profileId) patch.profileId = v.profileId;
-  if (v.intervalMinutes !== initial.intervalMinutes) patch.intervalMinutes = v.intervalMinutes;
+  if (!same(scheduleOf(v), scheduleOf(initial))) patch.schedule = scheduleOf(v);
   if (!same(filtersOf(v), filtersOf(initial))) patch.filters = filtersOf(v);
   if (v.delayHours !== initial.delayHours) patch.delayHours = v.delayHours;
   if (!same(retentionOf(v), retentionOf(initial))) patch.retention = retentionOf(v);

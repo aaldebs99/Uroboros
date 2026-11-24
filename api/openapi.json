@@ -172,7 +172,7 @@
         "properties": {
           "count": {
             "default": null,
-            "maximum": 1000,
+            "maximum": 50,
             "minimum": 1,
             "nullable": true,
             "type": "integer"
@@ -266,6 +266,56 @@
           "title"
         ],
         "type": "object"
+      },
+      "CheckSchedule": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "interval"
+                ],
+                "type": "string"
+              },
+              "minutes": {
+                "maximum": 10080,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minutes"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "expression": {
+                "maxLength": 120,
+                "minLength": 9,
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "cron"
+                ],
+                "type": "string"
+              },
+              "timezone": {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "expression",
+              "timezone"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "DependencyName": {
         "enum": [
@@ -1427,11 +1477,6 @@
           "filters": {
             "$ref": "#/components/schemas/SubscriptionFilters"
           },
-          "intervalMinutes": {
-            "maximum": 10080,
-            "minimum": 1,
-            "type": "integer"
-          },
           "notify": {
             "default": true,
             "type": "boolean"
@@ -1446,13 +1491,16 @@
           },
           "retention": {
             "$ref": "#/components/schemas/Retention"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/CheckSchedule"
           }
         },
         "required": [
           "requestId",
           "feeds",
           "profileId",
-          "intervalMinutes"
+          "schedule"
         ],
         "type": "object"
       },
@@ -2711,9 +2759,6 @@
             "format": "uuid",
             "type": "string"
           },
-          "intervalMinutes": {
-            "type": "integer"
-          },
           "kind": {
             "enum": [
               "channel",
@@ -2743,6 +2788,9 @@
           },
           "retention": {
             "$ref": "#/components/schemas/Retention"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/CheckSchedule"
           },
           "sourceId": {
             "type": "string"
@@ -2777,7 +2825,7 @@
           "tabs",
           "profileId",
           "profileName",
-          "intervalMinutes",
+          "schedule",
           "enabled",
           "notify",
           "filters",
@@ -2949,11 +2997,6 @@
           "filters": {
             "$ref": "#/components/schemas/SubscriptionFilters"
           },
-          "intervalMinutes": {
-            "maximum": 10080,
-            "minimum": 1,
-            "type": "integer"
-          },
           "notify": {
             "type": "boolean"
           },
@@ -2963,6 +3006,9 @@
           },
           "retention": {
             "$ref": "#/components/schemas/Retention"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/CheckSchedule"
           }
         },
         "type": "object"

@@ -8,8 +8,20 @@ import type { MediaStore } from "../storage/store.ts";
 import { reconcileSessions, SESSION_DUTY_EVERY_MS } from "../transcode/sessionDuties.ts";
 import { scheduleCheck, type CheckJob } from "./queue.ts";
 import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
+import { repeatOf } from "./schedule.ts";
 
 export const RESYNC_EVERY_MS = 300_000;
+
+/** Whether a scheduler already repeats as the row says: the same `every`, or `pattern` and `tz`. */
+function inStep(
+  scheduler: { every?: number | null; pattern?: string | null; tz?: string | null } | undefined,
+  want: ReturnType<typeof repeatOf>,
+): boolean {
+  if (scheduler === undefined) return false;
+  return "every" in want
+    ? scheduler.every === want.every
+    : scheduler.pattern === want.pattern && scheduler.tz === want.tz;
+}
 
 /**
  * Makes the job schedulers match the table: every enabled subscription of an active owner has one
@@ -23,16 +35,16 @@ export async function resyncSchedulers(
   const wanted = await db
     .selectFrom("subscriptions as s")
     .innerJoin("users as u", "u.id", "s.user_id")
-    .select(["s.id", "s.interval_minutes"])
+    .select(["s.id", "s.interval_minutes", "s.cron", "s.cron_tz"])
     .where("s.enabled", "=", true)
     .where("u.disabled_at", "is", null)
     .where("u.revoked_at", "is", null)
     .execute();
   const schedulers = await q.getJobSchedulers(0, -1);
-  const every = new Map(schedulers.map((s) => [s.key, s.every]));
+  const current = new Map(schedulers.map((s) => [s.key, s]));
   let added = 0;
   for (const s of wanted) {
-    if (every.get(s.id) === s.interval_minutes * 60_000) continue;
+    if (inStep(current.get(s.id), repeatOf(s))) continue;
     await scheduleCheck(q, { ...s, enabled: true });
     added++;
   }

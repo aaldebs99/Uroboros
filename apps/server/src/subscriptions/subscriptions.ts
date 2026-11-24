@@ -13,6 +13,7 @@ import { getProfile } from "../downloads/profiles.ts";
 import { toRequest } from "../downloads/requests.ts";
 import { checkPattern, normalizePattern } from "./patterns.ts";
 import { nextCheckAt, scheduleCheck, unscheduleCheck } from "./queue.ts";
+import { checkSchedule, scheduleColumns } from "./schedule.ts";
 import { ownSubscription, toSubscription, type ListedRow } from "./store.ts";
 
 const UNIQUE_VIOLATION = "23505";
@@ -20,13 +21,6 @@ const UNIQUE_VIOLATION = "23505";
 /** The contract shape, with the scheduler's next run. */
 export async function present(ctx: DownloadContext, row: ListedRow): Promise<Subscription> {
   return toSubscription(row, await nextCheckAt(ctx.queues.automation, row.id));
-}
-
-function checkInterval(ctx: DownloadContext, minutes: number): void {
-  const min = ctx.limits.minCheckIntervalMinutes;
-  if (minutes < min) {
-    throw new ApiError("bad_request", `checks run at most every ${String(min)} minutes`);
-  }
 }
 
 async function checkProfile(ctx: DownloadContext, id: string): Promise<void> {
@@ -100,7 +94,7 @@ export async function createSubscription(
 ): Promise<Subscription> {
   const src = await previewRequest(ctx, userId, body.requestId);
   const feeds = pickFeeds(src.tabs, body.feeds);
-  checkInterval(ctx, body.intervalMinutes);
+  checkSchedule(body.schedule, ctx.limits.minCheckIntervalMinutes);
   await checkProfile(ctx, body.profileId);
   const row = await ctx.db
     .insertInto("subscriptions")
@@ -114,7 +108,7 @@ export async function createSubscription(
       feeds: JSON.stringify(feeds),
       tabs: JSON.stringify(src.tabs),
       profile_id: body.profileId,
-      interval_minutes: body.intervalMinutes,
+      ...scheduleColumns(body.schedule),
       notify: body.notify,
       ...(await filterColumns(ctx, body.filters)),
       delay_hours: body.delayHours,
@@ -123,7 +117,7 @@ export async function createSubscription(
       keep_last: body.retention.keepLast,
       delete_watched_after_days: body.retention.deleteWatchedAfterDays,
     })
-    .returning(["id", "interval_minutes", "enabled"])
+    .returning(["id", "interval_minutes", "cron", "cron_tz", "enabled"])
     .executeTakeFirstOrThrow()
     .catch(refuseDuplicate);
   await scheduleCheck(ctx.queues.automation, row);
@@ -135,14 +129,16 @@ async function changes(
   current: ListedRow,
   patch: SubscriptionPatch,
 ): Promise<Updateable<SubscriptionsTable>> {
-  if (patch.intervalMinutes !== undefined) checkInterval(ctx, patch.intervalMinutes);
+  if (patch.schedule !== undefined) {
+    checkSchedule(patch.schedule, ctx.limits.minCheckIntervalMinutes);
+  }
   if (patch.profileId !== undefined) await checkProfile(ctx, patch.profileId);
   return {
     ...(patch.feeds === undefined
       ? {}
       : { feeds: JSON.stringify(pickFeeds(current.tabs, patch.feeds, current.feeds)) }),
     ...(patch.profileId === undefined ? {} : { profile_id: patch.profileId }),
-    ...(patch.intervalMinutes === undefined ? {} : { interval_minutes: patch.intervalMinutes }),
+    ...(patch.schedule === undefined ? {} : scheduleColumns(patch.schedule)),
     ...(patch.filters === undefined
       ? {}
       : { ...(await filterColumns(ctx, patch.filters)), filters_changed_at: new Date() }),
@@ -185,10 +181,10 @@ export async function updateSubscription(
       .updateTable("subscriptions")
       .set(set)
       .where("id", "=", id)
-      .returning(["id", "interval_minutes", "enabled"])
+      .returning(["id", "interval_minutes", "cron", "cron_tz", "enabled"])
       .executeTakeFirstOrThrow();
   });
-  if (patch.intervalMinutes !== undefined || patch.enabled !== undefined) {
+  if (patch.schedule !== undefined || patch.enabled !== undefined) {
     await scheduleCheck(ctx.queues.automation, row);
   }
   return present(ctx, await ownSubscription(ctx.db, userId, id));

@@ -3,6 +3,7 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import type { Database, FeedJson, SubscriptionsTable } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { channelKey } from "../library/channelKey.ts";
+import { scheduleOf } from "./schedule.ts";
 
 export type SubscriptionRow = Selectable<SubscriptionsTable>;
 
@@ -74,7 +75,7 @@ export function toSubscription(row: ListedRow, nextCheckAt: string | null): Subs
     tabs: feedsOf(row.tabs),
     profileId: row.profile_id,
     profileName: row.profile_name,
-    intervalMinutes: row.interval_minutes,
+    schedule: scheduleOf(row),
     enabled: row.enabled,
     notify: row.notify,
     filters: {

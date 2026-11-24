@@ -1,21 +1,20 @@
-import type { Subscription } from "@uroboros/contract";
+import type { CheckSchedule, Subscription } from "@uroboros/contract";
 
-const PRESET_LABELS: Record<number, string> = {
-  60: "Every hour",
-  180: "Every 3 hours",
-  360: "Every 6 hours",
-  720: "Every 12 hours",
-  1440: "Every day",
-  10080: "Every week",
-};
-
-/** "Every 6 hours"; an interval that is no preset is said in hours or minutes. */
+/** "Every 6 hours", "Every day", "Every 90 minutes": the largest unit that divides it. */
 export function intervalLabel(minutes: number): string {
-  const preset = PRESET_LABELS[minutes];
-  if (preset !== undefined) return preset;
-  return minutes % 60 === 0
-    ? `Every ${String(minutes / 60)} hours`
-    : `Every ${String(minutes)} minutes`;
+  const say = (n: number, unit: string) =>
+    n === 1 ? `Every ${unit}` : `Every ${String(n)} ${unit}s`;
+  if (minutes === 10080) return "Every week";
+  if (minutes % 1440 === 0) return say(minutes / 1440, "day");
+  if (minutes % 60 === 0) return say(minutes / 60, "hour");
+  return say(minutes, "minute");
+}
+
+/** "every 6 hours", or "on cron 0 9 * * 1 (Europe/Berlin)". */
+function cadence(schedule: CheckSchedule): string {
+  return schedule.kind === "interval"
+    ? intervalLabel(schedule.minutes).toLowerCase()
+    : `on cron ${schedule.expression} (${schedule.timezone})`;
 }
 
 /** "Channel · Videos, Live" or "Playlist". */
@@ -42,10 +41,8 @@ export function relativeTime(iso: string, now = Date.now()): string {
 }
 
 /** "every 6 hours · checked 2 hours ago" (or "not checked yet"). */
-export function scheduleLabel(
-  sub: Pick<Subscription, "intervalMinutes" | "lastCheckedAt">,
-): string {
-  const every = intervalLabel(sub.intervalMinutes).toLowerCase();
+export function scheduleLabel(sub: Pick<Subscription, "schedule" | "lastCheckedAt">): string {
+  const every = cadence(sub.schedule);
   return sub.lastCheckedAt === null
     ? `${every} · not checked yet`
     : `${every} · checked ${relativeTime(sub.lastCheckedAt)}`;

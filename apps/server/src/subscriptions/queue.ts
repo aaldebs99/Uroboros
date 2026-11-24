@@ -1,4 +1,5 @@
 import type { Queue } from "bullmq";
+import { repeatOf, type ScheduleRow } from "./schedule.ts";
 
 /** Subscription checks (docs/automation.md). Each subscription has a job scheduler here. */
 export const AUTOMATION_QUEUE = "automation";
@@ -11,23 +12,23 @@ export interface CheckJob {
 const JOB_OPTS = { removeOnComplete: true, removeOnFail: true } as const;
 
 /**
- * Makes the subscription's schedule match it: a job scheduler firing every `interval_minutes`
- * while enabled (BullMQ fires each schedule once across replicas, and runs a new one's first job
- * at once), none while paused.
+ * Makes the subscription's schedule match it: a job scheduler firing every `interval_minutes`, or
+ * on its cron in its timezone, while enabled (BullMQ fires each schedule once across replicas, and
+ * runs a new interval's first job at once), none while paused.
  */
 export async function scheduleCheck(
   q: Queue<CheckJob>,
-  s: { id: string; interval_minutes: number; enabled: boolean },
+  s: ScheduleRow & { id: string; enabled: boolean },
 ): Promise<void> {
   if (!s.enabled) {
     await q.removeJobScheduler(s.id);
     return;
   }
-  await q.upsertJobScheduler(
-    s.id,
-    { every: s.interval_minutes * 60_000 },
-    { name: "check", data: { subscriptionId: s.id }, opts: JOB_OPTS },
-  );
+  await q.upsertJobScheduler(s.id, repeatOf(s), {
+    name: "check",
+    data: { subscriptionId: s.id },
+    opts: JOB_OPTS,
+  });
 }
 
 export async function unscheduleCheck(q: Queue<CheckJob>, id: string): Promise<void> {

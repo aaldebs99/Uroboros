@@ -71,10 +71,11 @@ export {
 export {
   Backfill,
   BackfillMode,
-  CHECK_INTERVAL_PRESETS,
+  CheckSchedule,
   Feed,
   KeptBody,
   MAX_CHECK_INTERVAL_MINUTES,
+  MAX_LATEST,
   NewSubscriptionBody,
   Retention,
   Subscription,

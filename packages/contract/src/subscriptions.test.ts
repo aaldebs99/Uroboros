@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  CHECK_INTERVAL_PRESETS,
+  CheckSchedule,
   NewSubscriptionBody,
   PreviewGroup,
   SubscriptionPatch,
@@ -10,7 +10,7 @@ const minimal = {
   requestId: "0190a3f2-7c1e-7000-8000-000000000001",
   feeds: ["Videos"],
   profileId: "0190a3f2-7c1e-7000-8000-000000000002",
-  intervalMinutes: 360,
+  schedule: { kind: "interval", minutes: 360 },
 };
 
 describe("subscriptions contract", () => {
@@ -49,14 +49,18 @@ describe("subscriptions contract", () => {
   });
 
   it("refuses an interval past a week and an empty patch", () => {
-    expect(() => NewSubscriptionBody.parse({ ...minimal, intervalMinutes: 10081 })).toThrow();
+    const tooLong = { ...minimal, schedule: { kind: "interval", minutes: 10081 } };
+    expect(() => NewSubscriptionBody.parse(tooLong)).toThrow();
     expect(() => SubscriptionPatch.parse({})).toThrow();
     expect(SubscriptionPatch.parse({ enabled: false })).toEqual({ enabled: false });
   });
 
-  it("offers the interval presets, six hours among them", () => {
-    expect(CHECK_INTERVAL_PRESETS).toContain(360);
-    expect(Math.max(...CHECK_INTERVAL_PRESETS)).toBe(10080);
+  it("takes a cron schedule with its timezone, and caps the newest backfill at 50", () => {
+    const cron = { kind: "cron", expression: "0 */6 * * *", timezone: "Europe/Berlin" };
+    expect(CheckSchedule.parse(cron)).toEqual(cron);
+    expect(() => CheckSchedule.parse({ kind: "cron", expression: "0 9 * * *" })).toThrow();
+    const many = { ...minimal, backfill: { mode: "newest", count: 51 } };
+    expect(() => NewSubscriptionBody.parse(many)).toThrow();
   });
 
   it("gives preview groups their listing URL", () => {

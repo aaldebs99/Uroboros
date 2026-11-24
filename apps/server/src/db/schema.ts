@@ -187,7 +187,11 @@ export interface SubscriptionsTable {
   feeds: Json<FeedJson[]>;
   tabs: Json<FeedJson[]>;
   profile_id: string;
-  interval_minutes: number;
+  /** Every this many minutes, or null when the subscription checks on a cron. */
+  interval_minutes: number | null;
+  /** A 5-field cron in `cron_tz`, or null when it checks on an interval. */
+  cron: string | null;
+  cron_tz: string | null;
   enabled: Defaulted<boolean>;
   notify: Defaulted<boolean>;
   title_include: string | null;

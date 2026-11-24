@@ -220,6 +220,9 @@ importers:
       bullmq:
         specifier: 6.7.8
         version: 6.7.8(ioredis@6.0.0)(pg@8.23.1)
+      cron-parser:
+        specifier: 5.10.6
+        version: 5.10.6
       hono:
         specifier: 4.13.19
         version: 4.13.19

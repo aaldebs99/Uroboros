@@ -3,10 +3,10 @@ import { DownloadErrorKind } from "./downloads.ts";
 
 const Id = z.uuid();
 
-/** The check intervals the web app offers, in minutes (the server accepts any between bounds). */
-export const CHECK_INTERVAL_PRESETS = [60, 180, 360, 720, 1440, 10080] as const;
 /** A week: the longest interval. The shortest is the deployment's minimum. */
 export const MAX_CHECK_INTERVAL_MINUTES = 10080;
+/** The most a "newest N" backfill or a "download the latest N" takes from each feed. */
+export const MAX_LATEST = 50;
 
 /** A listing a subscription follows: a channel tab, or the playlist itself. */
 export const Feed = z.object({ name: z.string(), url: z.string() }).openapi("Feed");
@@ -54,8 +54,8 @@ export type BackfillMode = z.infer<typeof BackfillMode>;
 export const Backfill = z
   .object({
     mode: BackfillMode,
-    /** How many of each tab's newest; required with `newest`, else null. */
-    count: z.number().int().min(1).max(1000).nullable().default(null),
+    /** How many of each tab's newest (at most 50); required with `newest`, else null. */
+    count: z.number().int().min(1).max(MAX_LATEST).nullable().default(null),
   })
   .refine((b) => (b.mode === "newest") === (b.count !== null), {
     message: "count goes with mode newest, and only with it",
@@ -65,6 +65,23 @@ export const Backfill = z
 export type Backfill = z.infer<typeof Backfill>;
 
 const Interval = z.number().int().min(1).max(MAX_CHECK_INTERVAL_MINUTES);
+
+/**
+ * When a subscription is checked: every `minutes` (between the deployment's minimum and a week), or
+ * on a standard 5-field cron (minute hour day month weekday) in an IANA timezone, whose runs are
+ * never closer together than the minimum. The server checks both.
+ */
+export const CheckSchedule = z
+  .discriminatedUnion("kind", [
+    z.object({ kind: z.literal("interval"), minutes: Interval }),
+    z.object({
+      kind: z.literal("cron"),
+      expression: z.string().trim().min(9).max(120),
+      timezone: z.string().trim().min(1).max(64),
+    }),
+  ])
+  .openapi("CheckSchedule");
+export type CheckSchedule = z.infer<typeof CheckSchedule>;
 const Delay = z.number().int().min(0).max(168);
 const FeedNames = z.array(z.string().min(1).max(64)).min(1).max(10);
 
@@ -75,7 +92,7 @@ export const NewSubscriptionBody = z
     /** Names of the preview's groups to follow. */
     feeds: FeedNames,
     profileId: Id,
-    intervalMinutes: Interval,
+    schedule: CheckSchedule,
     filters: SubscriptionFilters.default({
       titleInclude: null,
       titleExclude: null,
@@ -99,7 +116,7 @@ export const SubscriptionPatch = z
   .object({
     feeds: FeedNames.optional(),
     profileId: Id.optional(),
-    intervalMinutes: Interval.optional(),
+    schedule: CheckSchedule.optional(),
     filters: SubscriptionFilters.optional(),
     delayHours: Delay.optional(),
     retention: Retention.optional(),
@@ -127,7 +144,7 @@ export const Subscription = z
     tabs: z.array(Feed),
     profileId: Id,
     profileName: z.string(),
-    intervalMinutes: z.number().int(),
+    schedule: CheckSchedule,
     enabled: z.boolean(),
     notify: z.boolean(),
     filters: SubscriptionFilters,

@@ -235,7 +235,10 @@ CREATE TABLE subscriptions (
   feeds JSONB NOT NULL,
   tabs JSONB NOT NULL,
   profile_id UUID NOT NULL REFERENCES format_profiles ON DELETE RESTRICT,
-  interval_minutes INTEGER NOT NULL CHECK (interval_minutes BETWEEN 1 AND 10080),
+  -- When checks run: every interval_minutes, or on a 5-field cron in cron_tz (one or the other).
+  interval_minutes INTEGER CHECK (interval_minutes BETWEEN 1 AND 10080),
+  cron TEXT CHECK (char_length(cron) BETWEEN 9 AND 120),
+  cron_tz TEXT CHECK (char_length(cron_tz) BETWEEN 1 AND 64),
   enabled BOOLEAN NOT NULL DEFAULT true,
   notify BOOLEAN NOT NULL DEFAULT true,
   title_include TEXT,
@@ -262,7 +265,9 @@ CREATE TABLE subscriptions (
   filters_changed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, extractor, source_id)
+  UNIQUE (user_id, extractor, source_id),
+  CHECK ((interval_minutes IS NULL) <> (cron IS NULL)),
+  CHECK ((cron IS NULL) = (cron_tz IS NULL))
 );
 
 -- A user's library: entries pointing at shared renditions. Removing one deletes the row only.

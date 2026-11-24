@@ -73,7 +73,8 @@ describe("SubscriptionForm", () => {
     const calls = newApi("channel");
     await renderInRouter(<NewSubscriptionPage requestId={REQ} />);
     await userEvent.click(await screen.findByRole("checkbox", { name: "Live" }));
-    await userEvent.selectOptions(screen.getByLabelText("Check for new videos"), "720");
+    await userEvent.clear(screen.getByLabelText("Check every"));
+    await userEvent.type(screen.getByLabelText("Check every"), "12");
     await userEvent.click(screen.getByRole("radio", { name: /The newest/ }));
     await userEvent.clear(screen.getByLabelText("How many of each tab"));
     await userEvent.type(screen.getByLabelText("How many of each tab"), "5");
@@ -83,9 +84,34 @@ describe("SubscriptionForm", () => {
         requestId: REQ,
         feeds: ["Videos", "Live"],
         profileId: PROFILE,
-        intervalMinutes: 720,
+        schedule: { kind: "interval", minutes: 720 },
         backfill: { mode: "newest", count: 5 },
         notify: true,
+      });
+    });
+  });
+
+  it("checks on a cron schedule in the browser's timezone, and caps the newest at 50", async () => {
+    const calls = newApi("channel");
+    await renderInRouter(<NewSubscriptionPage requestId={REQ} />);
+    await userEvent.click(await screen.findByRole("radio", { name: "On a cron schedule" }));
+    const cron = screen.getByLabelText("Cron schedule");
+    await userEvent.clear(cron);
+    await userEvent.type(cron, "30 7 * * 1");
+    await userEvent.click(screen.getByRole("radio", { name: /The newest/ }));
+    const count = screen.getByLabelText("How many of each tab");
+    expect(count).toHaveAttribute("max", "50");
+    await userEvent.clear(count);
+    await userEvent.type(count, "50");
+    await userEvent.click(screen.getByRole("button", { name: "Subscribe" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({
+        schedule: {
+          kind: "cron",
+          expression: "30 7 * * 1",
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+        backfill: { mode: "newest", count: 50 },
       });
     });
   });

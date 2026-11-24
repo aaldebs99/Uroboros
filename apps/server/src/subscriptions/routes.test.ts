@@ -69,7 +69,7 @@ async function subscribe(s: SignedIn, over: Record<string, unknown> = {}) {
     requestId,
     feeds: ["Videos"],
     profileId,
-    intervalMinutes: 360,
+    schedule: { kind: "interval", minutes: 360 },
     ...over,
   });
   return res;
@@ -89,7 +89,7 @@ describe("subscriptions", () => {
       title: "Blender",
       extractor: "youtube",
       feeds: [{ name: "Videos", url: `${base}/videos` }],
-      intervalMinutes: 360,
+      schedule: { kind: "interval", minutes: 360 },
       enabled: true,
       backfill: { mode: "none", count: null },
     });
@@ -107,22 +107,62 @@ describe("subscriptions", () => {
       requestId: await channelRequest(alice.userId, sourceId),
       feeds: ["Videos"],
       profileId,
-      intervalMinutes: 360,
+      schedule: { kind: "interval", minutes: 360 },
     });
     expect(first.status).toBe(201);
     const again = await post(h.app(alice), "/api/subscriptions", {
       requestId: await channelRequest(alice.userId, sourceId),
       feeds: ["Videos"],
       profileId,
-      intervalMinutes: 360,
+      schedule: { kind: "interval", minutes: 360 },
     });
     expect(again.status).toBe(409);
     expect(ApiErrorBody.parse(await again.json()).message).toMatch(/already subscribed/);
   });
 
   it("refuses an interval under the minimum (400) and an unknown tab (400)", async () => {
-    expect((await subscribe(alice, { intervalMinutes: 30 })).status).toBe(400);
+    expect((await subscribe(alice, { schedule: { kind: "interval", minutes: 30 } })).status).toBe(
+      400,
+    );
     expect((await subscribe(alice, { feeds: ["Podcasts"] })).status).toBe(400);
+  });
+
+  it("checks on a cron in its timezone, and refuses a too-frequent, odd or unknown-zone cron", async () => {
+    const cron = { kind: "cron", expression: "0  */6 * * *", timezone: "Europe/Berlin" };
+    const sub = await created(alice, { schedule: cron });
+    expect(sub.schedule).toEqual({ ...cron, expression: "0 */6 * * *" });
+    expect(sub.nextCheckAt).not.toBeNull();
+    const scheduler = await h.queues.automation.getJobScheduler(sub.id);
+    expect(scheduler).toMatchObject({ pattern: "0 */6 * * *", tz: "Europe/Berlin" });
+    for (const [expression, timezone, message] of [
+      ["*/5 * * * *", "UTC", /runs every 5 minutes; the shortest allowed is 60 minutes/],
+      ["0,1 9 * * *", "UTC", /runs every 1 minute/],
+      ["0 0 9 * * *", "UTC", /5 fields/],
+      ["0 99 * * *", "UTC", /not a valid cron/],
+      ["0 9 * * *", "Mars/Olympus", /unknown timezone/],
+    ] as const) {
+      const res = await subscribe(alice, { schedule: { kind: "cron", expression, timezone } });
+      expect([expression, res.status]).toEqual([expression, 400]);
+      expect(ApiErrorBody.parse(await res.json()).message).toMatch(message);
+    }
+  });
+
+  it("switches an interval subscription to a cron and back", async () => {
+    const sub = await created(alice);
+    const cron = { kind: "cron", expression: "30 7 * * 1", timezone: "UTC" };
+    const res = await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, { schedule: cron });
+    expect(Subscription.parse(await res.json()).schedule).toEqual(cron);
+    expect(await h.queues.automation.getJobScheduler(sub.id)).toMatchObject({
+      pattern: "30 7 * * 1",
+    });
+    const back = await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, {
+      schedule: { kind: "interval", minutes: 720 },
+    });
+    expect(Subscription.parse(await back.json()).schedule).toEqual({
+      kind: "interval",
+      minutes: 720,
+    });
+    expect((await h.queues.automation.getJobScheduler(sub.id))?.every).toBe(43_200_000);
   });
 
   it("refuses an invalid title pattern (400)", async () => {
@@ -136,7 +176,7 @@ describe("subscriptions", () => {
       requestId,
       feeds: ["Videos"],
       profileId,
-      intervalMinutes: 360,
+      schedule: { kind: "interval", minutes: 360 },
     });
     expect(res.status).toBe(404);
   });
