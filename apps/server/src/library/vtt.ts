@@ -60,7 +60,10 @@ const SKIPPED_BLOCK = /^(?:WEBVTT|NOTE|STYLE|REGION)(?:\s|$)/;
 
 /** The cues of a file: blocks end only at a zero-length line (YouTube's payloads hold " " lines). */
 function cues(vtt: string): Cue[] {
-  const blocks = vtt.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").split(/\n\n+/);
+  const blocks = vtt
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n?/g, "\n")
+    .split(/\n\n+/);
   const out: Cue[] = [];
   for (const block of blocks) {
     const lines = block.split("\n");
@@ -102,8 +105,7 @@ function decode(text: string): string {
 
 /** Only sound tags, notes or punctuation: no words to find. */
 const WORDLESS = /^(?:\[[^\]]*\]|[\s\p{P}\p{S}])*$/u;
-// eslint-disable-next-line no-control-regex -- control characters are what it removes
-const CONTROL = /[\u0000-\u001f\u007f-\u009f]/g;
+const CONTROL = /\p{Cc}/gu;
 
 /** The words of a payload line: no tags or inline timestamps, entities decoded, one line. */
 export function cleanLine(raw: string): string {
