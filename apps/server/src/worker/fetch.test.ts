@@ -5,6 +5,7 @@ import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { downloadScenario, downloadStates, fetchJob, queuedFetch } from "../../test/fetchJobs.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
+import { testBus } from "../../test/bus.ts";
 import { queuedData } from "../../test/jobs.ts";
 import type { FetchJob, PreviewJob } from "../downloads/queues.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
@@ -80,6 +81,21 @@ describe("fetch", () => {
     expect(await queuedData<PreviewJob>(testDb.db, "preview")).toContainEqual({
       mediaId: r.media_id,
     });
+  });
+
+  it("queues the preview once the entries exist, so everyone it was for hears of it", async () => {
+    const [a, b] = [await user(), await user()];
+    const data = await queued("heard-1", [a, b]);
+    const bus = testBus(testDb);
+    await bus.ready;
+    const heard: string[] = [];
+    bus.on("uroboros_downloads", (payload) => {
+      const e = JSON.parse(payload) as { kind: string; userIds?: string[] };
+      if (e.kind === "previews") heard.push(...(e.userIds ?? []));
+    });
+    await fetchProcessor(await h.deps(await downloadScenario()), createCancelRegistry())(job(data));
+    await expect.poll(() => heard.sort()).toEqual([a.userId, b.userId].sort());
+    await bus.close();
   });
 
   it("queues no hover preview when they are off", async () => {
