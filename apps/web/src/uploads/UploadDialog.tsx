@@ -75,7 +75,8 @@ export function UploadDialog({
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      {/* A phone's screen is shorter than the form: the dialog scrolls inside it. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogTitle>Upload a video</DialogTitle>
         <DialogDescription className="sr-only">
           Pick a video, give it a title and the rest, and upload it to your library.
@@ -118,7 +119,7 @@ function FileChooser({
           setOver(false);
         }}
         onDrop={onDrop}
-        className={`flex items-center gap-4 rounded-2xl bg-raised p-4 ${over ? "ring-[0.1875rem] ring-ring/45" : ""}`}
+        className={`flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl bg-raised p-4 ${over ? "ring-[0.1875rem] ring-ring/45" : ""}`}
       >
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-background">
           {file === null ? (
@@ -127,7 +128,7 @@ function FileChooser({
             <Film className="size-5 text-muted-foreground" aria-hidden />
           )}
         </span>
-        <div className="grid min-w-0 flex-1 grid-cols-1">
+        <div className="grid min-w-0 flex-1 basis-32 grid-cols-1">
           {file === null ? (
             <p className="text-sm text-muted-foreground">
               <span className="hidden md:inline">Drop a video here, or choose one.</span>
@@ -229,7 +230,7 @@ function UploadForm({
   };
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-3.5" noValidate>
+    <form onSubmit={onSubmit} className="grid min-w-0 grid-cols-1 gap-3.5" noValidate>
       <FileChooser file={file} error={fileError} onPick={pick} />
       <Field
         label="Title"
@@ -307,8 +308,8 @@ function UploadProgress({ id, onClose }: { id: string; onClose: () => void }) {
   const percent = upload.size === 0 ? 100 : Math.round((upload.sent / upload.size) * 100);
   const unfinished = state === "sending" || state === "paused";
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-1.5">
+    <div className="grid min-w-0 grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-1.5">
         <p className="truncate font-medium">{upload.title}</p>
         {state === "sending" || state === "paused" ? (
           <>

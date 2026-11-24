@@ -54,7 +54,7 @@ export function ThumbnailPicker({
   return (
     <div className="grid gap-2">
       <span className="text-xs text-muted-foreground">Thumbnail</span>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="flex aspect-video w-36 shrink-0 items-center justify-center overflow-hidden rounded-[0.75rem] bg-raised">
           {shown === null ? (
             <Film className="size-6 text-muted-foreground" aria-hidden />

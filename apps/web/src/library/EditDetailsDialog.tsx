@@ -39,7 +39,8 @@ export function EditDetailsDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      {/* A phone's screen is shorter than the form: the dialog scrolls inside it. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogTitle>Edit details</DialogTitle>
         <DialogDescription className="sr-only">
           Change this video&apos;s title, description, creator and thumbnail.
@@ -93,7 +94,7 @@ function DetailsForm({ item, onDone }: { item: LibraryItem; onDone: () => void }
   };
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-3.5" noValidate>
+    <form onSubmit={onSubmit} className="grid min-w-0 grid-cols-1 gap-3.5" noValidate>
       <Field
         label="Title"
         value={title}
