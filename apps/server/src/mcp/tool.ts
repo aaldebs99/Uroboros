@@ -40,7 +40,8 @@ interface ToolSpec<I extends z.ZodObject, O extends z.ZodObject> {
   destructive?: boolean;
   /** Calling it twice with the same arguments does no more than once. */
   idempotent?: boolean;
-  run(args: z.output<I>, ctx: ToolContext): Promise<z.input<O>>;
+  /** `signal` aborts when the client cancels the call or goes away. */
+  run(args: z.output<I>, ctx: ToolContext, signal: AbortSignal): Promise<z.input<O>>;
 }
 
 const text = (t: string): CallToolResult => ({ content: [{ type: "text", text: t }] });
@@ -101,12 +102,12 @@ export function defineTool<I extends z.ZodObject, O extends z.ZodObject>(
             openWorldHint: false,
           },
         },
-        (args) =>
+        (args, call) =>
           runTool(spec.name, ctx, async () => {
             if (write && ctx.caller.readOnly) {
               throw new ApiError("forbidden", "this token is read-only");
             }
-            return spec.run(args, ctx);
+            return spec.run(args, ctx, call.mcpReq.signal);
           }),
       );
     },

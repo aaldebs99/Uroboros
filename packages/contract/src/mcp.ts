@@ -7,6 +7,7 @@ import {
   SEARCH_MAX_CHARS,
   SEARCH_MIN_CHARS,
 } from "./library.ts";
+import { Download, FormatProfile, NewSearchBody } from "./downloads.ts";
 import { PlaylistDetail, PlaylistSummary } from "./playlists.ts";
 
 /** Where the MCP server answers (docs/mcp.md): only API tokens with the `mcp` scope reach it. */
@@ -97,3 +98,48 @@ export const McpNoInput = z.object({});
 export const McpChannels = z.object({ channels: z.array(ChannelSummary) });
 export const McpPlaylists = z.object({ playlists: z.array(PlaylistSummary) });
 export const McpPlaylistPage = z.object({ playlist: PlaylistDetail, page: LibraryPage });
+
+/** The longest `get_download_request` waits for a probe to finish. */
+export const MAX_PROBE_WAIT_SECONDS = 15;
+
+export const McpDownloadLinkInput = z.object({
+  url: z
+    .url({ protocol: /^https?$/ })
+    .max(2048)
+    .describe("A video, playlist or channel link yt-dlp can read"),
+  profileId: z.uuid().optional().describe("A format profile (list_profiles); the default if none"),
+});
+
+export const McpSearchInput = z.object({
+  query: NewSearchBody.shape.query.describe("What to search YouTube for"),
+});
+
+export const McpRequestInput = z.object({
+  requestId: z.uuid().describe("A download request's id"),
+  waitSeconds: z
+    .number()
+    .min(0)
+    .max(MAX_PROBE_WAIT_SECONDS)
+    .default(0)
+    .describe("Wait up to this long for the link to be read (state leaves probing)"),
+});
+
+export const McpQueueInput = z.object({
+  requestId: z.uuid().describe("A request in state choosing"),
+  entryIds: z
+    .array(z.string().min(1).max(256))
+    .min(1)
+    .max(1000)
+    .describe("Ids of entries from the request's groups"),
+});
+
+export const McpDownloadInput = z.object({ downloadId: z.uuid().describe("A download's id") });
+
+export const McpDownloadsInput = z.object({
+  active: z.boolean().optional().describe("Only those queued or running"),
+  ids: z.array(z.uuid()).max(100).optional(),
+  limit: z.number().int().min(1).max(100).default(25),
+});
+
+export const McpDownloads = z.object({ downloads: z.array(Download) });
+export const McpProfiles = z.object({ profiles: z.array(FormatProfile) });

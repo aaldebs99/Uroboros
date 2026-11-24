@@ -1,8 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import type { Tool, ToolContext } from "./tool.ts";
+import { downloadTools } from "./tools/downloads.ts";
 import { libraryTools } from "./tools/library.ts";
 
-const TOOLS: readonly Tool[] = [...libraryTools];
+const TOOLS: readonly Tool[] = [...libraryTools, ...downloadTools];
 
 const INSTRUCTIONS =
   "Uroboros is the person's self-hosted video library and downloader. Every tool acts as the person whose token this is, on their own library and what others shared with them.";
