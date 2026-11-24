@@ -71,6 +71,7 @@ jobs:
       - run: mise run ratchet:complexity
       - run: mise run ratchet:pins
       - run: mise run ratchet:pixels
+      - run: mise run ratchet:forge-host
       - run: mise run ci:parity
       - run: mise run ratchet:test
 

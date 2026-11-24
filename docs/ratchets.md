@@ -14,11 +14,12 @@ step) and run through mise:
 | `mise run ratchet:suppressions` | per-file lint-suppression count may only fall               |
 | `mise run ratchet:pixels`       | no hard-coded pixel values in the web UI (sizes are rem)    |
 | `mise run ratchet:pins`         | toolchain pins and the supply-chain soak agree across files |
-| `mise run ratchet`              | all five                                                    |
+| `mise run ratchet:forge-host`   | no file names the forge's domain (the repo is mirrored)     |
+| `mise run ratchet`              | all six                                                     |
 | `mise run ratchet:test`         | the ratchets' own unit tests                                |
 | `mise run ci:parity`            | `ci.yml` and `[tasks.ci].depends` run the same set of tasks |
 
-The CLI is `ratchet <lines|complexity|suppressions|pixels|pins|ci-parity|all>` (`pnpm exec ratchet ...`
+The CLI is `ratchet <lines|complexity|suppressions|pixels|pins|forge-host|ci-parity|all>` (`pnpm exec ratchet ...`
 from the repo root). Exit codes are the same for all of them: `0` pass, `1` violation, `2` layout or
 tool error (a missing file, an unparseable config). A layout error is never treated as a pass.
 
@@ -148,6 +149,25 @@ The `Dockerfile` is mandatory: a missing file (a symlink to one counts), or a mi
 **Updating:** change every copy in one commit. Renovate groups each tool's pins into a single PR
 ("node", "pnpm") for this reason. If a pin turns up in a new file, add it to
 `tools/ratchet/src/pins.ts` and to the matching group in `.renovaterc.json5`.
+
+## `ratchet:forge-host`
+
+- **Checks:** no line of a listed file names the forge's domain. The repository lives on a
+  self-hosted forge and is mirrored to GitHub, and the forge's domain stays private. The gate cannot
+  write that domain down either, so it learns the forge's host when it runs: from
+  `GITHUB_SERVER_URL` (the forge's Actions runners set it to the instance's URL), else from the
+  `origin` remote (`https://…`, `ssh://…` or `user@host:path`). It searches for the host's
+  distinctive label (`duckforge` of `code.duckforge.net`, the label before a public suffix such as
+  `.net` or `.co.uk`), in any case and with dots and dashes also matched as underscores, so other
+  hosts of the same domain and the domain spelled into a variable name are caught. Files with a
+  NUL byte are skipped as binary. The failure lists `path:line` only, never the domain.
+- **Passes without checking**, with a note, when the host is GitHub's (a clone of the mirror, or
+  a run there), when neither source names a host, or when the host has no label of at least four
+  characters to search for (an IP address, `localhost`).
+- **Why:** a mention that reaches a pushed commit reaches the mirror's history, and taking it out
+  again means rewriting the history and every clone.
+- **Updating:** there is nothing to freeze and no marker. Say "the forge", use the `REGISTRY`
+  variable, or a placeholder such as `forge.example`.
 
 ## `ci:parity`
 
