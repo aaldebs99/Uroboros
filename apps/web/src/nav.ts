@@ -2,6 +2,7 @@ import {
   Download,
   Library,
   Rss,
+  Server,
   Settings,
   Share2,
   UserRound,
@@ -17,7 +18,8 @@ export type NavItem = {
     | "/shared"
     | "/settings"
     | "/admin/users"
-    | "/admin/groups";
+    | "/admin/groups"
+    | "/admin/server";
   label: string;
   icon: LucideIcon;
   blurb: string;
@@ -109,5 +111,11 @@ export const ADMIN_ITEMS: readonly NavItem[] = [
     label: "Groups",
     icon: Users,
     blurb: "Every group people made, and who runs it.",
+  },
+  {
+    to: "/admin/server",
+    label: "Server",
+    icon: Server,
+    blurb: "What is on or off for everyone, such as the MCP server.",
   },
 ];
