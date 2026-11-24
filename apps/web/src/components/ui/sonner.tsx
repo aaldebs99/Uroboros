@@ -2,6 +2,7 @@ import { CircleAlert, CircleCheck, Info, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Toaster as Sonner, type ToasterProps, toast } from "sonner";
 
+import { DESKTOP_QUERY, useMediaQuery } from "@/lib/media";
 import { useTheme } from "@/lib/theme";
 import { recordToast, type ToastTone as Tone } from "@/lib/toastLog";
 import { cn } from "@/lib/utils";
@@ -35,7 +36,7 @@ function ToastCard({
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
-      className="relative flex w-[min(18.75rem,calc(100vw-2rem))] items-start gap-3 overflow-hidden rounded-[0.75rem] border border-border bg-popover px-3.5 py-3 text-sm text-popover-foreground shadow-menu"
+      className="relative flex w-[min(18.75rem,calc(100vw-2rem))] items-start max-md:ml-auto gap-3 overflow-hidden rounded-[0.75rem] border border-border bg-popover px-3.5 py-3 text-sm text-popover-foreground shadow-menu"
     >
       <Icon className={cn("mt-0.5 size-4.5 shrink-0", className)} aria-hidden />
       <div className="grid min-w-0 flex-1 gap-0.5">
@@ -91,10 +92,33 @@ function dismissToasts(): void {
   toast.dismiss();
 }
 
-/** Themed from our own store (`useTheme`), not next-themes. Top right, unstyled cards. */
-function Toaster(props: ToasterProps) {
+/** The phones' bottom tabs (`TabBar`), which toasts sit just above. */
+const TAB_BAR = "3.625rem + env(safe-area-inset-bottom)";
+
+/**
+ * Themed from our own store (`useTheme`), not next-themes; unstyled cards. From `md` up they come
+ * in at the top right, under the top bar. On phones they come in at the bottom right, just above
+ * the bottom tabs when the page has them (`aboveTabBar`), and Sonner's own phone layout (below
+ * 600px) gets the same offsets.
+ */
+function Toaster({ aboveTabBar = false, ...props }: ToasterProps & { aboveTabBar?: boolean }) {
   const { theme } = useTheme();
-  return <Sonner theme={theme} position="top-right" offset="4.5rem" {...props} />;
+  const desktop = useMediaQuery(DESKTOP_QUERY);
+  if (desktop) return <Sonner theme={theme} position="top-right" offset="4.5rem" {...props} />;
+  const offset = {
+    right: "1rem",
+    left: "1rem",
+    bottom: aboveTabBar ? `calc(${TAB_BAR} + 0.75rem)` : "1rem",
+  };
+  return (
+    <Sonner
+      theme={theme}
+      position="bottom-right"
+      offset={offset}
+      mobileOffset={offset}
+      {...props}
+    />
+  );
 }
 
 export { Toaster, dismissToasts, notify };

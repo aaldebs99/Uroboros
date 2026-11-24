@@ -153,8 +153,8 @@ The bell (`notices/NoticesButton.tsx`) sits between Add and the avatar at every 
 - **Empty:** a 64px circled `Bell`, "You're all caught up", and a muted line.
 - **Opening it** dismisses the toasts on screen (they are in its list) and marks the notifications
   read up to the newest one shown.
-- A toast that means nothing later (the player's "Skipped sponsor" with its Undo) passes
-  `log: false` and stays out of the list.
+- A toast that means nothing later (clearing this list failing) passes `log: false` and stays out
+  of the list.
 
 ## Account menu
 

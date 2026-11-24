@@ -36,6 +36,8 @@ A slim top bar with a menu button, and bottom tabs.
 - The **You** tab opens the account page (`/account`), which also lists Settings and, for admins,
   the Admin pages (Users).
 - Leave room for the tab bar at the bottom of the scroll area (`pb-[calc(58px+env(safe-area-inset-bottom))]`).
+- **Toasts** come in at the bottom right, just above the tab bar
+  ([toasts](feedback-and-containers.md#toasts)).
 
 ## Library feed
 

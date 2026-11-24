@@ -188,7 +188,7 @@ function ShellFrame({ me }: { me: Me }) {
           setDownloading(true);
         }}
       />
-      <Toaster />
+      <Toaster aboveTabBar />
     </div>
   );
 }

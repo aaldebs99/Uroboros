@@ -4,8 +4,13 @@
 
 Sonner (`components/ui/sonner.tsx`, mounted once in `root.tsx`), restyled.
 
-- **Placement and shape:** top right; `bg-popover border border-border rounded-[12px] shadow-menu`,
-  about 300px wide, with `px-3.5 py-3` padding.
+- **Placement:** from `md` up, top right under the top bar. On phones, bottom right, 12px above the
+  bottom tabs (`<Toaster aboveTabBar />` in `root.tsx`); a public link's page has no tabs, so its
+  toasts sit 16px from the bottom. `Toaster` picks the position with `useMediaQuery(DESKTOP_QUERY)`
+  and gives Sonner's own phone layout (below 600px) the same offsets; the card keeps its width
+  and keeps to the right (`max-md:ml-auto`).
+- **Shape:** `bg-popover border border-border rounded-[12px] shadow-menu`, about 300px wide, with
+  `px-3.5 py-3` padding.
 - **Content:** a tone icon (`CircleCheck` success, `CircleAlert` destructive, `Info` primary), a
   title at 500, muted detail, and at most one compact secondary action ("View", "Undo").
 - **Timer line** (C's): a 2px `bg-primary` bar along the bottom edge that shrinks from full width
