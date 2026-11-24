@@ -2,7 +2,6 @@ import { ApiErrorBody } from "@uroboros/contract";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Redis } from "ioredis";
 import { HTTPException } from "hono/http-exception";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -11,7 +10,6 @@ import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "./app.ts";
 
 const logger = pino({ level: "silent" });
-const valkey = { ping: () => Promise.resolve("PONG") } as unknown as Redis;
 
 let testDb: TestDb;
 let dist: string;
@@ -32,7 +30,7 @@ afterAll(async () => {
 const app = (bodyLimitBytes?: number) =>
   asUser(
     createApp(
-      { db: testDb.db, valkey, version: "t", logger },
+      { db: testDb.db, version: "t", logger },
       { webDist: dist, ...(bodyLimitBytes === undefined ? {} : { bodyLimitBytes }) },
     ),
     session,

@@ -71,13 +71,7 @@ afterAll(async () => {
 });
 
 const app = (s: SignedIn, st: MediaStore = store): OpenAPIHono =>
-  asUser(
-    createApp(
-      { db: testDb.db, valkey: h.valkey, version: "t", logger, store: st },
-      { webDist: null },
-    ),
-    s,
-  );
+  asUser(createApp({ db: testDb.db, version: "t", logger, store: st }, { webDist: null }), s);
 
 describe("GET /api/library/{id}/file", () => {
   it("streams the whole file as an attachment named after the title and profile", async () => {

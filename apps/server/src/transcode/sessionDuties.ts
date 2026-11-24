@@ -14,7 +14,7 @@ const ago = (ms: number) => sql<Date>`now() - make_interval(secs => ${ms / 1000}
 
 /**
  * The leader's playback duty (docs/transcoding.md), every minute: a live session whose run is gone
- * (a replica that died, a flushed Valkey) gets it back while its viewer is there, and is stopped,
+ * (a replica that died) gets it back while its viewer is there, and is stopped,
  * its folder trashed, once they are not; ended sessions are forgotten after an hour (the trigger
  * on the table trashes each folder, should a runner have died before its cleanup).
  */

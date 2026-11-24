@@ -1,4 +1,3 @@
-import type { Redis } from "ioredis";
 import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 import type { Database } from "../db/schema.ts";
@@ -7,10 +6,7 @@ import { openApiConfig } from "./openapiDoc.ts";
 
 /** The document as `gen` writes it. */
 function doc() {
-  const app = createApp(
-    { db: {} as Kysely<Database>, valkey: {} as Redis, version: "t" },
-    { webDist: null },
-  );
+  const app = createApp({ db: {} as Kysely<Database>, version: "t" }, { webDist: null });
   return app.getOpenAPIDocument(openApiConfig("t")) as unknown as {
     info: { description?: string };
     security?: unknown;

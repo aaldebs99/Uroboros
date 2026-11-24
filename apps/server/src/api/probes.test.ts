@@ -1,28 +1,21 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { Liveness, Readiness } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import { createDb } from "../db/kysely.ts";
-import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createApp } from "./app.ts";
 
 const logger = pino({ level: "silent" });
 
 let testDb: TestDb;
-let valkey: Redis;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  valkey = createValkey(TestValkey.url(), "api", logger);
-  await waitReady(valkey, 5000);
 });
 
 afterAll(async () => {
-  valkey.disconnect();
   await testDb.close();
 });
 
@@ -30,7 +23,7 @@ afterAll(async () => {
 function starting(): { app: OpenAPIHono; attach(): void } {
   let attached = false;
   const app = createApp(
-    { db: testDb.db, valkey, version: "t", logger, attached: () => attached },
+    { db: testDb.db, version: "t", logger, attached: () => attached },
     { webDist: null },
   );
   return {
@@ -46,10 +39,7 @@ describe("liveness", () => {
     const down = createDb("postgres://u:p@127.0.0.1:1/x", logger);
     try {
       const { app } = starting();
-      for (const a of [
-        app,
-        createApp({ db: down, valkey, version: "t", logger }, { webDist: null }),
-      ]) {
+      for (const a of [app, createApp({ db: down, version: "t", logger }, { webDist: null })]) {
         const res = await a.request("/api/health");
         expect(res.status).toBe(200);
         expect(Liveness.parse(await res.json())).toEqual({ status: "ok" });

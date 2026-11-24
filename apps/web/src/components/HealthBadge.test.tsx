@@ -13,11 +13,11 @@ describe("HealthBadge", () => {
   });
 
   it("shows Degraded and the failing dependency", async () => {
-    stubApi({ "/api/ready": () => Response.json({ status: "degraded", failing: ["valkey"] }) });
+    stubApi({ "/api/ready": () => Response.json({ status: "degraded", failing: ["database"] }) });
     renderWithQuery(<HealthBadge />);
 
     expect(await screen.findByText("Degraded")).toBeInTheDocument();
-    expect(screen.getByText("valkey")).toBeInTheDocument();
+    expect(screen.getByText("database")).toBeInTheDocument();
   });
 
   it("shows Starting while the replica has not attached its database (503 starting)", async () => {

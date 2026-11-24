@@ -42,7 +42,6 @@ export function renderOpenApi(): string {
   const app = createApp(
     {
       db: untouchable("db"),
-      valkey: untouchable("valkey"),
       version,
     },
     { webDist: null },

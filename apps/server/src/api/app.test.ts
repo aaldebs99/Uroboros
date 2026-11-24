@@ -5,15 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { ApiErrorBody } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { createDb } from "../db/kysely.ts";
-import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createApp } from "./app.ts";
 import type { Deps } from "./app.ts";
 
@@ -21,26 +18,21 @@ const logger = pino({ level: "silent" });
 const CLOSED = "127.0.0.1:1";
 
 let testDb: TestDb;
-let valkey: Redis;
 let session: SignedIn;
 const extra: { close(): unknown }[] = [];
 
 beforeAll(async () => {
   testDb = await TestDb.create();
   session = await signedIn(testDb.db, { username: "tester" });
-  valkey = createValkey(TestValkey.url(), "api", logger);
-  await waitReady(valkey, 5000);
 });
 
 afterAll(async () => {
-  valkey.disconnect();
   await testDb.close();
   for (const e of extra) await e.close();
 });
 
 const deps = (over: Partial<Deps> = {}): Deps => ({
   db: testDb.db,
-  valkey,
   version: "1.2.3",
   logger,
   ...over,
@@ -49,7 +41,7 @@ const app = (over: Partial<Deps> = {}, webDist: string | null = null): OpenAPIHo
   createApp(deps(over), { webDist });
 
 describe("readiness", () => {
-  it("is ok when both dependencies answer", async () => {
+  it("is ok when the database answers", async () => {
     const res = await app().request("/api/ready");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "ok", failing: [] });
@@ -62,32 +54,9 @@ describe("readiness", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "degraded", failing: ["database"] });
   });
-
-  it("is degraded with valkey failing, quickly, when valkey is unreachable", async () => {
-    const down = createValkey(`redis://${CLOSED}`, "api", logger);
-    extra.push({
-      close: () => {
-        down.disconnect();
-      },
-    });
-    const start = Date.now();
-    const res = await app({ valkey: down }).request("/api/ready");
-    expect(Date.now() - start).toBeLessThan(3000);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "degraded", failing: ["valkey"] });
-  });
 });
 
 describe("readiness timeout", () => {
-  it("reports a hanging valkey as failing within 3s", async () => {
-    const hung = { ping: () => new Promise<never>(() => undefined) } as unknown as Redis;
-    const start = Date.now();
-    const res = await app({ valkey: hung }).request("/api/ready");
-    expect(Date.now() - start).toBeLessThan(3000);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "degraded", failing: ["valkey"] });
-  });
-
   it("reports a hanging database as failing within 3s", async () => {
     // A pool whose connect never completes: the TCP listener accepts but never speaks.
     const sockets: Socket[] = [];

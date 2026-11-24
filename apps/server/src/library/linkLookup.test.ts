@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { LibraryPage } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
@@ -90,10 +89,7 @@ async function add(user: SignedIn, media: Record<string, unknown>): Promise<stri
 }
 
 const app = (s: SignedIn) =>
-  asUser(
-    createApp({ db: testDb.db, valkey: {} as Redis, version: "t", logger }, { webDist: null }),
-    s,
-  );
+  asUser(createApp({ db: testDb.db, version: "t", logger }, { webDist: null }), s);
 
 async function page(s: SignedIn, query: string): Promise<LibraryPage> {
   const res = await app(s).request(`/api/library${query}`);

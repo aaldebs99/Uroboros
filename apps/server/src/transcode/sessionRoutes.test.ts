@@ -73,7 +73,6 @@ const app = (): OpenAPIHono =>
   createApp(
     {
       db: t.db,
-      valkey: h.valkey,
       version: "t",
       logger,
       downloads: h.ctx,

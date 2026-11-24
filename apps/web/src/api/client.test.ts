@@ -198,8 +198,8 @@ describe("errorText", () => {
 
 describe("getReadiness", () => {
   it("reads the report on 200 and on 503 starting", async () => {
-    respondWith(Response.json({ status: "degraded", failing: ["valkey"] }));
-    await expect(getReadiness()).resolves.toEqual({ status: "degraded", failing: ["valkey"] });
+    respondWith(Response.json({ status: "degraded", failing: ["database"] }));
+    await expect(getReadiness()).resolves.toEqual({ status: "degraded", failing: ["database"] });
     respondWith(Response.json({ status: "starting", failing: [] }, { status: 503 }));
     await expect(getReadiness()).resolves.toEqual({ status: "starting", failing: [] });
   });

@@ -2,7 +2,6 @@ import { createRoute } from "@hono/zod-openapi";
 import { ApiErrorBody, Liveness, Readiness } from "@uroboros/contract";
 import type { DependencyName } from "@uroboros/contract";
 import type { Kysely } from "kysely";
-import type { Redis } from "ioredis";
 import { pingDb } from "../db/kysely.ts";
 import type { Database } from "../db/schema.ts";
 import { withDeadline } from "../shared/deadline.ts";
@@ -55,16 +54,11 @@ async function passes(check: () => Promise<unknown>): Promise<boolean> {
 }
 
 /**
- * Runs `SELECT 1` and `PING` in parallel, each bounded at 2 s; never throws. The database check
- * bounds its own query too, so a silent server costs a pool client 2 s, not the pool's 30 s.
+ * Runs `SELECT 1`, bounded at 2 s; never throws. The check bounds its own query too, so a silent
+ * server costs a pool client 2 s, not the pool's 30 s. Postgres is the only dependency.
  */
-export async function checkHealth(db: Kysely<Database>, valkey: Redis): Promise<Readiness> {
-  const [dbOk, valkeyOk] = await Promise.all([
-    passes(() => pingDb(db, CHECK_TIMEOUT_MS)),
-    passes(() => valkey.ping()),
-  ]);
+export async function checkHealth(db: Kysely<Database>): Promise<Readiness> {
   const failing: DependencyName[] = [];
-  if (!dbOk) failing.push("database");
-  if (!valkeyOk) failing.push("valkey");
+  if (!(await passes(() => pingDb(db, CHECK_TIMEOUT_MS)))) failing.push("database");
   return { status: failing.length === 0 ? "ok" : "degraded", failing };
 }

@@ -13,7 +13,6 @@ import type { MigrationOutcome } from "../migrate/runner.ts";
 import { createPushService } from "../push/service.ts";
 import { LeaderStatus, leadAndRun, PgLeaderLock } from "../shared/leader.ts";
 import { URO_LEAD } from "../shared/lockKeys.ts";
-import { createValkey, waitReady } from "../shared/valkey.ts";
 import { createDownloadQueues } from "../downloads/queues.ts";
 import { createPgBus } from "../db/notifications.ts";
 import { createEventHub } from "../downloads/sse.ts";
@@ -51,15 +50,15 @@ export interface RunningApi {
   /**
    * The longest `close()` may take: the longer of the HTTP drain grace and the consumers' grace,
    * then up to `CLEANUP_MS` for the cut connections to close, then up to `CLEANUP_MS` for the
-   * pool, Valkey and the leader lock.
+   * pool, the listener and the leader lock.
    */
   shutdownBudgetMs: number;
   /**
    * Stops accepting connections, gives up leadership, stops the job consumers (which wait for
    * their running jobs up to their own grace, alongside the drain), closes idle connections and
    * waits up to `shutdownGraceMs` for in-flight requests. If they outlast it, cuts every connection and
-   * rejects (closing the cut connections is itself bounded by `CLEANUP_MS`). The database, Valkey
-   * and the leader lock are released within `CLEANUP_MS` either way; a cleanup that overruns it
+   * rejects (closing the cut connections is itself bounded by `CLEANUP_MS`). The database, the
+   * listener and the leader lock are released within `CLEANUP_MS` either way; a cleanup that overruns it
    * rejects too, so the caller can exit non-zero. All in all within `shutdownBudgetMs`.
    */
   close(): Promise<void>;
@@ -73,8 +72,8 @@ export interface Consumers {
 export interface StartApiOptions {
   /**
    * The job consumers, started once the database is attached (so no job runs against an older
-   * schema), on this process's shared connections. `signal` aborts a start that is still waiting
-   * for Valkey. `graceMs` is how long their `close()` may take.
+   * schema), on this process's shared connections. `signal` aborts a start that is still
+   * preparing (the GPU self-test). `graceMs` is how long their `close()` may take.
    */
   consumers?: {
     start: (shared: SharedResources, signal: AbortSignal) => Promise<Consumers>;
@@ -116,7 +115,6 @@ export async function startApi(
 ): Promise<RunningApi> {
   // The pool connects lazily: nothing touches the database until it is attached.
   const db = createDb(config.databaseUrl, logger);
-  const valkey = createValkey(config.valkeyUrl, "api", logger);
   const push = createPushService(config.push, db, logger);
   const oidc =
     config.auth.oidc === null ? undefined : createOidcProvider(config.auth.oidc, { logger });
@@ -139,7 +137,6 @@ export async function startApi(
   const app = createApp(
     {
       db,
-      valkey,
       version: pkg.version,
       logger,
       push,
@@ -183,17 +180,13 @@ export async function startApi(
     crash = resolve;
   });
   const attaching = (async () => {
-    const [outcome] = await Promise.all([
-      migrateOnStart({
-        url: config.databaseUrl,
-        dir: config.migrationsDir ?? defaultMigrationsDir(),
-        grace: startupGraceFromSecs(config.dbStartupGraceSecs),
-        logger,
-        signal: stop.signal,
-      }),
-      // Not fatal if Valkey is down: readiness reports it as degraded.
-      waitReady(valkey, 2000),
-    ]);
+    const outcome = await migrateOnStart({
+      url: config.databaseUrl,
+      dir: config.migrationsDir ?? defaultMigrationsDir(),
+      grace: startupGraceFromSecs(config.dbStartupGraceSecs),
+      logger,
+      signal: stop.signal,
+    });
     logMigrations(logger, outcome);
     bus.start();
     const bootstrap = config.auth.local.bootstrap;
@@ -232,8 +225,8 @@ export async function startApi(
       stop.signal,
     );
     if (starting !== undefined) {
-      // In the background: Valkey down delays the consumers, never readiness. A start aborted by
-      // shutdown is no crash; any other failure is.
+      // In the background: preparing the consumers (the GPU self-test) never delays readiness. A
+      // start aborted by shutdown is no crash; any other failure is.
       consumers = starting.catch((err: unknown) => {
         if (!stop.signal.aborted) crash({ err });
         return null;
@@ -273,7 +266,6 @@ export async function startApi(
     ]);
     playbackBus.close();
     await settlesWithin(bus.close(), CLEANUP_MS);
-    valkey.disconnect();
     const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), CLEANUP_MS);
     if (!drained) {
       throw new Error(

@@ -14,10 +14,11 @@ describe("contract", () => {
     expect(() => ApiErrorBody.parse({ code: "teapot", message: "x" })).toThrow();
   });
 
-  it("parses a degraded readiness report", () => {
-    expect(Readiness.parse({ status: "degraded", failing: ["valkey"] }).failing).toEqual([
-      "valkey",
+  it("parses a degraded readiness report, which can only name the database", () => {
+    expect(Readiness.parse({ status: "degraded", failing: ["database"] }).failing).toEqual([
+      "database",
     ]);
+    expect(() => Readiness.parse({ status: "degraded", failing: ["valkey"] })).toThrow();
   });
 
   it("parses a replica that is still starting", () => {

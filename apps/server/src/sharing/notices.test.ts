@@ -35,13 +35,7 @@ afterAll(async () => {
 });
 
 const app = (s: SignedIn): OpenAPIHono =>
-  asUser(
-    createApp(
-      { db: t.db, valkey: h.valkey, version: "t", logger, downloads: h.ctx },
-      { webDist: null },
-    ),
-    s,
-  );
+  asUser(createApp({ db: t.db, version: "t", logger, downloads: h.ctx }, { webDist: null }), s);
 const put = (s: SignedIn, path: string, json: unknown) =>
   app(s).request(path, {
     method: "PUT",

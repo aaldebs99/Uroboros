@@ -6,7 +6,6 @@ import {
   PushTestResult,
   PushView,
 } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { browserKeys, PushStub } from "../../test/pushStub.ts";
@@ -16,7 +15,6 @@ import { createPushService, type PushSettings } from "../push/service.ts";
 import { createApp } from "./app.ts";
 
 const logger = pino({ level: "silent" });
-const noValkey = {} as Redis;
 const keys = browserKeys();
 
 let testDb: TestDb;
@@ -50,7 +48,7 @@ const settings = (over: Partial<PushSettings> = {}): PushSettings => ({
 function app(over: Partial<PushSettings> = {}): OpenAPIHono {
   const push = createPushService(settings(over), testDb.db, logger);
   return asUser(
-    createApp({ db: testDb.db, valkey: noValkey, version: "0", logger, push }, { webDist: null }),
+    createApp({ db: testDb.db, version: "0", logger, push }, { webDist: null }),
     session,
   );
 }
@@ -289,7 +287,6 @@ describe("ownership and races", () => {
       createApp(
         {
           db: testDb.db,
-          valkey: noValkey,
           version: "0",
           logger,
           push: createPushService(settings(), testDb.db, logger),

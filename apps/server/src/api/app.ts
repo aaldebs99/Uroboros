@@ -1,7 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context, Next } from "hono";
 import type { Kysely } from "kysely";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import type { Logger } from "pino";
 import type { AuthConfig } from "../auth/config.ts";
@@ -46,7 +45,6 @@ import { createSpaHandler } from "./spa.ts";
 
 export interface Deps {
   db: Kysely<Database>;
-  valkey: Redis;
   version: string;
   /** Defaults to a JSON-to-stdout pino logger; tests pass a silent one. */
   logger?: Logger;
@@ -234,7 +232,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   app.openapi(healthRoute, (c) => c.json({ status: "ok" as const }, 200));
   app.openapi(readyRoute, async (c) => {
     if (!attached()) return c.json({ status: "starting" as const, failing: [] }, 503);
-    return c.json(await checkHealth(deps.db, deps.valkey), 200);
+    return c.json(await checkHealth(deps.db), 200);
   });
   const info = {
     name: "uroboros" as const,

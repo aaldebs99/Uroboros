@@ -1,15 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { asUser, signedIn } from "../../test/auth.ts";
 import { CLIENT_ID, CLIENT_SECRET, startIdp, type TestIdp } from "../../test/oidcIdp.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import { createApp } from "../api/app.ts";
 import { URO_OSYN } from "../shared/lockKeys.ts";
 import { PgLeaderLock } from "../shared/leader.ts";
-import { createValkey, waitReady } from "../shared/valkey.ts";
 import { runSyncPass, type SyncDeps } from "./claimsSync.ts";
 import type { OidcConfig } from "./config.ts";
 import { saveGrant, upsertOidcUser } from "./oidc/accounts.ts";
@@ -19,7 +16,6 @@ import { createSession, resolveSession, sweepExpired } from "./sessions.ts";
 const logger = pino({ level: "silent" });
 
 let testDb: TestDb;
-let valkey: Redis;
 let idp: TestIdp;
 let provider: OidcProvider;
 const stop = new AbortController();
@@ -45,8 +41,6 @@ const deps = (over: Partial<SyncDeps> = {}): SyncDeps => ({
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  valkey = createValkey(TestValkey.url(), "api", logger);
-  await waitReady(valkey, 5000);
   idp = await startIdp();
   provider = createOidcProvider(oidc(), { logger, fetch: idp.fetch });
   provider.start(stop.signal);
@@ -59,7 +53,6 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   stop.abort();
-  valkey.disconnect();
   await idp.close();
   await testDb.close();
 });
@@ -278,7 +271,6 @@ describe("POST /api/admin/users/oidc-sync", () => {
     createApp(
       {
         db: testDb.db,
-        valkey,
         version: "t",
         logger,
         auth: {

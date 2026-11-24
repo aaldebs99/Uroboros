@@ -23,7 +23,7 @@ import {
   viewerSession,
 } from "./sessions.ts";
 
-/** What the session routes need: queues and Valkey, storage, and the replicas' playback bus. */
+/** What the session routes need: the database and queues, storage, and the replicas' playback bus. */
 export interface SessionContext extends DownloadContext {
   store: MediaStore;
   bus: PlaybackBus;

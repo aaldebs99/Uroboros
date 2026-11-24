@@ -1,6 +1,5 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { AuthMethods, LogoutResult, Me } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -11,9 +10,7 @@ import {
   type TestIdp,
 } from "../../../test/oidcIdp.ts";
 import { TestDb } from "../../../test/testDb.ts";
-import { TestValkey } from "../../../test/testValkey.ts";
 import { createApp } from "../../api/app.ts";
-import { createValkey, waitReady } from "../../shared/valkey.ts";
 import type { AuthConfig, OidcConfig } from "../config.ts";
 import { createOidcProvider, type OidcProvider } from "./provider.ts";
 
@@ -21,7 +18,6 @@ const logger = pino({ level: "silent" });
 const BASE = "https://uro.example";
 
 let testDb: TestDb;
-let valkey: Redis;
 let idp: TestIdp;
 let provider: OidcProvider;
 let app: OpenAPIHono;
@@ -48,7 +44,6 @@ function makeApp(p: OidcProvider): OpenAPIHono {
   return createApp(
     {
       db: testDb.db,
-      valkey,
       version: "t",
       logger,
       auth: { secureCookies: true, settings, oidc: p },
@@ -59,8 +54,6 @@ function makeApp(p: OidcProvider): OpenAPIHono {
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  valkey = createValkey(TestValkey.url(), "api", logger);
-  await waitReady(valkey, 5000);
   idp = await startIdp();
   provider = createOidcProvider(oidcConfig(), { logger, fetch: idp.fetch });
   provider.start(stop.signal);
@@ -74,7 +67,6 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   stop.abort();
-  valkey.disconnect();
   await idp.close();
   await testDb.close();
 });

@@ -1,6 +1,5 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { ApiTokenView, NewApiToken } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
@@ -16,7 +15,7 @@ let app: OpenAPIHono;
 beforeAll(async () => {
   testDb = await TestDb.create();
   app = createApp(
-    { db: testDb.db, valkey: {} as Redis, version: "t", logger, auth: { secureCookies: false } },
+    { db: testDb.db, version: "t", logger, auth: { secureCookies: false } },
     { webDist: null },
   );
 });

@@ -7,7 +7,7 @@ const IDLE_SWEEP_MS = 100;
 
 /**
  * The bound on everything after the drain: closing the cut connections, giving up leadership,
- * ending the pool and Valkey. A database gone silent would otherwise hold `db.destroy()` until
+ * ending the pool and the listener. A database gone silent would otherwise hold `db.destroy()` until
  * every checked-out client's 30 s query timeout, well past the container's stop timeout.
  */
 export const CLEANUP_MS = 2000;

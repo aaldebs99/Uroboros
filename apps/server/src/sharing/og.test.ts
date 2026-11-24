@@ -1,7 +1,6 @@
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { insertUser } from "../../test/users.ts";
@@ -90,20 +89,20 @@ describe("link previews", () => {
 
   it("the app tells the web app its public address, for links it copies", async () => {
     const app = createApp(
-      { db: t.db, valkey: {} as Redis, version: "t", logger },
+      { db: t.db, version: "t", logger },
       { webDist, publicBaseUrl: "https://uro.example" },
     );
     expect(await (await app.request("/api/info")).json()).toMatchObject({
       publicBaseUrl: "https://uro.example",
     });
-    const bare = createApp({ db: t.db, valkey: {} as Redis, version: "t", logger }, { webDist });
+    const bare = createApp({ db: t.db, version: "t", logger }, { webDist });
     expect(await (await bare.request("/api/info")).json()).toMatchObject({ publicBaseUrl: null });
   });
 
   it("the app serves /s/<code> with the tags filled in", async () => {
     const { code } = await linked("Served film");
     const app = createApp(
-      { db: t.db, valkey: {} as Redis, version: "t", logger },
+      { db: t.db, version: "t", logger },
       { webDist, publicBaseUrl: "https://uro.example" },
     );
     const res = await app.request(`/s/${code}`);

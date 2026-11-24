@@ -1,5 +1,4 @@
 import { NotificationPrefs } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
@@ -19,11 +18,7 @@ afterAll(async () => {
   await t.close();
 });
 
-const app = () =>
-  asUser(
-    createApp({ db: t.db, valkey: {} as Redis, version: "t", logger }, { webDist: null }),
-    alice,
-  );
+const app = () => asUser(createApp({ db: t.db, version: "t", logger }, { webDist: null }), alice);
 
 describe("which notifications a person wants", () => {
   it("defaults to all of them", async () => {

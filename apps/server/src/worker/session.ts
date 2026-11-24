@@ -99,7 +99,7 @@ async function runSession(
       .then((wanted) => {
         if (!wanted) stop({ kind: "stopped" });
       })
-      // Valkey or Postgres away: one failed look must not stop a session, nor crash the replica.
+      // Postgres away: one failed look must not stop a session, nor crash the replica.
       .catch((err: unknown) => {
         deps.logger.warn({ err, sid: row.id }, "could not check a playback session's viewer");
       });

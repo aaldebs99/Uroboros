@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { LibraryItem, TagsBody } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
@@ -120,13 +119,7 @@ afterAll(async () => {
 });
 
 const app = (s: SignedIn): OpenAPIHono =>
-  asUser(
-    createApp(
-      { db: testDb.db, valkey: {} as Redis, version: "t", logger, store },
-      { webDist: null },
-    ),
-    s,
-  );
+  asUser(createApp({ db: testDb.db, version: "t", logger, store }, { webDist: null }), s);
 
 const put = (s: SignedIn, path: string, json: unknown) =>
   app(s).request(path, {
@@ -265,7 +258,7 @@ describe("library item", () => {
 describe("content security policy", () => {
   it("lets the player load media from the S3 public URL when one is set", async () => {
     const res = await createApp(
-      { db: testDb.db, valkey: {} as Redis, version: "t", logger },
+      { db: testDb.db, version: "t", logger },
       { webDist: null, mediaOrigins: ["https://media.example.org"] },
     ).request("/api/health");
     expect(res.headers.get("content-security-policy")).toContain(

@@ -1,5 +1,4 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import type { Redis } from "ioredis";
 import type { Kysely } from "kysely";
 import { pino } from "pino";
 import type { Database } from "../src/db/schema.ts";
@@ -7,18 +6,13 @@ import { createApp } from "../src/api/app.ts";
 import type { DownloadContext } from "../src/downloads/dispatch.ts";
 import { createDownloadQueues } from "../src/downloads/queues.ts";
 import { defaultProfile, type ProfileRow } from "../src/downloads/profiles.ts";
-import { createValkey, waitReady } from "../src/shared/valkey.ts";
 import { asUser, type SignedIn } from "./auth.ts";
 import { liveJobs } from "./jobs.ts";
-import { TestValkey } from "./testValkey.ts";
 
 const logger = pino({ level: "silent" });
 
-/** A download context on the test database, plus an app factory. */
-export async function downloadHarness(db: Kysely<Database>, limit = 3) {
-  // The app still pings Valkey for readiness.
-  const valkey: Redis = createValkey(TestValkey.url(), "api", logger);
-  await waitReady(valkey, 5000);
+/** A download context on the test database, plus an app factory (a promise, as it used to be). */
+export function downloadHarness(db: Kysely<Database>, limit = 3) {
   const queues = createDownloadQueues(db);
   const ctx: DownloadContext = {
     db,
@@ -27,10 +21,9 @@ export async function downloadHarness(db: Kysely<Database>, limit = 3) {
     logger,
   };
   const app = (s: SignedIn): OpenAPIHono =>
-    asUser(createApp({ db, valkey, version: "t", logger, downloads: ctx }, { webDist: null }), s);
-  return {
+    asUser(createApp({ db, version: "t", logger, downloads: ctx }, { webDist: null }), s);
+  return Promise.resolve({
     ctx,
-    valkey,
     queues,
     app,
     /** The keys of the fetch jobs waiting or running. */
@@ -38,10 +31,9 @@ export async function downloadHarness(db: Kysely<Database>, limit = 3) {
       return (await liveJobs(db, "download")).map((j) => j.key ?? "").sort();
     },
     close(): Promise<void> {
-      valkey.disconnect();
       return Promise.resolve();
     },
-  };
+  });
 }
 
 export async function seededDefault(db: Kysely<Database>): Promise<ProfileRow> {

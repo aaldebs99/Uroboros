@@ -1,5 +1,4 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
@@ -19,7 +18,6 @@ beforeAll(async () => {
   app = createApp(
     {
       db: testDb.db,
-      valkey: {} as Redis,
       version: "t",
       logger: pino({ level: "silent" }),
       auth: {

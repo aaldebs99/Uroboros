@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { ApiErrorBody, FormatProfile } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { z } from "zod";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -25,10 +24,7 @@ afterAll(async () => {
 });
 
 const app = (s: SignedIn): OpenAPIHono =>
-  asUser(
-    createApp({ db: testDb.db, valkey: {} as Redis, version: "t", logger }, { webDist: null }),
-    s,
-  );
+  asUser(createApp({ db: testDb.db, version: "t", logger }, { webDist: null }), s);
 
 const send = (s: SignedIn, method: string, path: string, json?: unknown) =>
   app(s).request(path, {

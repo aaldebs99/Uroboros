@@ -1,12 +1,9 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { AuthMethods, LogoutResult, Me } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { pino } from "pino";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import { createApp } from "../api/app.ts";
-import { createValkey, waitReady } from "../shared/valkey.ts";
 import type { AuthConfig } from "./config.ts";
 import { hashPassword } from "./passwords.ts";
 
@@ -14,12 +11,9 @@ const logger = pino({ level: "silent" });
 const PASSWORD = "correct horse battery";
 
 let testDb: TestDb;
-let valkey: Redis;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  valkey = createValkey(TestValkey.url(), "api", logger);
-  await waitReady(valkey, 5000);
   await testDb.db
     .insertInto("users")
     .values({
@@ -36,7 +30,6 @@ beforeEach(async () => {
   await testDb.db.deleteFrom("signin_failures").execute();
 });
 afterAll(async () => {
-  valkey.disconnect();
   await testDb.close();
 });
 
@@ -53,7 +46,6 @@ function app(over: Partial<AuthConfig> = {}, secure = false): OpenAPIHono {
   return createApp(
     {
       db: testDb.db,
-      valkey,
       version: "t",
       logger,
       auth: {
@@ -148,7 +140,6 @@ describe("local sign-in", () => {
       createApp(
         {
           db: testDb.db,
-          valkey,
           version: "t",
           logger,
           auth: { secureCookies: false, settings: settings() },

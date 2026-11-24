@@ -11,7 +11,7 @@ export type Liveness = z.infer<typeof Liveness>;
 export const ReadinessStatus = z.enum(["ok", "degraded", "starting"]).openapi("ReadinessStatus");
 export type ReadinessStatus = z.infer<typeof ReadinessStatus>;
 
-export const DependencyName = z.enum(["database", "valkey"]).openapi("DependencyName");
+export const DependencyName = z.enum(["database"]).openapi("DependencyName");
 export type DependencyName = z.infer<typeof DependencyName>;
 
 /** `GET /api/ready`: whether this replica takes traffic, and which dependencies fail. */

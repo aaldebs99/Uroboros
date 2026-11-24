@@ -6,7 +6,6 @@ import {
   PlaylistSummary,
   type LibraryEntry,
 } from "@uroboros/contract";
-import type { Redis } from "ioredis";
 import { sql } from "kysely";
 import { pino } from "pino";
 import { z } from "zod";
@@ -156,10 +155,7 @@ afterAll(async () => {
 });
 
 const app = (s: SignedIn): OpenAPIHono =>
-  asUser(
-    createApp({ db: testDb.db, valkey: {} as Redis, version: "t", logger }, { webDist: null }),
-    s,
-  );
+  asUser(createApp({ db: testDb.db, version: "t", logger }, { webDist: null }), s);
 
 async function page(s: SignedIn, query: string): Promise<LibraryPage> {
   const res = await app(s).request(`/api/library${query}`);
