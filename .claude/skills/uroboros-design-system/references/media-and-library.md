@@ -91,6 +91,11 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
   glow. The thumb is a 13px accent circle, shown on hover, drag or focus.
 - Under the timeline, play, volume and the time sit at the left; captions, settings, cast,
   picture-in-picture and fullscreen sit at the right.
+- The settings menu's **Quality** submenu is ours (`library/QualityMenu.tsx`, in the slot the
+  patch adds): Original, then the rungs a video offers, in the skin's own menu classes
+  (`playerSkin.test.ts` checks they exist). Under the player, one muted 12px line says how it plays
+  ("Direct play", "Direct stream", "Transcoding to 720p · NVIDIA GPU"; `PlaybackStatus.tsx`); while
+  a session waits or starts, the player's frame says so in muted text, never a fake percentage.
 - `player.css` targets the skin's own class names; `playerSkin.test.ts` fails when an upgrade
   renames one. Keep new styling to the public custom properties where they reach.
 - Shortcuts: Space and `k` play and pause, `j`/`l` seek 10 s, the arrows 5 s (`PlayerHotkeys`), `,`

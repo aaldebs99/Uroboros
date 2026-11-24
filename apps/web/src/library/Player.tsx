@@ -15,7 +15,7 @@ import { PlayerErrorWatch } from "./PlayerErrorWatch";
 import { PlayerHotkeys } from "./PlayerHotkeys";
 
 export interface PlayerProps {
-  /** The file, or with `hls` a compatible copy's multivariant playlist. */
+  /** The file, or with `hls` a playback session's multivariant playlist. */
   src: string;
   /**
    * Play `src` as HLS: natively (Safari, iOS) or through Video.js's MSE engine (docs/transcoding.md).

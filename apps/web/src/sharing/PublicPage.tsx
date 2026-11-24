@@ -110,7 +110,7 @@ function LinkFailed({ error }: { error: unknown }) {
 
 /**
  * A public link (`/s/<code>`, docs/sharing.md): the video, or a playlist played in order, with
- * chapters, subtitles and the compatible copy, for anyone and without signing in. It never says
+ * chapters, subtitles, playback sessions and the Quality menu, for anyone and without signing in. It never says
  * who shared it.
  */
 export function PublicPage({ code }: { code: string }) {

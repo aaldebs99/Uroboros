@@ -85,16 +85,17 @@ its code itself and answers `X-Robots-Tag: noindex`:
   videos (`PublicShare`). It never names who shared it.
 - `GET …/items/{id}`: one video with its chapters, subtitles, codecs and URLs, all under the link
   (`PublicItem`); `…/stream`, `…/thumbnail`, `…/subtitles/{subId}`, `…/file` (404 unless downloads
-  are allowed), and the compatible copy's `…/playback`, `…/playback/master.m3u8` and segments, the
-  same routes as a library entry's (`registerPlaybackScope`). A link can therefore have each shared
-  video converted once.
+  are allowed), and the playback sessions' `…/playback` and `…/playback/sessions/{sid}/…`, the same
+  routes as a library entry's (`registerSessionScope`, [transcoding.md](transcoding.md)). A link
+  plays on at most 3 screens at once.
 
 Every dead link (unknown, expired, turned off, owner disabled) answers the same 404, "this link
 doesn't work any more". With `UROBOROS_S3_PUBLIC_URL` set, the stream redirects to a presigned URL
 that lives 15 minutes, so a link turned off meanwhile still plays out that URL.
 
 The web app's `/s/{code}` sits outside the sign-in gate, in a plain frame (`PublicLayout`), and plays
-with the same player (chapters, subtitles, the compatible copy for Safari); a playlist plays in
+with the same player (chapters, subtitles, a playback session where the browser can't play the
+file, and the Quality menu); a playlist plays in
 order. For link previews in chats, whose crawlers run no script, the SPA handler fills that page's
 `<title>` and Open Graph tags (title, description, thumbnail, `og:url`) from the share, escaped,
 with absolute URLs on `UROBOROS_PUBLIC_BASE_URL` (else the request's origin), plus a robots
