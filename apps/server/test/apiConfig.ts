@@ -29,7 +29,12 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
       oidc: null,
     },
     storage: { kind: "filesystem", root: "/tmp/uroboros-api-test", layout: DEFAULT_LAYOUT },
-    downloads: { maxActivePerUser: 3, maxPlaylistEntries: 1000, minCheckIntervalMinutes: 60 },
+    downloads: {
+      maxActivePerUser: 3,
+      maxPlaylistEntries: 1000,
+      minCheckIntervalMinutes: 60,
+      uploadMaxBytes: 10 * 1024 ** 3,
+    },
     worker: {
       workDir: "/tmp/uroboros-api-test-work",
       subtitles: { langs: null, automatic: false },

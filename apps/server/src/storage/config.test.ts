@@ -82,12 +82,22 @@ describe("storage settings", () => {
     expect(() => loadConfig({ ...base, UROBOROS_STORAGE: "ftp" })).toThrow(ConfigError);
   });
 
-  it("defaults the download limits to 3 active per user and 1000 preview entries", () => {
+  it("defaults the download limits to 3 active per user, 1000 preview entries, 10 GiB uploads", () => {
     expect(loadConfig({ ...base, ...s3 }).downloads).toEqual({
       maxActivePerUser: 3,
       maxPlaylistEntries: 1000,
       minCheckIntervalMinutes: 60,
+      uploadMaxBytes: 10 * 1024 ** 3,
     });
+  });
+
+  it("takes an upload cap up to 10,000 parts of 8 MiB", () => {
+    const cap = (v: string) =>
+      loadConfig({ ...base, ...s3, UROBOROS_UPLOAD_MAX_BYTES: v }).downloads.uploadMaxBytes;
+    expect(cap("1048576")).toBe(1048576);
+    expect(cap(String(8 * 1024 * 1024 * 10_000))).toBe(8 * 1024 * 1024 * 10_000);
+    expect(() => cap(String(8 * 1024 * 1024 * 10_000 + 1))).toThrow(/UROBOROS_UPLOAD_MAX_BYTES/);
+    expect(() => cap("0")).toThrow(/UROBOROS_UPLOAD_MAX_BYTES/);
   });
 
   it("gives the job consumers their work dir, and no credentials of the server's own", () => {

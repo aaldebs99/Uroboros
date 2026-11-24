@@ -131,3 +131,18 @@ export {
   SessionState,
   type QualityRung,
 } from "./playback.ts";
+export {
+  EntryDetailsBody,
+  MAX_UNFINISHED_UPLOADS,
+  MAX_UPLOAD_PARTS,
+  NewUploadBody,
+  THUMBNAIL_MAX_BYTES,
+  THUMBNAIL_TYPES,
+  UPLOAD_CREATOR_CHARS,
+  UPLOAD_DESCRIPTION_CHARS,
+  UPLOAD_EXTENSIONS,
+  UPLOAD_PART_BYTES,
+  UPLOAD_TITLE_CHARS,
+  Upload,
+  UploadState,
+} from "./uploads.ts";

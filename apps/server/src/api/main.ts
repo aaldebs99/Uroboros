@@ -150,6 +150,7 @@ export async function startApi(
       downloads: downloadContext,
       downloadEvents,
       store,
+      storage: config.storage,
       playbackBus,
       secretsKey: config.secretsKey,
     },

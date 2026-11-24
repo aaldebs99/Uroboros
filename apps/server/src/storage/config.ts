@@ -1,5 +1,6 @@
 import { isAbsolute } from "node:path";
 import { z } from "zod";
+import { MAX_UPLOAD_PARTS, UPLOAD_PART_BYTES } from "@uroboros/contract";
 
 /** The tokens a filesystem layout may use (docs/downloads.md). */
 export const LAYOUT_TOKENS = [
@@ -38,11 +39,14 @@ export interface DownloadLimits {
   maxPlaylistEntries: number;
   /** The shortest check interval a subscription may have. */
   minCheckIntervalMinutes: number;
+  /** The largest file a person may upload (docs/uploads.md). */
+  uploadMaxBytes: number;
 }
 
 const DEFAULT_MAX_ACTIVE_PER_USER = 3;
 const DEFAULT_MAX_PLAYLIST_ENTRIES = 1000;
 const DEFAULT_MIN_CHECK_INTERVAL_MINUTES = 60;
+const DEFAULT_UPLOAD_MAX_BYTES = 10 * 1024 ** 3;
 
 const optional = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
 
@@ -84,6 +88,7 @@ export const storageEnvSchema = z.object({
     "UROBOROS_MIN_CHECK_INTERVAL_MINUTES",
     DEFAULT_MIN_CHECK_INTERVAL_MINUTES,
   ),
+  UROBOROS_UPLOAD_MAX_BYTES: positive("UROBOROS_UPLOAD_MAX_BYTES", DEFAULT_UPLOAD_MAX_BYTES),
 });
 
 type StorageEnv = z.output<typeof storageEnvSchema>;
@@ -118,6 +123,12 @@ function layoutProblems(layout: string): string[] {
 /** Cross-variable rules; each problem is `[variable, message]`. */
 export function storageEnvProblems(env: StorageEnv): [string, string][] {
   const problems: [string, string][] = [];
+  if (env.UROBOROS_UPLOAD_MAX_BYTES > UPLOAD_PART_BYTES * MAX_UPLOAD_PARTS) {
+    problems.push([
+      "UROBOROS_UPLOAD_MAX_BYTES",
+      `UROBOROS_UPLOAD_MAX_BYTES must be at most ${String(UPLOAD_PART_BYTES * MAX_UPLOAD_PARTS)} (10,000 parts of 8 MiB)`,
+    ]);
+  }
   if (env.UROBOROS_STORAGE === "s3") {
     for (const name of S3_REQUIRED) {
       if (env[name] === undefined) problems.push([name, `${name} is required for S3 storage`]);
@@ -169,5 +180,6 @@ export function toDownloadLimits(env: StorageEnv): DownloadLimits {
     maxActivePerUser: env.UROBOROS_MAX_ACTIVE_DOWNLOADS_PER_USER,
     maxPlaylistEntries: env.UROBOROS_MAX_PLAYLIST_ENTRIES,
     minCheckIntervalMinutes: env.UROBOROS_MIN_CHECK_INTERVAL_MINUTES,
+    uploadMaxBytes: env.UROBOROS_UPLOAD_MAX_BYTES,
   };
 }

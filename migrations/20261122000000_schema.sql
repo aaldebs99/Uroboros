@@ -220,6 +220,8 @@ CREATE TABLE media (
   webpage_url TEXT,
   thumbnail_key TEXT,
   info_key TEXT,
+  -- Who uploaded it, for an uploaded video (docs/uploads.md): only they may edit its details.
+  uploaded_by UUID REFERENCES users ON DELETE SET NULL,
   -- [{start, end, title}] from the .info.json.
   chapters JSONB NOT NULL DEFAULT '[]',
   -- Full-text search over title, channel and description; 'simple' so any language works.
@@ -228,7 +230,9 @@ CREATE TABLE media (
   ) STORED,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (extractor, video_id)
+  UNIQUE (extractor, video_id),
+  -- An uploaded video's extractor is 'upload', which no site's is.
+  CHECK (uploaded_by IS NULL OR extractor = 'upload')
 );
 
 -- One stored file per media, profile and profile revision.
@@ -634,7 +638,7 @@ CREATE TRIGGER playback_sessions_trash BEFORE DELETE ON playback_sessions
 -- can be used again once its job is done.
 CREATE TABLE jobs (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  queue TEXT NOT NULL CHECK (queue IN ('probe', 'download', 'notify', 'playback', 'automation')),
+  queue TEXT NOT NULL CHECK (queue IN ('probe', 'download', 'notify', 'playback', 'automation', 'upload')),
   name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 32),
   key TEXT CHECK (char_length(key) >= 1),
   data JSONB NOT NULL,
@@ -687,3 +691,46 @@ CREATE UNLOGGED TABLE signin_failures (
   PRIMARY KEY (kind, value)
 );
 CREATE INDEX signin_failures_expiry ON signin_failures (expires_at);
+
+-- Uploads (docs/uploads.md): a person's own video, sent from their browser in parts straight into
+-- the media store (`store_upload_id` is the store's id for it), then filed by the `upload` job as a
+-- media row of its own (`media_id`), a rendition without a profile and the person's entry. A done
+-- row stays a day so the browser finds its entry; a failed one a week, so its person sees why.
+CREATE TABLE uploads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Null once the person's account is gone: the sweep then drops the upload and its storage.
+  user_id UUID REFERENCES users ON DELETE SET NULL,
+  media_id UUID NOT NULL DEFAULT gen_random_uuid(),
+  filename TEXT NOT NULL CHECK (char_length(filename) BETWEEN 1 AND 255),
+  size_bytes BIGINT NOT NULL CHECK (size_bytes > 0),
+  -- Every part but the last is this many bytes.
+  part_bytes INTEGER NOT NULL CHECK (part_bytes > 0),
+  ext TEXT NOT NULL CHECK (ext IN ('mp4', 'm4v', 'mov', 'webm', 'mkv', 'avi')),
+  title TEXT NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
+  description TEXT CHECK (char_length(description) <= 5000),
+  creator TEXT NOT NULL CHECK (char_length(creator) BETWEEN 1 AND 100),
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  storage_key TEXT NOT NULL UNIQUE,
+  store_upload_id TEXT NOT NULL,
+  thumbnail_key TEXT,
+  state TEXT NOT NULL DEFAULT 'receiving'
+    CHECK (state IN ('receiving', 'processing', 'done', 'failed')),
+  -- Why it failed, in words for its person.
+  error TEXT,
+  entry_id UUID REFERENCES library_entries ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- The last part or change; a receiving upload untouched for a day is dropped.
+  touched_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX uploads_unfinished ON uploads (user_id) WHERE state IN ('receiving', 'processing');
+CREATE INDEX uploads_state ON uploads (state, touched_at);
+
+-- The parts of an upload the store holds; their etags and checksums complete it.
+CREATE TABLE upload_parts (
+  upload_id UUID NOT NULL REFERENCES uploads ON DELETE CASCADE,
+  n INTEGER NOT NULL CHECK (n BETWEEN 1 AND 10000),
+  size_bytes INTEGER NOT NULL CHECK (size_bytes > 0),
+  etag TEXT NOT NULL,
+  checksum TEXT,
+  PRIMARY KEY (upload_id, n)
+);

@@ -17,7 +17,12 @@ export function downloadHarness(db: Kysely<Database>, limit = 3) {
   const ctx: DownloadContext = {
     db,
     queues,
-    limits: { maxActivePerUser: limit, maxPlaylistEntries: 1000, minCheckIntervalMinutes: 60 },
+    limits: {
+      maxActivePerUser: limit,
+      maxPlaylistEntries: 1000,
+      minCheckIntervalMinutes: 60,
+      uploadMaxBytes: 10 * 1024 ** 3,
+    },
     logger,
   };
   const app = (s: SignedIn): OpenAPIHono =>

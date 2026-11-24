@@ -63,6 +63,7 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
           jsRuntime: "/usr/local/bin/node",
         },
         ffprobe: { binary: ffprobeRun.options.binary, env: ffprobeRun.options.env },
+        ffmpeg: { binary: "ffmpeg" },
         subtitles: { langs: "en.*", automatic: false },
         push: disabledPush,
         transcodeConcurrency: 1,

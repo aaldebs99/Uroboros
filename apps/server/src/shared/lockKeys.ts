@@ -23,7 +23,11 @@ export function roleKey(name: string): bigint {
   return Buffer.from(name, "ascii").readBigInt64BE(0);
 }
 
-/** A per-resource key: a 4-byte ASCII namespace, then the first 4 bytes of sha256(resource). */
+/**
+ * A per-resource key: a 4-byte ASCII namespace, then the first 4 bytes of sha256(resource). The
+ * namespaces: `DOWN` (a person's download dispatch), `PUSH` (a person's push devices) and `UPLD`
+ * (a person's unfinished uploads).
+ */
 export function lockKey(namespace: string, resource: string): bigint {
   if (namespace.length !== 4 || !ASCII.test(namespace)) {
     throw new Error(`a lock namespace needs exactly 4 ASCII bytes, got "${namespace}"`);

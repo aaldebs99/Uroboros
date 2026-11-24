@@ -7,14 +7,17 @@ import type { WorkerDeps } from "./deps.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
 import { notifyProcessor } from "./notify.ts";
 import { probeProcessor } from "./probe.ts";
+import { uploadProcessor } from "../uploads/process.ts";
 
 /** Pushes sent at once per replica. */
 const NOTIFY_CONCURRENCY = 4;
+/** Uploads filed at once per replica (docs/uploads.md): each mostly waits on ffprobe. */
+const UPLOAD_CONCURRENCY = 2;
 
 export interface DownloadWorkers {
   /** The consumers of every queue (docs/jobs.md). */
   jobs: JobWorker;
-  /** Cuts every running fetch and playback run for shutdown; each goes back to its queue. */
+  /** Cuts every running fetch, upload and playback run for shutdown; each goes back to its queue. */
   abortRunning(): void;
   /** Stops listening for cancels (the job worker is drained by the caller first). */
   close(): Promise<void>;
@@ -48,6 +51,7 @@ export async function startDownloadWorkers(
     });
   }
   const automation = automationConsumers(deps);
+  const uploads = uploadProcessor(deps);
   const consumers: Consumer[] = [
     {
       queue: "probe",
@@ -64,6 +68,11 @@ export async function startDownloadWorkers(
       concurrency: NOTIFY_CONCURRENCY,
       process: notifyProcessor(deps.push, deps.logger) as Consumer["process"],
     },
+    {
+      queue: "upload",
+      concurrency: UPLOAD_CONCURRENCY,
+      process: uploads.process as Consumer["process"],
+    },
     ...automation.consumers,
   ];
   const jobs = startJobWorker({ db: deps.db, bus: opts.bus, logger: deps.logger, consumers });
@@ -71,6 +80,7 @@ export async function startDownloadWorkers(
     jobs,
     abortRunning() {
       cancels.abortAll();
+      uploads.abortAll();
       automation.abortRunning();
     },
     close() {

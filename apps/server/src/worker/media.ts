@@ -1,6 +1,8 @@
 import type { VideoInfo } from "@uroboros/ytdlp";
 import type { Kysely, Transaction } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { UnrecoverableError } from "../jobs/errors.ts";
+import { UPLOAD_EXTRACTOR } from "../library/platform.ts";
 
 /**
  * Creates or refreshes the media row for (extractor, video id) from yt-dlp's metadata; the key
@@ -12,6 +14,10 @@ export async function upsertMedia(
   info: VideoInfo,
   extra: { thumbnailKey?: string | null; infoKey?: string | null } = {},
 ): Promise<string> {
+  // An uploaded video's media row is its own (docs/uploads.md); no site may take its extractor.
+  if (key.extractor.toLowerCase() === UPLOAD_EXTRACTOR) {
+    throw new UnrecoverableError("a site's video can't have the upload extractor");
+  }
   const fields = {
     title: info.title,
     channel: info.channel,

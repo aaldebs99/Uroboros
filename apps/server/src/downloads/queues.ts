@@ -24,6 +24,11 @@ export interface FetchJob {
   args: ProfileArgs;
 }
 
+/** File a finished upload in its person's library (docs/uploads.md). */
+export interface UploadJob {
+  uploadId: string;
+}
+
 /** One push to all of a person's devices (`notify` queue; docs/push.md). */
 export interface NotifyJob {
   userId: string;
@@ -39,6 +44,8 @@ export interface DownloadQueues {
   notify: JobQueue<NotifyJob>;
   /** Playback sessions' runs (docs/transcoding.md). */
   playback: JobQueue<PlaybackJob>;
+  /** Finished uploads, filed in their person's library (docs/uploads.md). */
+  upload: JobQueue<UploadJob>;
 }
 
 /** The producer side of every queue (docs/jobs.md). */
@@ -49,5 +56,6 @@ export function createDownloadQueues(db: Kysely<Database>): DownloadQueues {
     automation: new JobQueue<CheckJob>(db, "automation"),
     notify: new JobQueue<NotifyJob>(db, "notify"),
     playback: new JobQueue<PlaybackJob>(db, "playback"),
+    upload: new JobQueue<UploadJob>(db, "upload"),
   };
 }

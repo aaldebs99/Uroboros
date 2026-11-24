@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { UPLOAD_PART_BYTES } from "@uroboros/contract";
 import type { Context, Next } from "hono";
 import type { Kysely } from "kysely";
 import { pino } from "pino";
@@ -20,7 +21,10 @@ import { registerPublicRoutes } from "../sharing/publicRoutes.ts";
 import { openApiConfig, registerSecuritySchemes } from "./openapiDoc.ts";
 import { registerSharingRoutes } from "../sharing/routes.ts";
 import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
+import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
+import { registerUploadRoutes } from "../uploads/routes.ts";
+import type { UploadContext } from "../uploads/store.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
 import { registerSiteLoginRoutes } from "../siteLogins/routes.ts";
 import type { PlaybackBus } from "../transcode/bus.ts";
@@ -69,6 +73,10 @@ export interface Deps {
   playbackWaitMs?: number;
   /** `UROBOROS_SECRETS_KEY`, for saved site logins; without it none can be saved. */
   secretsKey?: Buffer | null;
+  /** The store's settings (upload keys follow its layout); without them uploads answer 503. */
+  storage?: StorageConfig;
+  /** An upload's part size; 8 MiB unless a test sends smaller parts. */
+  uploadPartBytes?: number;
 }
 
 export interface AuthDeps {
@@ -128,6 +136,19 @@ export interface AppOptions {
   mediaOrigins?: string[];
   /** `UROBOROS_PUBLIC_BASE_URL`: absolute links in public link previews (else the request's origin). */
   publicBaseUrl?: string | null;
+}
+
+/** What uploads need; without downloads, a store or its settings they answer 503. */
+function uploadContext(deps: Deps): UploadContext | undefined {
+  if (deps.downloads === undefined || deps.store === undefined || deps.storage === undefined) {
+    return undefined;
+  }
+  return {
+    ...deps.downloads,
+    store: deps.store,
+    storage: deps.storage,
+    partBytes: deps.uploadPartBytes ?? UPLOAD_PART_BYTES,
+  };
 }
 
 /** What playback sessions need; without downloads, a store or the bus they answer 503. */
@@ -251,6 +272,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerNotificationPrefRoutes(app, deps.db);
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
+  registerUploadRoutes(app, uploadContext(deps));
   const playback = playbackContext(deps);
   registerPlaybackSessionRoutes(app, playback);
   registerPublicRoutes(app, deps.db, deps.store, playback);

@@ -30,6 +30,11 @@ export interface WorkerDeps extends DownloadContext {
     jsRuntime?: string;
   };
   ffprobe: { binary: string; env?: Record<string, string> };
+  /**
+   * The image's own ffmpeg (yt-dlp's build, never the transcoder's), for an upload's frame
+   * (docs/uploads.md).
+   */
+  ffmpeg: { binary: string; env?: Record<string, string> };
   /** Subtitles saved with each download. */
   subtitles: SubtitleSettings;
   /** The process's push service, for the `notify` consumer. */

@@ -2,8 +2,9 @@
 
 Uroboros runs on Postgres alone: its background jobs, the messages its replicas send each other,
 and the short-lived state they share all live in the one database. This page is the design. The
-download, playback and automation pages ([downloads.md](downloads.md),
-[transcoding.md](transcoding.md), [automation.md](automation.md)) say what each feature does with it.
+download, playback, automation and upload pages ([downloads.md](downloads.md),
+[transcoding.md](transcoding.md), [automation.md](automation.md), [uploads.md](uploads.md)) say
+what each feature does with it.
 
 ## The job queue
 
@@ -17,6 +18,7 @@ Background work runs as jobs in `src/jobs/`. Each job is a row in `jobs`, waitin
 | `notify`     | a push notification                   | 30 s  | 1                           |
 | `playback`   | a playback session's runner           | 60 s  | 1                           |
 | `automation` | a subscription check, or its "latest" | 30 s  | 1                           |
+| `upload`     | filing a finished upload              | 60 s  | 2                           |
 
 **Adding.** `JobQueue.add(name, data, {key, delayMs, attempts, backoff}, on?)` inserts the row and
 wakes the workers on `uroboros_jobs`.

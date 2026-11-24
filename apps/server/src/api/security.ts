@@ -68,7 +68,26 @@ export function securityHeaders(
   ];
 }
 
-/** Refuses a request body over `maxSize` bytes; the 413 it throws becomes `payload_too_large`. */
+/**
+ * The routes whose body is raw bytes (an upload's part or thumbnail, an upload's new thumbnail,
+ * docs/uploads.md): each takes its own limit, so the JSON limit skips them.
+ */
+export const RAW_BODY_ROUTES: readonly RegExp[] = [
+  /^\/api\/uploads\/[^/]+\/(?:parts\/[^/]+|thumbnail)$/,
+  /^\/api\/library\/[^/]+\/thumbnail$/,
+];
+
+/**
+ * Refuses a request body over `maxSize` bytes; the 413 it throws becomes `payload_too_large`. A
+ * PUT to one of `RAW_BODY_ROUTES` passes, to its own route's limit.
+ */
 export function apiBodyLimit(maxSize: number): MiddlewareHandler {
-  return bodyLimit({ maxSize });
+  const limit = bodyLimit({ maxSize });
+  return async (c, next) => {
+    if (c.req.method === "PUT" && RAW_BODY_ROUTES.some((r) => r.test(c.req.path))) {
+      await next();
+      return;
+    }
+    return limit(c, next);
+  };
 }

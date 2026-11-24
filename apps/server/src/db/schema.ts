@@ -11,6 +11,7 @@ import type {
   PlaybackSessionsTable,
   RenditionKeyframesTable,
 } from "./playbackSchema.ts";
+import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
 
 export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts";
 
@@ -153,6 +154,8 @@ export interface MediaTable {
   webpage_url: string | null;
   thumbnail_key: string | null;
   info_key: string | null;
+  /** Who uploaded it, for an uploaded video (docs/uploads.md). */
+  uploaded_by: string | null;
   chapters: ColumnType<unknown, string | undefined, string>;
   /** Generated; never written. */
   search: ColumnType<string, never, never>;
@@ -467,4 +470,6 @@ export interface Database {
   job_limits: JobLimitsTable;
   download_progress: DownloadProgressTable;
   signin_failures: SigninFailuresTable;
+  uploads: UploadsTable;
+  upload_parts: UploadPartsTable;
 }

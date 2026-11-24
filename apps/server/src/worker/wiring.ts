@@ -40,6 +40,7 @@ export function workerDeps(shared: SharedResources, config: Config, logger: Logg
       jsRuntime: process.execPath,
     },
     ffprobe: { binary: "ffprobe" },
+    ffmpeg: { binary: "ffmpeg" },
     subtitles: config.worker.subtitles,
     push: shared.push,
     transcodeConcurrency: config.worker.transcode.concurrency,
