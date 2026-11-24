@@ -74,6 +74,7 @@ export function PlaylistsPage() {
     <section className="grid w-full grid-cols-1 gap-6">
       <PageHeader
         title="Playlists"
+        hideTitle
         action={
           <Button
             onClick={() => {

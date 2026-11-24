@@ -15,7 +15,7 @@ export function ChannelsPage() {
   const list = channels.data ?? [];
   return (
     <section className="grid w-full gap-6">
-      <PageHeader title="Channels" />
+      <PageHeader title="Channels" hideTitle />
       <ViewTabs />
       {channels.isError ? <p className="text-destructive">{errorText(channels.error)}</p> : null}
       {channels.isSuccess && list.length === 0 ? (

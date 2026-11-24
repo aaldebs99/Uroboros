@@ -124,7 +124,7 @@ export function SharedByMe() {
   const list = shares.data ?? [];
   return (
     <section className="grid w-full grid-cols-1 gap-6">
-      <PageHeader title="Shared" />
+      <PageHeader title="Shared" hideTitle />
       <SharedTabs />
       {shares.isError ? <p className="text-destructive">{errorText(shares.error)}</p> : null}
       {shares.isSuccess && list.length === 0 ? (

@@ -38,7 +38,7 @@ export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | n
   const retry = act(retryDownload);
   const list = downloads.data ?? [];
   return (
-    <section className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-6">
+    <section className="grid w-full grid-cols-1 gap-6">
       <PageHeader
         title="Downloads"
         description="Queue, progress and history."

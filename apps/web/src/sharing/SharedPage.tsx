@@ -56,7 +56,7 @@ export function SharedPage() {
   const list = shared.data ?? [];
   return (
     <section className="grid w-full grid-cols-1 gap-6">
-      <PageHeader title="Shared" />
+      <PageHeader title="Shared" hideTitle />
       <SharedTabs />
       {shared.isError ? <p className="text-destructive">{errorText(shared.error)}</p> : null}
       {shared.isPending ? (
