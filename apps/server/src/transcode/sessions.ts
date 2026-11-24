@@ -73,24 +73,6 @@ export async function planFor(
   };
 }
 
-/** Stops a viewer's live sessions of an entry; returns their ids (their runners are told). */
-export async function stopViewerSessions(
-  db: Kysely<Database>,
-  viewer: Viewer,
-  entryId: string,
-): Promise<string[]> {
-  if (!("userId" in viewer)) return [];
-  const rows = await db
-    .updateTable("playback_sessions")
-    .set({ state: "stopped", stopped_at: new Date() })
-    .where("entry_id", "=", entryId)
-    .where("user_id", "=", viewer.userId)
-    .where("state", "in", LIVE)
-    .returning("id")
-    .execute();
-  return rows.map((r) => r.id);
-}
-
 /** Throws 429 when a public link already plays on its limit of screens. */
 export async function checkLinkLimit(db: Kysely<Database>, viewer: Viewer): Promise<void> {
   if (!("code" in viewer)) return;

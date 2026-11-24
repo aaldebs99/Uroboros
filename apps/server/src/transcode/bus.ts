@@ -70,8 +70,11 @@ export interface SessionKeys {
   prefix: string;
 }
 
-/** A session is dropped this long after its viewer's last request (or ping). */
-export const ALIVE_MS = 60_000;
+/**
+ * A session is dropped this long after its viewer's last request (or ping): long enough that a
+ * background tab, whose timers a browser may slow to about one a minute, keeps its session.
+ */
+export const ALIVE_MS = 120_000;
 /** The stored-segment map outlives any session. */
 const STORED_TTL_S = 12 * 60 * 60;
 
@@ -125,12 +128,22 @@ export interface WaitOptions extends SessionKeys {
   signal?: AbortSignal;
 }
 
+/** Whether segment `n` is stored, counting a failed look (Valkey away) as not yet. */
+const looksStored = (o: WaitOptions) => isStored(o, o.sid, o.n).catch(() => false);
+
+/** Asks the runner for the segment; a lost or failed ask is made again on the next look. */
+const ask = (o: WaitOptions) => {
+  o.bus.publish({ t: "want", sid: o.sid, n: o.n }).catch(() => undefined);
+};
+
 /**
- * Waits until segment `n` is stored: at once if it is, otherwise after asking the runner for it.
- * False on the timeout, when the request goes away, or when the session stops.
+ * Waits until segment `n` is stored: at once if it is, otherwise asking the runner for it on every
+ * look (a want published while the runner's subscription reconnects, or before a requeued runner
+ * listens, is gone). False on the timeout, when the request goes away, or when the session stops.
+ * Valkey errors count as not stored yet, never as a rejection nobody handles.
  */
 export async function waitForSegment(o: WaitOptions): Promise<boolean> {
-  if (await isStored(o, o.sid, o.n)) return true;
+  if (await looksStored(o)) return true;
   return new Promise<boolean>((resolve) => {
     let done = false;
     const finish = (ok: boolean) => {
@@ -145,6 +158,11 @@ export async function waitForSegment(o: WaitOptions): Promise<boolean> {
     const onAbort = () => {
       finish(false);
     };
+    const look = () => {
+      void looksStored(o).then((stored) => {
+        if (stored) finish(true);
+      });
+    };
     // Listening first, then asking and looking: a `ready` between the two is not lost.
     const off = o.bus.on((m) => {
       if (m.sid !== o.sid) return;
@@ -155,15 +173,13 @@ export async function waitForSegment(o: WaitOptions): Promise<boolean> {
       finish(false);
     }, o.timeoutMs);
     const poll = setInterval(() => {
-      void isStored(o, o.sid, o.n).then((stored) => {
-        if (stored) finish(true);
-      });
+      if (done) return;
+      ask(o);
+      look();
     }, o.pollMs ?? 2000);
     o.signal?.addEventListener("abort", onAbort, { once: true });
     if (o.signal?.aborted === true) finish(false);
-    void o.bus.publish({ t: "want", sid: o.sid, n: o.n });
-    void isStored(o, o.sid, o.n).then((stored) => {
-      if (stored) finish(true);
-    });
+    ask(o);
+    look();
   });
 }

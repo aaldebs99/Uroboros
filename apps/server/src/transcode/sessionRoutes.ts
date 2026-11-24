@@ -19,7 +19,6 @@ import {
   segmentKey,
   type SessionRow,
   stopSession,
-  stopViewerSessions,
   toSession,
   viewerSession,
 } from "./sessions.ts";
@@ -197,9 +196,8 @@ export function registerSessionScope(
     const { viewer, entryId, base } = scope.resolve(c);
     const seen = await visibleEntry(ctx.db, viewer, entryId);
     const { plan, boundaries } = await planFor(ctx.db, seen.rendition_id, c.req.valid("json"));
-    for (const stopped of await stopViewerSessions(ctx.db, viewer, entryId)) {
-      await ctx.bus.publish({ t: "stop", sid: stopped });
-    }
+    // A viewer's other sessions (another tab or device) play on: the page stops its own when it
+    // switches or leaves, and an abandoned one stops once nobody asks for it.
     await checkLinkLimit(ctx.db, viewer);
     const row = await insertSession(ctx.db, {
       renditionId: seen.rendition_id,

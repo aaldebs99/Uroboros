@@ -7,7 +7,7 @@ import { LIVE, type SessionRow, type StoredPlan } from "../transcode/sessions.ts
 import { segmentAt } from "../transcode/timeline.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { type RunHooks, runSegments } from "./sessionRun.ts";
-import { type PreparedSource, SessionError } from "./sessionSource.ts";
+import { type PreparedSource, readInput, SessionError } from "./sessionSource.ts";
 import { FencedError, InitChangedError, type SessionWriter } from "./sessionWriter.ts";
 
 export interface SessionTimings {
@@ -79,6 +79,11 @@ export class SessionLoop {
   #idleWaiter: ((n: number | null) => void) | null = null;
   #debounce: NodeJS.Timeout | undefined;
   #pipeline: Pipeline;
+  /**
+   * Pipelines that failed at once in this session. Remembered for the replica only when one below
+   * them then works on this source (otherwise the file, the store or a limit was at fault).
+   */
+  #suspects: Pipeline[] = [];
   #retries = 0;
 
   constructor(o: LoopOptions) {
@@ -119,7 +124,11 @@ export class SessionLoop {
     if (m.n >= 0) this.#newest = m.n;
     this.#wakeGate();
     clearTimeout(this.#debounce);
-    this.#debounce = setTimeout(() => void this.#decide(m.n), this.#o.timings.debounceMs);
+    this.#debounce = setTimeout(() => {
+      this.#decide(m.n).catch((err: unknown) => {
+        this.#o.deps.logger.warn({ err, sid: this.#o.row.id }, "could not act on a playback want");
+      });
+    }, this.#o.timings.debounceMs);
   }
 
   /** Ends the loop (a stop, the viewer gone, shutdown, a failure); the current run is killed. */
@@ -185,7 +194,7 @@ export class SessionLoop {
     this.#run = run;
     let outcome;
     try {
-      outcome = await runSegments(this.#runOptions(run));
+      outcome = await runSegments(await this.#runOptions(run));
     } catch (err) {
       this.#endOnError(err);
       return null;
@@ -199,16 +208,18 @@ export class SessionLoop {
     return this.#retry(run, outcome.error);
   }
 
-  #runOptions(run: Run) {
+  async #runOptions(run: Run) {
     const { deps, plan, source } = this.#o;
     const t = deps.transcoder;
+    // Asked for every run: an S3 URL presigned for an earlier run may have expired.
+    const input = await readInput(deps, source.key);
     this.#o.deps.logger.info(
       { sid: this.#o.row.id, first: run.first, pipeline: this.#pipeline, mode: plan.mode },
       "playback run",
     );
     const args = sessionArgs(
       runPlanFor({
-        input: source.input,
+        input,
         plan,
         streams: source.streams,
         boundaries: source.boundaries,
@@ -233,6 +244,7 @@ export class SessionLoop {
     return {
       onInit: async (bytes) => {
         await this.#o.writer.init(bytes);
+        this.#rememberSuspects();
         await this.#markRunning();
       },
       onSegment: async (n, bytes) => {
@@ -245,8 +257,11 @@ export class SessionLoop {
         }
         if (++run.storedInRow < this.#o.timings.skipStored) return;
         const next = await this.#nextUnstored(n + 1);
-        if (next === null) run.skippedToEnd = true;
-        else run.restartAt = next;
+        // A want that already asked for a restart elsewhere wins over the jump.
+        if (run.restartAt === null) {
+          if (next === null) run.skippedToEnd = true;
+          else run.restartAt = next;
+        }
         run.ac.abort();
       },
       gate: () => this.#gate(run),
@@ -291,21 +306,37 @@ export class SessionLoop {
   /** A pipeline that failed before any output: the next one down the chain, or the session fails. */
   #fallBack(first: number, error: string | null): number | null {
     const v = this.#o.source.video;
-    if (this.#o.plan.mode === "encode" && v !== null) {
+    if (this.#o.plan.mode === "encode" && v !== null && this.#pipeline !== "cpu") {
+      this.#suspects.push(this.#pipeline);
       const memo = this.#o.deps.transcoder.memo;
-      memo.markFailed(this.#pipeline, sourceKey(v));
-      const next = choosePipeline(this.#chain(), memo, sourceKey(v));
-      if (next !== this.#pipeline) {
-        this.#o.deps.logger.warn(
-          { sid: this.#o.row.id, failed: this.#pipeline, next, error },
-          "playback pipeline failed; falling back",
-        );
-        this.#pipeline = next;
-        return first;
-      }
+      const key = sourceKey(v);
+      const next =
+        this.#chain().find(
+          (p) => p === "cpu" || (!memo.failed(p, key) && !this.#suspects.includes(p)),
+        ) ?? "cpu";
+      this.#o.deps.logger.warn(
+        { sid: this.#o.row.id, failed: this.#pipeline, next, error },
+        "playback pipeline failed; falling back",
+      );
+      this.#pipeline = next;
+      return first;
     }
     this.end({ kind: "failed", error: error ?? "ffmpeg failed" });
     return null;
+  }
+
+  /** A pipeline below the ones that failed works on this source: they are this replica's fault. */
+  #rememberSuspects(): void {
+    const v = this.#o.source.video;
+    if (v === null || this.#suspects.length === 0) return;
+    for (const p of this.#suspects) {
+      this.#o.deps.transcoder.memo.markFailed(p, sourceKey(v));
+      this.#o.deps.logger.warn(
+        { pipeline: p, source: sourceKey(v) },
+        "remembering a pipeline that fails on this kind of source",
+      );
+    }
+    this.#suspects = [];
   }
 
   /** A run that failed after output: again from the next segment it did not make, a few times. */

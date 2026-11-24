@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Redis } from "ioredis";
 import { pino } from "pino";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { TestValkey } from "../../test/testValkey.ts";
 import { createValkey, waitReady } from "../shared/valkey.ts";
 import {
@@ -67,14 +67,15 @@ describe("the playback bus", () => {
     expect(await isStored(keys(), sid, 3)).toBe(false);
   });
 
-  it("keeps a session alive for a minute from its last request", async () => {
+  it("keeps a session alive for two minutes from its last request", async () => {
     const sid = randomUUID();
     expect(await isAlive(keys(), sid)).toBe(false);
     await touchAlive(keys(), sid);
     expect(await isAlive(keys(), sid)).toBe(true);
     const ttl = await valkey.pttl(`${prefix}:pb:${sid}:alive`);
-    expect(ttl).toBeGreaterThan(55_000);
-    expect(ttl).toBeLessThanOrEqual(60_000);
+    // Long enough for a background tab's throttled pings (about one a minute) to keep it.
+    expect(ttl).toBeGreaterThan(115_000);
+    expect(ttl).toBeLessThanOrEqual(120_000);
   });
 });
 
@@ -126,5 +127,47 @@ describe("waitForSegment", () => {
     const sid = randomUUID();
     setTimeout(() => void other.publish({ t: "stop", sid }), 100);
     expect(await waitForSegment({ ...keys(), bus, sid, n: 1, timeoutMs: 5000 })).toBe(false);
+  });
+});
+
+describe("waitForSegment when Valkey misbehaves", () => {
+  /** A bus whose publishes fail, counting them. */
+  const failingBus = () => {
+    const publish = vi.fn(() => Promise.reject(new Error("valkey down")));
+    return {
+      bus: { ready: Promise.resolve(), publish, on: () => () => undefined, close: () => undefined },
+      publish,
+    };
+  };
+
+  it("survives failed looks and asks as Valkey drops out (no unhandled rejection)", async () => {
+    const getbit = vi.fn().mockResolvedValueOnce(0).mockRejectedValue(new Error("valkey down"));
+    const { bus: broken } = failingBus();
+    const ok = await waitForSegment({
+      valkey: { getbit } as unknown as Redis,
+      prefix,
+      bus: broken,
+      sid: "s",
+      n: 1,
+      timeoutMs: 300,
+      pollMs: 50,
+    });
+    expect(ok).toBe(false);
+    expect(getbit.mock.calls.length).toBeGreaterThan(2);
+  });
+
+  it("asks again on every look, so a want lost on the way still reaches the runner", async () => {
+    const getbit = vi.fn().mockResolvedValue(0);
+    const { bus: counting, publish } = failingBus();
+    await waitForSegment({
+      valkey: { getbit } as unknown as Redis,
+      prefix,
+      bus: counting,
+      sid: "s",
+      n: 1,
+      timeoutMs: 280,
+      pollMs: 50,
+    });
+    expect(publish.mock.calls.length).toBeGreaterThanOrEqual(4);
   });
 });

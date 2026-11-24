@@ -8,6 +8,8 @@ import type { WorkerDeps } from "./deps.ts";
 
 /** A session's source, ready for runs (docs/transcoding.md). */
 export interface PreparedSource {
+  /** The stored file's key: each run asks the store where to read it (a presigned URL expires). */
+  key: string;
   /** The file's path (filesystem store) or a presigned URL (S3): ffmpeg reads it in place. */
   input: string;
   streams: SourceStreams;
@@ -33,8 +35,7 @@ export async function prepareSource(
     .select(["r.storage_key", sql<number | null>`coalesce(r.duration, m.duration)`.as("duration")])
     .where("r.id", "=", row.rendition_id)
     .executeTakeFirstOrThrow();
-  const input = deps.store.localPath(r.storage_key) ?? (await deps.store.readUrl(r.storage_key));
-  if (input === null) throw new SessionError("the stored file can't be read");
+  const input = await readInput(deps, r.storage_key);
   const t = deps.transcoder;
   const info = await ffprobe(input, {
     binary: t.ffprobe.binary,
@@ -50,7 +51,14 @@ export async function prepareSource(
     hdr: HDR.has(transfer) ? (transfer as "smpte2084" | "arib-std-b67") : null,
   };
   const boundaries = row.boundaries ?? (await remuxBoundaries(deps, row, input, info, r.duration));
-  return { input, streams, boundaries, video };
+  return { key: r.storage_key, input, streams, boundaries, video };
+}
+
+/** Where ffmpeg reads a stored file now: its path, or a fresh presigned URL (6 h) on S3. */
+export async function readInput(deps: WorkerDeps, key: string): Promise<string> {
+  const input = deps.store.localPath(key) ?? (await deps.store.readUrl(key));
+  if (input === null) throw new SessionError("the stored file can't be read");
+  return input;
 }
 
 /** Indexes the keyframes of a rendition stored before indexing existed, and records the cuts. */

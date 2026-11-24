@@ -104,9 +104,14 @@ async function runSession(
   };
   shutdown.addEventListener("abort", onShutdown, { once: true });
   const watch = setInterval(() => {
-    void stillWanted(deps, row.id).then((wanted) => {
-      if (!wanted) stop({ kind: "stopped" });
-    });
+    stillWanted(deps, row.id)
+      .then((wanted) => {
+        if (!wanted) stop({ kind: "stopped" });
+      })
+      // Valkey or Postgres away: one failed look must not stop a session, nor crash the replica.
+      .catch((err: unknown) => {
+        deps.logger.warn({ err, sid: row.id }, "could not check a playback session's viewer");
+      });
   }, timings.aliveCheckMs);
   try {
     if (shutdown.aborted) return { kind: "shutdown" };

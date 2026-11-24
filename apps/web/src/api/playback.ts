@@ -16,20 +16,21 @@ export const startSession = (playbackUrl: string, request: PlaybackRequest) =>
 
 /**
  * A session's state: polled until it runs, then pinged so the server keeps it, in the background
- * too (a paused video in another tab still holds its place). `onEnded` hears when it is gone or
- * was stopped (it idled out while the tab slept, say).
+ * too (a paused video in another tab still holds its place). `onGone` hears when it is gone or
+ * was stopped (it idled out while the tab slept, say), or failed.
  */
-export function useSession(url: string | null, onEnded?: () => void) {
+export function useSession(url: string | null, onGone?: (why: "ended" | "failed") => void) {
   return useQuery({
     queryKey: sessionKey(url ?? ""),
     enabled: url !== null,
     queryFn: async ({ signal }) => {
       try {
         const s = await getJson(url ?? "", PlaybackSession, { signal });
-        if (s.state === "stopped") onEnded?.();
+        if (s.state === "stopped") onGone?.("ended");
+        if (s.state === "failed") onGone?.("failed");
         return s;
       } catch (err) {
-        if (err instanceof ApiError && err.status === 404) onEnded?.();
+        if (err instanceof ApiError && err.status === 404) onGone?.("ended");
         throw err;
       }
     },

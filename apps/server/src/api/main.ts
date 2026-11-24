@@ -274,11 +274,13 @@ export async function startApi(
     const released = attaching.catch(() => undefined).then(() => leading);
     // Event streams never finish on their own: end them so the drain does not wait them out.
     downloadEvents.close();
-    playbackBus.close();
+    // The playback bus stays open until the consumers close: a session still running here hears
+    // its viewer's seeks until it is cut and requeued, and held segment requests still wake.
     const [drained, consumersClosed] = await Promise.all([
       drain(server, config.shutdownGraceMs),
       closeConsumers(),
     ]);
+    playbackBus.close();
     await settlesWithin(queues.close(), CLEANUP_MS);
     valkey.disconnect();
     const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), CLEANUP_MS);

@@ -9,7 +9,7 @@ import { seedEntry } from "../../test/library.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { insertUser } from "../../test/users.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
-import { forgetSession, isStored, nextRunToken, touchAlive } from "../transcode/bus.ts";
+import { forgetSession, isStored, markStored, nextRunToken, touchAlive } from "../transcode/bus.ts";
 import {
   insertSession,
   segmentKey,
@@ -86,11 +86,28 @@ async function newSession(plan: Partial<StoredPlan> = {}, boundaries: number[] |
   return row.id;
 }
 
-function start(deps: WorkerDeps, sid: string, shutdown = new AbortController()) {
+function start(
+  deps: WorkerDeps,
+  sid: string,
+  shutdown = new AbortController(),
+  timings: Partial<SessionTimings> = {},
+) {
   const moveToDelayed = vi.fn(() => Promise.resolve());
   const job = { id: `playback|${sid}`, data: { sessionId: sid }, moveToDelayed };
-  const done = sessionProcessor(deps, shutdown.signal, FAST)(job as never, "lock-token");
+  const done = sessionProcessor(deps, shutdown.signal, { ...FAST, ...timings })(
+    job as never,
+    "lock-token",
+  );
   return { done, moveToDelayed, shutdown };
+}
+
+/** ffmpeg's output for these keyframe times, one fragment per write, a little apart. */
+function trickle(times: number[]) {
+  return times.flatMap((t, i) => {
+    const before = i === 0 ? 0 : fmp4Stream(times.slice(0, i)).length;
+    const bytes = fmp4Stream(times.slice(0, i + 1)).subarray(before);
+    return [{ stdoutBase64: bytes.toString("base64") }, { sleepMs: 30 }];
+  });
 }
 
 async function until(check: () => Promise<boolean>, ms = 5000) {
@@ -259,5 +276,140 @@ describe("a playback session's runner", () => {
     await done;
     expect((await row(sid)).state).toBe("stopped");
     expect(await d.store.stat(`${sessionPrefix(sid)}init.mp4`)).toBeNull();
+  });
+
+  it("acts on the last of quick wants only (a scrub settles first)", async () => {
+    const d = await deps({
+      steps: [stream([0]), { hang: true }],
+      variants: [
+        { whenArg: "48.0000", steps: [stream([48])] },
+        { whenArg: "54.0000", steps: [stream([54])] },
+      ],
+    });
+    const sid = await newSession({}, uniformBoundaries(60));
+    const { done } = start(d, sid, undefined, { debounceMs: 150 });
+    await until(async () => stored(sid, -1));
+    await d.playbackBus.publish({ t: "want", sid, n: 8 });
+    await d.playbackBus.publish({ t: "want", sid, n: 9 });
+    await until(async () => stored(sid, 9));
+    expect(await stored(sid, 8)).toBe(false);
+    await leave(sid);
+    await done;
+  });
+
+  it("jumps past segments already stored, to the next one nobody made", async () => {
+    const d = await deps({
+      steps: [stream([0, 6, 12, 18, 24, 30]), { hang: true }],
+      variants: [{ whenArg: "24.0000", steps: [stream([24, 30, 36])] }],
+    });
+    const sid = await newSession({}, uniformBoundaries(60));
+    for (const n of [1, 2, 3]) await markStored(keys(), sid, n);
+    const { done } = start(d, sid, undefined, { skipStored: 3 });
+    await until(async () => stored(sid, 6));
+    expect(await stored(sid, 4)).toBe(true);
+    await leave(sid);
+    await done;
+  });
+
+  it("pauses far ahead of the player and reads on as it catches up", async () => {
+    const d = await deps({ steps: trickle([0, 6, 12, 18, 24, 30, 36, 42, 48, 54]) });
+    const sid = await newSession({}, uniformBoundaries(60));
+    const { done } = start(d, sid, undefined, { throttleAhead: 2, resumeAhead: 1 });
+    await until(async () => stored(sid, 2));
+    await new Promise((r) => setTimeout(r, 400));
+    expect(await stored(sid, 3)).toBe(false);
+    await d.playbackBus.publish({ t: "want", sid, n: 2 });
+    // Reading on (what ffmpeg wrote meanwhile may arrive at once, so no second pause is checked).
+    await until(async () => stored(sid, 4));
+    await leave(sid);
+    await done;
+  });
+
+  it("starts a run for a segment asked for after the end was made", async () => {
+    const d = await deps({
+      steps: [stream([0, 6])],
+      variants: [{ whenArg: "12.0000", steps: [stream([12, 18])] }],
+    });
+    const sid = await newSession({ start: 13 });
+    const { done } = start(d, sid);
+    await until(async () => stored(sid, 3));
+    await d.playbackBus.publish({ t: "want", sid, n: 0 });
+    await until(async () => stored(sid, 0));
+    await leave(sid);
+    await done;
+  });
+
+  it("goes on from the next segment it didn't make when a run fails mid-way", async () => {
+    const d = await deps({
+      steps: [stream([0, 6]), { stderr: "[matroska @ 0x1] Read error\n" }],
+      exitCode: 1,
+      variants: [{ whenArg: "6.0000", steps: [stream([6, 12, 18])], exitCode: 0 }],
+    });
+    const sid = await newSession();
+    const { done } = start(d, sid);
+    await until(async () => stored(sid, 3));
+    expect((await row(sid)).state).toBe("running");
+    await leave(sid);
+    await done;
+  });
+
+  it("remembers a GPU failure only once a pipeline below it works on that source", async () => {
+    const d = await deps(
+      { steps: [{ stderr: "[matroska @ 0x1] Invalid data found\n" }], exitCode: 1 },
+      { hwaccel: "vaapi" },
+    );
+    const sid = await newSession();
+    await start(d, sid).done;
+    expect((await row(sid)).state).toBe("failed");
+    // The CPU failed too: the file was at fault, not the GPU.
+    expect(d.transcoder.memo.failed("vaapi", "h264/yuv420p")).toBe(false);
+    expect(d.transcoder.memo.failed("vaapi-sw", "h264/yuv420p")).toBe(false);
+  });
+
+  it("asks the store for a fresh read URL for every run (a presigned S3 URL expires)", async () => {
+    const d = await deps({
+      steps: [stream([0, 6]), { hang: true }],
+      variants: [{ whenArg: "48.0000", steps: [stream([48])] }],
+    });
+    let n = 0;
+    const readUrl = vi.fn(() =>
+      Promise.resolve(`http://media.invalid/film.mkv?run=${String(++n)}`),
+    );
+    const s3: WorkerDeps = { ...d, store: { ...d.store, localPath: () => null, readUrl } };
+    const sid = await newSession({}, uniformBoundaries(60));
+    const { done } = start(s3, sid);
+    await until(async () => stored(sid, 0));
+    await d.playbackBus.publish({ t: "want", sid, n: 8 });
+    await until(async () => stored(sid, 8));
+    expect(readUrl.mock.calls.length).toBeGreaterThanOrEqual(3);
+    const ffmpeg = h.runs.at(-2);
+    expect(await ffmpeg?.argv()).toContain(`http://media.invalid/film.mkv?run=${String(n)}`);
+    await leave(sid);
+    await done;
+  });
+
+  it("rides out Valkey errors in its checks without crashing or giving up", async () => {
+    const d = await deps({ steps: [stream([0]), { hang: true }] });
+    let broken = false;
+    const valkey = new Proxy(d.valkey, {
+      get(target, prop, receiver) {
+        if (broken && (prop === "exists" || prop === "getbit")) {
+          return () => Promise.reject(new Error("valkey down"));
+        }
+        const v = Reflect.get(target, prop, receiver) as unknown;
+        return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const flaky: WorkerDeps = { ...d, valkey };
+    const sid = await newSession();
+    const { done } = start(flaky, sid);
+    await until(async () => stored(sid, -1));
+    broken = true;
+    await d.playbackBus.publish({ t: "want", sid, n: 3 });
+    await new Promise((r) => setTimeout(r, 300));
+    broken = false;
+    expect((await row(sid)).state).toBe("running");
+    await d.playbackBus.publish({ t: "stop", sid });
+    await done;
   });
 });

@@ -121,7 +121,7 @@ describe("creating a playback session", () => {
     expect(await isAlive({ valkey: h.ctx.valkey, prefix: h.prefix }, s.id)).toBe(true);
   });
 
-  it("stops the viewer's earlier session of the entry, and tells its runner", async () => {
+  it("leaves the viewer's other sessions of the entry playing (another tab or device)", async () => {
     const first = await session();
     const stops: BusMessage[] = [];
     const off = bus.on((m) => {
@@ -130,9 +130,9 @@ describe("creating a playback session", () => {
     await session(alice, { quality: "480" });
     await new Promise((r) => setTimeout(r, 100));
     off();
-    expect(stops).toContainEqual({ t: "stop", sid: first.id });
+    expect(stops).toEqual([]);
     const again = PlaybackSession.parse(await (await as(alice).request(first.url)).json());
-    expect(again.state).toBe("stopped");
+    expect(again.state).toBe("queued");
   });
 
   it("is 404 for an entry the caller can't see, and for someone else's session", async () => {

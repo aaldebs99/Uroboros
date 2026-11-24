@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
 import { renderWithQuery } from "@/test/render";
@@ -8,24 +8,34 @@ import { renderWithQuery } from "@/test/render";
 import { SessionPlayer } from "./SessionPlayer";
 
 let lastOnError: (() => void) | undefined;
-vi.mock("./Player", () => ({
-  Player: (props: {
-    src: string;
-    hls?: { native: boolean };
-    start: number;
-    onError?: () => void;
-  }) => {
-    lastOnError = props.onError;
-    return (
-      <div
-        data-testid="player"
-        data-src={props.src}
-        data-hls={props.hls === undefined ? "" : props.hls.native ? "native" : "mse"}
-        data-start={String(props.start)}
-      />
-    );
-  },
-}));
+let lastOnTime: ((at: number, duration: number) => void) | undefined;
+const mounts = vi.hoisted(() => ({ count: 0 }));
+vi.mock("./Player", async () => {
+  const { useEffect } = await import("react");
+  return {
+    Player: (props: {
+      src: string;
+      hls?: { native: boolean };
+      start: number;
+      onError?: () => void;
+      onTime: (at: number, duration: number) => void;
+    }) => {
+      lastOnError = props.onError;
+      lastOnTime = props.onTime;
+      useEffect(() => {
+        mounts.count++;
+      }, []);
+      return (
+        <div
+          data-testid="player"
+          data-src={props.src}
+          data-hls={props.hls === undefined ? "" : props.hls.native ? "native" : "mse"}
+          data-start={String(props.start)}
+        />
+      );
+    },
+  };
+});
 
 const ID = "0190a3f2-7c1e-7000-8000-0000000000c1";
 const SID = "0190a3f2-7c1e-7000-8000-00000000005e";
@@ -59,6 +69,10 @@ const props = {
   onPause: () => undefined,
   onEnded: () => undefined,
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("SessionPlayer", () => {
   it("asks for the session from the viewer's position, and plays its playlist once it runs", async () => {
@@ -143,5 +157,60 @@ describe("SessionPlayer", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.method === "DELETE" && c.path === url)).toBe(true);
     });
+  });
+
+  it("keeps playing while its session moves to another replica (queued again after running)", async () => {
+    let polls = 0;
+    fakeApi({
+      [`POST ${base}`]: () => Response.json(session(), { status: 201 }),
+      [`GET ${url}`]: () => Response.json(++polls === 1 ? session({ state: "queued" }) : session()),
+    });
+    mounts.count = 0;
+    renderWithQuery(<SessionPlayer {...props} />);
+    await screen.findByTestId("player");
+    lastOnTime?.(44, 120);
+    await waitFor(
+      () => {
+        expect(polls).toBeGreaterThanOrEqual(2);
+      },
+      { timeout: 4000 },
+    );
+    expect(screen.getByTestId("player")).toBeInTheDocument();
+    expect(mounts.count).toBe(1);
+  });
+
+  it("retries a failed session once by itself", async () => {
+    let posts = 0;
+    const failed = session({ state: "failed", error: "the transcoder's output changed" });
+    const calls = fakeApi({
+      [`POST ${base}`]: () => Response.json(++posts === 1 ? failed : session(), { status: 201 }),
+      [`GET ${url}`]: () => Response.json(posts === 1 ? failed : session()),
+    });
+    renderWithQuery(<SessionPlayer {...props} />);
+    expect(await screen.findByTestId("player", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(2);
+  });
+
+  it("recovers again when its session is lost long after the last recovery", async () => {
+    let now = Date.parse("2026-11-23T10:00:00Z");
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    let posts = 0;
+    const calls = fakeApi({
+      [`POST ${base}`]: () => {
+        posts++;
+        // The second session is lost a minute later.
+        if (posts === 2) now += 60_000;
+        return Response.json(session(), { status: 201 });
+      },
+      [`GET ${url}`]: () =>
+        posts < 3
+          ? Response.json({ code: "not_found", message: "gone" }, { status: 404 })
+          : Response.json(session()),
+    });
+    renderWithQuery(<SessionPlayer {...props} />);
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === "POST")).toHaveLength(3);
+    });
+    expect(await screen.findByTestId("player")).toBeInTheDocument();
   });
 });

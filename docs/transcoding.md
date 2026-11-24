@@ -62,8 +62,9 @@ the stored rendition (`src/transcode/sessionPlan.ts`):
 - **audio** for an audio file.
 
 Each session is one viewer's (`playback_sessions`): a signed-in person, or a public link's code. A
-person's new session of an entry stops their earlier one. A link plays on at most 3 screens at
-once (429 beyond), since nobody is signed in to tell its viewers apart. Every request checks that
+person's sessions on other tabs or devices play on; the page stops its own when it switches
+quality or leaves. A link plays on at most 3 screens at once (429 beyond), since nobody is signed
+in to tell its viewers apart. Every request checks that
 the viewer may still see the entry (`visibleEntry`), so a share or link that ends ends its sessions
 at once; turning a link off also deletes them.
 
@@ -87,8 +88,10 @@ The player's timeline is therefore the source's own: resume, chapters, subtitles
 as in direct play, and a seek goes anywhere at once.
 
 The page keeps a session alive by pinging it every 20 s, in a background tab too. A session that
-was stopped or lost is started again at the current position, once. Leaving the page stops it (a
-`keepalive` fetch on `pagehide`).
+was stopped, lost or failed, or a player that fails, starts a new session at the current position
+by itself (at most once every 30 s; the page asks after that). A session handed to another replica
+keeps the player playing while it moves. Leaving the page stops its session (a `keepalive` fetch
+on `pagehide`, best effort: a session nobody asks for stops by itself).
 
 ## How a segment gets made
 
@@ -97,7 +100,8 @@ Segment requests can land on any replica. The session's **runner** is one BullMQ
 `UROBOROS_TRANSCODE_CONCURRENCY` is above 0, so only GPU replicas need to transcode. The replicas
 talk over Valkey:
 
-- a request publishes `want N` on the playback bus;
+- a request publishes `want N` on the playback bus, and again every 2 s while it waits (a want
+  lost on the way, or sent before a requeued runner listens, is not lost for long);
 - the runner publishes `ready N` once segment N is stored, and sets its bit in the session's stored
   map;
 - a request waits for that, looking again every 2 s, for up to 45 s, then answers 503 (the page
@@ -106,8 +110,8 @@ talk over Valkey:
 The runner (`src/worker/session.ts`, `sessionLoop.ts`):
 
 1. **Reads the source in place.** That is the file's path on the filesystem store, or a 6-hour
-   presigned URL on S3's own endpoint, which ffmpeg reads with range requests and reconnects. The
-   file is never copied to scratch.
+   presigned URL on S3's own endpoint, made anew for every run, which ffmpeg reads with range
+   requests and reconnects. The file is never copied to scratch.
 2. **Runs jellyfin-ffmpeg from the segment that holds the viewer's position.**
    - It writes fragmented MP4 to stdout on the source's timeline (`-copyts`).
    - A later run starts at its boundary, and its audio comes from a second input 0.25 s earlier.
@@ -125,7 +129,7 @@ The runner (`src/worker/session.ts`, `sessionLoop.ts`):
    reads on once the player is within 10.
 5. **Skips work already done.** A run that reaches 5 segments already stored in a row jumps past
    them. Once the end is made, the runner idles until a segment no run made is asked for.
-6. **Ends** when the viewer goes (no request or ping for 60 s), when the session is stopped, or
+6. **Ends** when the viewer goes (no request or ping for 2 minutes), when the session is stopped, or
    when it fails. On the way out it records how it ended, tells waiting requests, and deletes the
    session's folder and keys. A replica shutting down puts the session back in the queue without
    spending an attempt.
@@ -165,9 +169,10 @@ pipelines (`packages/ytdlp/src/ffmpegVideo.ts`):
 A replica that runs sessions tries its GPU at start with a second of generated video. A GPU that
 can't encode is logged, and every run on that replica uses the CPU.
 
-A pipeline that fails before writing anything moves to the next one in the chain. The replica
-remembers the failure for that kind of source (codec and pixel format); for example, no GPU decodes
-10-bit H.264. A run that fails after writing is retried twice from the next segment it didn't make,
+A pipeline that fails before writing anything moves to the next one in the chain. Once a pipeline
+below it works on that source, the replica remembers the failure for that kind of source (codec
+and pixel format); for example, no GPU decodes 10-bit H.264. A failure the CPU shares (an
+unreadable or corrupt file) is the file's, and is not remembered. A run that fails after writing is retried twice from the next segment it didn't make,
 and then the session fails with ffmpeg's own reason (the stderr line that isn't a generic closing
 line).
 
