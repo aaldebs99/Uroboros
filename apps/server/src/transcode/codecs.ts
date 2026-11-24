@@ -8,6 +8,8 @@ import { h264Level } from "./ladder.ts";
 
 export interface VideoFacts {
   codec: string | null;
+  /** ffprobe's own string (`mime_codec_string`), preferred when it has one. */
+  mime?: string | null;
   profile: string | null;
   /** ffprobe's level: H.264 ×10 (40 is 4.0), HEVC ×30 (120 is 4.0), AV1 the seq_level_idx. */
   level: number | null;
@@ -19,6 +21,7 @@ export interface VideoFacts {
 
 export interface AudioFacts {
   codec: string | null;
+  mime?: string | null;
   profile: string | null;
 }
 
@@ -93,6 +96,7 @@ function av1(v: VideoFacts): string {
 
 /** The video stream's codec string, or null for a codec no browser plays from MP4 or WebM. */
 export function videoCodecString(v: VideoFacts): string | null {
+  if (v.mime != null && v.mime !== "" && v.codec !== null) return v.mime;
   switch (v.codec) {
     case "h264":
       return avc(v);
@@ -122,6 +126,7 @@ const AUDIO: Record<string, string> = {
 
 /** The audio stream's codec string, or null for one no browser plays (raw PCM, DTS…). */
 export function audioCodecString(a: AudioFacts): string | null {
+  if (a.mime != null && a.mime !== "" && a.codec !== null) return a.mime;
   if (a.codec === "aac") return AAC_PROFILES[a.profile ?? ""] ?? "mp4a.40.2";
   return AUDIO[a.codec ?? ""] ?? null;
 }

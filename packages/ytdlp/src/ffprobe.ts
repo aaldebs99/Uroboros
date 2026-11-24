@@ -46,12 +46,23 @@ const Tags = z
     return { language: typeof language === "string" ? language : null };
   });
 
+/** ffprobe writes -99 for a level it doesn't know. */
+const level = num.transform((n) => (n === null || n < 0 ? null : n));
+
+const Disposition = z
+  .object({ attached_pic: num })
+  .nullish()
+  .catch(null)
+  .transform((d) => ({ attachedPic: d?.attached_pic === 1 }));
+
 export const MediaStream = z
   .object({
     index: z.number(),
     codec_type: str,
     codec_name: str,
     profile: str,
+    level,
+    mime_codec_string: str,
     width: num,
     height: num,
     avg_frame_rate: str,
@@ -62,6 +73,8 @@ export const MediaStream = z
     bit_rate: numeric,
     pix_fmt: str,
     color_transfer: str,
+    color_primaries: str,
+    disposition: Disposition,
     tags: Tags,
   })
   .transform((s) => ({
@@ -70,6 +83,10 @@ export const MediaStream = z
     type: s.codec_type,
     codec: s.codec_name,
     profile: s.profile,
+    /** H.264 ×10, HEVC ×30, AV1 the seq_level_idx; null when unknown. */
+    level: s.level,
+    /** ffprobe's own RFC 6381 string, when it knows one (not for HEVC). */
+    mimeCodec: s.mime_codec_string === "" ? null : s.mime_codec_string,
     width: s.width,
     height: s.height,
     fps: rate(s.avg_frame_rate) ?? rate(s.r_frame_rate),
@@ -81,6 +98,9 @@ export const MediaStream = z
     pixFmt: s.pix_fmt,
     /** "smpte2084" (PQ) or "arib-std-b67" (HLG) mark an HDR source. */
     colorTransfer: s.color_transfer,
+    colorPrimaries: s.color_primaries,
+    /** A cover image stored as a video stream (music files): not video to play. */
+    attachedPic: s.disposition.attachedPic,
     language: s.tags.language,
   }));
 export type MediaStream = z.output<typeof MediaStream>;
@@ -91,6 +111,7 @@ export const MediaInfo = z
     format: z.object({
       format_name: str,
       format_long_name: str,
+      start_time: numeric,
       duration: numeric,
       size: numeric,
       bit_rate: numeric,
@@ -100,6 +121,8 @@ export const MediaInfo = z
     /** ffprobe's demuxer list, such as "mov,mp4,m4a,3gp,3g2,mj2" or "matroska,webm". */
     container: m.format.format_name,
     containerLongName: m.format.format_long_name,
+    /** When the first packet is: some files start a little after 0. */
+    startTime: m.format.start_time,
     duration: m.format.duration,
     size: m.format.size,
     bitRate: m.format.bit_rate,
@@ -107,11 +130,13 @@ export const MediaInfo = z
   }));
 export type MediaInfo = z.output<typeof MediaInfo>;
 
-/** Reads a media file's container, duration and streams with ffprobe. */
+/** Network protocols only, for an input that is a URL (an S3 object). */
+const URL_PROTOCOLS = ["-protocol_whitelist", "http,https,tcp,tls,crypto"];
+
+/** Reads a media file's (or URL's) container, duration and streams with ffprobe. */
 export async function ffprobe(path: string, options: FfprobeOptions = {}): Promise<MediaInfo> {
   const result = await runProcess({
     binary: options.binary ?? "ffprobe",
-    // An absolute path never starts with "-", so ffprobe cannot read it as an option.
     args: [
       "-v",
       "error",
@@ -119,8 +144,9 @@ export async function ffprobe(path: string, options: FfprobeOptions = {}): Promi
       "json",
       "-show_format",
       "-show_streams",
-      "-i",
-      resolve(path),
+      // An absolute path never starts with "-", so ffprobe cannot read it as an option; a URL
+      // starts with its scheme.
+      ...(/^https?:\/\//.test(path) ? [...URL_PROTOCOLS, "-i", path] : ["-i", resolve(path)]),
     ],
     env: options.env,
     signal: options.signal,

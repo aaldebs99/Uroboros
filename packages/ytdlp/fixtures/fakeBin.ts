@@ -10,6 +10,8 @@ import { dirname, join, resolve } from "node:path";
 
 export type Step =
   | { stdout: string }
+  /** Raw bytes on stdout (ffmpeg's fragmented MP4), base64-encoded in the scenario. */
+  | { stdoutBase64: string }
   | { stderr: string }
   | { sleepMs: number }
   | { writeFile: string; content: string }
@@ -63,8 +65,17 @@ function copyArgFile(step: { copyArgFile: string; name?: string; as: string }): 
   if (existsSync(source)) copyFileSync(source, join(dirname(argvFile), step.as));
 }
 
+function writeBytes(base64: string): Promise<void> {
+  return new Promise((done) => {
+    process.stdout.write(Buffer.from(base64, "base64"), () => {
+      done();
+    });
+  });
+}
+
 async function run(step: Step): Promise<void> {
   if ("stdout" in step) return write(process.stdout, step.stdout);
+  if ("stdoutBase64" in step) return writeBytes(step.stdoutBase64);
   if ("stderr" in step) return write(process.stderr, step.stderr);
   if ("sleepMs" in step) return sleep(step.sleepMs);
   if ("writeFile" in step) {

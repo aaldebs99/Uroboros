@@ -47,6 +47,17 @@ describe("videoCodecString", () => {
     );
   });
 
+  it("prefers ffprobe's own string when it has one", () => {
+    expect(video({ profile: "Constrained Baseline", mime: "avc1.42c028" })).toBe("avc1.42c028");
+    expect(video({ codec: "av1", mime: "av01.0.08M.10.0.110.02.02.09.0" })).toBe(
+      "av01.0.08M.10.0.110.02.02.09.0",
+    );
+    expect(video({ codec: "hevc", profile: "Main", level: 120, mime: null })).toBe(
+      "hvc1.1.6.L120.B0",
+    );
+    expect(audioCodecString({ codec: "aac", profile: "LC", mime: "mp4a.40.2" })).toBe("mp4a.40.2");
+  });
+
   it("has no string for a codec no browser takes in MP4 or WebM", () => {
     expect(video({ codec: "mpeg2video" })).toBeNull();
     expect(video({ codec: "vp8" })).toBe("vp8");
