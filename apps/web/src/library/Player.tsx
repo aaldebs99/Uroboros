@@ -6,7 +6,8 @@ import { useCreateTextTrack } from "@videojs/react";
 import { HlsVideo } from "@videojs/react/media/hls-video";
 import { NativeHlsVideo } from "@videojs/react/media/native-hls-video";
 import { NeutralVideoSkin, Video, VideoPlayer } from "@videojs/react/video";
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { SettingsMenuSlot } from "@videojs/react/video/settings-slot";
+import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
 
 import { readVolume, storeVolume } from "@/lib/playerPrefs";
 
@@ -36,6 +37,8 @@ export interface PlayerProps {
   onTime: (position: number, duration: number) => void;
   onPause: (position: number, duration: number) => void;
   onEnded: (position: number, duration: number) => void;
+  /** Shown in the settings menu in place of the skin's Quality submenu (QualityMenu). */
+  settings?: ReactNode;
 }
 
 /** The design system's tokens on the skin's styling hooks (docs: "Customize skins"). */
@@ -127,46 +130,48 @@ export function Player(p: PlayerProps) {
   const Media = p.hls === undefined ? Video : p.hls.native ? NativeHlsVideo : HlsVideo;
   return (
     <VideoPlayer>
-      {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
-      {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
+      <SettingsMenuSlot.Provider value={p.settings ?? null}>
+        {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
+        {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
           navigation drawer (components/useDrawerDrag.ts). */}
-      <NeutralVideoSkin
-        style={brand}
-        className="uro-player overflow-hidden rounded-[0.75rem] bg-black"
-        data-own-swipe=""
-      >
-        <Media
-          ref={video}
-          src={p.src}
-          title={p.title}
-          playsInline
-          preload="metadata"
-          onTimeUpdate={(e) => {
-            p.onTime(...at(e.currentTarget));
-          }}
-          onPause={(e) => {
-            p.onPause(...at(e.currentTarget));
-          }}
-          onEnded={(e) => {
-            p.onEnded(...at(e.currentTarget));
-          }}
-          onVolumeChange={(e) => {
-            storeVolume({ volume: e.currentTarget.volume, muted: e.currentTarget.muted });
-          }}
+        <NeutralVideoSkin
+          style={brand}
+          className="uro-player overflow-hidden rounded-[0.75rem] bg-black"
+          data-own-swipe=""
         >
-          {p.subtitles.map((s, i) => (
-            <track
-              key={s.id}
-              src={s.url}
-              kind="subtitles"
-              srcLang={s.lang}
-              label={s.name ?? `${s.lang}${s.automatic ? " (auto)" : ""}`}
-              default={i === 0}
-            />
-          ))}
-        </Media>
-        <PlayerHotkeys video={video} />
-      </NeutralVideoSkin>
+          <Media
+            ref={video}
+            src={p.src}
+            title={p.title}
+            playsInline
+            preload="metadata"
+            onTimeUpdate={(e) => {
+              p.onTime(...at(e.currentTarget));
+            }}
+            onPause={(e) => {
+              p.onPause(...at(e.currentTarget));
+            }}
+            onEnded={(e) => {
+              p.onEnded(...at(e.currentTarget));
+            }}
+            onVolumeChange={(e) => {
+              storeVolume({ volume: e.currentTarget.volume, muted: e.currentTarget.muted });
+            }}
+          >
+            {p.subtitles.map((s, i) => (
+              <track
+                key={s.id}
+                src={s.url}
+                kind="subtitles"
+                srcLang={s.lang}
+                label={s.name ?? `${s.lang}${s.automatic ? " (auto)" : ""}`}
+                default={i === 0}
+              />
+            ))}
+          </Media>
+          <PlayerHotkeys video={video} />
+        </NeutralVideoSkin>
+      </SettingsMenuSlot.Provider>
     </VideoPlayer>
   );
 }

@@ -11,6 +11,34 @@ index 02dfa37fc053a390bc94cc35d8d5e9bafd8cdcbf..27f1c8cc719a795f9d0fa6e98a509a0b
  			closeDelay: 100,
  			side,
  			...props,
+diff --git a/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js b/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
+index b07ba1786560ba13e2dafa973c1f0acd93fddb26..4e7ffa523f2408fde7020bb567c91b48928d9cf1 100644
+--- a/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
++++ b/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
+@@ -3,8 +3,14 @@ import { CaptionsSubmenu } from "../../../../components/menus/captions-submenu.j
+ import { PlaybackRateSubmenu } from "../../../../components/menus/playback-rate-submenu.js";
+ import { QualityMenu } from "../../../../components/menus/quality-menu.js";
+ import { SettingsMenu } from "../../../../components/menus/settings-menu.js";
++import { SettingsMenuSlot } from "../../../../../../../presets/video/settings-slot.js";
+ import { c } from "react-compiler-runtime";
++import { useContext } from "react";
+ import { jsx, jsxs } from "react/jsx-runtime";
++/** The settings slot's content (uroboros), else the skin's rendition-only Quality submenu. */
++function QualitySlot() {
++	return useContext(SettingsMenuSlot) ?? /* @__PURE__ */ jsx(QualityMenu, {});
++}
+ //#region src/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.tsx
+ function VideoSettingsMenu(t0) {
+ 	const $ = c(8);
+@@ -20,7 +26,7 @@ function VideoSettingsMenu(t0) {
+ 	let t4;
+ 	let t5;
+ 	if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
+-		t2 = /* @__PURE__ */ jsx(QualityMenu, {});
++		t2 = /* @__PURE__ */ jsx(QualitySlot, {});
+ 		t3 = /* @__PURE__ */ jsx(AudioTrackMenu, {});
+ 		t4 = /* @__PURE__ */ jsx(PlaybackRateSubmenu, {});
+ 		t5 = /* @__PURE__ */ jsx(CaptionsSubmenu, {});
 diff --git a/dist/default/internal/skins/shared/skins/shared/video/behaviors/gestures.js b/dist/default/internal/skins/shared/skins/shared/video/behaviors/gestures.js
 index 171d55b0f784a91f19e7e4ffe2816642da6dd71a..430859c9e8bbd6d21242a5e8f1d9d97998bbe163 100644
 --- a/dist/default/internal/skins/shared/skins/shared/video/behaviors/gestures.js
@@ -31,6 +59,21 @@ index 171d55b0f784a91f19e7e4ffe2816642da6dd71a..430859c9e8bbd6d21242a5e8f1d9d979
  				region: "right"
  			})
  		] });
+diff --git a/dist/default/presets/video/settings-slot.js b/dist/default/presets/video/settings-slot.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..8af83167e385e26da773fc66e14375cd5b07ffce
+--- /dev/null
++++ b/dist/default/presets/video/settings-slot.js
+@@ -0,0 +1,9 @@
++import { createContext } from "react";
++//#region uroboros: patches/@videojs__react.patch
++/**
++* What the video skin's settings menu shows in place of its Quality submenu, which lists only an HLS
++* stream's renditions. Null keeps the skin's own.
++*/
++const SettingsMenuSlot = createContext(null);
++//#endregion
++export { SettingsMenuSlot };
 diff --git a/dist/dev/internal/skins/neutral-video/components/menus/volume-popover.js b/dist/dev/internal/skins/neutral-video/components/menus/volume-popover.js
 index cf103ec4b511eaaf5bf99386a48c3c5f4db60981..89b99266d6a0a14daeb654028ed90f047967aee8 100644
 --- a/dist/dev/internal/skins/neutral-video/components/menus/volume-popover.js
@@ -44,6 +87,34 @@ index cf103ec4b511eaaf5bf99386a48c3c5f4db60981..89b99266d6a0a14daeb654028ed90f04
  			closeDelay: 100,
  			side,
  			...props,
+diff --git a/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js b/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
+index f7af89b6d7e9125f524bf3714bbf20097d71ea2d..8c88cd408dc375d89d5fd54c4f7325e2e10f6868 100644
+--- a/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
++++ b/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
+@@ -3,8 +3,14 @@ import { CaptionsSubmenu } from "../../../../components/menus/captions-submenu.j
+ import { PlaybackRateSubmenu } from "../../../../components/menus/playback-rate-submenu.js";
+ import { QualityMenu } from "../../../../components/menus/quality-menu.js";
+ import { SettingsMenu } from "../../../../components/menus/settings-menu.js";
++import { SettingsMenuSlot } from "../../../../../../../presets/video/settings-slot.js";
+ import { c } from "react-compiler-runtime";
++import { useContext } from "react";
+ import { jsx, jsxs } from "react/jsx-runtime";
++/** The settings slot's content (uroboros), else the skin's rendition-only Quality submenu. */
++function QualitySlot() {
++	return useContext(SettingsMenuSlot) ?? /* @__PURE__ */ jsx(QualityMenu, {});
++}
+ //#region src/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.tsx
+ function VideoSettingsMenu(t0) {
+ 	const $ = c(8);
+@@ -20,7 +26,7 @@ function VideoSettingsMenu(t0) {
+ 	let t4;
+ 	let t5;
+ 	if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
+-		t2 = /* @__PURE__ */ jsx(QualityMenu, {});
++		t2 = /* @__PURE__ */ jsx(QualitySlot, {});
+ 		t3 = /* @__PURE__ */ jsx(AudioTrackMenu, {});
+ 		t4 = /* @__PURE__ */ jsx(PlaybackRateSubmenu, {});
+ 		t5 = /* @__PURE__ */ jsx(CaptionsSubmenu, {});
 diff --git a/dist/dev/internal/skins/shared/skins/shared/video/behaviors/gestures.js b/dist/dev/internal/skins/shared/skins/shared/video/behaviors/gestures.js
 index cbb482da7db1f59a70f7f5cb7ccc6f81cfa91220..3f2b3491975c7c323069cf84a911a4f8bbdd8f56 100644
 --- a/dist/dev/internal/skins/shared/skins/shared/video/behaviors/gestures.js
@@ -64,3 +135,30 @@ index cbb482da7db1f59a70f7f5cb7ccc6f81cfa91220..3f2b3491975c7c323069cf84a911a4f8
  				region: "right"
  			})
  		] });
+diff --git a/dist/dev/presets/video/settings-slot.d.ts b/dist/dev/presets/video/settings-slot.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..273bfa4ae122c414d35f8b42a770f44de39ecf9c
+--- /dev/null
++++ b/dist/dev/presets/video/settings-slot.d.ts
+@@ -0,0 +1,6 @@
++import type { Context, ReactNode } from "react";
++/**
++ * What the video skin's settings menu shows in place of its Quality submenu (uroboros:
++ * patches/@videojs__react.patch). Null keeps the skin's own.
++ */
++export declare const SettingsMenuSlot: Context<ReactNode>;
+diff --git a/dist/dev/presets/video/settings-slot.js b/dist/dev/presets/video/settings-slot.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..8af83167e385e26da773fc66e14375cd5b07ffce
+--- /dev/null
++++ b/dist/dev/presets/video/settings-slot.js
+@@ -0,0 +1,9 @@
++import { createContext } from "react";
++//#region uroboros: patches/@videojs__react.patch
++/**
++* What the video skin's settings menu shows in place of its Quality submenu, which lists only an HLS
++* stream's renditions. Null keeps the skin's own.
++*/
++const SettingsMenuSlot = createContext(null);
++//#endregion
++export { SettingsMenuSlot };
