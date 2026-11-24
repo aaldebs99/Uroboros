@@ -153,6 +153,7 @@ export async function startApi(
       storage: config.storage,
       playbackBus,
       secretsKey: config.secretsKey,
+      generatePreviews: config.worker.generatePreviews,
     },
     {
       webDist: config.webDist,

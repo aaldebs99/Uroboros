@@ -69,17 +69,13 @@ describe("stalled hover previews", () => {
     expect(await previewsStalled(t.db)).toBe(false);
   });
 
-  it("show nothing in progress in the bell, still counting what is left", async () => {
+  it("show nothing in progress in the bell", async () => {
     const a = await video();
     await queuePreview(h.ctx, a.mediaId);
-    expect((await previewWork(t.db, a.userId)).queued).toBe(1);
+    expect((await previewWork(t.db, a.userId, true)).waiting).toBe(1);
     await overdue(a.mediaId);
-    expect(await previewWork(t.db, a.userId)).toEqual({
-      queued: 0,
-      left: 1,
-      made: 0,
-      next: null,
-    });
+    expect(await previewWork(t.db, a.userId, true)).toEqual({ waiting: 0, next: null });
+    expect(await previewWork(t.db, a.userId, false)).toEqual({ waiting: 0, next: null });
   });
 
   it("stop the backfill, which says why once", async () => {

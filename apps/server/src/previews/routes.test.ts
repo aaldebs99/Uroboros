@@ -37,9 +37,7 @@ describe("GET /api/previews", () => {
     const res = await app.request("/api/previews");
     expect(res.status).toBe(200);
     expect(PreviewWork.parse(await res.json())).toEqual({
-      queued: 1,
-      left: 1,
-      made: 0,
+      waiting: 1,
       next: { entryId: e.entryId, title: "Holiday", running: false },
     });
   });

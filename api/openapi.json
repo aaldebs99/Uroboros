@@ -2446,14 +2446,6 @@
       },
       "PreviewWork": {
         "properties": {
-          "left": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "made": {
-            "minimum": 0,
-            "type": "integer"
-          },
           "next": {
             "nullable": true,
             "properties": {
@@ -2475,15 +2467,13 @@
             ],
             "type": "object"
           },
-          "queued": {
+          "waiting": {
             "minimum": 0,
             "type": "integer"
           }
         },
         "required": [
-          "queued",
-          "left",
-          "made",
+          "waiting",
           "next"
         ],
         "type": "object"
@@ -8351,7 +8341,7 @@
     },
     "/api/previews": {
       "get": {
-        "description": "Over the videos in the caller's library: how many previews wait or are being made, how many are made and left, and the one being made (docs/library.md).",
+        "description": "Over the videos in the caller's library: how many wait for a preview, and the one being made (docs/library.md).",
         "responses": {
           "200": {
             "content": {

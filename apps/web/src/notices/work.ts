@@ -84,7 +84,7 @@ export function workItems(sources: {
     .filter((s) => s.checking)
     .map((s) => ({ kind: "check", id: s.id, title: s.title ?? "A subscription" }));
   const previews: WorkItem[] =
-    sources.previews !== null && sources.previews.queued > 0
+    sources.previews !== null && sources.previews.waiting > 0
       ? [{ kind: "previews", id: "previews", work: sources.previews }]
       : [];
   return [...downloads, ...mine, ...processing, ...copies, ...checks, ...previews];

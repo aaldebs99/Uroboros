@@ -102,8 +102,8 @@ describe("workItems", () => {
   });
 
   it("shows the hover previews being made as one row, last, and none while none wait", () => {
-    const work = { queued: 30, left: 400, made: 100, next: null };
-    expect(workItems({ ...none, previews: { ...work, queued: 0 } })).toEqual([]);
+    const work = { waiting: 400, next: null };
+    expect(workItems({ ...none, previews: { ...work, waiting: 0 } })).toEqual([]);
     const items = workItems({ ...none, copies: [copyFixture()], previews: work });
     expect(items.at(-1)).toEqual({ kind: "previews", id: "previews", work });
     expect(items).toHaveLength(2);

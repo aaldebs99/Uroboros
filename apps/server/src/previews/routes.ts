@@ -12,7 +12,7 @@ const workRoute = createRoute({
   tags: ["library"],
   summary: "The caller's hover previews being made",
   description:
-    "Over the videos in the caller's library: how many previews wait or are being made, how many are made and left, and the one being made (docs/library.md).",
+    "Over the videos in the caller's library: how many wait for a preview, and the one being made (docs/library.md).",
   responses: {
     200: {
       description: "Their previews' work",
@@ -21,10 +21,17 @@ const workRoute = createRoute({
   },
 });
 
-/** The bell's view of hover previews (docs/push.md#the-list-in-the-app). */
-export function registerPreviewRoutes(app: OpenAPIHono, db: Kysely<Database> | undefined): void {
+/**
+ * The bell's view of hover previews (docs/push.md#the-list-in-the-app); `generating` is whether
+ * previews are on (`UROBOROS_GENERATE_PREVIEWS`), on unless said.
+ */
+export function registerPreviewRoutes(
+  app: OpenAPIHono,
+  db: Kysely<Database> | undefined,
+  generating = true,
+): void {
   app.openapi(workRoute, async (c) => {
     if (db === undefined) throw new ApiError("unavailable", "previews are not available");
-    return c.json(await previewWork(db, currentPrincipal(c).userId), 200);
+    return c.json(await previewWork(db, currentPrincipal(c).userId, generating), 200);
   });
 }

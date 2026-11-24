@@ -96,10 +96,11 @@ download.
   (`apps/web/src/lib/toastLog.ts`). Opening it dismisses the toasts on screen and marks the
   notifications read.
 - **Hover previews** ([library.md](library.md#hover-previews)) are per person: `GET /api/previews`
-  counts, over the videos in the caller's library, those whose preview job waits or runs, those
-  made and those left, and names the one being made. They show as one row however many there are:
-  the video's title for one, "Hover previews" with "N videos left" and a real bar (made of made
-  plus left) for several. Queueing, starting and finishing a preview publishes
+  counts, over the videos in the caller's library, those waiting for a preview (while previews are
+  on, every one still without one, so the row stays up between the backfill's passes; while off,
+  those already queued), and names the one being made. They show as one row however many there
+  are: the video's title for one, "Hover previews" with "N videos left" for several (a count, no
+  bar). Queueing, starting and finishing a preview publishes
   `{ kind: "previews", userIds }` (everyone with the video, a hundred to a message), and the stream
   sends them a `previews` event, on which the web app asks again (and every 15 s while any wait).
   While previews are stalled (some overdue by 5 minutes and none being made: no replica runs

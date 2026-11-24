@@ -81,6 +81,8 @@ export interface Deps {
   storage?: StorageConfig;
   /** An upload's part size; 8 MiB unless a test sends smaller parts. */
   uploadPartBytes?: number;
+  /** Whether videos get hover previews (`UROBOROS_GENERATE_PREVIEWS`); on unless said. */
+  generatePreviews?: boolean;
 }
 
 export interface AuthDeps {
@@ -282,7 +284,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerNotificationPrefRoutes(app, deps.db);
   registerNoticeRoutes(app, deps.db);
-  registerPreviewRoutes(app, deps.db);
+  registerPreviewRoutes(app, deps.db, deps.generatePreviews);
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
   registerUploadRoutes(app, uploadContext(deps));

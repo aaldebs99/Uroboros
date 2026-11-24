@@ -159,12 +159,13 @@ at once, plays the same for every file the library holds, and costs a few hundre
   cached for a day; null until the clip is made.
 - **Off.** `UROBOROS_GENERATE_PREVIEWS=false` makes none, new or backfilled; clips already made
   still play. The reaper deletes a clip with its media.
-- **The bell** lists the person's previews being made ([push.md](push.md)).
+- **The bell** lists the person's previews being made, one row however many, while any of their
+  videos still wait for one, and none while previews are stalled ([push.md](push.md)).
 
 The preview is a plain muted `<video>` laid over the thumbnail, not the player: it reports no watch
 progress and never touches the remembered volume. Grid tiles have it (the library, search,
-channels, playlists, a shared playlist and Shared › With me); the small rows beside the player, the
-playlist editor, the search palette and public links don't.
+channels, playlists, a shared playlist and Shared › With me); the rows beside the player (where a
+hover means picking), the playlist editor, the search palette and public links don't.
 
 ## Keep and retention
 

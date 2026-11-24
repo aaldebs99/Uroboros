@@ -42,14 +42,21 @@ export async function announcePreview(db: Kysely<Database>, mediaId: string): Pr
 }
 
 /**
- * Queues a media's preview, unless one is live already (the job returns early when it exists), and
- * tells its people.
+ * Queues a media's preview and tells its people, unless it has one already or one is queued (a
+ * second profile of a video, a fetch settling again).
  */
 export async function queuePreview(
   deps: { queues: Pick<DownloadQueues, "preview"> },
   mediaId: string,
   tx?: Kysely<Database>,
 ): Promise<void> {
+  const db = tx ?? deps.queues.preview.db;
+  const media = await db
+    .selectFrom("media")
+    .select("preview_key")
+    .where("id", "=", mediaId)
+    .executeTakeFirst();
+  if (media === undefined || media.preview_key !== null) return;
   const added = await deps.queues.preview.add(
     "preview",
     { mediaId },
@@ -60,5 +67,5 @@ export async function queuePreview(
     },
     tx,
   );
-  if (added) await announcePreview(tx ?? deps.queues.preview.db, mediaId);
+  if (added) await announcePreview(db, mediaId);
 }

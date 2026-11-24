@@ -40,13 +40,14 @@ const made = (mediaId: string) =>
     .execute();
 
 describe("previewWork", () => {
-  it("is nothing for a library with no previews waiting", async () => {
+  it("counts every video still without a preview while previews are on, none queued when off", async () => {
     const me = await person();
     await video(me, "Plain");
-    expect(await previewWork(t.db, me)).toEqual({ queued: 0, left: 1, made: 0, next: null });
+    expect(await previewWork(t.db, me, true)).toEqual({ waiting: 1, next: null });
+    expect(await previewWork(t.db, me, false)).toEqual({ waiting: 0, next: null });
   });
 
-  it("counts the person's videos waiting, made and left, naming the one being made", async () => {
+  it("counts the person's videos waiting, naming the one being made", async () => {
     const me = await person();
     const a = await video(me, "Alpha");
     const b = await video(me, "Bravo");
@@ -55,10 +56,8 @@ describe("previewWork", () => {
     await made(done.mediaId);
     await queuePreview(h.ctx, a.mediaId);
     await queuePreview(h.ctx, b.mediaId);
-    expect(await previewWork(t.db, me)).toEqual({
-      queued: 2,
-      left: 2,
-      made: 1,
+    expect(await previewWork(t.db, me, false)).toEqual({
+      waiting: 2,
       next: { entryId: a.entryId, title: "Alpha", running: false },
     });
     await t.db
@@ -70,21 +69,22 @@ describe("previewWork", () => {
       })
       .where("key", "=", previewJobKey(b.mediaId))
       .execute();
-    expect((await previewWork(t.db, me)).next).toEqual({
+    expect((await previewWork(t.db, me, true)).next).toEqual({
       entryId: b.entryId,
       title: "Bravo",
       running: true,
     });
     // Made, while its job's row is still finishing: it no longer counts as waiting.
     await made(b.mediaId);
-    expect(await previewWork(t.db, me)).toMatchObject({ queued: 1, left: 1, made: 2 });
+    expect(await previewWork(t.db, me, false)).toMatchObject({ waiting: 1 });
+    expect(await previewWork(t.db, me, true)).toMatchObject({ waiting: 1 });
   });
 
   it("counts only the person's own library", async () => {
     const [me, them] = [await person(), await person()];
     const theirs = await video(them, "Theirs");
     await queuePreview(h.ctx, theirs.mediaId);
-    expect(await previewWork(t.db, me)).toEqual({ queued: 0, left: 0, made: 0, next: null });
-    expect((await previewWork(t.db, them)).queued).toBe(1);
+    expect(await previewWork(t.db, me, true)).toEqual({ waiting: 0, next: null });
+    expect((await previewWork(t.db, them, true)).waiting).toBe(1);
   });
 });

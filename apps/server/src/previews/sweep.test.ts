@@ -68,6 +68,12 @@ describe("sweepPreviews", () => {
     expect(await sweepPreviews(h.ctx)).toBe(0);
   });
 
+  it("never queues a video that has its preview (a second profile of it, say)", async () => {
+    const done = await media({ preview: true });
+    await queuePreview(h.ctx, done);
+    expect((await queued()).has(done)).toBe(false);
+  });
+
   it("queues at most a batch per pass", async () => {
     await t.db.deleteFrom("jobs").where("queue", "=", "preview").execute();
     const before = (await queued()).size;

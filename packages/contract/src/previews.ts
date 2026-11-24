@@ -6,12 +6,13 @@ import { z } from "@hono/zod-openapi";
  */
 export const PreviewWork = z
   .object({
-    /** Videos whose preview is waiting or being made; nothing is in progress at 0. */
-    queued: z.number().int().nonnegative(),
-    /** Videos still without a preview (none that failed for good), and videos with one. */
-    left: z.number().int().nonnegative(),
-    made: z.number().int().nonnegative(),
-    /** The one being made now, else the next to be; null at 0 queued. */
+    /**
+     * Videos whose preview waits or is being made: while previews are on, every one still without
+     * a preview (none that failed for good: the backfill gets to them); while off, those already
+     * queued. 0 while previews are stalled (no replica makes them), and when nothing is in progress.
+     */
+    waiting: z.number().int().nonnegative(),
+    /** The one being made now, else the next queued; null when none is queued. */
     next: z.object({ entryId: z.uuid(), title: z.string(), running: z.boolean() }).nullable(),
   })
   .openapi("PreviewWork");

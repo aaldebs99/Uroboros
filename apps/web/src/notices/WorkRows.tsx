@@ -26,10 +26,10 @@ interface Look {
 
 /**
  * Hover previews being made: one video by its title, several as "Hover previews" with how many of
- * the person's videos are left and how far the whole lot has come.
+ * the person's videos are left (a count, no bar: a backfill's whole is not known ahead).
  */
 function previewsLook(work: PreviewWork): Look {
-  const several = work.left > 1;
+  const several = work.waiting > 1;
   const next = work.next;
   return {
     icon: <Film aria-hidden />,
@@ -40,8 +40,8 @@ function previewsLook(work: PreviewWork): Look {
       ) : (
         <Badge tone="muted">Preview waiting</Badge>
       ),
-    detail: several ? `${String(work.left)} videos left` : "",
-    percent: several ? (work.made / (work.made + work.left)) * 100 : null,
+    detail: several ? `${String(work.waiting)} videos left` : "",
+    percent: null,
     href: several || next === null ? "/" : `/library/${next.entryId}`,
   };
 }

@@ -114,8 +114,9 @@ async function existingRendition(deps: WorkerDeps, data: FetchJob) {
 }
 
 /**
- * Marks every download waiting on the fetch done and gives each person a library entry. False
- * (settling nothing) when the rendition is gone: the reaper deleted it, so the fetch runs anew.
+ * Marks every download waiting on the fetch done, gives each person a library entry and queues the
+ * video's hover preview. False (settling nothing) when the rendition is gone: the reaper deleted
+ * it, so the fetch runs anew.
  */
 export async function settleDone(
   deps: WorkerDeps,
@@ -126,7 +127,7 @@ export async function settleDone(
     // Held against the reaper's FOR UPDATE until the entries below are committed.
     const live = await tx
       .selectFrom("renditions")
-      .select("id")
+      .select(["id", "video_codec"])
       .where("id", "=", rendition.id)
       .forKeyShare()
       .executeTakeFirst();
@@ -157,6 +158,9 @@ export async function settleDone(
         .onConflict((oc) => oc.columns(["user_id", "rendition_id"]).doNothing())
         .execute();
     }
+    // The video's hover preview, with the entries (so their people hear of it at commit).
+    if (deps.generatePreviews && live.video_codec !== null)
+      await queuePreview(deps, rendition.media_id, tx);
     return rows;
   });
   if (settled === null) return false;
@@ -235,12 +239,12 @@ export async function freeKey(
   return candidates.at(-1) ?? key;
 }
 
-/** Stores the downloaded file and its sidecars, and records the rendition (and whether it has video). */
+/** Stores the downloaded file and its sidecars, and records the rendition. */
 async function store(
   deps: WorkerDeps,
   data: FetchJob,
   file: DownloadedFile,
-): Promise<{ id: string; media_id: string; hasVideo: boolean }> {
+): Promise<{ id: string; media_id: string }> {
   const probed = await ffprobe(file.path, {
     binary: deps.ffprobe.binary,
     ...(deps.ffprobe.env === undefined ? {} : { env: deps.ffprobe.env }),
@@ -301,7 +305,7 @@ async function store(
   const rendition = await existingRendition(deps, data);
   if (rendition === undefined) throw new StorageError("the rendition was not recorded");
   await indexKeyframes(deps, rendition.id, file.path, probed);
-  return { ...rendition, hasVideo: facts.video_codec !== null };
+  return rendition;
 }
 
 /** Records a failure: retryable ones stay running for the queue's next attempt. Returns whether it is final. */
@@ -379,12 +383,9 @@ async function downloadAndSettle(
   const file = result.files[0];
   if (file === undefined) throw new StorageError("yt-dlp finished without a file");
   progress({ phase: "storing" });
-  const stored = await store(deps, data, file);
-  if (!(await settleDone(deps, data, stored))) {
+  if (!(await settleDone(deps, data, await store(deps, data, file)))) {
     throw new StorageError("the rendition was not recorded");
   }
-  // Once the library entries exist, so the people they belong to hear of it (their bells).
-  if (deps.generatePreviews && stored.hasVideo) await queuePreview(deps, stored.media_id);
 }
 
 /** Downloads one video in one profile revision and settles everyone waiting on it. */

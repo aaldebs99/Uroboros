@@ -13,6 +13,6 @@ export function usePreviewWork() {
   return useQuery({
     queryKey: previewsKey,
     queryFn: ({ signal }) => getJson("/api/previews", PreviewWork, { signal }),
-    refetchInterval: (query) => ((query.state.data?.queued ?? 0) > 0 ? 15_000 : false),
+    refetchInterval: (query) => ((query.state.data?.waiting ?? 0) > 0 ? 15_000 : false),
   });
 }
