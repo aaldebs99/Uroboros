@@ -12,6 +12,8 @@ import { linkMatch } from "./linkMatch.ts";
 import { originOf, platformName } from "./platform.ts";
 import { thumbnailUrl } from "./thumbnailUrl.ts";
 import { decodeCursor, encodeCursor, type Cursor } from "./cursor.ts";
+import { hitsTable, underSearchTimeout, WORST_TIER } from "./search.ts";
+import { searchTerms } from "./searchTerms.ts";
 
 export interface LibraryFilters {
   q?: string | undefined;
@@ -40,9 +42,7 @@ interface SortSpec {
   cast: (key: Cursor["key"]) => RawBuilder<unknown>;
 }
 
-const queryOf = (q: string) => sql`websearch_to_tsquery('simple', ${q})`;
-
-function sortSpec(sort: LibrarySort, q: string | null): SortSpec {
+function sortSpec(sort: LibrarySort): SortSpec {
   switch (sort) {
     case "added":
       // A JS Date keeps milliseconds only; the cursor carries Postgres's own microsecond text.
@@ -70,10 +70,14 @@ function sortSpec(sort: LibrarySort, q: string | null): SortSpec {
       // `pos` is the playlist's join: `source_items` or `playlist_items`.
       return { expr: sql`pos.position`, dir: "asc", cast: (k) => sql`${k}::integer` };
     case "relevance":
+      // The best place a search matched (`h`, docs/library.md "Search"), then the newest; the cursor
+      // carries both, the time as Postgres's own microsecond text.
       return {
-        expr: sql`ts_rank(m.search, ${queryOf(q ?? "")})::double precision`,
+        expr: sql`ROW(${WORST_TIER} - h.tier, e.added_at)`,
+        keyExpr: sql`(${WORST_TIER} - h.tier)::text || '|' || e.added_at::text`,
         dir: "desc",
-        cast: (k) => sql`${k}::double precision`,
+        cast: (k) =>
+          sql`ROW(split_part(${k}::text, '|', 1)::integer, split_part(${k}::text, '|', 2)::timestamptz)`,
       };
   }
 }
@@ -116,9 +120,8 @@ function linkFilter(qb: Base, link: string): Base {
     : qb.where("m.webpage_url", "in", match.urls);
 }
 
-function filtered(qb: Base, f: LibraryFilters, q: string | null): Base {
+function filtered(qb: Base, f: LibraryFilters): Base {
   let out = qb;
-  if (q !== null) out = out.where(sql<boolean>`m.search @@ ${queryOf(q)}`);
   if (f.url !== undefined) out = linkFilter(out, f.url);
   if (f.channel !== undefined) out = channelFilter(out, f.channel);
   if (f.tag !== undefined) {
@@ -171,7 +174,7 @@ export const dashed = (date: string | null): string | null => {
   return m === null ? null : `${m[1] ?? ""}-${m[2] ?? ""}-${m[3] ?? ""}`;
 };
 
-function chooseSort(f: LibraryFilters, q: string | null): LibrarySort {
+function chooseSort(f: LibraryFilters, terms: string[] | null): LibrarySort {
   const ordered = f.source !== undefined || f.playlist !== undefined;
   if (f.source !== undefined && f.playlist !== undefined) {
     throw new ApiError("bad_request", "source and playlist cannot be combined");
@@ -179,9 +182,9 @@ function chooseSort(f: LibraryFilters, q: string | null): LibrarySort {
   if (f.sort === "position" && !ordered) {
     throw new ApiError("bad_request", "sort=position needs a source or a playlist");
   }
-  if (f.sort === "relevance" && q === null)
+  if (f.sort === "relevance" && terms === null)
     throw new ApiError("bad_request", "sort=relevance needs q");
-  return f.sort ?? (ordered ? "position" : q !== null ? "relevance" : "added");
+  return f.sort ?? (ordered ? "position" : terms !== null ? "relevance" : "added");
 }
 
 /** 404 unless the playlist filter names one of the caller's own. */
@@ -224,25 +227,36 @@ export async function listLibraryPage(
   f: LibraryFilters,
   as?: { ownerId: string },
 ): Promise<LibraryPage> {
-  const q = f.q?.trim() ? f.q.trim().slice(0, 500) : null;
-  const sort = chooseSort(f, q);
+  const terms = f.q === undefined ? null : searchTerms(f.q);
+  const sort = chooseSort(f, terms);
   if (as === undefined) await checkPlaylists(db, userId, f);
-  const spec = sortSpec(sort, q);
+  const spec = sortSpec(sort);
   const size = f.limit ?? LIBRARY_PAGE_SIZE;
-  let qb = inPlaylist(filtered(base(db, userId, as?.ownerId), f, q), f);
-  if (f.entry !== undefined) qb = qb.where("e.id", "=", f.entry);
-  if (f.cursor !== undefined) {
-    const c = decodeCursor(f.cursor);
-    const op = spec.dir === "desc" ? sql`<` : sql`>`;
-    qb = qb.where(sql<boolean>`(${spec.expr}, e.id) ${op} (${spec.cast(c.key)}, ${c.id}::uuid)`);
-  }
-  const rows = await (qb as SelectQueryBuilder<Database, never, object>)
-    .select([...ENTRY_COLUMNS, (spec.keyExpr ?? spec.expr).as("sort_key")] as never)
-    .orderBy(sql`${spec.expr} ${sql.raw(spec.dir)}`)
-    .orderBy(sql`e.id ${sql.raw(spec.dir)}`)
-    .limit(size + 1)
-    .execute()
-    .catch(badCursorKey);
+  const cursor = f.cursor === undefined ? null : decodeCursor(f.cursor);
+  const read = (tx: Kysely<Database>) => {
+    let qb = inPlaylist(filtered(base(tx, userId, as?.ownerId), f), f);
+    if (terms !== null) {
+      // Only the entries whose media the search found; `h.tier` ranks them.
+      qb = qb.innerJoin(hitsTable(as?.ownerId ?? userId, terms).as("h"), (j) =>
+        j.onRef("h.media_id", "=", "e.media_id"),
+      );
+    }
+    if (f.entry !== undefined) qb = qb.where("e.id", "=", f.entry);
+    if (cursor !== null) {
+      const op = spec.dir === "desc" ? sql`<` : sql`>`;
+      qb = qb.where(
+        sql<boolean>`(${spec.expr}, e.id) ${op} (${spec.cast(cursor.key)}, ${cursor.id}::uuid)`,
+      );
+    }
+    return (qb as SelectQueryBuilder<Database, never, object>)
+      .select([...ENTRY_COLUMNS, (spec.keyExpr ?? spec.expr).as("sort_key")] as never)
+      .orderBy(sql`${spec.expr} ${sql.raw(spec.dir)}`)
+      .orderBy(sql`e.id ${sql.raw(spec.dir)}`)
+      .limit(size + 1)
+      .execute()
+      .catch(badCursorKey);
+  };
+  const rows = terms === null ? await read(db) : await underSearchTimeout(db, read);
   const typed = rows as unknown as EntryRow[];
   const pageRows = typed.slice(0, size);
   const last = pageRows.at(-1);

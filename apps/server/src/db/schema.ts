@@ -167,8 +167,6 @@ export interface MediaTable {
   /** Who uploaded it, for an uploaded video (docs/uploads.md). */
   uploaded_by: string | null;
   chapters: ColumnType<unknown, string | undefined, string>;
-  /** Generated; never written. */
-  search: ColumnType<string, never, never>;
   created_at: Created;
   updated_at: Defaulted<Date | string>;
 }

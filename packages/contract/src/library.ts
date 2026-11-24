@@ -4,6 +4,10 @@ import { PlaybackFacts } from "./playback.ts";
 
 export const MAX_TAGS = 20;
 export const LIBRARY_PAGE_SIZE = 60;
+/** A search (`q`) is 3–200 characters, at most 8 words or "quoted phrases" (docs/library.md). */
+export const SEARCH_MIN_CHARS = 3;
+export const SEARCH_MAX_CHARS = 200;
+export const SEARCH_MAX_TERMS = 8;
 
 /** A tag: trimmed, lower-cased, 1–32 characters. */
 export const Tag = z.string().trim().toLowerCase().min(1).max(32).openapi("Tag");

@@ -4,6 +4,9 @@
 -- databases (docs: CLAUDE.md "Database and tests"). Once a release ships, it becomes forward-only
 -- like any migration and changes go into new files.
 
+-- Trigram indexes for library search (docs/library.md "Search"): substring matches in any language.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- Users and SSO (docs/auth.md). An account is local (username + argon2id password hash) or SSO
 -- (OIDC issuer + subject), never both, so "reset password" and "role from IdP groups" are
 -- unambiguous. A disabled row may have neither: the legacy placeholder below.
@@ -227,11 +230,7 @@ CREATE TABLE media (
   -- Who uploaded it, for an uploaded video (docs/uploads.md): only they may edit its details.
   uploaded_by UUID REFERENCES users ON DELETE SET NULL,
   -- [{start, end, title}] from the .info.json.
-  chapters JSONB NOT NULL DEFAULT '[]',
-  -- Full-text search over title, channel and description; 'simple' so any language works.
-  search TSVECTOR GENERATED ALWAYS AS (
-    to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(channel, '') || ' ' || coalesce(description, ''))
-  ) STORED,
+  chapters JSONB NOT NULL DEFAULT '[]' CHECK (jsonb_typeof(chapters) = 'array'),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (extractor, video_id),
@@ -441,7 +440,24 @@ CREATE TABLE subtitles (
   UNIQUE (media_id, lang, automatic)
 );
 
-CREATE INDEX media_search_idx ON media USING GIN (search);
+-- Library search (docs/library.md "Search") matches substrings through trigram indexes over these
+-- texts. The line breaks keep a phrase from running from one field into the next, and the channel is
+-- the uploader when there is none, as the library shows it. The query repeats each indexed
+-- expression (and the chapters' predicate) exactly, or Postgres cannot use the index.
+CREATE FUNCTION media_search_text(title TEXT, channel TEXT, uploader TEXT, description TEXT)
+  RETURNS TEXT LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+  SELECT coalesce(title, '') || E'\n' || coalesce(channel, uploader, '') || E'\n' || coalesce(description, '')
+$$;
+CREATE INDEX media_search_idx ON media
+  USING GIN (media_search_text(title, channel, uploader, description) gin_trgm_ops);
+CREATE FUNCTION media_chapter_text(chapters JSONB) RETURNS TEXT LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+  SELECT coalesce(string_agg(c ->> 'title', E'\n' ORDER BY o), '')
+  FROM jsonb_array_elements(CASE WHEN jsonb_typeof(chapters) = 'array' THEN chapters ELSE '[]' END)
+    WITH ORDINALITY AS t (c, o)
+  WHERE c ->> 'title' IS NOT NULL
+$$;
+CREATE INDEX media_chapters_search_idx ON media USING GIN (media_chapter_text(chapters) gin_trgm_ops)
+  WHERE chapters <> '[]'::jsonb;
 
 -- A playlist someone queued from a preview, its entries in order, and who queued it (a playlist
 -- shows only to them). Channel tabs are not recorded: the channel page covers a channel.

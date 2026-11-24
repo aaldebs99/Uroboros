@@ -129,7 +129,7 @@ lock (`lockKey("DOWN", userId)`); the fetch stores the file through `MediaStore`
 `filesystem` folders, one contract suite for both) and settles every waiting download in one
 transaction. Progress and state go over one Postgres LISTEN/NOTIFY channel to `GET /api/downloads/events` (SSE) on
 every replica; every replica also consumes the queues. The library (`docs/library.md`)
-searches with Postgres full-text (`media.search`, `websearch_to_tsquery`), pages with keyset
+searches by substring through `pg_trgm` trigram indexes (`src/library/search.ts`), pages with keyset
 cursors, and keeps per-person tags, watch progress and queued playlists. Playlists of two kinds, sharing with
 people, with groups people make and run themselves (`src/groups/`; the provider's groups decide
 only the admin role), or by a public link (`/api/public/s/{code}`, outside the guard, each route

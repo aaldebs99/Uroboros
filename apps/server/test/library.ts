@@ -16,7 +16,20 @@ export interface SeededEntry {
 export async function seedEntry(
   db: Kysely<Database>,
   userId: string,
-  opts: { videoId?: string; title?: string; thumbnail?: boolean; storageKey?: string } = {},
+  opts: {
+    videoId?: string;
+    title?: string;
+    thumbnail?: boolean;
+    storageKey?: string;
+    /** The media's other details, for search. */
+    media?: {
+      channel?: string | null;
+      uploader?: string | null;
+      description?: string | null;
+      chapters?: { start: number; end: number | null; title: string | null }[];
+    };
+    addedAt?: Date;
+  } = {},
 ): Promise<SeededEntry> {
   const p = await seededDefault(db);
   const videoId = opts.videoId ?? `v-${randomUUID()}`;
@@ -28,6 +41,8 @@ export async function seedEntry(
       title: opts.title ?? videoId,
       duration: 100,
       thumbnail_key: opts.thumbnail === true ? `thumbs/${videoId}.jpg` : null,
+      ...opts.media,
+      chapters: JSON.stringify(opts.media?.chapters ?? []),
     })
     .onConflict((oc) => oc.columns(["extractor", "video_id"]).doNothing())
     .execute();
@@ -58,7 +73,12 @@ export async function seedEntry(
     .executeTakeFirstOrThrow();
   const entry = await db
     .insertInto("library_entries")
-    .values({ user_id: userId, media_id: media.id, rendition_id: rendition.id })
+    .values({
+      user_id: userId,
+      media_id: media.id,
+      rendition_id: rendition.id,
+      ...(opts.addedAt === undefined ? {} : { added_at: opts.addedAt }),
+    })
     .returning("id")
     .executeTakeFirstOrThrow();
   return { entryId: entry.id, mediaId: media.id, renditionId: rendition.id };

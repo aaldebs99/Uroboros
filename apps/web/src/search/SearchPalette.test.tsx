@@ -176,6 +176,26 @@ describe("the search palette", () => {
     });
   });
 
+  it("asks for 3 characters before it searches the library", async () => {
+    const asked: string[] = [];
+    setup(
+      {},
+      {
+        "GET /api/library": (_init, url) => {
+          const q = url.searchParams.get("q");
+          if (q !== null) asked.push(q);
+          return page([]);
+        },
+      },
+    );
+    await userEvent.type(await openPalette(), "ab");
+    expect(
+      await screen.findByText("Type at least 3 characters to search your library."),
+    ).toBeInTheDocument();
+    expect(options()).toEqual(["Search YouTube for “ab”"]);
+    expect(asked).toEqual([]);
+  });
+
   it("searches YouTube when the library has nothing, and downloads results one by one", async () => {
     let polls = 0;
     const { calls } = setup(

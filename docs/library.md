@@ -9,9 +9,7 @@ public links in [sharing.md](sharing.md).
 `GET /api/library` answers a `LibraryPage` (`entries`, `nextCursor`), 60 entries at a time (or
 `limit`, 1 to 60), always of the caller's own entries (`src/library/query.ts`):
 
-- `q`: full-text search over title, channel and description. `media.search` is a generated
-  `tsvector` with the `simple` configuration (no stemming, any language) and a GIN index, queried
-  with `websearch_to_tsquery`, so quotes, `OR` and `-word` work and odd input never errors.
+- `q`: a search (see [Search](#search) below).
 - `url`: a pasted http(s) link, answering the entries of the video it points at
   (`src/library/linkMatch.ts`). A YouTube link in any of its shapes (`watch?v=`, `youtu.be/`,
   `/shorts/`, `/live/`, `/embed/`, on `www.`, `m.` or `music.`) matches by video id; any other
@@ -20,17 +18,47 @@ public links in [sharing.md](sharing.md).
 - `channel` (a channel key), `tag`, `watched` (`true`/`false`), `source` (a YouTube playlist the
   caller has) and `playlist` (one of the caller's manual playlists); another person's playlist is
   404, and `source` with `playlist` is 400.
-- `sort`: `added` (newest first; the default), `uploaded`, `title`, `duration`, `relevance` (the
-  default with `q`) or `position` (playlist order; the default with `source` or `playlist`, and
-  only with one).
+- `sort`: `added` (newest first; the default), `uploaded`, `title`, `duration`, `relevance` (best
+  match, the default with `q`, and only with it) or `position` (playlist order; the default with
+  `source` or `playlist`, and only with one). Another sort with `q` orders the matches.
 - `cursor`: keyset paging on the sort key and the entry id, so entries added while someone pages
   never cause duplicates or gaps. A cursor this server didn't make is 400.
 
 Each entry carries the caller's progress and tags, and the key of its channel page.
 
+### Search
+
+A search finds substrings, as Djinn's does: `ILIKE '%…%'` through `pg_trgm` trigram GIN indexes, so
+part of a word finds it ("kube" finds Kubernetes), names, numbers and any language work, and nothing
+is stemmed (`src/library/searchTerms.ts`, `src/library/search.ts`).
+
+- **Terms.** `q` is trimmed and split at spaces into words; a `"quoted phrase"` stays one term (an
+  unclosed quote runs to the end), and `OR` or `-word` are words like any other. Repeats are
+  dropped, whatever their case, and `%`, `_` and `\` match themselves.
+- **Rules.** 3 to 200 characters, at most 8 terms, and at least one term with 3 letters or digits in
+  a row (what a trigram index can find); anything else is 400. Spaces alone are no search.
+- **Matching.** Every term must appear within one place: a video's title, channel and description
+  together (the channel is the uploader when there is none), or one chapter title. A word in the
+  title and another in a chapter don't match.
+- **Rank.** The best place a video matched (title, then channel, then a chapter, then the
+  description), then the newest entry; the cursor carries both.
+- **Indexes.** `media_search_idx` is an expression index over `media_search_text(title, channel,
+  uploader, description)` and `media_chapters_search_idx` one over `media_chapter_text(chapters)`
+  where there are chapters, both immutable SQL functions in the schema; the query repeats each
+  expression exactly, or the index goes unused, and a plan test (`searchPlan.test.ts`) checks
+  EXPLAIN names both. Edits to an upload's details re-index themselves.
+- **Shape of the query.** The matches are found first, in materialised CTEs, and only then kept to
+  the caller's own media (`(m.id IN (SELECT media_id FROM owned)) IS TRUE`, a hashed filter), so the
+  planner never walks a whole library to filter it; the page then joins them as `h`.
+- **Bound.** A search runs under `SET LOCAL statement_timeout = '10s'`; one cut short (a common word
+  like "the" in a very large library) is 503 `unavailable`, asking for more specific words.
+
+The web doesn't send fewer than 3 characters: the library page says "Type at least 3
+characters.", and so does the palette.
+
 The web's **search palette** (Ctrl+K or ⌘K anywhere, or the phone's search button;
 `apps/web/src/search/`) asks this route as the field is typed in: words with `q` and `limit=8`
-(once typing rests for 200 ms), a pasted link with `url` and `limit=5`. Words also offer "Search
+(once typing rests for 200 ms, and from 3 characters), a pasted link with `url` and `limit=5`. Words also offer "Search
 YouTube for …" ([downloads.md](downloads.md#flow)), whose results download from the palette one by
 one; a link the library doesn't have offers "Download this link" (the default profile) or "Choose
 a format…" (the Download a link dialog, with the link filled in).

@@ -307,14 +307,31 @@ describe("schema: library", () => {
     return row.id;
   }
 
-  it("indexes title, channel and description for search", async () => {
+  it("gives search the title, channel and description, and the chapter titles", async () => {
     const id = await media("Big Buck Bunny");
-    for (const q of ["bunny", "blender", "movie"]) {
-      const hit = await sql<{
-        id: string;
-      }>`SELECT id FROM media WHERE search @@ to_tsquery('simple', ${q})`.execute(t.db);
+    await t.db
+      .updateTable("media")
+      .set({
+        chapters: JSON.stringify([
+          { start: 0, end: 5, title: "Opening" },
+          { start: 5, end: null, title: null },
+          { start: 9, end: null, title: "Squirrels attack" },
+        ]),
+      })
+      .where("id", "=", id)
+      .execute();
+    for (const q of ["%bunny%", "%blender%", "%open movie%"]) {
+      const hit = await sql<{ id: string }>`SELECT id FROM media
+        WHERE media_search_text(title, channel, uploader, description) ILIKE ${q}`.execute(t.db);
       expect(hit.rows.map((r) => r.id)).toContain(id);
     }
+    const chapters = await sql<{ text: string }>`SELECT media_chapter_text(chapters) AS text
+      FROM media WHERE id = ${id}`.execute(t.db);
+    expect(chapters.rows[0]?.text).toBe("Opening\nSquirrels attack");
+    // Chapters are always a list.
+    await expect(
+      t.db.updateTable("media").set({ chapters: "{}" }).where("id", "=", id).execute(),
+    ).rejects.toThrow(/check/i);
   });
 
   it("keeps one progress row per person and media", async () => {

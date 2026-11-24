@@ -108,6 +108,16 @@ describe("LibraryPage", () => {
     expect(onFilters).toHaveBeenLastCalledWith({ watched: false, sort: "title" });
   });
 
+  it("asks for 3 characters before it searches", async () => {
+    const calls = fakeApi({
+      "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }),
+    });
+    await renderInRouter(<LibraryPage filters={{ q: " ab " }} />);
+    expect(await screen.findByText("Type at least 3 characters.")).toBeInTheDocument();
+    expect(screen.getByText(/finds words in titles, channels, chapters/)).toBeInTheDocument();
+    expect(calls.filter((c) => c.path === "/api/library")).toEqual([]);
+  });
+
   it("points an empty library at Downloads", async () => {
     fakeApi({ "GET /api/library": () => Response.json({ entries: [], nextCursor: null }) });
     await renderInRouter(<LibraryPage />);

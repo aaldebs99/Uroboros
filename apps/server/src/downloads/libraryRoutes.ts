@@ -35,7 +35,11 @@ const libraryQuery = z.object({
     .string()
     .max(1000)
     .optional()
-    .openapi({ param: { name: "q", in: "query" }, description: "Full-text search" }),
+    .openapi({
+      param: { name: "q", in: "query" },
+      description:
+        'Search: 3–200 characters, every word (or "quoted phrase") found within one title with its channel and description, or one chapter title; best place first, then newest',
+    }),
   url: z
     .url({ protocol: /^https?$/ })
     .max(2048)
@@ -92,8 +96,11 @@ const listRoute = createRoute({
   request: { query: libraryQuery },
   responses: {
     200: json(LibraryPage, "A page"),
-    400: error("A bad cursor, channel key, link or limit, or a sort that needs another parameter"),
+    400: error(
+      "A bad cursor, channel key, link or limit, a sort that needs another parameter, or a search that is too short or too long",
+    ),
     404: error("A playlist that is not the caller's"),
+    503: error("The search took too long"),
   },
 });
 

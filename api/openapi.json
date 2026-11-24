@@ -5545,12 +5545,12 @@
       "get": {
         "parameters": [
           {
-            "description": "Full-text search",
+            "description": "Search: 3–200 characters, every word (or \"quoted phrase\") found within one title with its channel and description, or one chapter title; best place first, then newest",
             "in": "query",
             "name": "q",
             "required": false,
             "schema": {
-              "description": "Full-text search",
+              "description": "Search: 3–200 characters, every word (or \"quoted phrase\") found within one title with its channel and description, or one chapter title; best place first, then newest",
               "maxLength": 1000,
               "type": "string"
             }
@@ -5670,7 +5670,7 @@
                 }
               }
             },
-            "description": "A bad cursor, channel key, link or limit, or a sort that needs another parameter"
+            "description": "A bad cursor, channel key, link or limit, a sort that needs another parameter, or a search that is too short or too long"
           },
           "404": {
             "content": {
@@ -5681,6 +5681,16 @@
               }
             },
             "description": "A playlist that is not the caller's"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The search took too long"
           }
         },
         "summary": "A page of the caller's library: search, filters and sort (docs/library.md)",

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { SEARCH_MIN_CHARS } from "@uroboros/contract";
 import { Download, Library, SearchX } from "lucide-react";
 
 import type { LibraryFilters } from "@/api/library";
@@ -40,6 +41,9 @@ export function LibraryPage({
 }) {
   const narrowed =
     filters.q !== undefined || filters.tag !== undefined || filters.watched !== undefined;
+  // The server searches only from 3 characters (docs/library.md "Search"): fewer is not sent.
+  const tooShort =
+    filters.q !== undefined && Array.from(filters.q.trim()).length < SEARCH_MIN_CHARS;
   return (
     <section className="grid w-full grid-cols-1 gap-6">
       <PageHeader title="Library" />
@@ -105,31 +109,37 @@ export function LibraryPage({
           </Select>
         </label>
       </div>
-      <LibraryGrid
-        filters={filters}
-        empty={
-          narrowed ? (
-            <EmptyState icon={SearchX} title="Nothing matches.">
-              Try other words, or drop a filter.
-            </EmptyState>
-          ) : (
-            <EmptyState
-              icon={Library}
-              title="Nothing here yet."
-              action={
-                <Button asChild>
-                  <Link to="/downloads">
-                    <Download aria-hidden />
-                    Go to Downloads
-                  </Link>
-                </Button>
-              }
-            >
-              Videos you download show up here.
-            </EmptyState>
-          )
-        }
-      />
+      {tooShort ? (
+        <EmptyState icon={SearchX} title={`Type at least ${String(SEARCH_MIN_CHARS)} characters.`}>
+          Search finds words in titles, channels, chapters and descriptions.
+        </EmptyState>
+      ) : (
+        <LibraryGrid
+          filters={filters}
+          empty={
+            narrowed ? (
+              <EmptyState icon={SearchX} title="Nothing matches.">
+                Try other words, or drop a filter.
+              </EmptyState>
+            ) : (
+              <EmptyState
+                icon={Library}
+                title="Nothing here yet."
+                action={
+                  <Button asChild>
+                    <Link to="/downloads">
+                      <Download aria-hidden />
+                      Go to Downloads
+                    </Link>
+                  </Button>
+                }
+              >
+                Videos you download show up here.
+              </EmptyState>
+            )
+          }
+        />
+      )}
     </section>
   );
 }

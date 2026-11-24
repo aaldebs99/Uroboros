@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { SEARCH_MIN_CHARS } from "@uroboros/contract";
 import { LoaderCircle, Search } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
@@ -62,6 +63,9 @@ function TopNote({
   found: readonly unknown[] | undefined;
 }) {
   if (typed === "") return <Note>Search your library, or paste a link to download it.</Note>;
+  if (link === null && tooShort(typed)) {
+    return <Note>Type at least {String(SEARCH_MIN_CHARS)} characters to search your library.</Note>;
+  }
   if (link !== null && found === undefined) return <Busy>Checking your library…</Busy>;
   if (found?.length !== 0) return null;
   return link === null ? (
@@ -78,12 +82,16 @@ function YouTubeNote({ youtube }: { youtube: ReturnType<typeof useYouTubeSearch>
   return <Failure message={youtube.error} lines={youtube.ytdlp} />;
 }
 
+/** Fewer characters than the library searches (docs/library.md "Search"). */
+const tooShort = (words: string) => Array.from(words).length < SEARCH_MIN_CHARS;
+
 /** The library's matches for the typed text: words as they settle, or a link at once. */
 function useMatches(typed: string, link: string | null) {
   const words = useSettled(link === null ? typed : "", SETTLE_MS);
-  const wordMatches = useLibraryLookup({ q: words, limit: 8 }, words !== "");
+  const wordMatches = useLibraryLookup({ q: words, limit: 8 }, !tooShort(words));
   const linkMatches = useLibraryLookup({ url: link ?? "", limit: 5 }, link !== null);
-  if (link === null) return wordMatches.data;
+  // Too few characters to search: no matches, never the last longer words' ones.
+  if (link === null) return tooShort(typed) ? [] : wordMatches.data;
   // A link's answer is for that link alone: never the last link's while the next one loads.
   return linkMatches.isPlaceholderData ? undefined : linkMatches.data;
 }

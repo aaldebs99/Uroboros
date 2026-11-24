@@ -246,19 +246,19 @@ describe("GET /api/library", () => {
     ).toBe(400);
   });
 
-  it("finds by title, channel and description, and survives odd queries", async () => {
+  it("finds by title, channel and description, and refuses what it cannot search", async () => {
     expect(titles((await page(alice, "?q=bunny")).entries)).toEqual(["Big Buck Bunny"]);
     expect((await page(alice, "?q=dragon")).entries.map((e) => e.title)).toEqual(["Video 7"]);
     expect((await page(alice, "?q=kurzgesagt")).entries.length).toBeGreaterThan(40);
-    for (const q of ['"big buck"', "bunny OR dragon", "-bunny", "!!!", "x".repeat(300)]) {
+    expect(titles((await page(alice, "?q=%22big%20buck%22")).entries)).toEqual(["Big Buck Bunny"]);
+    // OR and -word are words now: nothing holds "bunny", "or" and "dragon" together.
+    expect((await page(alice, "?q=bunny%20OR%20dragon")).entries).toEqual([]);
+    expect((await page(alice, "?q=-bunny")).entries).toEqual([]);
+    for (const q of ["!!!", "x".repeat(300)]) {
       expect((await app(alice).request(`/api/library?q=${encodeURIComponent(q)}`)).status).toBe(
-        200,
+        400,
       );
     }
-    expect(titles((await page(alice, "?q=bunny%20OR%20dragon")).entries).sort()).toEqual([
-      "Big Buck Bunny",
-      "Video 7",
-    ]);
   });
 
   it("filters by channel, tag and watched, alone and together", async () => {
