@@ -11,6 +11,7 @@ import {
 } from "./library.ts";
 import { Download, FormatProfile, NewSearchBody } from "./downloads.ts";
 import { PLAYLIST_MAX_ITEMS, PlaylistDetail, PlaylistSummary } from "./playlists.ts";
+import { Subscription, SubscriptionPatch } from "./subscriptions.ts";
 
 /** Where the MCP server answers (docs/mcp.md): only API tokens with the `mcp` scope reach it. */
 export const MCP_PATH = "/api/mcp";
@@ -175,3 +176,20 @@ export const McpUpdateEntryInput = z
     (u) => u.tags !== undefined || u.watched !== undefined || u.kept !== undefined,
     "nothing to change",
   );
+
+const SubscriptionId = z.uuid().describe("One of the person's subscriptions (list_subscriptions)");
+
+export const McpSubscriptionInput = z.object({ subscriptionId: SubscriptionId });
+
+export const McpSubscriptionItemsInput = z.object({
+  subscriptionId: SubscriptionId,
+  cursor: Cursor.optional(),
+});
+
+export const McpUpdateSubscriptionInput = z.object({
+  subscriptionId: SubscriptionId,
+  changes: SubscriptionPatch.describe("What to change; enabled false pauses it"),
+});
+
+export const McpSubscriptions = z.object({ subscriptions: z.array(Subscription) });
+export const McpDeleted = z.object({ deleted: z.uuid() });

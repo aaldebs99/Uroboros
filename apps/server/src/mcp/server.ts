@@ -3,8 +3,14 @@ import type { Tool, ToolContext } from "./tool.ts";
 import { curateTools } from "./tools/curate.ts";
 import { downloadTools } from "./tools/downloads.ts";
 import { libraryTools } from "./tools/library.ts";
+import { subscriptionTools } from "./tools/subscriptions.ts";
 
-const TOOLS: readonly Tool[] = [...libraryTools, ...downloadTools, ...curateTools];
+const TOOLS: readonly Tool[] = [
+  ...libraryTools,
+  ...downloadTools,
+  ...curateTools,
+  ...subscriptionTools,
+];
 
 const INSTRUCTIONS =
   "Uroboros is the person's self-hosted video library and downloader. Every tool acts as the person whose token this is, on their own library and what others shared with them.";

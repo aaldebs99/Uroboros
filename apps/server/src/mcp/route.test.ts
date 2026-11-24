@@ -24,6 +24,36 @@ afterAll(async () => {
   await testDb.close();
 });
 
+const READ_TOOLS = [
+  "get_download_request",
+  "get_entry",
+  "get_playlist",
+  "list_channels",
+  "list_downloads",
+  "list_playlists",
+  "list_profiles",
+  "list_subscription_items",
+  "list_subscriptions",
+  "read_transcript",
+  "search_library",
+];
+const WRITE_TOOLS = [
+  "add_to_playlist",
+  "cancel_download",
+  "check_subscription_now",
+  "create_playlist",
+  "create_subscription",
+  "delete_subscription",
+  "download_link",
+  "preview_subscription",
+  "queue_selection",
+  "remove_from_playlist",
+  "retry_download",
+  "search_youtube",
+  "update_entry",
+  "update_subscription",
+];
+
 const initialize = (a: OpenAPIHono, s: string) =>
   mcpPost(a, s, "initialize", {
     protocolVersion: "2025-06-18",
@@ -47,16 +77,7 @@ describe("the MCP endpoint", () => {
       result: { serverInfo: { name: string; version: string } };
     };
     expect(body.result.serverInfo).toMatchObject({ name: "uroboros", version: "9.9.9" });
-    expect(await toolNames(app, secret)).toEqual(
-      expect.arrayContaining([
-        "get_entry",
-        "get_playlist",
-        "list_channels",
-        "list_playlists",
-        "read_transcript",
-        "search_library",
-      ]),
-    );
+    expect(await toolNames(app, secret)).toEqual([...READ_TOOLS, ...WRITE_TOOLS].sort());
   });
 
   it("serves a client of the 2026-07-28 revision too, in plain JSON", async () => {
@@ -87,6 +108,14 @@ describe("the MCP endpoint", () => {
     expect(res.headers.get("content-type")).toContain("application/json");
     const body = (await res.json()) as { result: { structuredContent: unknown } };
     expect(body.result.structuredContent).toEqual({ channels: [] });
+  });
+
+  it("offers a read-only token only the tools that read", async () => {
+    await setMcp(testDb.db, true);
+    const reader = await mcpToken(testDb.db, await insertUser(testDb.db, { username: "mcpro" }), {
+      readOnly: true,
+    });
+    expect(await toolNames(app, reader)).toEqual([...READ_TOOLS].sort());
   });
 
   it("keeps no sessions, so a GET for a stream is refused", async () => {
