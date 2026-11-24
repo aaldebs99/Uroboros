@@ -110,6 +110,12 @@ describe("the MCP download tools", () => {
     expect(req).toMatchObject({ state: "probing", profileId: chosen?.id });
   });
 
+  it("refuse an empty list of ids as a mistake in the call, not a failure of the server", async () => {
+    const r = await callTool(app, secret, "list_downloads", { ids: [] });
+    expect(r.isError).toBe(true);
+    expect(r.content[0]?.text).toMatch(/^Input validation error: .*ids/);
+  });
+
   it("cancel a download and retry it", async () => {
     const id = await searchAndPick(secret, ["c1"]);
     const cancelled = Download.parse(await ok(secret, "cancel_download", { downloadId: id }));

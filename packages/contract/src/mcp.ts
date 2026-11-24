@@ -139,8 +139,8 @@ export const McpQueueInput = z.object({
 export const McpDownloadInput = z.object({ downloadId: z.uuid().describe("A download's id") });
 
 export const McpDownloadsInput = z.object({
-  active: z.boolean().optional().describe("Only those queued or running"),
-  ids: z.array(z.uuid()).max(100).optional(),
+  active: z.boolean().optional().describe("true: only those queued or running; otherwise all"),
+  ids: z.array(z.uuid()).min(1).max(100).optional().describe("Only these downloads"),
   limit: z.number().int().min(1).max(100).default(25),
 });
 
