@@ -55,42 +55,72 @@ function renderPlayer() {
     </>,
   );
   const video = container.querySelector("video") as HTMLVideoElement;
+  /** Playback moving on to `t` (a `timeupdate`). */
   const playTo = (t: number) => {
     video.currentTime = t;
     fireEvent(video, new Event("timeupdate"));
   };
-  return { video, playTo };
+  /** The viewer seeking to `t` (jsdom fires no `seeked` itself). */
+  const seekTo = (t: number) => {
+    video.currentTime = t;
+    fireEvent(video, new Event("seeked"));
+  };
+  return { video, playTo, seekTo };
 }
 
 describe("SponsorSkip", () => {
-  it("jumps over a segment as playback reaches it, and Undo plays that one through", async () => {
-    const { video, playTo } = renderPlayer();
-    playTo(48);
-    expect(video.currentTime).toBe(48);
+  it("jumps over a segment playback runs into, and Undo plays that one through", async () => {
+    const { video, playTo, seekTo } = renderPlayer();
+    seekTo(48);
+    playTo(48.5);
+    expect(video.currentTime).toBe(48.5);
     playTo(49.1);
     expect(video.currentTime).toBe(69);
     expect(await screen.findByText("Skipped sponsor")).toBeInTheDocument();
     // A plain click: jsdom has no pointer capture for the toast's swipe handling.
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(video.currentTime).toBe(49.04);
+    playTo(49.3);
     playTo(50);
     expect(video.currentTime).toBe(50);
   });
 
+  it("lets a segment the viewer seeks into play out", () => {
+    const { video, playTo, seekTo } = renderPlayer();
+    seekTo(55);
+    playTo(55.25);
+    playTo(55.5);
+    playTo(56.5);
+    expect(video.currentTime).toBe(56.5);
+  });
+
+  it("skips a segment playback reaches after a seek to just before it", () => {
+    const { video, playTo, seekTo } = renderPlayer();
+    seekTo(55);
+    playTo(55.25);
+    seekTo(76.9);
+    playTo(77.2);
+    playTo(77.8);
+    expect(video.currentTime).toBe(88.45);
+  });
+
   it("jumps over overlapping segments at once, naming each", async () => {
-    const { video, playTo } = renderPlayer();
-    playTo(80);
+    const { video, playTo, seekTo } = renderPlayer();
+    seekTo(77.5);
+    playTo(77.8);
     expect(video.currentTime).toBe(88.45);
     expect(await screen.findByText("Skipped self-promotion and sponsor")).toBeInTheDocument();
   });
 
   it("goes to the end for a segment that runs to it, and skips nothing while paused", () => {
-    const { video, playTo } = renderPlayer();
+    const { video, playTo, seekTo } = renderPlayer();
     paused = true;
-    playTo(60);
-    expect(video.currentTime).toBe(60);
+    seekTo(48.5);
+    playTo(49.2);
+    expect(video.currentTime).toBe(49.2);
     paused = false;
-    playTo(995);
+    seekTo(989.5);
+    playTo(990.2);
     expect(video.currentTime).toBe(1008);
   });
 });

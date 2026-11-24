@@ -152,8 +152,9 @@ shared by everyone using the profile and revision. What happens to the segments 
   the segments yt-dlp found from the `.info.json` (`sponsorblock_chapters`) into
   `renditions.skip_segments` (`src/worker/skipSegments.ts`: the profile's categories, SponsorBlock's
   "skip" action). The item and public-link routes hand them out as `skipSegments`, and the web player
-  draws them as bands on the timeline and jumps over each as playback reaches it, with an Undo
-  (`apps/web/src/library/SponsorSkip.tsx`). Cutting a video is what yt-dlp's
+  draws them as bands on the timeline and jumps over one when playback runs into its start, with an
+  Undo (`apps/web/src/library/SponsorSkip.tsx`). Only playback skips: a segment the viewer seeks
+  into plays out, and a jump of more than 2 s between two looks counts as a seek. Cutting a video is what yt-dlp's
   `--sponsorblock-remove` would do, but it cuts by stream copy: each kept part must restart at the
   keyframe before its cut point, so up to one keyframe interval of the removed segment (several
   seconds on YouTube's AV1) comes along. Those packets land before the part's start, the muxer

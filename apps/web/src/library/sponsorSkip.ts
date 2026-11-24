@@ -4,6 +4,11 @@ import type { SkipSegment, SponsorBlockCategory } from "@uroboros/contract";
 const JOIN_GAP = 0.5;
 /** Inside a segment's last moment, playing on is quicker than a seek. */
 const TAIL = 0.2;
+/**
+ * The most playback moves between two `timeupdate`s (about 4 a second, faster at 2×). A bigger
+ * jump, or one backwards, is a seek, never playback reaching a segment.
+ */
+const MAX_STEP = 2;
 
 /** One stretch the player jumps over: overlapping or touching segments joined. */
 export interface SkipSpan {
@@ -29,15 +34,21 @@ export function skipSpans(segments: readonly SkipSegment[]): SkipSpan[] {
 }
 
 /**
- * The span playback at `time` should jump past: the one it is inside (short of its last moment),
- * unless the viewer undid that one.
+ * The span playback ran into between two moments, `from` then `to`, to jump past: one whose start
+ * lies between them (short of its last moment), unless the viewer undid it. Only playback reaches
+ * a span: from a seek into one (`from` already inside it) it plays out.
  */
-export function spanAt(
+export function spanReached(
   spans: readonly SkipSpan[],
-  time: number,
+  from: number,
+  to: number,
   undone: ReadonlySet<number>,
 ): SkipSpan | undefined {
-  return spans.find((s) => time >= s.start && time < s.end - TAIL && !undone.has(s.start));
+  const step = to - from;
+  if (step < 0 || step > MAX_STEP) return undefined;
+  return spans.find(
+    (s) => from < s.start && s.start <= to && to < s.end - TAIL && !undone.has(s.start),
+  );
 }
 
 const LABELS: Record<SponsorBlockCategory, string> = {

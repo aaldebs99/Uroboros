@@ -62,8 +62,9 @@ and `GET /api/library/{id}/subtitles/{subId}` serves a WebVTT file. The web app 
 Video.js 10 (`@videojs/react`, the Neutral video skin in the app's accent): subtitles are `<track>`s
 in its captions menu, chapters are a text track its time slider divides into sections, and the page
 also lists the chapters to jump to (`apps/web/src/library/Player.tsx`). The item's `skipSegments`,
-the SponsorBlock segments a video keeps, are bands on the timeline that playback jumps over
-(`SponsorSkip.tsx`, [automation.md](automation.md#sponsorblock)). When the browser cannot play
+the SponsorBlock segments a video keeps, are bands on the timeline that playback jumps over when it
+runs into one; a segment the viewer seeks into plays out (`SponsorSkip.tsx`,
+[automation.md](automation.md#sponsorblock)). When the browser cannot play
 the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand instead
 ([transcoding.md](transcoding.md)).
 
