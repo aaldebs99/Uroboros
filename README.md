@@ -226,7 +226,7 @@ resuming where you left off. `docs/library.md` has the design.
 
 ## Installable app and push notifications
 
-The UI is an installable web app: a static manifest, icons, and a service worker (vite-plugin-pwa,
+The UI is an installable PWA: a static manifest, icons, and a service worker (vite-plugin-pwa,
 `injectManifest`) that precaches the shell and shows Web Push notifications. Settings,
 Notifications turns them on per browser or phone, sends a test, and turns a device off. Push is on
 only when the server knows its public https address, `UROBOROS_PUBLIC_BASE_URL`; the push variables
@@ -289,7 +289,7 @@ GPU, organized folders, a host-run server, and what to change before others use 
 | `UROBOROS_TRANSCODE_VAAPI_DEVICE`                            | server                        | `/dev/dri/renderD128`                                              | The VA-API render node, with `UROBOROS_TRANSCODE_HWACCEL=vaapi`.                                                                                                                                                                                                                     |
 | `UROBOROS_GENERATE_PREVIEWS`                                 | server                        | `true`                                                             | Whether videos get hover preview clips (a short silent 480p clip of snippets from across each, cut on the CPU by replicas with `UROBOROS_TRANSCODE_CONCURRENCY` above 0; docs/library.md). `false` makes none; those already made still play.                                        |
 | `UROBOROS_WORK_DIR`                                          | server                        | `$TMPDIR/uroboros-work`                                            | Scratch space for downloads in progress (a tmpfs in compose).                                                                                                                                                                                                                        |
-| `UROBOROS_SECRETS_KEY`                                       | server                        | unset (saving site logins off)                                     | 32 random bytes in base64 (`openssl rand -base64 32`) sealing saved site logins; keep it, a new key voids them.                                                                                                                                                                      |
+| `UROBOROS_SECRETS_KEY`                                       | server                        | unset (saving site logins roff)                                    | 32 random bytes in base64 (`openssl rand -base64 32`) sealing saved site logins; keep it, a new key voids them.                                                                                                                                                                      |
 | `UROBOROS_SUBTITLE_LANGS`, `UROBOROS_AUTO_SUBTITLES`         | server                        | `en.*`, `true`                                                     | Subtitles saved with each download (yt-dlp `--sub-langs`, at most 190 characters; empty saves none), and whether automatic captions count (YouTube's transcripts; search reads both, docs/library.md).                                                                               |
 | `UROBOROS_MIGRATIONS_DIR`                                    | api, migrate, `migration:new` | the repo's `migrations/`                                           | Where the SQL files are; the image sets `/app/migrations`.                                                                                                                                                                                                                           |
 | `UROBOROS_TEST_DATABASE_URL`, `_S3_URL`                      | tests                         | unset (testcontainers)                                             | Servers for the test run to use instead of starting containers.                                                                                                                                                                                                                      |
@@ -301,7 +301,7 @@ signs in with a dev-only bootstrap admin, `admin` / `admin`, unless you set
 
 ## CI and releases
 
-The repository is hosted on a self-hosted Forgejo and mirrored to
+The repository is hosted on a private, self-hosted Gitea and mirrored to
 https://github.com/aaldebs99/Uroboros, and the workflows in `.github/workflows` run on the
 forge's Actions runners (Actions are off on the mirror). `ci.yml` runs every gate as one
 `mise run <task>` step, and its `CI` job is the required status check. `pr-title.yml` requires a
