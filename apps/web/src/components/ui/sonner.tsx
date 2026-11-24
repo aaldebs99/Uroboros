@@ -98,8 +98,8 @@ const TAB_BAR = "3.625rem + env(safe-area-inset-bottom)";
 /**
  * Themed from our own store (`useTheme`), not next-themes; unstyled cards. From `md` up they come
  * in at the top right, under the top bar. On phones they come in at the bottom right, just above
- * the bottom tabs when the page has them (`aboveTabBar`), and Sonner's own phone layout (below
- * 600px) gets the same offsets.
+ * the bottom tabs when the page has them (`aboveTabBar`), and Sonner's own phone layout (under
+ * 600 CSS pixels) gets the same offsets.
  */
 function Toaster({ aboveTabBar = false, ...props }: ToasterProps & { aboveTabBar?: boolean }) {
   const { theme } = useTheme();
