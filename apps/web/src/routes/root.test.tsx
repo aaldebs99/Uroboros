@@ -48,7 +48,7 @@ afterEach(() => {
 });
 
 describe("app shell", () => {
-  it("renders the nav links, with the library's views indented under Library", async () => {
+  it("renders the nav links, with the library's and Settings' views indented under them", async () => {
     await renderAt("/");
 
     const nav = screen.getByRole("navigation", { name: "Primary" });
@@ -64,6 +64,8 @@ describe("app shell", () => {
       "Subscriptions",
       "Shared",
       "Settings",
+      "Notifications",
+      "Logins",
     ]);
   });
 

@@ -31,8 +31,13 @@ A list of sections in the page colour, below the top bar, not a separate coloure
 - The current row is `bg-raised font-medium` with `aria-current="page"`; hover is `bg-raised/60`.
 - Groups are split by a hairline rule (`border-t border-border mx-1 my-2`), with headings at
   12/500 muted (`px-3 pt-3.5 pb-1.5`).
-- Groups today: the primary group (Library, Downloads, Subscriptions, Settings), then **Admin**
-  for admins (Users, Format profiles).
+- Groups today: the primary group (Library, Downloads, Subscriptions, Shared, Settings), then
+  **Admin** for admins (Users, Format profiles).
+- **A section's views are indented under it** (`SECTIONS` in `components/SidebarNav.tsx`, the
+  lists in `nav.ts`): Library's Videos, Channels and Playlists, and Settings' Notifications and
+  Logins, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
+  turns medium while one of its pages is open. On phones the same views are underlined tabs atop
+  the page (`ViewTabs`, `RouteTabs phoneOnly`); the mini rail has no room for them.
 - When subscriptions exist, a **Subscriptions** group lists channels with 24px round avatars.
 - **Mini mode** (from the menu button) is a 72px rail: the icon above a 10px label, with the
   current item filled.
@@ -123,12 +128,11 @@ Filters are a row of pills; views are underlined text tabs.
 
 ## Page header
 
-B: the title (24/700) with a muted description under it, the page's main action at the trailing
-edge (wrapping under the title when narrow), and a hairline rule under the header (`pb-3.5
-border-b border-border`). A page holding a single list doesn't repeat the list's own heading.
-On phones a section's title, description and rule are hidden (the title stays for screen
-readers) and only the action shows; a page about one thing passes `titleOnPhone` to keep its
-title ([phone](phone.md#getting-around)). A section whose name the side navigation already shows
-beside its own view tabs (the library's Videos, Channels and Playlists, and Shared) passes
-`hideTitle`: no visible title at any width, only for screen readers, and its action, if any, stays
-at the trailing edge.
+No section titles, at any width: the navigation already says where you are, so `PageHeader`
+keeps a section's title and muted description for screen readers only and a page starts with its
+content. Only the page's main action shows, at the trailing edge, with no rule; a header with no
+action takes no room at all. A page about **one thing** (a playlist, a subscription, a shared
+playlist, a new subscription's source) passes `showTitle`, since its title names that thing: B's
+title (24/700) with the muted description under it, the action at the trailing edge (wrapping
+under the title when narrow), and a hairline rule under the header (`pb-3.5 border-b
+border-border`). A page holding a single list doesn't repeat the list's own heading.

@@ -81,7 +81,7 @@ export function SharedPlaylistPage({ shareId }: { shareId: string }) {
   return (
     <section className="grid w-full grid-cols-1 gap-6">
       <PageHeader
-        titleOnPhone
+        showTitle
         title={d.title}
         description={`Shared by ${d.owner} · ${String(d.count ?? entries.length)} videos`}
         action={

@@ -53,6 +53,17 @@ export const LIBRARY_VIEWS = [
   { to: "/library/playlists", label: "Playlists" },
 ] as const;
 
+/** Settings' views, the same way: indented under Settings in the side navigation, tabs on phones. */
+export const SETTINGS_VIEWS = [
+  { to: "/settings", label: "Notifications" },
+  { to: "/settings/logins", label: "Logins" },
+] as const;
+
+/** Whether `pathname` is one of Settings' views. */
+export function inSettings(pathname: string): boolean {
+  return pathname === "/settings" || pathname.startsWith("/settings/");
+}
+
 /** Whether `pathname` is one of the library's pages (its views, a channel, a playlist, a video). */
 export function inLibrary(pathname: string): boolean {
   return pathname === "/" || pathname.startsWith("/library/");

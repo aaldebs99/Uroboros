@@ -42,7 +42,7 @@ export function LibraryPage({
     filters.q !== undefined || filters.tag !== undefined || filters.watched !== undefined;
   return (
     <section className="grid w-full grid-cols-1 gap-6">
-      <PageHeader title="Library" hideTitle />
+      <PageHeader title="Library" />
       <ViewTabs />
       {/* The sort sits at the end of the chips' row; on phones the chips scroll beside it. */}
       <div className="flex items-center gap-3">

@@ -209,7 +209,7 @@ export function PlaylistPage({ playlistId }: { playlistId: string }) {
   return (
     <section className="grid w-full grid-cols-1 gap-6">
       <PageHeader
-        titleOnPhone
+        showTitle
         title={p?.name ?? "Playlist"}
         description={p === undefined ? undefined : `${kindLabel(p)} · ${String(p.count)} videos`}
         action={

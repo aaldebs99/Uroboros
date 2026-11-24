@@ -12,8 +12,9 @@ import { SiteLogins } from "@/settings/SiteLogins";
 const settings = NAV_ITEMS.find((item) => item.to === "/settings");
 
 /**
- * Settings' frame: the header and the view tabs, in a column capped at the left margin (a
- * settings column reads badly stretched).
+ * Settings' frame: the (screen-reader) header and, on phones, the view tabs (the side navigation
+ * lists the views from `md` up), in a column capped at the left margin (a settings column reads
+ * badly stretched).
  */
 function SettingsFrame({ children }: { children: ReactNode }) {
   return (

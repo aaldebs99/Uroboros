@@ -18,9 +18,9 @@ A slim top bar with a menu button, and bottom tabs.
   slider, or anything marked `data-own-swipe` (the player).
 - **Motion:** it slides in and out in 200ms on iOS's curve (`cubic-bezier(0.32, 0.72, 0, 1)`); the
   close button, the scrim and Escape slide it out, and reduced motion makes it instant.
-- **No section titles:** a section page starts with its content. `PageHeader` hides a section's
-  title and description on phones (screen readers still get them) and shows only its action. A
-  page about one thing (a playlist, a subscription) keeps its title: pass `titleOnPhone`.
+- **No section titles:** a section page starts with its content, as on desktop. `PageHeader`
+  keeps a section's title and description for screen readers and shows only its action. A page
+  about one thing (a playlist, a subscription) keeps its title: pass `showTitle`.
 - **Filter chips** sit under the top bar on pages that have them, scrolling sideways, with the
   page's sort select at the end of the same row (its "Sort" label hidden on phones).
 - **Bottom tab bar:**

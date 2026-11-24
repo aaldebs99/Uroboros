@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
+import { cn } from "@/lib/utils";
+
 /** A tab is a route of its own (as `nav.ts` lists them): add a page's views here. */
 export interface RouteTab {
   to: "/shared" | "/shared/by-me" | "/settings" | "/settings/logins";
@@ -10,9 +12,21 @@ export interface RouteTab {
  * A page's views as underlined tabs, each a link to its own route (so a view has a URL): muted
  * text at 500, the current one in the foreground over a heavier underline on the hairline.
  */
-export function RouteTabs({ label, tabs }: { label: string; tabs: readonly RouteTab[] }) {
+export function RouteTabs({
+  label,
+  tabs,
+  phoneOnly = false,
+}: {
+  label: string;
+  tabs: readonly RouteTab[];
+  /** For a section whose views the side navigation lists from `md` up (Settings). */
+  phoneOnly?: boolean;
+}) {
   return (
-    <nav aria-label={label} className="flex gap-6 overflow-x-auto border-b border-border">
+    <nav
+      aria-label={label}
+      className={cn("flex gap-6 overflow-x-auto border-b border-border", phoneOnly && "md:hidden")}
+    >
       {tabs.map((t) => (
         <Link
           key={t.to}

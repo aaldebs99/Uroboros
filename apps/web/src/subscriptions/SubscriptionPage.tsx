@@ -22,7 +22,7 @@ function Header({ sub }: { sub: Subscription }) {
   return (
     <>
       <PageHeader
-        titleOnPhone
+        showTitle
         title={sub.title ?? sub.url}
         description={
           <span className="flex flex-wrap items-center gap-2">

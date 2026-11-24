@@ -60,12 +60,19 @@ describe("Settings", () => {
     );
   });
 
-  it("keeps Settings current in the side navigation on the Logins tab", async () => {
-    renderAt("/settings/logins");
+  it("lists its views under Settings in the side navigation, the current one filled", async () => {
+    const router = renderAt("/settings/logins");
     const nav = await screen.findByRole("navigation", { name: "Primary" });
-    expect(within(nav).getByRole("link", { name: "Settings" })).toHaveAttribute(
+    const views = within(nav).getByRole("list", { name: "Settings views" });
+    expect(within(views).getByRole("link", { name: "Logins" })).toHaveAttribute(
       "aria-current",
       "page",
     );
+    expect(within(views).getByRole("link", { name: "Notifications" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    await userEvent.click(within(views).getByRole("link", { name: "Notifications" }));
+    expect(await screen.findByRole("heading", { name: "Notifications" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/settings");
   });
 });

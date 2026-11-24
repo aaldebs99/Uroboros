@@ -74,7 +74,6 @@ export function PlaylistsPage() {
       <ViewTabs />
       <PageHeader
         title="Playlists"
-        hideTitle
         action={
           <Button
             onClick={() => {
