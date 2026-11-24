@@ -19,7 +19,11 @@ import { LibraryGrid } from "./LibraryGrid";
 import { PlaylistPage } from "./PlaylistPage";
 import { PlaylistsPage } from "./PlaylistsPage";
 
-vi.mock("./playable", () => ({ canPlayOriginal: () => true, hasNativeHls: () => false }));
+vi.mock("./playable", () => ({
+  canPlayOriginal: () => true,
+  hasNativeHls: () => false,
+  capabilities: () => ({ copyVideo: true, copyAudio: true }),
+}));
 vi.mock("./Player", () => ({
   Player: (props: { onEnded: () => void }) => (
     <button type="button" onClick={props.onEnded}>

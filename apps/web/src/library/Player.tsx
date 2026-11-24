@@ -7,10 +7,11 @@ import { HlsVideo } from "@videojs/react/media/hls-video";
 import { NativeHlsVideo } from "@videojs/react/media/native-hls-video";
 import { NeutralVideoSkin, Video, VideoPlayer } from "@videojs/react/video";
 import { SettingsMenuSlot } from "@videojs/react/video/settings-slot";
-import { useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
 
 import { readVolume, storeVolume } from "@/lib/playerPrefs";
 
+import { PlayerErrorWatch } from "./PlayerErrorWatch";
 import { PlayerHotkeys } from "./PlayerHotkeys";
 
 export interface PlayerProps {
@@ -39,6 +40,8 @@ export interface PlayerProps {
   onEnded: (position: number, duration: number) => void;
   /** Shown in the settings menu in place of the skin's Quality submenu (QualityMenu). */
   settings?: ReactNode;
+  /** The player failed (once per error): the page may play the video another way. */
+  onError?: () => void;
 }
 
 /** The design system's tokens on the skin's styling hooks (docs: "Customize skins"). */
@@ -91,6 +94,14 @@ export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
   /** The source already started: a later change to the saved position must not jump back. */
   const startedFor = useRef<string | null>(null);
+  /** The source whose failure was reported: the element and the player's state both see one. */
+  const failedFor = useRef<string | null>(null);
+  const { onError, src } = p;
+  const report = useCallback(() => {
+    if (failedFor.current === src) return;
+    failedFor.current = src;
+    onError?.();
+  }, [onError, src]);
   // The remembered volume, before anything plays.
   useEffect(() => {
     const v = video.current;
@@ -154,6 +165,7 @@ export function Player(p: PlayerProps) {
             onEnded={(e) => {
               p.onEnded(...at(e.currentTarget));
             }}
+            onError={report}
             onVolumeChange={(e) => {
               storeVolume({ volume: e.currentTarget.volume, muted: e.currentTarget.muted });
             }}
@@ -170,6 +182,7 @@ export function Player(p: PlayerProps) {
             ))}
           </Media>
           <PlayerHotkeys video={video} />
+          <PlayerErrorWatch onError={report} />
         </NeutralVideoSkin>
       </SettingsMenuSlot.Provider>
     </VideoPlayer>

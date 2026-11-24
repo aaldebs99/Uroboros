@@ -11,6 +11,7 @@ const playable = vi.hoisted(() => ({ original: true }));
 vi.mock("../library/playable", () => ({
   canPlayOriginal: () => playable.original,
   hasNativeHls: () => false,
+  capabilities: () => ({ copyVideo: false, copyAudio: true }),
 }));
 vi.mock("../library/Player", () => ({
   Player: (props: { src: string; onEnded: () => void }) => (
@@ -180,7 +181,7 @@ describe("a public link", () => {
     expect(await screen.findByText("This link doesn't work any more")).toBeInTheDocument();
   });
 
-  it("asks for the compatible copy through the link", async () => {
+  it("starts a playback session through the link when the browser can't play the file", async () => {
     playable.original = false;
     const calls = fakeApi({
       ...signedOut,
@@ -194,18 +195,28 @@ describe("a public link", () => {
         }),
       [`GET ${base(1)}`]: () => Response.json(item(1)),
       [`POST ${base(1)}/playback`]: () =>
-        Response.json({
-          state: "running",
-          mode: "encode",
-          readySegments: 0,
-          progress: 0.1,
-          masterUrl: `${base(1)}/playback/master.m3u8`,
-          error: null,
-        }),
+        Response.json(
+          {
+            id: "0190a3f2-7c1e-7000-8000-00000000005e",
+            state: "running",
+            mode: "encode",
+            quality: "original",
+            encoder: "libx264",
+            width: 1280,
+            height: 720,
+            reason: "video_unsupported",
+            url: `${base(1)}/playback/sessions/0190a3f2-7c1e-7000-8000-00000000005e`,
+            masterUrl: `${base(1)}/playback/sessions/0190a3f2-7c1e-7000-8000-00000000005e/master.m3u8`,
+            error: null,
+          },
+          { status: 201 },
+        ),
     });
     await openLink();
     await waitFor(() => {
-      expect(calls.some((c) => c.method === "POST" && c.path === `${base(1)}/playback`)).toBe(true);
+      expect(
+        calls.find((c) => c.method === "POST" && c.path === `${base(1)}/playback`)?.body,
+      ).toEqual({ quality: "original", start: 0, copyVideo: false, copyAudio: true });
     });
   });
 });

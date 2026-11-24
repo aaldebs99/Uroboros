@@ -62,8 +62,6 @@ export {
   LibraryPage,
   LibrarySort,
   MAX_TAGS,
-  Playback,
-  PlaybackState,
   ProgressBody,
   SubtitleTrack,
   Tag,

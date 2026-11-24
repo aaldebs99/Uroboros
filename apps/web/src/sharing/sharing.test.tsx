@@ -12,7 +12,11 @@ import { SharedByMe } from "./SharedByMe";
 import { SharedPage } from "./SharedPage";
 import { SharedPlaylistPage } from "./SharedPlaylistPage";
 
-vi.mock("../library/playable", () => ({ canPlayOriginal: () => true, hasNativeHls: () => false }));
+vi.mock("../library/playable", () => ({
+  canPlayOriginal: () => true,
+  hasNativeHls: () => false,
+  capabilities: () => ({ copyVideo: true, copyAudio: true }),
+}));
 vi.mock("../library/Player", () => ({ Player: () => <div data-testid="player" /> }));
 
 const id = (n: number) => `0190a3f2-7c1e-7000-8000-${String(n).padStart(12, "0")}`;

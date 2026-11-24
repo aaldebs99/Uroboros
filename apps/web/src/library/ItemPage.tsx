@@ -150,6 +150,7 @@ export function ItemPage({ entryId, queue = null }: { entryId: string; queue?: P
       <div className="grid gap-6 @6xl:grid-cols-[minmax(0,13fr)_minmax(18rem,7fr)]">
         <article className="grid min-w-0 content-start gap-4">
           <WatchPlayer
+            key={it.id}
             item={it}
             start={it.progress !== null && !it.progress.watched ? it.progress.position : 0}
             autoPlay

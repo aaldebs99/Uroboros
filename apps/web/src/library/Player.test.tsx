@@ -317,4 +317,38 @@ describe("Player keyboard", () => {
       cleanup();
     }
   });
+
+  it("reports a media error once, so the page can play it another way", async () => {
+    const onError = vi.fn();
+    const { container } = render(
+      <Player
+        src="/v"
+        title="t"
+        start={0}
+        autoPlay={false}
+        seek={null}
+        chapters={[]}
+        subtitles={[]}
+        onTime={noop}
+        onPause={noop}
+        onEnded={noop}
+        onError={onError}
+      />,
+    );
+    const video = container.querySelector("video") as HTMLVideoElement;
+    Object.defineProperty(video, "error", {
+      configurable: true,
+      get: () => ({ code: 4, message: "MEDIA_ERR_SRC_NOT_SUPPORTED" }),
+    });
+    act(() => {
+      video.dispatchEvent(new Event("error"));
+    });
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledTimes(1);
+    });
+    act(() => {
+      video.dispatchEvent(new Event("error"));
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
 });
