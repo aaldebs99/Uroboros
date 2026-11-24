@@ -260,6 +260,9 @@ export const WatchProgress = z
   .openapi("WatchProgress");
 export type WatchProgress = z.infer<typeof WatchProgress>;
 
+export const EntryOrigin = z.enum(["download", "upload"]).openapi("EntryOrigin");
+export type EntryOrigin = z.infer<typeof EntryOrigin>;
+
 export const LibraryEntry = z
   .object({
     id: Id,
@@ -274,7 +277,10 @@ export const LibraryEntry = z
     uploadDate: z.string().nullable(),
     duration: z.number().nullable(),
     thumbnailUrl: z.string().nullable(),
-    profileName: z.string(),
+    /** The format profile it was downloaded with; null for an upload, or once the profile is gone. */
+    profileName: z.string().nullable(),
+    /** Downloaded from a site, or uploaded by someone (docs/uploads.md). */
+    origin: EntryOrigin,
     sizeBytes: z.number(),
     container: z.string().nullable(),
     addedAt: z.iso.datetime(),

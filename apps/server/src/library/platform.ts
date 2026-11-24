@@ -4,6 +4,15 @@
  * yt-dlp extractor key ("youtube", "vimeo", "twitchvod", "generic").
  */
 
+import type { EntryOrigin } from "@uroboros/contract";
+
+/** The extractor of an uploaded video's media row (docs/uploads.md): never a yt-dlp key. */
+export const UPLOAD_EXTRACTOR = "upload";
+
+/** Downloaded from a site, or uploaded by someone. */
+export const originOf = (extractor: string): EntryOrigin =>
+  extractor === UPLOAD_EXTRACTOR ? "upload" : "download";
+
 /** Well-known sites by extractor-key prefix, so a site's variants share its name (twitchvod). */
 const NAMES: readonly (readonly [string, string])[] = [
   ["youtube", "YouTube"],
@@ -51,6 +60,7 @@ function hostOf(pageUrl: string | null): string | null {
  */
 export function platformName(extractor: string, pageUrl: string | null): string {
   const key = extractor.toLowerCase();
+  if (key === UPLOAD_EXTRACTOR) return "Uploads";
   const known = key === "generic" ? undefined : NAMES.find(([prefix]) => key.startsWith(prefix));
   if (known !== undefined) return known[1];
   const host = hostOf(pageUrl);

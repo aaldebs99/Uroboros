@@ -14,6 +14,7 @@ import { linkShare, visibleEntry, type LiveShare, type VisibleEntry } from "./ac
 import { describeTarget } from "./targets.ts";
 import { playbackFacts } from "../transcode/itemFacts.ts";
 import { platformName } from "../library/platform.ts";
+import { thumbnailUrl } from "../library/thumbnailUrl.ts";
 
 type Db = Kysely<Database>;
 
@@ -78,7 +79,7 @@ async function listItems(db: Db, code: string, ids: string[]): Promise<PublicLis
         channel: r.channel ?? r.uploader ?? platformName(r.extractor, r.webpage_url),
         duration: r.duration,
         uploadDate: dashed(r.upload_date),
-        thumbnailUrl: r.thumbnail_key === null ? null : `${itemBase(code, id)}/thumbnail`,
+        thumbnailUrl: thumbnailUrl(`${itemBase(code, id)}/thumbnail`, r.thumbnail_key),
       },
     ];
   });
@@ -136,7 +137,7 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
     channel: e.channel ?? e.uploader ?? platformName(e.extractor, extra.webpage_url),
     duration: e.duration,
     uploadDate: dashed(e.upload_date),
-    thumbnailUrl: e.thumbnail_key === null ? null : `${base}/thumbnail`,
+    thumbnailUrl: thumbnailUrl(`${base}/thumbnail`, e.thumbnail_key),
     description: extra.description,
     chapters: chapters.success ? chapters.data : [],
     subtitles: subs.map((s) => ({ ...s, url: `${base}/subtitles/${s.id}` })),

@@ -63,3 +63,54 @@ export async function seedEntry(
     .executeTakeFirstOrThrow();
   return { entryId: entry.id, mediaId: media.id, renditionId: rendition.id };
 }
+
+/**
+ * Gives `userId` an entry whose rendition has no format profile: an upload (`extractor` "upload",
+ * the default, docs/uploads.md) or a download whose profile went with its owner's account.
+ */
+export async function seedProfileless(
+  db: Kysely<Database>,
+  userId: string,
+  opts: {
+    extractor?: string;
+    videoId?: string;
+    title?: string;
+    channel?: string;
+    thumbnailKey?: string | null;
+    storageKey?: string;
+  } = {},
+): Promise<SeededEntry> {
+  const extractor = opts.extractor ?? "upload";
+  const videoId = opts.videoId ?? randomUUID();
+  const media = await db
+    .insertInto("media")
+    .values({
+      extractor,
+      video_id: videoId,
+      title: opts.title ?? videoId,
+      channel: opts.channel ?? null,
+      uploader: opts.channel ?? null,
+      duration: 100,
+      thumbnail_key: opts.thumbnailKey === undefined ? `thumbs/${videoId}.jpg` : opts.thumbnailKey,
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  const rendition = await db
+    .insertInto("renditions")
+    .values({
+      media_id: media.id,
+      profile_id: null,
+      profile_revision: extractor === "upload" ? "upload" : "gone",
+      storage_key: opts.storageKey ?? `media/${media.id}/upload.mp4`,
+      size_bytes: 10,
+      container: "mp4",
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  const entry = await db
+    .insertInto("library_entries")
+    .values({ user_id: userId, media_id: media.id, rendition_id: rendition.id })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  return { entryId: entry.id, mediaId: media.id, renditionId: rendition.id };
+}

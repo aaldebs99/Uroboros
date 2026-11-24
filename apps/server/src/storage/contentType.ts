@@ -3,6 +3,10 @@ const CONTENT_TYPES: Record<string, string> = {
   m4a: "audio/mp4",
   webm: "video/webm",
   mkv: "video/x-matroska",
+  // Uploads (docs/uploads.md) keep the file's own container.
+  mov: "video/quicktime",
+  m4v: "video/x-m4v",
+  avi: "video/x-msvideo",
   opus: "audio/ogg",
   ogg: "audio/ogg",
   mp3: "audio/mpeg",

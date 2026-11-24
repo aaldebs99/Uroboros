@@ -101,7 +101,9 @@ describe("what is shared with me", () => {
     );
     expect(page.entries.map((e) => e.id)).toEqual([second.entryId, first.entryId]);
     expect(page.entries[1]?.progress).toMatchObject({ position: 50 });
-    expect(page.entries[1]?.thumbnailUrl).toBe(`/api/library/${first.entryId}/thumbnail`);
+    expect(page.entries[1]?.thumbnailUrl).toMatch(
+      new RegExp(`^/api/library/${first.entryId}/thumbnail\\?v=[0-9a-f]{8}$`),
+    );
     expect((await send(carol, "GET", `/api/shared/${shareId}/entries`)).status).toBe(404);
   });
 

@@ -221,7 +221,10 @@ export function registerLibraryRoutes(
     const viewer = { userId: currentPrincipal(c).userId };
     const entry = await visibleEntry(db, viewer, c.req.valid("param").id);
     const ext = extname(entry.storage_key).slice(1) || (entry.container ?? "bin");
-    const filename = `${sanitizeSegment(entry.title ?? entry.video_id)} [${entry.profile_name}].${ext}`;
+    const title = sanitizeSegment(entry.title ?? entry.video_id);
+    // An upload has no profile to name (nor has a download whose profile went with its owner).
+    const filename =
+      entry.profile_name === null ? `${title}.${ext}` : `${title} [${entry.profile_name}].${ext}`;
     const url = await s.downloadUrl(entry.storage_key, filename);
     if (url !== null) return c.redirect(url, 302);
     return serve(c, s, entry.storage_key, contentTypeOf(ext), filename);

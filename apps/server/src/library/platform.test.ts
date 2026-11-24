@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { platformName } from "./platform.ts";
+import { originOf, platformName } from "./platform.ts";
 
 describe("platformName", () => {
   it.each([
@@ -22,5 +22,14 @@ describe("platformName", () => {
     expect(platformName("rutube", null)).toBe("Rutube");
     expect(platformName("generic", "not a url")).toBe("Generic");
     expect(platformName("", null)).toBe("Unknown site");
+  });
+});
+
+describe("uploads", () => {
+  it("are named Uploads, and only the upload extractor is an upload", () => {
+    expect(platformName("upload", null)).toBe("Uploads");
+    expect(originOf("upload")).toBe("upload");
+    expect(originOf("youtube")).toBe("download");
+    expect(originOf("uploadsite")).toBe("download");
   });
 });

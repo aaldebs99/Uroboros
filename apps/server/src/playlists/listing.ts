@@ -2,6 +2,7 @@ import type { PlaylistDetail, PlaylistKind, PlaylistSummary } from "@uroboros/co
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { thumbnailUrl } from "../library/thumbnailUrl.ts";
 
 /** A playlist of either kind: a manual playlist's id, or a YouTube playlist's (`sources`) id. */
 export interface PlaylistTarget {
@@ -9,8 +10,12 @@ export interface PlaylistTarget {
   id: string;
 }
 
-const thumb = (entryId: string | null) =>
-  entryId === null ? null : `/api/library/${entryId}/thumbnail`;
+/** A cover is `<entry id>|<thumbnail key>` (an id never holds a `|`); its versioned URL. */
+function thumb(cover: string | null): string | null {
+  if (cover === null) return null;
+  const bar = cover.indexOf("|");
+  return thumbnailUrl(`/api/library/${cover.slice(0, bar)}/thumbnail`, cover.slice(bar + 1));
+}
 
 interface Row {
   id: string;
@@ -47,7 +52,7 @@ function manualRows(db: Kysely<Database>, userId: string) {
       sql<Date>`p.updated_at`.as("updated"),
       sql<string>`(SELECT count(*) FROM playlist_items pi WHERE pi.playlist_id = p.id)`.as("count"),
       sql<string | null>`(
-        SELECT pi.entry_id FROM playlist_items pi
+        SELECT pi.entry_id || '|' || m.thumbnail_key FROM playlist_items pi
         JOIN library_entries e ON e.id = pi.entry_id
         JOIN media m ON m.id = e.media_id
         WHERE pi.playlist_id = p.id AND m.thumbnail_key IS NOT NULL
@@ -74,7 +79,9 @@ function youtubeRows(db: Kysely<Database>, userId: string) {
       "s.url",
       sql<Date>`us.queued_at`.as("updated"),
       sql<string>`(SELECT count(DISTINCT e.id) ${mine})`.as("count"),
-      sql<string | null>`(SELECT e.id ${mine} AND m.thumbnail_key IS NOT NULL
+      sql<
+        string | null
+      >`(SELECT e.id || '|' || m.thumbnail_key ${mine} AND m.thumbnail_key IS NOT NULL
         ORDER BY si.position LIMIT 1)`.as("cover"),
     ])
     .orderBy("us.queued_at", "desc");

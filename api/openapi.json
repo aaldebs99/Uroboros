@@ -696,6 +696,13 @@
         ],
         "type": "string"
       },
+      "EntryOrigin": {
+        "enum": [
+          "download",
+          "upload"
+        ],
+        "type": "string"
+      },
       "EntryRef": {
         "properties": {
           "id": {
@@ -930,7 +937,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "origin": {
+            "$ref": "#/components/schemas/EntryOrigin"
+          },
           "profileName": {
+            "nullable": true,
             "type": "string"
           },
           "progress": {
@@ -984,6 +995,7 @@
           "duration",
           "thumbnailUrl",
           "profileName",
+          "origin",
           "sizeBytes",
           "container",
           "addedAt",

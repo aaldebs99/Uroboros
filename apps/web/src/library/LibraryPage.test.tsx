@@ -16,6 +16,7 @@ const entry = {
   duration: 596,
   thumbnailUrl: null,
   profileName: "Best up to 1080p (MP4)",
+  origin: "download",
   sizeBytes: 5 * 1024 * 1024,
   container: "mp4",
   addedAt: "2026-11-22T10:00:00.000Z",
@@ -31,6 +32,14 @@ afterEach(() => {
 });
 
 describe("LibraryPage", () => {
+  it("leaves the profile out of an upload's meta line", async () => {
+    const upload = { ...entry, profileName: null, origin: "upload" };
+    fakeApi({ "GET /api/library": () => Response.json({ entries: [upload], nextCursor: null }) });
+    await renderInRouter(<LibraryPage />);
+    const meta = await screen.findByText(/MB · added/);
+    expect(meta.textContent).toMatch(/^\d[\d.]* MB · added/);
+  });
+
   it("lists entries with channel, profile, size and a save link", async () => {
     fakeApi({ "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }) });
     await renderInRouter(<LibraryPage />);

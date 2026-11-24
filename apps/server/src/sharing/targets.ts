@@ -2,6 +2,7 @@ import type { ShareKind } from "@uroboros/contract";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { thumbnailUrl } from "../library/thumbnailUrl.ts";
 import { getPlaylist } from "../playlists/listing.ts";
 
 /** What a shared thing looks like from its owner's library. */
@@ -15,9 +16,9 @@ export interface TargetFacts {
   coverEntryId: string | null;
 }
 
-/** The entry id in a library thumbnail URL (`/api/library/<id>/thumbnail`). */
+/** The entry id in a library thumbnail URL (`/api/library/<id>/thumbnail?v=<version>`). */
 const coverOf = (url: string | null) =>
-  /^\/api\/library\/([0-9a-f-]+)\/thumbnail$/.exec(url ?? "")?.[1] ?? null;
+  /^\/api\/library\/([0-9a-f-]+)\/thumbnail(?:\?.*)?$/.exec(url ?? "")?.[1] ?? null;
 
 /** The facts of `ownerId`'s entry, manual playlist or YouTube playlist; 404 when it is not theirs. */
 export async function describeTarget(
@@ -38,7 +39,7 @@ export async function describeTarget(
     return {
       title: row.title ?? row.video_id,
       description: row.description,
-      thumbnailUrl: row.thumbnail_key === null ? null : `/api/library/${id}/thumbnail`,
+      thumbnailUrl: thumbnailUrl(`/api/library/${id}/thumbnail`, row.thumbnail_key),
       count: null,
       coverEntryId: row.thumbnail_key === null ? null : id,
     };

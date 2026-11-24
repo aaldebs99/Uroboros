@@ -2,9 +2,7 @@ import type { ChannelSummary } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { channelKey } from "./channelKey.ts";
-
-const thumb = (entryId: string | null) =>
-  entryId === null ? null : `/api/library/${entryId}/thumbnail`;
+import { thumbnailUrl } from "./thumbnailUrl.ts";
 const dashed = (d: string | null) =>
   d === null ? null : `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
 
@@ -29,6 +27,11 @@ export async function listChannels(
       >`(array_agg(e.id ORDER BY e.added_at DESC) FILTER (WHERE m.thumbnail_key IS NOT NULL))[1]`.as(
         "cover",
       ),
+      sql<
+        string | null
+      >`(array_agg(m.thumbnail_key ORDER BY e.added_at DESC) FILTER (WHERE m.thumbnail_key IS NOT NULL))[1]`.as(
+        "cover_key",
+      ),
     ])
     .groupBy([
       "m.extractor",
@@ -44,6 +47,7 @@ export async function listChannels(
     extractor: r.extractor,
     count: Number(r.count),
     latestUpload: dashed(r.latest),
-    coverThumbnailUrl: thumb(r.cover),
+    coverThumbnailUrl:
+      r.cover === null ? null : thumbnailUrl(`/api/library/${r.cover}/thumbnail`, r.cover_key),
   }));
 }

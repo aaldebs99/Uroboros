@@ -100,7 +100,10 @@ export function EntryTile({
             </Link>
           )}
           <p className={tileMeta}>
-            {entry.profileName} · {formatBytes(entry.sizeBytes)} · {addedAgo(entry.addedAt)}
+            {/* An upload has no profile to show (nor has a download whose profile is gone). */}
+            {[entry.profileName, formatBytes(entry.sizeBytes), addedAgo(entry.addedAt)]
+              .filter((part) => part !== null)
+              .join(" · ")}
           </p>
         </div>
         <ResponsiveMenu

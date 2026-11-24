@@ -57,6 +57,7 @@ const entry = (n: number) => ({
   duration: 60,
   thumbnailUrl: null,
   profileName: "Best available",
+  origin: "download",
   sizeBytes: 10,
   container: "mp4",
   addedAt: "2026-11-22T10:00:00.000Z",

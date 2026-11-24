@@ -9,7 +9,8 @@ import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { channelKey, parseChannelKey } from "./channelKey.ts";
 import { linkMatch } from "./linkMatch.ts";
-import { platformName } from "./platform.ts";
+import { originOf, platformName } from "./platform.ts";
+import { thumbnailUrl } from "./thumbnailUrl.ts";
 import { decodeCursor, encodeCursor, type Cursor } from "./cursor.ts";
 
 export interface LibraryFilters {
@@ -77,13 +78,17 @@ function sortSpec(sort: LibrarySort, q: string | null): SortSpec {
   }
 }
 
-/** `ownerId`'s entries with `viewerId`'s progress (the same person, unless through a share). */
+/**
+ * `ownerId`'s entries with `viewerId`'s progress (the same person, unless through a share). The
+ * profile is a left join: an upload's rendition has none, nor has one whose profile went with its
+ * owner's account.
+ */
 export function base(db: Kysely<Database>, viewerId: string, ownerId: string = viewerId) {
   return db
     .selectFrom("library_entries as e")
     .innerJoin("media as m", "m.id", "e.media_id")
     .innerJoin("renditions as r", "r.id", "e.rendition_id")
-    .innerJoin("format_profiles as p", "p.id", "r.profile_id")
+    .leftJoin("format_profiles as p", "p.id", "r.profile_id")
     .leftJoin("watch_progress as wp", (j) =>
       j.onRef("wp.media_id", "=", "e.media_id").on("wp.user_id", "=", viewerId),
     )
@@ -300,7 +305,7 @@ export interface EntryRow {
   thumbnail_key: string | null;
   size_bytes: string;
   container: string | null;
-  profile_name: string;
+  profile_name: string | null;
   position_s: number | null;
   duration_s: number | null;
   watched: boolean | null;
@@ -333,8 +338,9 @@ export function toEntry(r: EntryRow, own = true): LibraryEntry {
     channel: r.channel ?? r.uploader ?? platformName(r.extractor, r.page_url),
     uploadDate: dashed(r.upload_date),
     duration: r.duration,
-    thumbnailUrl: r.thumbnail_key === null ? null : `/api/library/${r.id}/thumbnail`,
+    thumbnailUrl: thumbnailUrl(`/api/library/${r.id}/thumbnail`, r.thumbnail_key),
     profileName: r.profile_name,
+    origin: originOf(r.extractor),
     sizeBytes: Number(r.size_bytes),
     container: r.container,
     addedAt: r.added_at.toISOString(),

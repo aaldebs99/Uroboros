@@ -42,6 +42,7 @@ export {
   DownloadState,
   FormatProfile,
   FormatProfilePatch,
+  EntryOrigin,
   LibraryEntry,
   NewDownloadBody,
   NewFormatProfileBody,
