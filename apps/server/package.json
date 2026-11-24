@@ -13,6 +13,7 @@
     "@aws-sdk/s3-request-presigner": "3.1173.0",
     "@hono/node-server": "2.1.9",
     "@hono/zod-openapi": "1.6.3",
+    "@modelcontextprotocol/server": "2.4.0",
     "@uroboros/contract": "workspace:*",
     "@uroboros/ytdlp": "workspace:*",
     "cron-parser": "5.10.6",

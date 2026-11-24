@@ -28,6 +28,7 @@ import { registerUploadRoutes } from "../uploads/routes.ts";
 import { registerExportRoutes, type ExportContext } from "../exports/routes.ts";
 import { registerNoticeRoutes } from "../notices/routes.ts";
 import { registerSettingsRoutes } from "../settings/routes.ts";
+import { registerMcpRoute } from "../mcp/route.ts";
 import { registerPreviewRoutes } from "../previews/routes.ts";
 import type { UploadContext } from "../uploads/store.ts";
 import { registerSubscriptionRoutes } from "../subscriptions/routes.ts";
@@ -295,6 +296,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerPlaybackSessionRoutes(app, playback);
   registerPublicRoutes(app, deps.db, deps.store, playback);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
+  registerMcpRoute(app, { db: deps.db, downloads: deps.downloads, logger, version: deps.version });
   registerSecuritySchemes(app);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

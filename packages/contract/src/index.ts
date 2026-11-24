@@ -177,7 +177,16 @@ export {
 export { InstanceSettings, InstanceSettingsPatch } from "./settings.ts";
 export {
   MAX_TRANSCRIPT_LINES,
+  MCP_PAGE_SIZE,
   MCP_PATH,
+  McpChannels,
+  McpEntryInput,
+  McpLibraryQuery,
+  McpNoInput,
+  McpPlaylistInput,
+  McpPlaylistPage,
+  McpPlaylists,
+  McpTranscriptInput,
   Transcript,
   TranscriptLine,
   TranscriptTrack,
