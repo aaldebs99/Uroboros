@@ -162,6 +162,39 @@ describe("NoticesButton", () => {
     expect(await screen.findByRole("button", { name: /3 unread/ })).toBeInTheDocument();
   });
 
+  it("shows the hover previews being made when the stream says they changed", async () => {
+    let work = { queued: 0, left: 0, made: 3, next: null as unknown };
+    api({ "GET /api/previews": () => Response.json(work) });
+    await show();
+    await screen.findByRole("button", { name: "Notifications, 1 unread, 2 in progress" });
+    work = {
+      queued: 1,
+      left: 1,
+      made: 3,
+      next: {
+        entryId: "0190a3f2-7c1e-7000-8000-0000000000c1",
+        title: "Sprite Fright",
+        running: true,
+      },
+    };
+    act(() => {
+      FakeEventSource.last?.push({ type: "previews" });
+    });
+    await screen.findByRole("button", { name: /3 in progress/ });
+    await userEvent.click(screen.getByRole("button", { name: /Notifications/ }));
+    const row = (await screen.findByText("Sprite Fright")).closest("a");
+    expect(row).toHaveAttribute("href", "/library/0190a3f2-7c1e-7000-8000-0000000000c1");
+    expect(row).toHaveTextContent("Making preview");
+    // A backfill: one row for them all, with how far it has come.
+    work = { queued: 30, left: 300, made: 100, next: null };
+    act(() => {
+      FakeEventSource.last?.push({ type: "previews" });
+    });
+    const bar = await screen.findByRole("progressbar", { name: "Hover previews progress" });
+    expect(bar).toHaveAttribute("aria-valuenow", "25");
+    expect(screen.getByText("300 videos left")).toBeInTheDocument();
+  });
+
   it("lists this tab's toasts, whose action runs and closes the panel", async () => {
     api();
     await show();

@@ -262,6 +262,8 @@ export const DownloadEvent = z
     z.object({ type: z.literal("removed"), id: Id }),
     /** The caller's notifications changed (docs/push.md#the-list-in-the-app): fetch them again. */
     z.object({ type: z.literal("notice") }),
+    /** The caller's hover previews being made changed (docs/library.md): fetch them again. */
+    z.object({ type: z.literal("previews") }),
   ])
   .openapi("DownloadEvent");
 export type DownloadEvent = z.infer<typeof DownloadEvent>;

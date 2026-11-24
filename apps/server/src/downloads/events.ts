@@ -5,13 +5,15 @@ import { notify, notifyAll } from "../db/notifications.ts";
 import type { Database } from "../db/schema.ts";
 
 /**
- * What replicas tell each other on the `uroboros_downloads` channel: downloads' changes, and that a
- * person's notification list changed (docs/push.md#the-list-in-the-app).
+ * What replicas tell each other on the `uroboros_downloads` channel: downloads' changes, that a
+ * person's notification list changed (docs/push.md#the-list-in-the-app), and that some people's
+ * hover previews being made changed (docs/library.md "Hover previews").
  */
 export type InternalEvent =
   | { kind: "state"; downloadId: string; userId: string }
   | { kind: "progress"; fetchKey: string; progress: DownloadProgress }
-  | { kind: "notice"; userId: string };
+  | { kind: "notice"; userId: string }
+  | { kind: "previews"; userIds: string[] };
 
 /** How long the latest progress of a fetch is kept for page loads. */
 export const PROGRESS_TTL_S = 60;

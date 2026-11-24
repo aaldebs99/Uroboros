@@ -90,6 +90,8 @@ function translator(
     }
     // A person's own list, even on an admin's everyone view.
     if (e.kind === "notice") return e.userId === viewer.userId ? { type: "notice" } : null;
+    if (e.kind === "previews")
+      return e.userIds.includes(viewer.userId) ? { type: "previews" } : null;
     if (!viewer.all && e.userId !== viewer.userId) return null;
     const [download] = await toDownloads(
       ctx,

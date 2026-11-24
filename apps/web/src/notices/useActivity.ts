@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useActiveDownloads } from "@/api/downloads";
 import { useExports } from "@/api/exports";
 import { useNotices } from "@/api/notices";
+import { usePreviewWork } from "@/api/previews";
 import { useSubscriptions } from "@/api/subscriptions";
 import { useUploadList } from "@/api/uploads";
 import { useMyDownloadProgress } from "@/downloads/LiveEvents";
@@ -26,6 +27,7 @@ export function useActivity(): {
   const uploads = useUploadList({ processingOnly: true });
   const copies = useExports();
   const subscriptions = useSubscriptions();
+  const previews = usePreviewWork();
   const work = useMemo(
     () =>
       workItems({
@@ -35,8 +37,9 @@ export function useActivity(): {
         uploads: uploads.data ?? [],
         copies: copies.data ?? [],
         subscriptions: subscriptions.data ?? [],
+        previews: previews.data ?? null,
       }),
-    [downloads.data, progress, local, uploads.data, copies.data, subscriptions.data],
+    [downloads.data, progress, local, uploads.data, copies.data, subscriptions.data, previews.data],
   );
   return {
     notices: notices.data?.notices ?? [],

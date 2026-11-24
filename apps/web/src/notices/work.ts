@@ -2,6 +2,7 @@ import type {
   Download,
   DownloadProgress,
   Export,
+  PreviewWork,
   Subscription,
   Upload,
   UploadState,
@@ -22,7 +23,9 @@ export type WorkItem =
       size: number;
     }
   | { kind: "copy"; id: string; copy: Export }
-  | { kind: "check"; id: string; title: string };
+  | { kind: "check"; id: string; title: string }
+  /** The person's hover previews being made: one row, however many (a backfill has hundreds). */
+  | { kind: "previews"; id: "previews"; work: PreviewWork };
 
 /** This tab's uploads, as the server's states: sending or paused is still `receiving`. */
 function localUploads(local: ReadonlyMap<string, LocalUpload>): WorkItem[] {
@@ -43,8 +46,8 @@ function localUploads(local: ReadonlyMap<string, LocalUpload>): WorkItem[] {
 
 /**
  * Everything in progress: the person's queued and running downloads (with live progress), uploads
- * (this tab's, and any the server is processing), copies being made, and subscriptions being
- * checked.
+ * (this tab's, and any the server is processing), copies being made, subscriptions being checked,
+ * and their hover previews being made.
  */
 export function workItems(sources: {
   downloads: readonly Download[];
@@ -53,6 +56,7 @@ export function workItems(sources: {
   uploads: readonly Upload[];
   copies: readonly Export[];
   subscriptions: readonly Subscription[];
+  previews: PreviewWork | null;
 }): WorkItem[] {
   const downloads: WorkItem[] = sources.downloads
     .filter((d) => d.state === "queued" || d.state === "running")
@@ -79,5 +83,9 @@ export function workItems(sources: {
   const checks: WorkItem[] = sources.subscriptions
     .filter((s) => s.checking)
     .map((s) => ({ kind: "check", id: s.id, title: s.title ?? "A subscription" }));
-  return [...downloads, ...mine, ...processing, ...copies, ...checks];
+  const previews: WorkItem[] =
+    sources.previews !== null && sources.previews.queued > 0
+      ? [{ kind: "previews", id: "previews", work: sources.previews }]
+      : [];
+  return [...downloads, ...mine, ...processing, ...copies, ...checks, ...previews];
 }

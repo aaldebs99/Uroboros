@@ -138,8 +138,9 @@ The bell (`notices/NoticesButton.tsx`) sits between Add and the avatar at every 
   text pill **Clear**.
 - **Sections**, each under a hairline with a 12/500 muted heading, shown only with rows:
   1. **In progress**, with a "See all" link to Downloads: queued and running downloads with their
-     live progress, uploads, copies being made and subscriptions being checked, five at most, then
-     "and N more". A row is a 36px `bg-raised` glyph circle, a one-line title, the state's
+     live progress, uploads, copies being made, subscriptions being checked and the person's hover
+     previews being made (one `Film` row however many: a video's title, or "Hover previews" with
+     "N videos left" and the bar), five at most, then "and N more". A row is a 36px `bg-raised` glyph circle, a one-line title, the state's
      [badge](feedback-and-containers.md#status-badges) with a muted detail, and the 8px glowing
      bar (`components/ui/progress-bar.tsx`) when there is a real percentage.
   2. **Notifications**, newest first: a kind glyph (`Download`, `Share2`, `Rss`, `Users`), the

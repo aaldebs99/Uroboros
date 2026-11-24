@@ -91,9 +91,17 @@ download.
   event stream (`GET /api/downloads/events`, [downloads.md](downloads.md#live-progress)) sends that
   person a `notice` event, on which the web app fetches the list again.
 - **The panel.** Besides the notifications, it shows what is in progress (queued and running
-  downloads with their live progress, uploads, copies being made, subscriptions being checked) and
-  this tab's toasts with their actions, kept in memory (`apps/web/src/lib/toastLog.ts`). Opening it
-  dismisses the toasts on screen and marks the notifications read.
+  downloads with their live progress, uploads, copies being made, subscriptions being checked, and
+  the person's hover previews being made) and this tab's toasts with their actions, kept in memory
+  (`apps/web/src/lib/toastLog.ts`). Opening it dismisses the toasts on screen and marks the
+  notifications read.
+- **Hover previews** ([library.md](library.md#hover-previews)) are per person: `GET /api/previews`
+  counts, over the videos in the caller's library, those whose preview job waits or runs, those
+  made and those left, and names the one being made. They show as one row however many there are:
+  the video's title for one, "Hover previews" with "N videos left" and a real bar (made of made
+  plus left) for several. Queueing, starting and finishing a preview publishes
+  `{ kind: "previews", userIds }` (everyone with the video, a hundred to a message), and the stream
+  sends them a `previews` event, on which the web app asks again (and every 15 s while any wait).
 
 ## How a push is sent
 

@@ -622,6 +622,20 @@
               "type"
             ],
             "type": "object"
+          },
+          {
+            "properties": {
+              "type": {
+                "enum": [
+                  "previews"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -2374,6 +2388,50 @@
           "ticked",
           "truncated",
           "entries"
+        ],
+        "type": "object"
+      },
+      "PreviewWork": {
+        "properties": {
+          "left": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "made": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "next": {
+            "nullable": true,
+            "properties": {
+              "entryId": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "running": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "entryId",
+              "title",
+              "running"
+            ],
+            "type": "object"
+          },
+          "queued": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queued",
+          "left",
+          "made",
+          "next"
         ],
         "type": "object"
       },
@@ -8132,6 +8190,27 @@
         "summary": "Move one entry to a position (0 is first; past the end is last)",
         "tags": [
           "playlists"
+        ]
+      }
+    },
+    "/api/previews": {
+      "get": {
+        "description": "Over the videos in the caller's library: how many previews wait or are being made, how many are made and left, and the one being made (docs/library.md).",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewWork"
+                }
+              }
+            },
+            "description": "Their previews' work"
+          }
+        },
+        "summary": "The caller's hover previews being made",
+        "tags": [
+          "library"
         ]
       }
     },

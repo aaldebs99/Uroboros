@@ -5,6 +5,7 @@ import { useState } from "react";
 import { errorText } from "@/api/client";
 import { exportsKey } from "@/api/exports";
 import { useClearNotices, useMarkNoticesRead } from "@/api/notices";
+import { previewsKey } from "@/api/previews";
 import { subscriptionKeys } from "@/api/subscriptions";
 import { uploadsKey } from "@/api/uploads";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,8 @@ export function bellLabel(unread: number, working: number): string {
  * The top bar's bell (the design system's shell reference): a count of unread notifications, a
  * ring that turns while anything is in progress, and the activity panel. Opening it dismisses the
  * toasts on screen (the panel lists them), asks again for what the live stream doesn't carry
- * (copies, uploads and checks started in another tab or on another device), and marks the
+ * (copies, uploads and checks started in another tab or on another device, and the hover previews
+ * being made, in case a nudge was missed), and marks the
  * notifications read up to the newest one shown; those stay marked as new until it closes.
  */
 export function NoticesButton() {
@@ -45,7 +47,7 @@ export function NoticesButton() {
     setOpen(next);
     if (!next) return;
     dismissToasts();
-    for (const queryKey of [exportsKey, uploadsKey, subscriptionKeys.all]) {
+    for (const queryKey of [exportsKey, uploadsKey, subscriptionKeys.all, previewsKey]) {
       void client.invalidateQueries({ queryKey });
     }
     setFresh(new Set(notices.filter((n) => !n.read).map((n) => n.id)));

@@ -4,9 +4,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { cutListeners, testBus } from "../../test/bus.ts";
 import { downloadHarness, seededDefault } from "../../test/downloads.ts";
+import { seedEntry } from "../../test/library.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 import type { PgBus } from "../db/notifications.ts";
+import { queuePreview } from "../previews/queue.ts";
 import { queueDownload } from "./dispatch.ts";
 import { publishDownloadEvent } from "./events.ts";
 import { createEventHub, type EventHub } from "./sse.ts";
@@ -163,6 +165,25 @@ describe("GET /api/downloads/events", () => {
       (e) => e.length >= 1,
     );
     expect(events).toEqual([{ type: "notice" }]);
+  });
+
+  it("nudges only the people who have a video when its preview is queued", async () => {
+    const [a, b] = [await user(), await user()];
+    const e = await seedEntry(testDb.db, a.userId);
+    const [mine, theirs] = await Promise.all([
+      collect(
+        await app(a).request("/api/downloads/events"),
+        () => queuePreview(h.ctx, e.mediaId),
+        (got) => got.length >= 1,
+      ),
+      collect(
+        await app(b).request("/api/downloads/events"),
+        () => publishDownloadEvent(testDb.db, { kind: "notice", userId: b.userId }),
+        (got) => got.length >= 1,
+      ),
+    ]);
+    expect(mine).toEqual([{ type: "previews" }]);
+    expect(theirs).toEqual([{ type: "notice" }]);
   });
 
   it("forwards progress only for fetches the caller waits on", async () => {

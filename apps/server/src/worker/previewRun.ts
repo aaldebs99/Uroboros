@@ -12,7 +12,7 @@ import { sql } from "kysely";
 import type { PreviewJob } from "../downloads/queues.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import type { Processor } from "../jobs/queues.ts";
-import { previewKey } from "../previews/queue.ts";
+import { announcePreview, previewKey } from "../previews/queue.ts";
 import { h264Level, outputSize } from "../transcode/ladder.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { readInput } from "./sessionSource.ts";
@@ -54,11 +54,13 @@ export function previewProcessor(deps: WorkerDeps): PreviewProcessor {
       const dir = join(deps.workDir, `preview-${mediaId}`);
       try {
         await makePreview(deps, mediaId, dir, AbortSignal.any([job.signal, cut.signal]));
+        await announcePreview(deps.db, mediaId);
       } catch (err) {
         if (cut.signal.aborted) throw new RequeueError(SHUTDOWN_REQUEUE_DELAY_MS, { cause: err });
         if (job.signal.aborted) throw err;
         const last = err instanceof UnrecoverableError || job.attemptsMade + 1 >= job.opts.attempts;
         if (last) await failPreview(deps, mediaId, err);
+        await announcePreview(deps.db, mediaId);
         throw err;
       } finally {
         running.delete(cut);
@@ -101,6 +103,8 @@ async function makePreview(deps: WorkerDeps, mediaId: string, dir: string, signa
     .where("id", "=", mediaId)
     .executeTakeFirst();
   if (media === undefined || media.preview_key !== null) return;
+  // Its people's bells show it being made.
+  await announcePreview(deps.db, mediaId);
   const source = await sourceOf(deps, mediaId);
   if (source === undefined) throw new UnrecoverableError("the media has no stored video");
   const input = await readInput(deps, source.storage_key).catch((err: unknown) => {

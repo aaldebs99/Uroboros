@@ -1,4 +1,5 @@
-import { Download, RefreshCw, Scissors, Upload } from "lucide-react";
+import type { PreviewWork } from "@uroboros/contract";
+import { Download, Film, RefreshCw, Scissors, Upload } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { DownloadBadge, ExportBadge, UploadBadge } from "@/components/StatusBadge";
@@ -21,6 +22,28 @@ interface Look {
   /** 0 to 100, only when real. */
   percent: number | null;
   href: string;
+}
+
+/**
+ * Hover previews being made: one video by its title, several as "Hover previews" with how many of
+ * the person's videos are left and how far the whole lot has come.
+ */
+function previewsLook(work: PreviewWork): Look {
+  const several = work.left > 1;
+  const next = work.next;
+  return {
+    icon: <Film aria-hidden />,
+    title: several || next === null ? "Hover previews" : next.title,
+    badge:
+      next?.running === true ? (
+        <Badge tone="primary">Making preview</Badge>
+      ) : (
+        <Badge tone="muted">Preview waiting</Badge>
+      ),
+    detail: several ? `${String(work.left)} videos left` : "",
+    percent: several ? (work.made / (work.made + work.left)) * 100 : null,
+    href: several || next === null ? "/" : `/library/${next.entryId}`,
+  };
 }
 
 function lookOf(item: WorkItem): Look {
@@ -69,6 +92,8 @@ function lookOf(item: WorkItem): Look {
         percent: null,
         href: `/subscriptions/${encodeURIComponent(item.id)}`,
       };
+    case "previews":
+      return previewsLook(item.work);
   }
 }
 

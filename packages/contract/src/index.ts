@@ -151,6 +151,7 @@ export {
 } from "./uploads.ts";
 export { Export, ExportState } from "./exports.ts";
 export { MarkNoticesReadBody, Notice, NoticeKind, NoticeList } from "./notices.ts";
+export { PreviewWork } from "./previews.ts";
 export {
   AdminGroup,
   GROUP_NAME_CHARS,

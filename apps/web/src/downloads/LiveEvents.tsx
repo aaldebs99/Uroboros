@@ -5,6 +5,7 @@ import { createContext, type ReactNode, useContext, useEffect, useState } from "
 import { applyDownloadChange, downloadKeys } from "@/api/downloads";
 import { followLiveEvents } from "@/api/liveEvents";
 import { noticesKey } from "@/api/notices";
+import { previewsKey } from "@/api/previews";
 
 const Progress = createContext<ReadonlyMap<string, DownloadProgress> | null>(null);
 
@@ -12,8 +13,9 @@ const lists = { list: downloadKeys.list(false), active: downloadKeys.active };
 
 /**
  * The shell's one live stream (shared by this browser's tabs, `followLiveEvents`): download changes
- * go into the person's cached lists, progress into a map by fetch key, and a notice nudge fetches
- * the notifications again. After a gap all three are fetched again.
+ * go into the person's cached lists, progress into a map by fetch key, and a notice or previews
+ * nudge fetches the notifications or the hover previews being made again. After a gap all of them
+ * are fetched again.
  */
 export function LiveEventsProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
@@ -22,7 +24,7 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
     () =>
       followLiveEvents((message) => {
         if (message.kind === "gap") {
-          for (const queryKey of [lists.list, lists.active, noticesKey]) {
+          for (const queryKey of [lists.list, lists.active, noticesKey, previewsKey]) {
             void client.invalidateQueries({ queryKey });
           }
           return;
@@ -40,6 +42,9 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
             return;
           case "notice":
             void client.invalidateQueries({ queryKey: noticesKey });
+            return;
+          case "previews":
+            void client.invalidateQueries({ queryKey: previewsKey });
             return;
         }
       }),
