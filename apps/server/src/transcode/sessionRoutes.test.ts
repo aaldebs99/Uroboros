@@ -8,12 +8,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness } from "../../test/downloads.ts";
 import { seedEntry } from "../../test/library.ts";
+import { testBus } from "../../test/bus.ts";
+import type { PgBus } from "../db/notifications.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 import { createApp } from "../api/app.ts";
 import { DEFAULT_LAYOUT } from "../storage/config.ts";
 import { createStore, type MediaStore } from "../storage/index.ts";
-import { createValkey } from "../shared/valkey.ts";
 import {
   type BusMessage,
   createPlaybackBus,
@@ -27,6 +27,7 @@ const logger = pino({ level: "silent" });
 let t: TestDb;
 let h: Awaited<ReturnType<typeof downloadHarness>>;
 let store: MediaStore;
+let pg: PgBus;
 let bus: PlaybackBus;
 let alice: SignedIn;
 let bob: SignedIn;
@@ -40,12 +41,8 @@ beforeAll(async () => {
     root: await mkdtemp(join(tmpdir(), "uroboros-sessions-")),
     layout: DEFAULT_LAYOUT,
   });
-  bus = createPlaybackBus(
-    createValkey(TestValkey.url(), "worker", logger),
-    h.ctx.valkey,
-    h.prefix,
-    logger,
-  );
+  pg = testBus(t);
+  bus = createPlaybackBus(pg, t.db, logger);
   await bus.ready;
   alice = await signedIn(t.db, { username: "salice" });
   bob = await signedIn(t.db, { username: "sbob" });
@@ -66,6 +63,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   bus.close();
+  await pg.close();
   await h.close();
   await t.close();
 });
@@ -118,7 +116,7 @@ describe("creating a playback session", () => {
     });
     const jobs = await h.queues.playback.getJobs(["waiting", "prioritized", "delayed"]);
     expect(jobs.map((j) => j.id)).toContain(`playback|${s.id}`);
-    expect(await isAlive({ valkey: h.ctx.valkey, prefix: h.prefix }, s.id)).toBe(true);
+    expect(await isAlive({ db: t.db }, s.id)).toBe(true);
   });
 
   it("leaves the viewer's other sessions of the entry playing (another tab or device)", async () => {
@@ -189,7 +187,7 @@ describe("a session's playlists", () => {
 });
 
 describe("a session's segments", () => {
-  const keys = () => ({ valkey: h.ctx.valkey, prefix: h.prefix });
+  const keys = () => ({ db: t.db });
 
   it("streams a stored segment, cached for good", async () => {
     const s = await session();

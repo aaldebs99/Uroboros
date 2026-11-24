@@ -33,3 +33,16 @@ export interface PlaybackSessionsTable {
   created_at: Created;
   stopped_at: Timestamp | null;
 }
+
+/** `playback_live`: a live session's viewer deadline and owning run (unlogged). */
+export interface PlaybackLiveTable {
+  session_id: string;
+  alive_until: Timestamp;
+  run_id: string | null;
+}
+
+/** `playback_segments`: the segments a live session has stored; -1 is the init (unlogged). */
+export interface PlaybackSegmentsTable {
+  session_id: string;
+  n: number;
+}

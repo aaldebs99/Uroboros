@@ -16,16 +16,16 @@ export class InitChangedError extends Error {}
 export class SessionWriter {
   readonly #deps: WorkerDeps;
   readonly #sid: string;
-  readonly #token: number;
+  readonly #token: string;
 
-  constructor(deps: WorkerDeps, sid: string, token: number) {
+  constructor(deps: WorkerDeps, sid: string, token: string) {
     this.#deps = deps;
     this.#sid = sid;
     this.#token = token;
   }
 
   get #keys() {
-    return { valkey: this.#deps.valkey, prefix: this.#deps.prefix };
+    return { db: this.#deps.db };
   }
 
   async #fence(): Promise<void> {
@@ -77,5 +77,5 @@ export async function cleanupSession(deps: WorkerDeps, sid: string): Promise<voi
       .onConflict((oc) => oc.column("key").doNothing())
       .execute();
   }
-  await forgetSession({ valkey: deps.valkey, prefix: deps.prefix }, sid);
+  await forgetSession({ db: deps.db }, sid);
 }

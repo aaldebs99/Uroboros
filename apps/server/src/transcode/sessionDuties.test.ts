@@ -41,7 +41,7 @@ afterAll(async () => {
   await t.close();
 });
 
-const keys = () => ({ valkey: h.ctx.valkey, prefix: h.prefix });
+const keys = () => ({ db: t.db });
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000);
 
 async function session(state: PlaybackState, o: { createdMin: number; stoppedMin?: number }) {

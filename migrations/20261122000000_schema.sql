@@ -520,8 +520,8 @@ CREATE TABLE rendition_keyframes (
 -- One viewer's playback of one entry, transcoded or remuxed on the fly (docs/transcoding.md): a
 -- signed-in person, or a public link's code (the session goes when the link does). `plan` is what
 -- it serves (sessionPlan.ts); `boundaries` the segments' start times and, last, the end, null
--- until a remux has its keyframes. Its segments live under `.transcodes/<id>/` while it runs; the
--- hot state (wanted and stored segments, liveness) is in Valkey.
+-- until a remux has its keyframes. Its segments live under `.transcodes/<id>/` while it runs; its
+-- short-lived state is in playback_live and playback_segments.
 CREATE TABLE playback_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   rendition_id UUID NOT NULL REFERENCES renditions ON DELETE CASCADE,
@@ -544,6 +544,23 @@ CREATE INDEX playback_sessions_viewer ON playback_sessions (entry_id, user_id, s
   WHERE state IN ('queued', 'starting', 'running');
 CREATE INDEX playback_sessions_ended ON playback_sessions (stopped_at)
   WHERE state IN ('stopped', 'failed');
+
+-- A live session's short-lived state (docs/transcoding.md): until when its viewer counts as there
+-- (alive_until, pushed on by every request and ping), and which run owns it (run_id: a runner whose
+-- token is no longer this one stops writing). Unlogged: a crash empties it, and the pages start
+-- their sessions again. It goes with its session.
+CREATE UNLOGGED TABLE playback_live (
+  session_id UUID PRIMARY KEY REFERENCES playback_sessions ON DELETE CASCADE,
+  alive_until TIMESTAMPTZ NOT NULL DEFAULT '-infinity',
+  run_id UUID
+);
+
+-- The segments a live session has stored (the init is -1). Unlogged; it goes with its session.
+CREATE UNLOGGED TABLE playback_segments (
+  session_id UUID NOT NULL REFERENCES playback_sessions ON DELETE CASCADE,
+  n INTEGER NOT NULL CHECK (n BETWEEN -1 AND 999999),
+  PRIMARY KEY (session_id, n)
+);
 
 -- A session's row can go many ways (swept, or with its entry, rendition or link); its folder goes
 -- to the trash each time, so a runner that died before cleaning up never leaves files behind.

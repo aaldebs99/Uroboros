@@ -1,9 +1,11 @@
 import { sql } from "kysely";
 import type { Kysely } from "kysely";
 import { pino } from "pino";
+import { inject } from "vitest";
 import type { Database } from "../src/db/schema.ts";
 import { createPgBus, LISTEN_APPLICATION_NAME } from "../src/db/notifications.ts";
 import type { Channel, PgBus, PgBusOptions } from "../src/db/notifications.ts";
+import { withDatabase } from "./dbUrl.ts";
 import type { TestDb } from "./testDb.ts";
 
 /** A started bus on the test database, quick to reconnect. Close it at the end. */
@@ -16,6 +18,13 @@ export function testBus(t: Pick<TestDb, "url">, opts: PgBusOptions = {}): PgBus 
   });
   bus.start();
   return bus;
+}
+
+/** A started bus on the database `db` is connected to (for helpers handed only the db). */
+export async function busFor(db: Kysely<Database>, opts: PgBusOptions = {}): Promise<PgBus> {
+  const r = await sql<{ name: string }>`SELECT current_database() AS name`.execute(db);
+  const name = r.rows[0]?.name ?? "";
+  return testBus({ url: withDatabase(inject("postgresUrl"), name) }, opts);
 }
 
 /** Ends every listener connection in this test's database, as a server restart would. */

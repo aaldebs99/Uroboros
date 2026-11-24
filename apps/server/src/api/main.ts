@@ -130,13 +130,8 @@ export async function startApi(
   // download events every open stream hears, fetch cancels and job wakes.
   const bus = createPgBus(config.databaseUrl, { logger });
   const downloadEvents = createEventHub(bus, logger);
-  // One subscription per replica carries the playback sessions' want/ready/stop messages.
-  const playbackBus = createPlaybackBus(
-    createValkey(config.valkeyUrl, "worker", logger),
-    valkey,
-    prefix,
-    logger,
-  );
+  // The same listener carries the playback sessions' want/ready/stop messages.
+  const playbackBus = createPlaybackBus(bus, db, logger);
   const downloadContext = {
     db,
     valkey,

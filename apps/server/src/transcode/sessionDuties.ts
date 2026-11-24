@@ -21,7 +21,7 @@ const ago = (ms: number) => sql<Date>`now() - make_interval(secs => ${ms / 1000}
 export async function reconcileSessions(
   ctx: DownloadContext,
 ): Promise<{ readded: number; stopped: number; swept: number }> {
-  const keys = { valkey: ctx.valkey, prefix: ctx.prefix };
+  const keys = { db: ctx.db };
   const live = await ctx.db
     .selectFrom("playback_sessions")
     .select("id")

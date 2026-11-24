@@ -1,6 +1,11 @@
 import type { ColumnType, Generated } from "kysely";
 import type { DownloadProgressTable, JobLimitsTable, JobsTable } from "./jobsSchema.ts";
-import type { PlaybackSessionsTable, RenditionKeyframesTable } from "./playbackSchema.ts";
+import type {
+  PlaybackLiveTable,
+  PlaybackSegmentsTable,
+  PlaybackSessionsTable,
+  RenditionKeyframesTable,
+} from "./playbackSchema.ts";
 
 export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts";
 
@@ -427,6 +432,8 @@ export interface Database {
   storage_trash: StorageTrashTable;
   rendition_keyframes: RenditionKeyframesTable;
   playback_sessions: PlaybackSessionsTable;
+  playback_live: PlaybackLiveTable;
+  playback_segments: PlaybackSegmentsTable;
   playlists: PlaylistsTable;
   playlist_items: PlaylistItemsTable;
   shares: SharesTable;

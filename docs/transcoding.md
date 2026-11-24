@@ -98,12 +98,12 @@ on `pagehide`, best effort: a session nobody asks for stops by itself).
 Segment requests can land on any replica. The session's **runner** is one BullMQ job
 (`playback|<id>`) on the `playback` queue, taken by any replica whose
 `UROBOROS_TRANSCODE_CONCURRENCY` is above 0, so only GPU replicas need to transcode. The replicas
-talk over Valkey:
+talk over Postgres ([jobs.md](jobs.md)):
 
-- a request publishes `want N` on the playback bus, and again every 2 s while it waits (a want
-  lost on the way, or sent before a requeued runner listens, is not lost for long);
-- the runner publishes `ready N` once segment N is stored, and sets its bit in the session's stored
-  map;
+- a request publishes `want N` on the playback bus (the `uroboros_playback` channel), and again
+  every 2 s while it waits (a want lost on the way, or sent before a requeued runner listens, is not
+  lost for long);
+- the runner publishes `ready N` once segment N is stored, and records it in `playback_segments`;
 - a request waits for that, looking again every 2 s, for up to 45 s, then answers 503 (the page
   starts again).
 
@@ -136,7 +136,7 @@ The runner (`src/worker/session.ts`, `sessionLoop.ts`):
 
 Every minute the leader (`src/transcode/sessionDuties.ts`) looks after sessions:
 
-- A live session whose run is gone (a replica that died, a flushed Valkey) gets it back while its
+- A live session whose run is gone (a replica that died) gets it back while its
   viewer is there. Once the viewer is gone too, it is stopped and its folder trashed.
 - Ended sessions are forgotten after an hour.
 - A trigger on the table trashes a session's folder whenever its row goes, so nothing is left

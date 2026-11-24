@@ -160,8 +160,7 @@ async function serveFile(ctx: SessionContext, c: Context, row: SessionRow, n: nu
   if (n >= 0 && segments !== null && n >= segments)
     throw new ApiError("not_found", "no such segment");
   const ok = await waitForSegment({
-    valkey: ctx.valkey,
-    prefix: ctx.prefix,
+    db: ctx.db,
     bus: ctx.bus,
     sid: row.id,
     n,

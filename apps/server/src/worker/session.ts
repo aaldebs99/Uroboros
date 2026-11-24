@@ -17,7 +17,7 @@ type PlaybackJobLike = Pick<Job<PlaybackJob>, "data"> & {
   moveToDelayed?: (timestamp: number, token?: string) => Promise<void>;
 };
 
-const keysOf = (deps: WorkerDeps) => ({ valkey: deps.valkey, prefix: deps.prefix });
+const keysOf = (deps: WorkerDeps) => ({ db: deps.db });
 
 async function liveRow(deps: WorkerDeps, sid: string): Promise<SessionRow | undefined> {
   return deps.db
@@ -79,7 +79,7 @@ async function requeue(
 async function runSession(
   deps: WorkerDeps,
   row: SessionRow,
-  token: number,
+  token: string,
   timings: SessionTimings,
   shutdown: AbortSignal,
 ): Promise<LoopEnd> {
@@ -159,6 +159,8 @@ export function sessionProcessor(
       return;
     }
     const token = await nextRunToken(keysOf(deps), sid);
+    // Gone since the look above (deleted with its entry or link): nothing to run.
+    if (token === null) return;
     await deps.db
       .updateTable("playback_sessions")
       .set({ state: "starting" })

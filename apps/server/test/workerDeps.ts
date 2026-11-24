@@ -7,10 +7,9 @@ import type { Database } from "../src/db/schema.ts";
 import { DEFAULT_LAYOUT, type StorageConfig } from "../src/storage/config.ts";
 import { createStore } from "../src/storage/index.ts";
 import { disabledPush } from "../src/push/service.ts";
-import { createValkey } from "../src/shared/valkey.ts";
 import { createPlaybackBus } from "../src/transcode/bus.ts";
 import { PipelineMemo } from "../src/transcode/hwaccel.ts";
-import { TestValkey } from "./testValkey.ts";
+import { busFor } from "./bus.ts";
 import { pino } from "pino";
 import type { WorkerDeps } from "../src/worker/deps.ts";
 import { downloadHarness } from "./downloads.ts";
@@ -31,12 +30,8 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
     variants: [{ whenArg: "packet=pts_time,flags", steps: [{ stdout: KEYFRAME_PACKETS }] }],
   });
   runs.push(ffprobeRun);
-  const playbackBus = createPlaybackBus(
-    createValkey(TestValkey.url(), "worker", pino({ level: "silent" })),
-    h.ctx.valkey,
-    h.prefix,
-    pino({ level: "silent" }),
-  );
+  const pg = await busFor(db);
+  const playbackBus = createPlaybackBus(pg, db, pino({ level: "silent" }));
   await playbackBus.ready;
   return {
     ...h,
@@ -116,6 +111,7 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
     runs,
     async close(): Promise<void> {
       playbackBus.close();
+      await pg.close();
       await Promise.all(runs.map((r) => r.close()));
       await h.close();
     },

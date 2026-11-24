@@ -8,13 +8,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness } from "../../test/downloads.ts";
 import { seedEntry, type SeededEntry } from "../../test/library.ts";
+import { testBus } from "../../test/bus.ts";
+import type { PgBus } from "../db/notifications.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 import { DEFAULT_LAYOUT } from "../storage/config.ts";
-import { createValkey } from "../shared/valkey.ts";
 import { createStore, type MediaStore } from "../storage/index.ts";
 import { createPlaybackBus, type PlaybackBus } from "../transcode/bus.ts";
-import { TestValkey } from "../../test/testValkey.ts";
 
 const logger = pino({ level: "silent" });
 let t: TestDb;
@@ -24,6 +24,7 @@ let alice: SignedIn;
 let bob: SignedIn;
 let carol: SignedIn;
 let shared: SeededEntry;
+let pg: PgBus;
 let bus: PlaybackBus;
 /** A playback request any browser could make. */
 const PLAY = { quality: "original", start: 0, copyVideo: true, copyAudio: true };
@@ -31,12 +32,8 @@ const PLAY = { quality: "original", start: 0, copyVideo: true, copyAudio: true }
 beforeAll(async () => {
   t = await TestDb.create();
   h = await downloadHarness(t.db);
-  bus = createPlaybackBus(
-    createValkey(TestValkey.url(), "worker", logger),
-    h.ctx.valkey,
-    h.prefix,
-    logger,
-  );
+  pg = testBus(t);
+  bus = createPlaybackBus(pg, t.db, logger);
   store = createStore({
     kind: "filesystem",
     root: await mkdtemp(join(tmpdir(), "uroboros-share-")),
@@ -67,6 +64,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   bus.close();
+  await pg.close();
   await h.close();
   await t.close();
 });

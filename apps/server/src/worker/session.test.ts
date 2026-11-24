@@ -72,7 +72,7 @@ afterAll(async () => {
   await t.close();
 });
 
-const keys = () => ({ valkey: h.ctx.valkey, prefix: h.prefix });
+const keys = () => ({ db: h.ctx.db });
 
 async function newSession(plan: Partial<StoredPlan> = {}, boundaries: number[] | null = UNIFORM) {
   const row = await insertSession(t.db, {
@@ -388,19 +388,22 @@ describe("a playback session's runner", () => {
     await done;
   });
 
-  it("rides out Valkey errors in its checks without crashing or giving up", async () => {
+  it("rides out database errors in its checks without crashing or giving up", async () => {
     const d = await deps({ steps: [stream([0]), { hang: true }] });
     let broken = false;
-    const valkey = new Proxy(d.valkey, {
+    // Its checks (is the viewer there, is a segment stored) read with the query builder.
+    const db = new Proxy(d.db, {
       get(target, prop, receiver) {
-        if (broken && (prop === "exists" || prop === "getbit")) {
-          return () => Promise.reject(new Error("valkey down"));
+        if (broken && prop === "selectFrom") {
+          return () => {
+            throw new Error("database down");
+          };
         }
         const v = Reflect.get(target, prop, receiver) as unknown;
         return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(target) : v;
       },
     });
-    const flaky: WorkerDeps = { ...d, valkey };
+    const flaky: WorkerDeps = { ...d, db };
     const sid = await newSession();
     const { done } = start(flaky, sid);
     await until(async () => stored(sid, -1));
