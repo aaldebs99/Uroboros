@@ -107,6 +107,7 @@ const item = {
   sources: [],
   playlists: [],
   sharedBy: null,
+  editable: false,
 };
 
 afterEach(() => {
@@ -301,6 +302,78 @@ describe("ItemPage actions", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.method === "DELETE")).toBe(true);
     });
+  });
+});
+
+describe("ItemPage editing an upload", () => {
+  const upload = {
+    ...item,
+    origin: "upload",
+    profileName: null,
+    webpageUrl: null,
+    channelKey: null,
+    channel: "Grandpa",
+    description: "Day one",
+    editable: true,
+  };
+
+  it("lets its uploader change the details and the thumbnail", async () => {
+    const calls = fakeApi({
+      [`GET /api/library/${ID}`]: () => Response.json(upload),
+      [`PATCH /api/library/${ID}/details`]: () =>
+        Response.json({ ...upload, title: "Snorkelling", description: null, channel: "Nan" }),
+      [`PUT /api/library/${ID}/thumbnail`]: () =>
+        Response.json({ ...upload, thumbnailUrl: `/api/library/${ID}/thumbnail?v=12345678` }),
+    });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Edit details" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit details" });
+    const title = within(dialog).getByLabelText("Title");
+    expect(title).toHaveValue("Big Buck Bunny");
+    await userEvent.clear(title);
+    await userEvent.type(title, "Snorkelling");
+    await userEvent.clear(within(dialog).getByLabelText("Description"));
+    const creator = within(dialog).getByLabelText("Creator");
+    await userEvent.clear(creator);
+    await userEvent.type(creator, "Nan");
+    const image = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "cover.png", {
+      type: "image/png",
+    });
+    await userEvent.upload(within(dialog).getByLabelText("Choose a thumbnail"), image);
+    expect(await within(dialog).findByAltText("The new thumbnail")).toHaveAttribute(
+      "src",
+      expect.stringMatching(/^data:image\/png;base64,/),
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Edit details" })).not.toBeInTheDocument();
+    });
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
+      title: "Snorkelling",
+      description: null,
+      creator: "Nan",
+    });
+    expect(calls.some((c) => c.method === "PUT" && c.path.endsWith("/thumbnail"))).toBe(true);
+  });
+
+  it("refuses a blank title and an image over 5 MiB", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(upload) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Edit details" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit details" });
+    await userEvent.clear(within(dialog).getByLabelText("Title"));
+    const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.png", { type: "image/png" });
+    await userEvent.upload(within(dialog).getByLabelText("Choose a thumbnail"), big);
+    expect(await within(dialog).findByText(/up to 5 MiB/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(await within(dialog).findByText("Give it a title.")).toBeInTheDocument();
+  });
+
+  it("offers no editing on a downloaded video", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await screen.findByRole("heading", { name: "Big Buck Bunny" });
+    expect(screen.queryByRole("button", { name: "Edit details" })).not.toBeInTheDocument();
   });
 });
 

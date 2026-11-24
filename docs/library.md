@@ -42,7 +42,8 @@ id; its key is that, base64url-encoded (`src/library/channelKey.ts`). Videos wit
 no channel: their `channel` is the site's name instead (`src/library/platform.ts`: YouTube, Vimeo
 and other well-known sites by name, any other site, a direct link included, by its page's host),
 with a null `channelKey`, so the web shows the site where the channel would be and links nowhere.
-`GET /api/library/channels` lists the caller's channels, most entries first.
+`GET /api/library/channels` lists the caller's channels, most entries first. An uploaded video's
+channel is its creator, under the `upload` extractor ([uploads.md](uploads.md)).
 
 Queueing a **playlist** from a preview, or following one with a subscription, records it
 (`sources`, shared by extractor and id), that this person has it (`user_sources`), and its entries
@@ -63,6 +64,13 @@ in its captions menu, chapters are a text track its time slider divides into sec
 also lists the chapters to jump to (`apps/web/src/library/Player.tsx`). When the browser cannot play
 the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand instead
 ([transcoding.md](transcoding.md)).
+
+Every entry says where it came from (`origin`: `download`, or `upload` for a video someone uploaded)
+and its format profile's name (`profileName`, null for an upload, or once a download's profile went
+with its owner's account; the queries left-join the profile). Thumbnail URLs end in `?v=` and a hash
+of the thumbnail's storage key, so a replaced thumbnail shows at once although browsers cache them
+for a day. An item the caller uploaded is `editable`: its title, description, creator and thumbnail
+can be changed ([uploads.md](uploads.md#editing)).
 
 ## Watch progress
 

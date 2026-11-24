@@ -5,6 +5,7 @@ import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { playlistsHolding } from "../playlists/listing.ts";
 import { visibleEntry } from "../sharing/access.ts";
+import { UPLOAD_EXTRACTOR } from "./platform.ts";
 import { base, ENTRY_COLUMNS, toEntry, type EntryRow } from "./query.ts";
 import { playbackFacts, type RenditionPlayback } from "../transcode/itemFacts.ts";
 
@@ -28,6 +29,7 @@ export async function getItem(
       "m.description",
       "m.chapters",
       "m.webpage_url",
+      "m.uploaded_by",
       "r.video_codec",
       "r.audio_codec",
       "r.video_codecs",
@@ -40,6 +42,7 @@ export async function getItem(
         description: string | null;
         chapters: unknown;
         webpage_url: string | null;
+        uploaded_by: string | null;
         video_codec: string | null;
         audio_codec: string | null;
       } & RenditionPlayback)
@@ -70,6 +73,7 @@ export async function getItem(
     audioCodec: row.audio_codec,
     playbackUrl: `/api/library/${entryId}/playback`,
     sharedBy: seen.own ? null : seen.owner_name,
+    editable: seen.own && row.extractor === UPLOAD_EXTRACTOR && row.uploaded_by === userId,
     ...playbackFacts(row),
   };
 }

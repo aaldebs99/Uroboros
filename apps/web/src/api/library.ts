@@ -4,6 +4,7 @@ import {
   LibraryItem,
   TagsBody,
   LibraryPage,
+  type EntryDetailsBody,
   type FormatProfilePatch,
   type LibrarySort,
   type NewFormatProfileBody,
@@ -17,7 +18,15 @@ import {
 } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { deleteJson, getJson, patchJson, postJson, putJson, putNoContent } from "./client";
+import {
+  deleteJson,
+  getJson,
+  patchJson,
+  postJson,
+  putBytes,
+  putJson,
+  putNoContent,
+} from "./client";
 import { downloadKeys } from "./downloads";
 
 const libraryKey = ["api", "library"] as const;
@@ -146,6 +155,14 @@ export const setWatched = (id: string, watched: boolean) =>
 /** Keep an entry from a subscription: retention never removes it. */
 export const setKept = (id: string, kept: boolean) =>
   putNoContent(`/api/library/${encodeURIComponent(id)}/kept`, { kept });
+
+/** An uploaded video's new details (its uploader only, docs/uploads.md). */
+export const editDetails = (id: string, details: EntryDetailsBody) =>
+  patchJson(`/api/library/${encodeURIComponent(id)}/details`, LibraryItem, details);
+
+/** An uploaded video's new thumbnail (its uploader only). */
+export const replaceThumbnail = (id: string, image: Blob) =>
+  putBytes(`/api/library/${encodeURIComponent(id)}/thumbnail`, LibraryItem, image);
 
 export const setTags = (id: string, tags: string[]) =>
   putJson(`/api/library/${encodeURIComponent(id)}/tags`, TagsBody, { tags });

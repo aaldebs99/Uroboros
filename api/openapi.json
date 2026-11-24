@@ -696,6 +696,31 @@
         ],
         "type": "string"
       },
+      "EntryDetailsBody": {
+        "properties": {
+          "creator": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 5000,
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "creator"
+        ],
+        "type": "object"
+      },
       "EntryOrigin": {
         "enum": [
           "download",
@@ -1032,6 +1057,9 @@
                 "nullable": true,
                 "type": "string"
               },
+              "editable": {
+                "type": "boolean"
+              },
               "height": {
                 "nullable": true,
                 "type": "integer"
@@ -1134,6 +1162,7 @@
               "audioCodec",
               "playbackUrl",
               "sharedBy",
+              "editable",
               "videoCodecs",
               "audioCodecs",
               "width",
@@ -4707,6 +4736,77 @@
         ]
       }
     },
+    "/api/library/{id}/details": {
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryDetailsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryItem"
+                }
+              }
+            },
+            "description": "The item as it is now"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A blank title or creator, or one too long"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A downloaded video, or someone else's upload"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not the caller's entry"
+          }
+        },
+        "summary": "Change an uploaded video's title, description and creator (its uploader only)",
+        "tags": [
+          "library"
+        ]
+      }
+    },
     "/api/library/{id}/file": {
       "get": {
         "parameters": [
@@ -5391,6 +5491,99 @@
           }
         },
         "summary": "The entry's thumbnail",
+        "tags": [
+          "library"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "description": "The image",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryItem"
+                }
+              }
+            },
+            "description": "The item with its new thumbnail"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not a JPEG, PNG or WebP image"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A downloaded video, or someone else's upload"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not the caller's entry"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Over 5 MiB"
+          }
+        },
+        "summary": "Replace an uploaded video's thumbnail: a JPEG, PNG or WebP image (its uploader only)",
         "tags": [
           "library"
         ]

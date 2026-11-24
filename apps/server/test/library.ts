@@ -78,6 +78,8 @@ export async function seedProfileless(
     channel?: string;
     thumbnailKey?: string | null;
     storageKey?: string;
+    /** Who uploaded it (an upload's only). */
+    uploadedBy?: string;
   } = {},
 ): Promise<SeededEntry> {
   const extractor = opts.extractor ?? "upload";
@@ -92,6 +94,7 @@ export async function seedProfileless(
       uploader: opts.channel ?? null,
       duration: 100,
       thumbnail_key: opts.thumbnailKey === undefined ? `thumbs/${videoId}.jpg` : opts.thumbnailKey,
+      uploaded_by: opts.uploadedBy ?? null,
     })
     .returning("id")
     .executeTakeFirstOrThrow();

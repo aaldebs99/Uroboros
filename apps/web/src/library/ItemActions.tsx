@@ -1,7 +1,7 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Download, ExternalLink, LibraryBig, ListPlus, Trash2 } from "lucide-react";
+import { Download, ExternalLink, LibraryBig, ListPlus, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -16,6 +16,7 @@ import { formatDuration } from "@/downloads/format";
 
 import { ShareButton } from "../sharing/ShareDialog";
 import { AddToPlaylist } from "./AddToPlaylist";
+import { EditDetailsDialog } from "./EditDetailsDialog";
 
 function ChannelLine({ item }: { item: LibraryItem }) {
   // A real basis (not flex-1's zero): when the row is short the actions wrap below, rather than
@@ -146,12 +147,35 @@ function SaveFile({ item }: { item: LibraryItem }) {
   );
 }
 
-/** The person's own actions on their entry: Keep, Save, Save to playlist, Share, Remove. */
+/** Edit details, on a video the person uploaded (docs/uploads.md). */
+function EditButton({ item }: { item: LibraryItem }) {
+  const [editing, setEditing] = useState(false);
+  if (!item.editable) return null;
+  return (
+    <>
+      <Button
+        variant="secondary"
+        onClick={() => {
+          setEditing(true);
+        }}
+      >
+        <Pencil aria-hidden /> Edit details
+      </Button>
+      {editing ? <EditDetailsDialog item={item} open onOpenChange={setEditing} /> : null}
+    </>
+  );
+}
+
+/**
+ * The person's own actions on their entry: Keep, Edit details (an upload), Save, Save to
+ * playlist, Share, Remove.
+ */
 function OwnActions({ item }: { item: LibraryItem }) {
   const [saving, setSaving] = useState(false);
   return (
     <>
       <KeepSwitch item={item} />
+      <EditButton item={item} />
       <SaveFile item={item} />
       <Button
         variant="secondary"

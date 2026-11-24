@@ -1,13 +1,17 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   ApiErrorBody,
+  EntryDetailsBody,
   EntryRef,
   KeptBody,
   LibraryItem,
   ProgressBody,
   TagsBody,
+  THUMBNAIL_MAX_BYTES,
+  THUMBNAIL_TYPES,
   WatchedBody,
 } from "@uroboros/contract";
+import { bodyLimit } from "hono/body-limit";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
@@ -17,8 +21,10 @@ import { needStore, serve } from "../downloads/libraryRoutes.ts";
 import { visibleEntry } from "../sharing/access.ts";
 import { addToLibrary } from "../sharing/add.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
+import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { extname } from "node:path";
+import { editDetails, replaceThumbnail } from "./details.ts";
 import { getItem } from "./item.ts";
 import { saveProgress, setWatched } from "./progress.ts";
 import { replaceTags } from "./tags.ts";
@@ -121,6 +127,45 @@ const addRoute = createRoute({
   },
 });
 
+const detailsRoute = createRoute({
+  method: "patch",
+  path: "/api/library/{id}/details",
+  tags: ["library"],
+  summary: "Change an uploaded video's title, description and creator (its uploader only)",
+  request: { params: z.object({ id }), ...body(EntryDetailsBody) },
+  responses: {
+    200: json(LibraryItem, "The item as it is now"),
+    400: error("A blank title or creator, or one too long"),
+    403: error("A downloaded video, or someone else's upload"),
+    404: error("Not the caller's entry"),
+  },
+});
+
+const thumbnailPutRoute = createRoute({
+  method: "put",
+  path: "/api/library/{id}/thumbnail",
+  tags: ["library"],
+  summary: "Replace an uploaded video's thumbnail: a JPEG, PNG or WebP image (its uploader only)",
+  middleware: [bodyLimit({ maxSize: THUMBNAIL_MAX_BYTES })] as const,
+  request: {
+    params: z.object({ id }),
+    body: {
+      required: true,
+      description: "The image",
+      content: Object.fromEntries(
+        THUMBNAIL_TYPES.map((t) => [t, { schema: z.string().openapi({ format: "binary" }) }]),
+      ),
+    },
+  },
+  responses: {
+    200: json(LibraryItem, "The item with its new thumbnail"),
+    400: error("Not a JPEG, PNG or WebP image"),
+    403: error("A downloaded video, or someone else's upload"),
+    404: error("Not the caller's entry"),
+    413: error("Over 5 MiB"),
+  },
+});
+
 /**
  * The item page's routes (docs/library.md). Watching (the item, its file, subtitles, progress)
  * works for entries shared with the caller too (docs/sharing.md); Keep and tags are the owner's.
@@ -129,6 +174,7 @@ export function registerItemRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
   store: MediaStore | undefined,
+  storage?: StorageConfig,
 ): void {
   app.openapi(itemRoute, async (c) =>
     c.json(await getItem(db, currentPrincipal(c).userId, c.req.valid("param").id), 200),
@@ -194,6 +240,23 @@ export function registerItemRoutes(
       .where("id", "=", entry.id)
       .execute();
     return c.body(null, 204);
+  });
+
+  app.openapi(detailsRoute, async (c) => {
+    const { userId } = currentPrincipal(c);
+    const { id: entryId } = c.req.valid("param");
+    await editDetails(db, userId, entryId, c.req.valid("json"));
+    return c.json(await getItem(db, userId, entryId), 200);
+  });
+
+  app.openapi(thumbnailPutRoute, async (c) => {
+    const s = needStore(store);
+    if (storage === undefined) throw new ApiError("unavailable", "storage is not available");
+    const { userId } = currentPrincipal(c);
+    const { id: entryId } = c.req.valid("param");
+    const bytes = new Uint8Array(await c.req.raw.arrayBuffer());
+    await replaceThumbnail(db, s, storage, userId, entryId, bytes);
+    return c.json(await getItem(db, userId, entryId), 200);
   });
 
   app.openapi(tagsRoute, async (c) => {

@@ -74,6 +74,7 @@ const item = (n: number, playlists: { id: string; name: string }[] = []) => ({
   height: null,
   qualities: [],
   sharedBy: null,
+  editable: false,
 });
 
 const summary = (over: Record<string, unknown>) => ({

@@ -187,6 +187,19 @@ export async function putJson<S extends z.ZodType>(
   return parseBody(res, `PUT ${path}`, schema);
 }
 
+/** PUT that sends raw bytes (an image) under their own type, and validates the JSON answer. */
+export async function putBytes<S extends z.ZodType>(
+  path: string,
+  schema: S,
+  body: Blob,
+): Promise<z.infer<S>> {
+  const res = await send("PUT", path, {
+    headers: { "Content-Type": body.type || "application/octet-stream" },
+    body,
+  });
+  return parseBody(res, `PUT ${path}`, schema);
+}
+
 /** PUT that sends JSON and expects no body back (204). */
 export async function putNoContent(path: string, body: unknown): Promise<void> {
   const res = await send("PUT", path, {

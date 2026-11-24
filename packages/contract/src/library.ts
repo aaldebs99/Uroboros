@@ -57,6 +57,8 @@ export const LibraryItem = LibraryEntry.extend({
   playbackUrl: z.string(),
   /** The owner's name when the caller sees it through a share (docs/sharing.md); null for their own. */
   sharedBy: z.string().nullable(),
+  /** The caller uploaded it and may edit its details and thumbnail (docs/uploads.md). */
+  editable: z.boolean(),
   ...PlaybackFacts.shape,
 }).openapi("LibraryItem");
 export type LibraryItem = z.infer<typeof LibraryItem>;

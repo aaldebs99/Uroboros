@@ -313,6 +313,7 @@ describe("a video someone shared with me", () => {
     height: null,
     qualities: [],
     sharedBy: "Alice",
+    editable: false,
   };
 
   it("shows who shared it and Add to my library, not the owner's actions", async () => {
