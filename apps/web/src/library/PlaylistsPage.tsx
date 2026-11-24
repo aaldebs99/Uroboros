@@ -70,6 +70,8 @@ export function PlaylistsPage() {
   const list = playlists.data ?? [];
   return (
     <section className="grid w-full grid-cols-1 gap-6">
+      {/* The tabs first: they show on phones only, where New playlist then sits under them. */}
+      <ViewTabs />
       <PageHeader
         title="Playlists"
         hideTitle
@@ -83,7 +85,6 @@ export function PlaylistsPage() {
           </Button>
         }
       />
-      <ViewTabs />
       {playlists.isError ? <p className="text-destructive">{errorText(playlists.error)}</p> : null}
       {playlists.isSuccess && list.length === 0 ? (
         <EmptyState icon={ListVideo} title="No playlists yet.">
