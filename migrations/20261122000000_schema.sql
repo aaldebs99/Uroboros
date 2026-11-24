@@ -741,8 +741,8 @@ CREATE TABLE upload_parts (
 -- Copies of a video without its SponsorBlock segments, made to save to a device (docs/transcoding.md
 -- "Saving without SponsorBlock segments"): the `export` job re-encodes the entry's file with `cuts`
 -- (the merged spans removed, on the file's timeline) taken out, and stores it at `storage_key`
--- (`.exports/<id>.mp4`). Each person's own; the leader's sweep deletes one a day after it finished,
--- and deleting the row (also through its person, entry or file going) trashes the file.
+-- (`.exports/<id>.mp4`). Each person's own, kept until they remove it; deleting the row (also
+-- through its person, entry or file going) trashes the file.
 CREATE TABLE exports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
@@ -764,7 +764,6 @@ CREATE TABLE exports (
   CHECK ((state IN ('done', 'failed')) = (finished_at IS NOT NULL))
 );
 CREATE INDEX exports_user ON exports (user_id, created_at);
-CREATE INDEX exports_finished ON exports (finished_at) WHERE finished_at IS NOT NULL;
 
 CREATE FUNCTION trash_export() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

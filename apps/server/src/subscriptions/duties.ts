@@ -11,7 +11,7 @@ import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
 /**
  * The leader's automation duties: queue due checks every few seconds, apply retention hourly, run the reaper
  * every 15 minutes, and look after playback sessions (lost runs, abandoned and ended sessions),
- * uploads (lost jobs, abandoned and old uploads) and copies to save (expired, lost) every minute.
+ * uploads (lost jobs, abandoned and old uploads) and copies to save (lost jobs) every minute.
  */
 export function automationDuties(ctx: DownloadContext, store: MediaStore) {
   const due = periodicDuty(

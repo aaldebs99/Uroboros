@@ -75,7 +75,6 @@ describe("asking for a copy without sponsors", () => {
       cutSeconds: 25,
       keptSeconds: 75,
       fileUrl: null,
-      expiresAt: null,
     });
     const row = await t.db
       .selectFrom("exports")
@@ -91,6 +90,36 @@ describe("asking for a copy without sponsors", () => {
     expect(Export.parse(await again.json()).id).toBe(made.id);
     const jobs = (await liveJobs(t.db, "export")).filter((j) => j.key === exportJobKey(made.id));
     expect(jobs).toEqual([expect.objectContaining({ data: { exportId: made.id } })]);
+  });
+
+  it("makes a failed copy again in its own row when asked again", async () => {
+    const me = await user();
+    const e = await entryWith(me);
+    const made = Export.parse(
+      await (await post(app(me), `/api/library/${e.entryId}/export`)).json(),
+    );
+    await t.db.deleteFrom("jobs").where("key", "=", exportJobKey(made.id)).execute();
+    await t.db
+      .updateTable("exports")
+      .set({ state: "failed", error: "boom", progress: 0.4, finished_at: new Date() })
+      .where("id", "=", made.id)
+      .execute();
+    const again = await post(app(me), `/api/library/${e.entryId}/export`);
+    expect(again.status).toBe(201);
+    expect(Export.parse(await again.json())).toMatchObject({
+      id: made.id,
+      state: "queued",
+      error: null,
+      progress: null,
+    });
+    const rows = await t.db
+      .selectFrom("exports")
+      .select("id")
+      .where("entry_id", "=", e.entryId)
+      .execute();
+    expect(rows).toHaveLength(1);
+    const jobs = (await liveJobs(t.db, "export")).filter((j) => j.key === exportJobKey(made.id));
+    expect(jobs).toHaveLength(1);
   });
 
   it("refuses a video with nothing to cut, and someone else's entry", async () => {
@@ -144,7 +173,7 @@ describe("a copy once made", () => {
     return made;
   }
 
-  it("lists with a file to save and an expiry, and serves it to its person only", async () => {
+  it("lists with a file to save, and serves it to its person only", async () => {
     const [me, other] = [await user(), await user()];
     const made = await finished(me);
     const list = z.array(Export).parse(await (await app(me).request("/api/exports")).json());
@@ -154,7 +183,6 @@ describe("a copy once made", () => {
       sizeBytes: 10,
       fileUrl: `/api/exports/${made.id}/file`,
     });
-    expect(list[0]?.expiresAt).not.toBeNull();
     const file = await app(me).request(`/api/exports/${made.id}/file`);
     expect(file.status).toBe(200);
     expect(await file.text()).toBe("0123456789");

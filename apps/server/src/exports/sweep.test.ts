@@ -41,25 +41,25 @@ const state = async (id: string) =>
   (await t.db.selectFrom("exports").select("state").where("id", "=", id).executeTakeFirst())?.state;
 
 describe("sweepExports", () => {
-  it("drops a copy a day past finishing, trashing its file, and keeps a newer one", async () => {
+  it("keeps finished copies however old they are, and trashes none of their files", async () => {
     const id = crypto.randomUUID();
     const old = await copy({
       id,
       state: "done",
       storage_key: exportKey(id),
       size_bytes: 5,
-      finished_at: sql<Date>`now() - interval '25 hours'`,
+      finished_at: sql<Date>`now() - interval '30 days'`,
     });
-    const fresh = await copy({ state: "failed", error: "x", finished_at: new Date() });
+    const failed = await copy({ state: "failed", error: "x", finished_at: new Date() }, 60);
     await sweepExports(h.ctx);
-    expect(await state(old)).toBeUndefined();
-    expect(await state(fresh)).toBe("failed");
+    expect(await state(old)).toBe("done");
+    expect(await state(failed)).toBe("failed");
     const trash = await t.db
       .selectFrom("storage_trash")
       .select("key")
       .where("key", "=", exportKey(id))
       .execute();
-    expect(trash).toHaveLength(1);
+    expect(trash).toEqual([]);
   });
 
   it("fails a copy whose job is gone, and leaves one that still has its job", async () => {

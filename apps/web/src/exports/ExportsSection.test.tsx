@@ -22,7 +22,6 @@ const copy = (n: number, over: Partial<Export>): Export => ({
   keptSeconds: 600,
   cutSeconds: 90,
   createdAt: "2026-11-24T18:00:00.000Z",
-  expiresAt: null,
   fileUrl: null,
   ...over,
 });
@@ -49,7 +48,6 @@ describe("ExportsSection", () => {
             state: "done",
             progress: 1,
             sizeBytes: 52_428_800,
-            expiresAt: new Date(Date.now() + 23 * 3600_000).toISOString(),
             fileUrl: `/api/exports/${id(3)}/file`,
           }),
           copy(4, { state: "failed", error: "Invalid data found when processing input" }),
@@ -68,7 +66,7 @@ describe("ExportsSection", () => {
     expect(
       within(rows[2] as HTMLElement).getByRole("link", { name: "Save Video 3" }),
     ).toHaveAttribute("href", `/api/exports/${id(3)}/file`);
-    expect(within(rows[2] as HTMLElement).getByText(/expires in 23 h/)).toBeInTheDocument();
+    expect(within(rows[2] as HTMLElement).getByText("1:30 cut · 50.0 MB")).toBeInTheDocument();
     expect(within(rows[3] as HTMLElement).getByText(/Invalid data/)).toBeInTheDocument();
   });
 

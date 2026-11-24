@@ -761,11 +761,6 @@
             "nullable": true,
             "type": "string"
           },
-          "expiresAt": {
-            "format": "date-time",
-            "nullable": true,
-            "type": "string"
-          },
           "fileUrl": {
             "nullable": true,
             "type": "string"
@@ -807,7 +802,6 @@
           "keptSeconds",
           "cutSeconds",
           "createdAt",
-          "expiresAt",
           "fileUrl"
         ],
         "type": "object"

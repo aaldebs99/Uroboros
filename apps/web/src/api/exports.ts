@@ -13,10 +13,11 @@ export const exportsKey = ["api", "exports"] as const;
 
 const isMaking = (e: Export) => e.state === "queued" || e.state === "running";
 
-/** The person's copies, asked again every 3 s while any is being made. */
-export function useExports() {
+/** The person's copies, asked again every 3 s while any is being made; none asked while not `enabled`. */
+export function useExports(enabled = true) {
   return useQuery({
     queryKey: exportsKey,
+    enabled,
     queryFn: ({ signal }) => getJson("/api/exports", z.array(Export), { signal }),
     refetchInterval: (query) => (query.state.data?.some(isMaking) === true ? 3000 : false),
   });

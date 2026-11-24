@@ -1,4 +1,4 @@
-import { EXPORT_KEEP_HOURS, SkipSegment, type Export } from "@uroboros/contract";
+import { SkipSegment, type Export } from "@uroboros/contract";
 import { sql, type Kysely, type Selectable } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
@@ -11,11 +11,10 @@ import { cutSeconds, keptRanges, mergeCuts, type Span } from "./cuts.ts";
 /**
  * Copies to save (docs/transcoding.md "Saving without SponsorBlock segments"): a person asks for a
  * copy of an entry they see without its SponsorBlock segments; the `export` job makes it; it stays
- * a day after it finished.
+ * until they remove it (or the entry, its file or their account goes).
  */
 
-export const EXPORT_KEEP_MS = EXPORT_KEEP_HOURS * 3600_000;
-/** Where a copy is stored; the trash trigger and the sweep delete it with its row. */
+/** Where a copy is stored; the trash trigger deletes it with its row. */
 export const exportKey = (id: string): string => `.exports/${id}.mp4`;
 /** One job per copy: a second ask while one is live adds none. */
 export const exportJobKey = (id: string): string => `export:${id}`;
@@ -46,8 +45,6 @@ export function describeExport(row: Described): Export {
     keptSeconds: kept,
     cutSeconds: cut,
     createdAt: iso(row.created_at),
-    expiresAt:
-      row.finished_at === null ? null : iso(new Date(row.finished_at.getTime() + EXPORT_KEEP_MS)),
     fileUrl: row.state === "done" ? `/api/exports/${row.id}/file` : null,
   };
 }
@@ -66,25 +63,20 @@ function described(db: Kysely<Database>) {
     ]);
 }
 
-/** A copy not past its day. */
-const live = sql<boolean>`(x.finished_at IS NULL OR x.finished_at > now() - make_interval(secs => ${EXPORT_KEEP_MS / 1000}))`;
-
-/** The caller's copies not yet gone, newest first. */
+/** The caller's copies, newest first. */
 export async function listExports(db: Kysely<Database>, userId: string): Promise<Export[]> {
   const rows = await described(db)
     .where("x.user_id", "=", userId)
-    .where(live)
     .orderBy("x.created_at", "desc")
     .execute();
   return rows.map(describeExport);
 }
 
-/** One of the caller's copies; anyone else's (or one gone) is 404. */
+/** One of the caller's copies; anyone else's is 404. */
 export async function ownExport(db: Kysely<Database>, userId: string, id: string) {
   const row = await described(db)
     .where("x.id", "=", id)
     .where("x.user_id", "=", userId)
-    .where(live)
     .executeTakeFirst();
   if (row === undefined) throw new ApiError("not_found", "no such copy");
   return row;
@@ -92,8 +84,8 @@ export async function ownExport(db: Kysely<Database>, userId: string, id: string
 
 /**
  * Asks for a copy of an entry the caller sees without its SponsorBlock segments. The same entry
- * with the same cuts, queued, running or done and not yet gone, is answered with that copy
- * (`created` false); a failed one is asked again.
+ * with the same cuts already queued, running or done is answered with that copy (`created` false);
+ * a failed one is made again, in its own row (reset and queued).
  */
 export async function createExport(
   ctx: DownloadContext,
@@ -120,28 +112,47 @@ export async function createExport(
   const id = await ctx.db.transaction().execute(async (tx) => {
     const same = await tx
       .selectFrom("exports as x")
-      .select("x.id")
+      .select(["x.id", "x.state"])
       .where("x.user_id", "=", userId)
       .where("x.entry_id", "=", entryId)
       .where(sql<boolean>`x.cuts = ${json}::jsonb`)
-      .where("x.state", "<>", "failed")
-      .where(live)
+      .orderBy("x.created_at", "desc")
       .executeTakeFirst();
-    if (same !== undefined) return { id: same.id, created: false };
-    const row = await tx
-      .insertInto("exports")
-      .values({ user_id: userId, entry_id: entryId, rendition_id: entry.rendition_id, cuts: json })
-      .returning("id")
-      .executeTakeFirstOrThrow();
+    if (same !== undefined && same.state !== "failed") return { id: same.id, created: false };
+    const copyId =
+      same === undefined
+        ? (
+            await tx
+              .insertInto("exports")
+              .values({
+                user_id: userId,
+                entry_id: entryId,
+                rendition_id: entry.rendition_id,
+                cuts: json,
+              })
+              .returning("id")
+              .executeTakeFirstOrThrow()
+          ).id
+        : await restart(tx, same.id);
     await ctx.queues.export.add(
       "export",
-      { exportId: row.id },
-      { key: exportJobKey(row.id), attempts: 2, backoff: { type: "fixed", delayMs: 30_000 } },
+      { exportId: copyId },
+      { key: exportJobKey(copyId), attempts: 2, backoff: { type: "fixed", delayMs: 30_000 } },
       tx,
     );
-    return { id: row.id, created: true };
+    return { id: copyId, created: true };
   });
   return { created: id.created, export: describeExport(await ownExport(ctx.db, userId, id.id)) };
+}
+
+/** Puts a failed copy back in the queue, as new. */
+async function restart(tx: Kysely<Database>, id: string): Promise<string> {
+  await tx
+    .updateTable("exports")
+    .set({ state: "queued", progress: null, encoder: null, error: null, finished_at: null })
+    .where("id", "=", id)
+    .execute();
+  return id;
 }
 
 /** Removes one of the caller's copies: a running job sees it gone and stops; the file is trashed. */

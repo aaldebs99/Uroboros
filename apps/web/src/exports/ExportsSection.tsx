@@ -28,14 +28,6 @@ function Bar({ title, progress }: { title: string; progress: number }) {
   );
 }
 
-/** "Expires in 23 h" (or minutes in its last hour). */
-function expiresIn(at: string): string {
-  const minutes = Math.max(0, Math.round((Date.parse(at) - Date.now()) / 60_000));
-  return minutes >= 60
-    ? `expires in ${String(Math.round(minutes / 60))} h`
-    : `expires in ${String(minutes)} min`;
-}
-
 /** The muted line beside the badge: what the copy is, and how far or how big. */
 function detail(copy: Export): string {
   const cut = `${formatDuration(copy.cutSeconds)} cut`;
@@ -45,13 +37,7 @@ function detail(copy: Export): string {
     case "running":
       return `${cut} · ${String(Math.round((copy.progress ?? 0) * 100))}%${copy.encoder === null ? "" : ` · ${copy.encoder}`}`;
     case "done":
-      return [
-        cut,
-        copy.sizeBytes === null ? null : formatBytes(copy.sizeBytes),
-        copy.expiresAt === null ? null : expiresIn(copy.expiresAt),
-      ]
-        .filter((part) => part !== null)
-        .join(" · ");
+      return copy.sizeBytes === null ? cut : `${cut} · ${formatBytes(copy.sizeBytes)}`;
     case "failed":
       return cut;
   }
@@ -121,7 +107,7 @@ function ExportRow({ copy }: { copy: Export }) {
 
 /**
  * The Downloads page's copies to save: videos being re-encoded without their SponsorBlock segments,
- * and the finished ones, each saved from here for a day (docs/transcoding.md).
+ * and the finished ones, kept to save from here until removed (docs/transcoding.md).
  */
 export function ExportsSection() {
   const list = useExports();

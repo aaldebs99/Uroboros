@@ -2,11 +2,8 @@ import { z } from "@hono/zod-openapi";
 
 /**
  * Copies to save (docs/transcoding.md): a video re-encoded without its SponsorBlock segments, made
- * by a job for one person and kept for a day.
+ * by a job for one person and kept until they remove it.
  */
-
-/** How long a finished copy stays to be saved. */
-export const EXPORT_KEEP_HOURS = 24;
 
 export const ExportState = z.enum(["queued", "running", "done", "failed"]).openapi("ExportState");
 export type ExportState = z.infer<typeof ExportState>;
@@ -29,8 +26,6 @@ export const Export = z
     keptSeconds: z.number().nullable(),
     cutSeconds: z.number(),
     createdAt: z.iso.datetime(),
-    /** When a finished copy goes; null until it finishes. */
-    expiresAt: z.iso.datetime().nullable(),
     /** Where to save it from, once done. */
     fileUrl: z.string().nullable(),
   })

@@ -213,7 +213,9 @@ which leaves part of a sponsor in or puts the sound out of step, so the copy is 
 - **Asking** (`POST /api/library/{id}/export`, any entry the person sees) records an `exports` row
   with the cuts (the segments joined as the player joins them, `src/exports/cuts.ts`) and adds an
   `export` job. Asking again for the same entry and cuts, while that copy is waiting, being made or
-  ready, answers with it; a failed one is asked again. A video with no segments is refused.
+  ready, answers with it; a failed one is reset and made again in its own row. A video with no
+  segments is refused. Once a copy is ready, Save › Without sponsors on the item page saves it
+  straight away.
 - **The job** (`src/worker/exportRun.ts`) runs on replicas that run sessions, one copy at a time.
   It trims each kept range from the decoded frames and samples, joins them (`trim`/`atrim` and
   `concat`, `packages/ytdlp/src/exportArgs.ts`), and encodes H.264 at the source's own size (its
@@ -228,9 +230,9 @@ which leaves part of a sponsor in or puts the sound out of step, so the copy is 
   under the downloads notification kind), and `GET /api/exports/{id}/file` serves it as
   `<title> (no sponsors).mp4`. A failure records ffmpeg's reason; a run cut for shutdown goes back
   to the queue.
-- **A day after it finished**, the leader's sweep deletes the copy (`src/exports/sweep.ts`); it
-  also fails one whose job is gone. Deleting a row any way (Remove, the sweep, its person, entry or
-  file going) puts its file in `storage_trash` for the reaper.
+- **Copies stay** until their person removes them. Deleting a row any way (Remove, or its person,
+  entry or source file going) puts its file in `storage_trash` for the reaper. The leader's sweep
+  (`src/exports/sweep.ts`) only fails a copy whose job is gone, so it can be asked for again.
 
 ## Not yet
 

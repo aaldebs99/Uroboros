@@ -21,7 +21,6 @@ const COPY = {
   keptSeconds: 903.5,
   cutSeconds: 104.5,
   createdAt: "2026-11-24T18:00:00.000Z",
-  expiresAt: null,
   fileUrl: null,
 };
 
@@ -62,5 +61,31 @@ describe("SaveFile", () => {
       );
     });
     expect(await screen.findByText("Making a copy without sponsors")).toBeInTheDocument();
+  });
+
+  it("saves a copy made already at once, asking the server for nothing", async () => {
+    const done = {
+      ...COPY,
+      state: "done",
+      progress: 1,
+      sizeBytes: 10,
+      fileUrl: `/api/exports/${COPY.id}/file`,
+    };
+    const calls = fakeApi({ "GET /api/exports": () => Response.json([done]) });
+    await renderInRouter(
+      <SaveFile item={{ id: ID, skipSegments: [{ start: 49, end: 69, category: "sponsor" }] }} />,
+    );
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === "/api/exports")).toBe(true);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    const menu = await screen.findByRole("dialog", { name: "Save" });
+    await waitFor(() => {
+      expect(within(menu).getByRole("link", { name: "Without sponsors" })).toHaveAttribute(
+        "href",
+        `/api/exports/${COPY.id}/file`,
+      );
+    });
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
   });
 });

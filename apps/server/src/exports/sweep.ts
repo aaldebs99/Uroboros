@@ -1,20 +1,15 @@
 import { sql } from "kysely";
 import type { DownloadContext } from "../downloads/dispatch.ts";
-import { EXPORT_KEEP_MS } from "./store.ts";
 
 export const EXPORT_SWEEP_EVERY_MS = 60_000;
 /** A copy queued or running this long with no job left was dropped (its runs stalled out). */
 const LOST_AFTER_MS = 5 * 60_000;
 
 /**
- * The leader's sweep of copies to save (docs/transcoding.md): drops those a day past finishing
- * (the trash trigger queues their files for the reaper), and fails those whose job is gone.
+ * The leader's sweep of copies to save (docs/transcoding.md): fails those whose job is gone (its
+ * runs stalled out), so their person can ask again. Copies themselves stay until removed.
  */
 export async function sweepExports(ctx: DownloadContext): Promise<void> {
-  const expired = await ctx.db
-    .deleteFrom("exports")
-    .where("finished_at", "<", sql<Date>`now() - make_interval(secs => ${EXPORT_KEEP_MS / 1000})`)
-    .executeTakeFirst();
   const lost = await ctx.db
     .updateTable("exports as x")
     .set({ state: "failed", error: "the copy was interrupted; try again", finished_at: sql`now()` })
@@ -32,10 +27,7 @@ export async function sweepExports(ctx: DownloadContext): Promise<void> {
       ),
     )
     .executeTakeFirst();
-  if (expired.numDeletedRows > 0n || lost.numUpdatedRows > 0n) {
-    ctx.logger.info(
-      { expired: Number(expired.numDeletedRows), lost: Number(lost.numUpdatedRows) },
-      "swept copies to save",
-    );
+  if (lost.numUpdatedRows > 0n) {
+    ctx.logger.info({ lost: Number(lost.numUpdatedRows) }, "failed copies whose job was gone");
   }
 }
