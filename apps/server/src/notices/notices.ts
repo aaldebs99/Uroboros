@@ -1,5 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { BUNDLED, type BundledPackage } from "./bundled.ts";
 
 /**
  * The third-party notices the images carry for the bundled JavaScript: every production
@@ -52,6 +54,37 @@ function renderPackage(pkg: LicensedPackage): string {
   return [...header, "", ...bodies, ""].join("\n");
 }
 
+const BUNDLED_DIR = fileURLToPath(new URL("./bundled/", import.meta.url));
+
+function renderBundled(pkg: BundledPackage): string {
+  const header = ["-".repeat(78), `${pkg.name}@${pkg.version}`, `Licence: ${pkg.license}`];
+  const body =
+    pkg.file === null
+      ? `No licence file in the package; its package.json declares ${pkg.license}${
+          pkg.author === undefined ? "" : `, by ${pkg.author}`
+        }.`
+      : readFileSync(join(BUNDLED_DIR, pkg.file), "utf8").trimEnd();
+  return [...header, "-".repeat(78), "", body, ""].join("\n");
+}
+
+/** What a package compiled into its own files, from `bundled.ts`; empty for most. */
+function bundledIn(pkg: LicensedPackage): string[] {
+  const host = BUNDLED.find((h) => h.name === pkg.name);
+  if (host === undefined) return [];
+  for (const v of pkg.versions) {
+    if (v !== host.version) {
+      throw new Error(
+        `${pkg.name}@${v} bundles code whose licences nobody listed; list them in src/notices/bundled.ts`,
+      );
+    }
+  }
+  return [
+    `Bundled inside ${pkg.name}@${host.version} (compiled into its files):`,
+    "",
+    ...host.packages.map(renderBundled),
+  ];
+}
+
 /** The notices text for a licences report, packages sorted by name. */
 export function renderNotices(report: LicensesReport): string {
   const packages = Object.values(report)
@@ -63,7 +96,7 @@ export function renderNotices(report: LicensesReport): string {
     "Each entry is a production npm dependency, with the licence and notice files its package ships.",
     "",
   ].join("\n");
-  return [intro, ...packages.map(renderPackage)].join("\n");
+  return [intro, ...packages.flatMap((p) => [renderPackage(p), ...bundledIn(p)])].join("\n");
 }
 
 /** `notices <report.json> <out.txt>`. Exit codes: 0 written, 2 usage. */
