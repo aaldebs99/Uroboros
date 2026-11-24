@@ -12,6 +12,7 @@ import type {
   RenditionKeyframesTable,
 } from "./playbackSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
+import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
 
 export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts";
@@ -421,6 +422,7 @@ export interface NotificationPrefsTable {
   user_id: string;
   downloads: Defaulted<boolean>;
   shares: Defaulted<boolean>;
+  groups: Defaulted<boolean>;
 }
 
 /** `site_logins`: a person's saved login for one yt-dlp site, the password sealed. */
@@ -468,6 +470,8 @@ export interface Database {
   playlist_items: PlaylistItemsTable;
   shares: SharesTable;
   share_people: SharePeopleTable;
+  groups: GroupsTable;
+  group_members: GroupMembersTable;
   notification_prefs: NotificationPrefsTable;
   jobs: JobsTable;
   job_limits: JobLimitsTable;

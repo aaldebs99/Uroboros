@@ -6,10 +6,10 @@ import type { Database } from "../db/schema.ts";
 export async function getPrefs(db: Kysely<Database>, userId: string): Promise<NotificationPrefs> {
   const row = await db
     .selectFrom("notification_prefs")
-    .select(["downloads", "shares"])
+    .select(["downloads", "shares", "groups"])
     .where("user_id", "=", userId)
     .executeTakeFirst();
-  return row ?? { downloads: true, shares: true };
+  return row ?? { downloads: true, shares: true, groups: true };
 }
 
 export async function setPrefs(

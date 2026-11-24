@@ -105,7 +105,6 @@ export {
 } from "./playlists.ts";
 export {
   Directory,
-  GroupName,
   PeopleShare,
   PeopleShareBody,
   PublicLink,
@@ -148,3 +147,18 @@ export {
   UploadState,
 } from "./uploads.ts";
 export { Export, ExportState } from "./exports.ts";
+export {
+  AdminGroup,
+  GROUP_NAME_CHARS,
+  GroupDetail,
+  GroupMember,
+  GroupMembersBody,
+  GroupName,
+  GroupNameBody,
+  GroupRole,
+  GroupRoleBody,
+  GroupSummary,
+  MAX_GROUP_MEMBERS,
+  MAX_GROUPS_CREATED,
+  NewGroupBody,
+} from "./groups.ts";

@@ -2,6 +2,38 @@
   "components": {
     "parameters": {},
     "schemas": {
+      "AdminGroup": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "managers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "members": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "members",
+          "managers",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "AdminUser": {
         "properties": {
           "claimsSyncedAt": {
@@ -933,10 +965,146 @@
         },
         "type": "object"
       },
+      "GroupDetail": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GroupMember"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/GroupRole"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "members",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "GroupMember": {
+        "properties": {
+          "addedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "handle": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/GroupRole"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "handle",
+          "role",
+          "disabled",
+          "addedAt"
+        ],
+        "type": "object"
+      },
+      "GroupMembersBody": {
+        "properties": {
+          "userIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "userIds"
+        ],
+        "type": "object"
+      },
       "GroupName": {
-        "maxLength": 256,
+        "maxLength": 100,
         "minLength": 1,
         "type": "string"
+      },
+      "GroupNameBody": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/GroupName"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "GroupRole": {
+        "enum": [
+          "manager",
+          "member"
+        ],
+        "type": "string"
+      },
+      "GroupRoleBody": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/GroupRole"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "type": "object"
+      },
+      "GroupSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "members": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/GroupRole"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "members"
+        ],
+        "type": "object"
       },
       "Info": {
         "properties": {
@@ -1566,6 +1734,17 @@
         ],
         "type": "object"
       },
+      "NewGroupBody": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/GroupName"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "NewLocalUserBody": {
         "properties": {
           "displayName": {
@@ -1729,13 +1908,17 @@
           "downloads": {
             "type": "boolean"
           },
+          "groups": {
+            "type": "boolean"
+          },
           "shares": {
             "type": "boolean"
           }
         },
         "required": [
           "downloads",
-          "shares"
+          "shares",
+          "groups"
         ],
         "type": "object"
       },
@@ -2693,7 +2876,9 @@
                 "type": "string"
               },
               "name": {
-                "$ref": "#/components/schemas/GroupName"
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
               }
             },
             "required": [
@@ -3429,6 +3614,83 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/admin/groups": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminGroup"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Groups"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not an admin"
+          }
+        },
+        "summary": "Every group (admins)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/groups/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not an admin"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such group"
+          }
+        },
+        "summary": "Delete any group (admins)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/users": {
       "get": {
         "responses": {
@@ -4608,6 +4870,441 @@
         "summary": "Edit a profile; a built-in becomes the caller's own copy (a new id), for them alone. Edits apply to downloads queued afterwards",
         "tags": [
           "downloads"
+        ]
+      }
+    },
+    "/api/groups": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GroupSummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Groups"
+          }
+        },
+        "summary": "The caller's groups, by name",
+        "tags": [
+          "groups"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewGroupBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "The new group"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The caller has made the most groups they may (and is still in)"
+          }
+        },
+        "summary": "Make a group, with the caller as its manager",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The caller isn't one of the group's managers"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such group, or the caller isn't in it"
+          }
+        },
+        "summary": "Delete a group (managers); what was shared only with it stops being shared",
+        "tags": [
+          "groups"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "The group"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such group, or the caller isn't in it"
+          }
+        },
+        "summary": "One of the caller's groups, with everyone in it",
+        "tags": [
+          "groups"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupNameBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "The group"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The caller isn't one of the group's managers"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such group, or the caller isn't in it"
+          }
+        },
+        "summary": "Rename a group (managers)",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{id}/members": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupMembersBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "The group"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An unknown or disabled account"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The caller isn't one of the group's managers"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such group, or the caller isn't in it"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The group would hold more people than it may"
+          }
+        },
+        "summary": "Add people to a group (managers); they join at once, and anyone already in is skipped",
+        "tags": [
+          "groups"
+        ]
+      }
+    },
+    "/api/groups/{id}/members/{userId}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Out of the group"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The caller isn't one of the group's managers"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such group, or the caller isn't in it"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The group's last enabled manager can't leave while others remain"
+          }
+        },
+        "summary": "Leave a group (your own id), or take someone out of it (managers)",
+        "tags": [
+          "groups"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupRoleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupDetail"
+                }
+              }
+            },
+            "description": "The group"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A disabled account can't be a manager"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The caller isn't one of the group's managers"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such group, or the caller isn't in it"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The group's last enabled manager can't step down"
+          }
+        },
+        "summary": "Make a member a manager, or a manager a member (managers)",
+        "tags": [
+          "groups"
         ]
       }
     },

@@ -23,7 +23,8 @@ function renderAt(path: string) {
       }),
     "GET /api/me/push": () =>
       Response.json({ enabled: false, publicKey: null, devices: [], maxDevices: 10 }),
-    "GET /api/me/notifications": () => Response.json({ downloads: true, shares: true }),
+    "GET /api/me/notifications": () =>
+      Response.json({ downloads: true, shares: true, groups: true }),
     "GET /api/me/site-logins": () => Response.json({ enabled: true, logins: [] }),
   });
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));

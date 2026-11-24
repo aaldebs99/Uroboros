@@ -7,7 +7,8 @@ import { PlaybackFacts } from "./playback.ts";
 export const ShareKind = z.enum(["entry", "playlist", "youtube"]).openapi("ShareKind");
 export type ShareKind = z.infer<typeof ShareKind>;
 
-export const GroupName = z.string().trim().min(1).max(256).openapi("GroupName");
+/** A sign-in provider group's name (replaced by groups people make, docs/sharing.md). */
+const ProviderGroupName = z.string().trim().min(1).max(256);
 
 /** Someone a people-share reaches: one account, or everyone in a sign-in provider's group. */
 export const SharePerson = z
@@ -27,7 +28,7 @@ export type SharePerson = z.infer<typeof SharePerson>;
 export const SharePersonRef = z
   .discriminatedUnion("kind", [
     z.object({ kind: z.literal("user"), id: z.uuid() }),
-    z.object({ kind: z.literal("group"), name: GroupName }),
+    z.object({ kind: z.literal("group"), name: ProviderGroupName }),
   ])
   .openapi("SharePersonRef");
 export type SharePersonRef = z.infer<typeof SharePersonRef>;

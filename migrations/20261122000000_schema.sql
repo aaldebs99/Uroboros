@@ -513,6 +513,85 @@ CREATE TABLE playlist_items (
 );
 CREATE INDEX playlist_items_entry_idx ON playlist_items (entry_id);
 
+-- Groups people make (docs/sharing.md "Groups"): anyone creates one and runs it with the managers
+-- they pick; every member sees it and can share with it. A name need not be unique.
+CREATE TABLE groups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL CHECK (name = btrim(name) AND char_length(name) BETWEEN 1 AND 100),
+  -- Who made it, for the cap on groups a person makes (only those they are still in count).
+  created_by UUID REFERENCES users ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX groups_created_by_idx ON groups (created_by);
+
+CREATE TABLE group_members (
+  group_id UUID NOT NULL REFERENCES groups ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+  manager BOOLEAN NOT NULL DEFAULT false,
+  added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (group_id, user_id)
+);
+CREATE INDEX group_members_user_idx ON group_members (user_id);
+
+-- A group keeps an enabled manager while it has an enabled member: with none, its earliest-added
+-- enabled member (revoked accounts last) becomes one. The group row is locked first, so a member
+-- leaving at the same moment is never the one promoted.
+CREATE FUNCTION ensure_group_manager(gid UUID) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM 1 FROM groups WHERE id = gid FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM group_members gm JOIN users u ON u.id = gm.user_id
+    WHERE gm.group_id = gid AND gm.manager AND u.disabled_at IS NULL
+  ) THEN
+    RETURN;
+  END IF;
+  UPDATE group_members SET manager = true
+  WHERE group_id = gid AND user_id = (
+    SELECT gm.user_id FROM group_members gm JOIN users u ON u.id = gm.user_id
+    WHERE gm.group_id = gid AND u.disabled_at IS NULL
+    ORDER BY u.revoked_at IS NOT NULL, gm.added_at, gm.user_id
+    LIMIT 1
+  );
+END $$;
+
+-- However a member goes (leaving, removed, their account deleted): a group with nobody left goes
+-- too, and one left without an enabled manager gets one.
+CREATE FUNCTION group_member_gone() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM 1 FROM groups WHERE id = OLD.group_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM group_members WHERE group_id = OLD.group_id) THEN
+    DELETE FROM groups WHERE id = OLD.group_id;
+  ELSE
+    PERFORM ensure_group_manager(OLD.group_id);
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER group_members_gone AFTER DELETE ON group_members
+  FOR EACH ROW EXECUTE FUNCTION group_member_gone();
+
+-- A disabled manager (all that ever happens to an SSO account) no longer runs their groups.
+CREATE FUNCTION user_disabled_groups() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+  gid UUID;
+BEGIN
+  FOR gid IN
+    SELECT group_id FROM group_members WHERE user_id = NEW.id AND manager ORDER BY group_id
+  LOOP
+    PERFORM ensure_group_manager(gid);
+  END LOOP;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER users_disabled_groups AFTER UPDATE OF disabled_at ON users
+  FOR EACH ROW WHEN (OLD.disabled_at IS NULL AND NEW.disabled_at IS NOT NULL)
+  EXECUTE FUNCTION user_disabled_groups();
+
 -- A share of one thing (an entry, a manual playlist, or a YouTube playlist the owner has), either
 -- with people (`share_people`) or as a public link (`code`, 128 random bits in base64url). Each
 -- thing has at most one of each mode per owner.
@@ -558,7 +637,8 @@ CREATE INDEX share_people_user_idx ON share_people (user_id) WHERE user_id IS NO
 CREATE TABLE notification_prefs (
   user_id UUID PRIMARY KEY REFERENCES users ON DELETE CASCADE,
   downloads BOOLEAN NOT NULL DEFAULT true,
-  shares BOOLEAN NOT NULL DEFAULT true
+  shares BOOLEAN NOT NULL DEFAULT true,
+  groups BOOLEAN NOT NULL DEFAULT true
 );
 
 -- A video's keyframe times in seconds from the file's start, sorted: where a playback session that

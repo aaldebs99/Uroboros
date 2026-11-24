@@ -12,20 +12,24 @@ afterEach(() => {
 });
 
 describe("NotificationKinds", () => {
-  it("shows both kinds, and turning one off saves the pair", async () => {
+  it("shows every kind, and turning one off saves them all", async () => {
     const calls = fakeApi({
-      "GET /api/me/notifications": () => Response.json({ downloads: true, shares: true }),
-      "PUT /api/me/notifications": () => Response.json({ downloads: false, shares: true }),
+      "GET /api/me/notifications": () =>
+        Response.json({ downloads: true, shares: true, groups: true }),
+      "PUT /api/me/notifications": () =>
+        Response.json({ downloads: false, shares: true, groups: true }),
     });
     renderWithQuery(<NotificationKinds />);
     const downloads = await screen.findByRole("switch", { name: "Downloads" });
     expect(downloads).toBeChecked();
     expect(screen.getByRole("switch", { name: "Shared with me" })).toBeChecked();
+    expect(screen.getByRole("switch", { name: "Groups" })).toBeChecked();
     await userEvent.click(downloads);
     await waitFor(() => {
       expect(calls.find((c) => c.method === "PUT")?.body).toEqual({
         downloads: false,
         shares: true,
+        groups: true,
       });
     });
   });

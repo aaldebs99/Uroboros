@@ -13,6 +13,7 @@ const KINDS: { key: keyof NotificationPrefs; label: string; description: string 
     label: "Shared with me",
     description: "When someone shares a video or playlist with you",
   },
+  { key: "groups", label: "Groups", description: "When someone adds you to a group" },
 ];
 
 /** Which kinds of notification the person gets; each switch saves at once. */

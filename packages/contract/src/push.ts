@@ -57,6 +57,6 @@ export type PushEndpointStatus = z.infer<typeof PushEndpointStatus>;
 
 /** Which kinds of push notification a person gets (docs/sharing.md); all of them by default. */
 export const NotificationPrefs = z
-  .object({ downloads: z.boolean(), shares: z.boolean() })
+  .object({ downloads: z.boolean(), shares: z.boolean(), groups: z.boolean() })
   .openapi("NotificationPrefs");
 export type NotificationPrefs = z.infer<typeof NotificationPrefs>;

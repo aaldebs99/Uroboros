@@ -24,7 +24,11 @@ describe("which notifications a person wants", () => {
   it("defaults to all of them", async () => {
     const res = await app().request("/api/me/notifications");
     expect(res.status).toBe(200);
-    expect(NotificationPrefs.parse(await res.json())).toEqual({ downloads: true, shares: true });
+    expect(NotificationPrefs.parse(await res.json())).toEqual({
+      downloads: true,
+      shares: true,
+      groups: true,
+    });
     expect(await wantsNotice(t.db, alice.userId, "downloads")).toBe(true);
   });
 
@@ -32,11 +36,16 @@ describe("which notifications a person wants", () => {
     const res = await app().request("/api/me/notifications", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ downloads: false, shares: true }),
+      body: JSON.stringify({ downloads: false, shares: true, groups: false }),
     });
     expect(res.status).toBe(200);
-    expect(NotificationPrefs.parse(await res.json())).toEqual({ downloads: false, shares: true });
+    expect(NotificationPrefs.parse(await res.json())).toEqual({
+      downloads: false,
+      shares: true,
+      groups: false,
+    });
     expect(await wantsNotice(t.db, alice.userId, "downloads")).toBe(false);
     expect(await wantsNotice(t.db, alice.userId, "shares")).toBe(true);
+    expect(await wantsNotice(t.db, alice.userId, "groups")).toBe(false);
   });
 });
