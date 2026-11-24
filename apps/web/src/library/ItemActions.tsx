@@ -18,8 +18,10 @@ import { ShareButton } from "../sharing/ShareDialog";
 import { AddToPlaylist } from "./AddToPlaylist";
 
 function ChannelLine({ item }: { item: LibraryItem }) {
+  // A real basis (not flex-1's zero): when the row is short the actions wrap below, rather than
+  // squeezing the name to nothing.
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="flex min-w-0 grow basis-56 items-center gap-3">
       <Avatar name={item.channel} />
       <div className="min-w-0">
         {item.channelKey === null ? (
