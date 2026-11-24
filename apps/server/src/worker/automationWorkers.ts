@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import { NOTIFY_QUEUE, type NotifyJob } from "../downloads/queues.ts";
 import { checkProcessor } from "../subscriptions/check.ts";
+import { latestProcessor } from "../subscriptions/latest.ts";
 import { AUTOMATION_QUEUE, type CheckJob } from "../subscriptions/queue.ts";
 import { PLAYBACK_QUEUE, type PlaybackJob } from "../transcode/sessionQueue.ts";
 import type { WorkerDeps } from "./deps.ts";
@@ -27,7 +28,12 @@ export function startAutomationWorkers(
   opts: { prefix: string },
 ): AutomationWorkers {
   const stop = new AbortController();
-  const check = new Worker<CheckJob>(AUTOMATION_QUEUE, checkProcessor(deps, stop.signal), {
+  const checks = checkProcessor(deps, stop.signal);
+  const latest = latestProcessor(deps);
+  // One queue, two kinds of job: a check (scheduled or now), or a "download the latest N".
+  const automation = (job: { name: string; data: CheckJob }) =>
+    job.name === "latest" ? latest(job) : checks(job);
+  const check = new Worker<CheckJob>(AUTOMATION_QUEUE, automation, {
     connection,
     prefix: opts.prefix,
     concurrency: CHECK_CONCURRENCY,

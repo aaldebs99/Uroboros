@@ -47,15 +47,16 @@ function candidate(feed: string, position: number, e: PlaylistEntry, fallback: s
 }
 
 /**
- * Lists a feed flat, at most `maxPlaylistEntries` from the top (a channel tab is newest first, so
- * the cap keeps the newest). `capped` says the listing may have gone on.
+ * Lists a feed flat, at most `limit` (by default `maxPlaylistEntries`) from the top (a channel tab
+ * is newest first, so the cap keeps the newest). `capped` says the listing may have gone on.
  */
 export async function listFeed(
   deps: WorkerDeps,
   feed: FeedJson,
   signal?: AbortSignal,
+  limit?: number,
 ): Promise<{ entries: Candidate[]; capped: boolean }> {
-  const max = deps.limits.maxPlaylistEntries;
+  const max = Math.min(limit ?? deps.limits.maxPlaylistEntries, deps.limits.maxPlaylistEntries);
   const info = await probe(feed.url, {
     ...ytdlpOptions(deps),
     extraArgs: [`--playlist-items=1:${String(max)}`],

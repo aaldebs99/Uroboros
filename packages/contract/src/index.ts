@@ -74,6 +74,7 @@ export {
   CheckSchedule,
   Feed,
   KeptBody,
+  LatestBody,
   MAX_CHECK_INTERVAL_MINUTES,
   MAX_LATEST,
   NewSubscriptionBody,

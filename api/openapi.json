@@ -856,6 +856,19 @@
         ],
         "type": "object"
       },
+      "LatestBody": {
+        "properties": {
+          "count": {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
       "LibraryEntry": {
         "properties": {
           "addedAt": {
@@ -7968,6 +7981,60 @@
           }
         },
         "summary": "What a subscription has seen and what became of each, newest first",
+        "tags": [
+          "subscriptions"
+        ]
+      }
+    },
+    "/api/subscriptions/{id}/latest": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LatestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Queued: a job lists and downloads them"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such subscription"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The subscription is paused"
+          }
+        },
+        "summary": "Download a subscription's latest videos now, whatever its filters say",
         "tags": [
           "subscriptions"
         ]

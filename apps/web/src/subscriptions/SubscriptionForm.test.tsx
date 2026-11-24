@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -130,6 +130,30 @@ describe("SubscriptionForm", () => {
     await userEvent.click(await screen.findByRole("radio", { name: "All of them" }));
     await userEvent.type(screen.getByLabelText("Keep only the newest"), "10");
     expect(await screen.findByText(/Retention keeps 10/)).toBeInTheDocument();
+  });
+
+  it("downloads a subscription's latest N from its page", async () => {
+    const calls = fakeApi({
+      [`GET /api/subscriptions/${SUB_ID}`]: () => Response.json(subscriptionFixture()),
+      [`GET /api/subscriptions/${SUB_ID}/items`]: () =>
+        Response.json({ items: [], nextCursor: null }),
+      "GET /api/format-profiles": () => Response.json(profiles),
+      [`POST /api/subscriptions/${SUB_ID}/latest`]: () => new Response(null, { status: 202 }),
+    });
+    await renderInRouter(<SubscriptionPage subscriptionId={SUB_ID} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Download latest…" }));
+    const dialog = screen.getByRole("dialog", { name: "Download the latest videos" });
+    const count = within(dialog).getByLabelText("How many of each tab");
+    expect(count).toHaveAttribute("max", "50");
+    await userEvent.clear(count);
+    await userEvent.type(count, "5");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Download" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.path.endsWith("/latest"))?.body).toEqual({ count: 5 });
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 
   it("edits a subscription's filters", async () => {

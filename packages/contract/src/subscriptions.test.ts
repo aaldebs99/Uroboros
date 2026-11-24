@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  CheckSchedule,
-  NewSubscriptionBody,
-  PreviewGroup,
-  SubscriptionPatch,
-} from "./index.ts";
+import { CheckSchedule, NewSubscriptionBody, PreviewGroup, SubscriptionPatch } from "./index.ts";
 
 const minimal = {
   requestId: "0190a3f2-7c1e-7000-8000-000000000001",

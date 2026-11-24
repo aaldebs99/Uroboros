@@ -14,6 +14,7 @@ import { notify } from "@/components/ui/sonner";
 import { ActivityList } from "./ActivityList";
 import { scheduleLabel, sourceLabel } from "./format";
 import { fromSubscription, toPatch } from "./formValues";
+import { LatestButton } from "./LatestDialog";
 import { SubscriptionForm } from "./SubscriptionForm";
 import { useSubscriptionActions } from "./SubscriptionsPage";
 
@@ -42,6 +43,7 @@ function Header({ sub }: { sub: Subscription }) {
                 >
                   <RefreshCw aria-hidden /> Check now
                 </Button>
+                <LatestButton sub={sub} />
                 <Button
                   variant="quiet"
                   onClick={() => {

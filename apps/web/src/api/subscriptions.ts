@@ -7,7 +7,7 @@ import {
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { deleteJson, getJson, patchJson, postJson } from "./client";
+import { deleteJson, getJson, patchJson, postJson, postNoContent } from "./client";
 
 export const subscriptionKeys = {
   all: ["api", "subscriptions"] as const,
@@ -69,3 +69,6 @@ export const updateSubscription = (id: string, patch: SubscriptionPatch) =>
 export const deleteSubscription = (id: string) => deleteJson(path(id));
 
 export const checkSubscription = (id: string) => postJson(`${path(id)}/check`, Subscription);
+/** Downloads the subscription's latest `count` videos (a job lists them; 202). */
+export const downloadLatest = (id: string, count: number) =>
+  postNoContent(`${path(id)}/latest`, { count });

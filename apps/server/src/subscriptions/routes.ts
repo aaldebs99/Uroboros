@@ -1,6 +1,7 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   ApiErrorBody,
+  LatestBody,
   NewSubscriptionBody,
   Subscription,
   SubscriptionItemsPage,
@@ -11,7 +12,7 @@ import { currentPrincipal } from "../api/principal.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { need } from "../downloads/routes.ts";
 import { listItems } from "./items.ts";
-import { checkNow } from "./queue.ts";
+import { checkNow, queueLatest } from "./queue.ts";
 import { listedQuery, ownSubscription } from "./store.ts";
 import {
   createSubscription,
@@ -97,6 +98,19 @@ const checkRoute = createRoute({
   },
 });
 
+const latestRoute = createRoute({
+  method: "post",
+  path: "/api/subscriptions/{id}/latest",
+  tags,
+  summary: "Download a subscription's latest videos now, whatever its filters say",
+  request: { params: idParams, ...body(LatestBody) },
+  responses: {
+    202: { description: "Queued: a job lists and downloads them" },
+    404: error("No such subscription"),
+    409: error("The subscription is paused"),
+  },
+});
+
 const itemsRoute = createRoute({
   method: "get",
   path: "/api/subscriptions/{id}/items",
@@ -168,6 +182,14 @@ export function registerSubscriptionRoutes(
     if (!row.enabled) throw new ApiError("conflict", "this subscription is paused");
     await checkNow(d.queues.automation, row.id);
     return c.json(await present(d, row), 202);
+  });
+
+  app.openapi(latestRoute, async (c) => {
+    const d = need(ctx);
+    const row = await ownSubscription(d.db, currentPrincipal(c).userId, c.req.valid("param").id);
+    if (!row.enabled) throw new ApiError("conflict", "this subscription is paused");
+    await queueLatest(d.queues.automation, row.id, c.req.valid("json").count);
+    return c.body(null, 202);
   });
 
   app.openapi(itemsRoute, async (c) => {

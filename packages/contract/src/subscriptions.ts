@@ -111,6 +111,15 @@ export const NewSubscriptionBody = z
   .openapi("NewSubscriptionBody");
 export type NewSubscriptionBody = z.infer<typeof NewSubscriptionBody>;
 
+/**
+ * Download a subscription's latest videos now: the newest `count` of each followed tab for a
+ * channel, the last `count` entries for a playlist, whatever its filters say.
+ */
+export const LatestBody = z
+  .object({ count: z.number().int().min(1).max(MAX_LATEST) })
+  .openapi("LatestBody");
+export type LatestBody = z.infer<typeof LatestBody>;
+
 /** Edits; `backfill` is fixed once created. At least one field. */
 export const SubscriptionPatch = z
   .object({

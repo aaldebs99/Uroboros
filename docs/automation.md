@@ -112,6 +112,20 @@ Changing the filters sends the `filtered` items back to `waiting` ("filters chan
 so the next check reconsiders those still listed under the new filters; `existing` and `queued`
 items stay as they are.
 
+### Download the latest
+
+A subscription's page has **Download latest…**: `POST /api/subscriptions/{id}/latest {count}`
+(1 to 50; a paused subscription is 409) adds a `latest` job on the `automation` queue
+(`latest|<id>`, so one waiting absorbs another), since only job consumers run yt-dlp. The job
+(`src/subscriptions/latest.ts`) takes the subscription's lease like a check (while a check holds it,
+it tries again every 30 s), lists each followed feed signed in as the owner (a channel tab with
+`--playlist-items=1:<count>`, its newest; a playlist in full, up to the cap, keeping its last
+`count` entries), and queues them at priority 0, past the filters and the wait: they were asked
+for. Their items become `queued` whatever they were before; a video the person already has, or is
+getting, gets no new download. It sends no notification.
+
+The **newest** backfill chosen when subscribing takes at most 50 of each tab as well.
+
 ## SponsorBlock
 
 Removing segments changes the file, so it lives in the format profile, which already says what

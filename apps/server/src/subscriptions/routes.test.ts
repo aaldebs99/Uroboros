@@ -181,6 +181,20 @@ describe("subscriptions", () => {
     expect(res.status).toBe(404);
   });
 
+  it("queues a latest job (one at a time), refusing too many, a paused one or another's", async () => {
+    const sub = await created(alice);
+    const path = `/api/subscriptions/${sub.id}/latest`;
+    expect((await send(alice, "POST", path, { count: 10 })).status).toBe(202);
+    expect((await send(alice, "POST", path, { count: 20 })).status).toBe(202);
+    const job = await h.queues.automation.getJob(`latest|${sub.id}`);
+    expect(job?.name).toBe("latest");
+    expect(job?.data).toEqual({ subscriptionId: sub.id, count: 10 });
+    expect((await send(alice, "POST", path, { count: 51 })).status).toBe(400);
+    expect((await send(bob, "POST", path, { count: 5 })).status).toBe(404);
+    await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, { enabled: false });
+    expect((await send(alice, "POST", path, { count: 5 })).status).toBe(409);
+  });
+
   it("pausing removes the schedule and resuming restores it", async () => {
     const sub = await created(alice);
     const paused = await send(alice, "PATCH", `/api/subscriptions/${sub.id}`, { enabled: false });
