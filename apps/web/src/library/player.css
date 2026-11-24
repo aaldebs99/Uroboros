@@ -36,6 +36,15 @@
 }
 
 /*
+ * The player takes the focus for its keyboard shortcuts (F, Space, the arrows) and after a click;
+ * the skin rings it then, which stays around the picture, fullscreen and back. No ring on the
+ * player itself: its controls keep theirs.
+ */
+.uro-player.media-container:focus-visible {
+  outline-color: transparent;
+}
+
+/*
  * The buttons' row: play, volume and time at the left, captions, settings, cast, picture in
  * picture and fullscreen at the right. The skin centres them around the inline timeline; with the
  * timeline on its own row, the end group takes the leftover space instead.

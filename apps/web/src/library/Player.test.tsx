@@ -82,6 +82,10 @@ describe("Player", () => {
     expect(screen.getAllByRole("button", { name: /play/i }).length).toBeGreaterThan(0);
     const skin = container.querySelector<HTMLElement>("[style*='--media-accent-color']");
     expect(skin?.style.getPropertyValue("--media-accent-color")).toBe("var(--primary)");
+    // Named for screen readers, with no title to hang a tooltip over the picture.
+    const video = container.querySelector("video");
+    expect(video).toHaveAttribute("aria-label", "t");
+    expect(video).not.toHaveAttribute("title");
   });
 
   it("takes chapters for the timeline without trouble", () => {

@@ -159,7 +159,8 @@ export function Player(p: PlayerProps) {
           <Media
             ref={video}
             src={p.src}
-            title={p.title}
+            // Named for screen readers; a `title` would hang a tooltip over the picture.
+            aria-label={p.title}
             playsInline
             preload="metadata"
             onTimeUpdate={(e) => {
