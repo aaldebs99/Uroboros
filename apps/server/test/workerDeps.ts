@@ -7,6 +7,11 @@ import type { Database } from "../src/db/schema.ts";
 import { DEFAULT_LAYOUT, type StorageConfig } from "../src/storage/config.ts";
 import { createStore } from "../src/storage/index.ts";
 import { disabledPush } from "../src/push/service.ts";
+import { createValkey } from "../src/shared/valkey.ts";
+import { createPlaybackBus } from "../src/transcode/bus.ts";
+import { PipelineMemo } from "../src/transcode/hwaccel.ts";
+import { TestValkey } from "./testValkey.ts";
+import { pino } from "pino";
 import type { WorkerDeps } from "../src/worker/deps.ts";
 import { downloadHarness } from "./downloads.ts";
 
@@ -26,6 +31,13 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
     variants: [{ whenArg: "packet=pts_time,flags", steps: [{ stdout: KEYFRAME_PACKETS }] }],
   });
   runs.push(ffprobeRun);
+  const playbackBus = createPlaybackBus(
+    createValkey(TestValkey.url(), "worker", pino({ level: "silent" })),
+    h.ctx.valkey,
+    h.prefix,
+    pino({ level: "silent" }),
+  );
+  await playbackBus.ready;
   return {
     ...h,
     root,
@@ -59,29 +71,51 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
         ffprobe: { binary: ffprobeRun.options.binary, env: ffprobeRun.options.env },
         subtitles: { langs: "en.*", automatic: false },
         push: disabledPush,
-        ffmpeg: { binary: "ffmpeg" },
         transcodeConcurrency: 1,
+        playbackBus,
+        transcoder: {
+          ffmpeg: { binary: "ffmpeg" },
+          ffprobe: { binary: ffprobeRun.options.binary, env: ffprobeRun.options.env },
+          hwaccel: "none",
+          vaapiDevice: "/dev/dri/renderD128",
+          gpuWorks: true,
+          memo: new PipelineMemo(),
+        },
       };
     },
+    playbackBus,
     /**
-     * Deps for a transcode: ffmpeg replays `ffmpeg` (writing files into its working directory) and
-     * ffprobe answers `probe` (ffprobe's JSON) for any file.
+     * Deps for a playback session: the transcoder's ffmpeg replays `ffmpeg` (variants by argument,
+     * e.g. a run's `-ss` value) and its ffprobe answers `probe` (ffprobe's JSON; a keyframe probe
+     * gets `keyframes`, packet lines).
      */
-    async transcodeDeps(ffmpeg: Scenario, probe: unknown): Promise<WorkerDeps> {
+    async sessionDeps(
+      ffmpeg: Scenario,
+      probe: unknown,
+      transcoder: Partial<WorkerDeps["transcoder"]> = {},
+      keyframes = "",
+    ): Promise<WorkerDeps> {
       const base = await this.deps({ steps: [] });
-      // ffmpeg's run is second to last in `runs`, ffprobe's last.
       const ffmpegRun = await FakeRun.create(ffmpeg);
-      const probeRun = await FakeRun.create({ steps: [{ stdout: JSON.stringify(probe) }] });
+      const probeRun = await FakeRun.create({
+        steps: [{ stdout: JSON.stringify(probe) }],
+        variants: [{ whenArg: "packet=pts_time,flags", steps: [{ stdout: keyframes }] }],
+      });
       runs.push(ffmpegRun, probeRun);
       return {
         ...base,
-        ffmpeg: { binary: ffmpegRun.options.binary, env: ffmpegRun.options.env },
-        ffprobe: { binary: probeRun.options.binary, env: probeRun.options.env },
+        transcoder: {
+          ...base.transcoder,
+          ffmpeg: { binary: ffmpegRun.options.binary, env: ffmpegRun.options.env },
+          ffprobe: { binary: probeRun.options.binary, env: probeRun.options.env },
+          ...transcoder,
+        },
       };
     },
     /** Every fake started so far, in order. */
     runs,
     async close(): Promise<void> {
+      playbackBus.close();
       await Promise.all(runs.map((r) => r.close()));
       await h.close();
     },

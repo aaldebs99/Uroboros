@@ -71,4 +71,16 @@ describe("Segmenter", () => {
     expect(s.push(audioOnly as Fragment)).toEqual([]);
     expect(s.end()?.bytes.length).toBe(frag(0).bytes.length + (audioOnly as Fragment).bytes.length);
   });
+
+  it("keeps a later run's pre-roll in its first segment when asked (an audio file's run)", () => {
+    const s = new Segmenter({ boundaries, trackId: 1, first: 2, preroll: 0.25 });
+    expect(s.push(frag(11.7))).toEqual([]);
+    expect(s.current).toBeNull();
+    s.push(frag(11.76));
+    expect(s.current).toBe(2);
+    s.push(frag(12.5));
+    const done = s.push(frag(18));
+    expect(done.map((d) => d.index)).toEqual([2]);
+    expect(done[0]?.bytes.length).toBe(2 * frag(12).bytes.length);
+  });
 });

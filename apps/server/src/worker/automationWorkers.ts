@@ -3,10 +3,10 @@ import type { Redis } from "ioredis";
 import { NOTIFY_QUEUE, type NotifyJob } from "../downloads/queues.ts";
 import { checkProcessor } from "../subscriptions/check.ts";
 import { AUTOMATION_QUEUE, type CheckJob } from "../subscriptions/queue.ts";
-import { TRANSCODE_QUEUE, type TranscodeJob } from "../transcode/queue.ts";
+import { PLAYBACK_QUEUE, type PlaybackJob } from "../transcode/sessionQueue.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { notifyProcessor } from "./notify.ts";
-import { transcodeProcessor } from "./transcode.ts";
+import { sessionProcessor } from "./session.ts";
 
 /** Checks at once per replica; few, so a burst of schedules never hammers a site. */
 export const CHECK_CONCURRENCY = 2;
@@ -20,7 +20,7 @@ export interface AutomationWorkers {
   abortRunning(): void;
 }
 
-/** The `automation` (subscription checks), `notify` and `transcode` consumers on `connection`. */
+/** The `automation` (subscription checks), `notify` and `playback` consumers on `connection`. */
 export function startAutomationWorkers(
   connection: Redis,
   deps: WorkerDeps,
@@ -38,26 +38,27 @@ export function startAutomationWorkers(
     prefix: opts.prefix,
     concurrency: NOTIFY_CONCURRENCY,
   });
-  // Playback copies: none on a replica told to take none.
-  const transcode =
+  // Playback sessions: none on a replica told to take none (so only GPU replicas need to).
+  const playback =
     deps.transcodeConcurrency > 0
       ? [
-          new Worker<TranscodeJob>(TRANSCODE_QUEUE, transcodeProcessor(deps, stop.signal), {
+          new Worker<PlaybackJob>(PLAYBACK_QUEUE, sessionProcessor(deps, stop.signal), {
             connection,
             prefix: opts.prefix,
             concurrency: deps.transcodeConcurrency,
-            // Long conversions: renew the lock often enough that a busy event loop never loses it.
+            // A session's job lives as long as its viewer: renew the lock often enough that a busy
+            // event loop never loses it.
             lockDuration: 60_000,
           }),
         ]
       : [];
-  for (const w of [check, notify, ...transcode]) {
+  for (const w of [check, notify, ...playback]) {
     w.on("error", (err) => {
       deps.logger.error({ err, queue: w.name }, "worker error");
     });
   }
   return {
-    workers: [check, notify, ...transcode],
+    workers: [check, notify, ...playback],
     abortRunning() {
       stop.abort();
     },

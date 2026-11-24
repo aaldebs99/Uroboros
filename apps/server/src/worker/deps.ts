@@ -3,6 +3,8 @@ import type { PushService } from "../push/service.ts";
 import type { OpenedLogin } from "../siteLogins/forJobs.ts";
 import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
+import type { PlaybackBus } from "../transcode/bus.ts";
+import type { HwAccel, PipelineMemo } from "../transcode/hwaccel.ts";
 import type { SubtitleSettings } from "./subtitles.ts";
 
 /** What the probe and fetch processors need. */
@@ -33,8 +35,22 @@ export interface WorkerDeps extends DownloadContext {
   subtitles: SubtitleSettings;
   /** The process's push service, for the `notify` consumer. */
   push: PushService;
-  /** The ffmpeg the `transcode` consumer runs. */
-  ffmpeg: { binary: string; env?: Record<string, string> };
-  /** Playback copies this process makes at once (0: it takes none). */
+  /** Playback sessions this process runs at once (0: it takes none). */
   transcodeConcurrency: number;
+  /** The replicas' playback bus (want/ready/stop), shared with the api. */
+  playbackBus: PlaybackBus;
+  /** Playback sessions' transcoder (docs/transcoding.md). */
+  transcoder: Transcoder;
+}
+
+export interface Transcoder {
+  ffmpeg: { binary: string; env?: Record<string, string> };
+  ffprobe: { binary: string; env?: Record<string, string> };
+  /** This replica's GPU (`UROBOROS_TRANSCODE_HWACCEL`). */
+  hwaccel: HwAccel;
+  vaapiDevice: string;
+  /** Whether the GPU passed the startup test; false sends every run to the CPU. */
+  gpuWorks: boolean;
+  /** Pipelines that failed on a kind of source, on this replica. */
+  memo: PipelineMemo;
 }

@@ -74,3 +74,21 @@ export function fragment(seq: number, trafs: TestTraf[], payload = Buffer.from("
     box("mdat", payload),
   ]);
 }
+
+/**
+ * A whole fragmented MP4 as ffmpeg would write it to stdout: the init (video at timescale 1000,
+ * audio at 48000), then one fragment per keyframe time (seconds), audio alongside.
+ */
+export function fmp4Stream(keyframes: number[]): Buffer {
+  const init = initSegment([
+    { id: 1, kind: "vide", timescale: 1000 },
+    { id: 2, kind: "soun", timescale: 48000 },
+  ]);
+  const frags = keyframes.map((t, i) =>
+    fragment(i + 1, [
+      { trackId: 1, decodeTime: BigInt(Math.round(t * 1000)) },
+      { trackId: 2, decodeTime: BigInt(Math.round(t * 48000)) },
+    ]),
+  );
+  return Buffer.concat([init, ...frags]);
+}

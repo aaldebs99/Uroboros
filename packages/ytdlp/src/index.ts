@@ -1,6 +1,7 @@
 /**
- * @uroboros/ytdlp: the typed wrapper the workers use to run yt-dlp and ffprobe. Only workers
- * import it; the api never spawns either program.
+ * @uroboros/ytdlp: the typed wrapper the workers use to run yt-dlp, ffprobe and the transcoder's
+ * ffmpeg. Only workers import it (the api takes the pure flags allowlist and error kinds); the api
+ * never spawns any of them.
  */
 export type { SiteLoginSecret, YtDlpOptions } from "./args.ts";
 export {
@@ -41,13 +42,5 @@ export {
   type ProbeResult,
 } from "./info.ts";
 export { probe, type ProbeOptions } from "./probe.ts";
-export {
-  hlsArgs,
-  transcodeHls,
-  type HlsEncoder,
-  type HlsMode,
-  type HlsPlan,
-  type TranscodeOptions,
-} from "./transcode.ts";
 export type { ProgressEvent, ProgressPhase, ProgressState } from "./progress.ts";
 export { redactLine } from "./redact.ts";

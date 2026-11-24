@@ -41,6 +41,8 @@ describe("ffprobe for playback sessions", () => {
     const info = await ffprobe("/m/a.mkv", run.options);
     expect(info.startTime).toBe(0.007);
     expect(info.streams[0]).toMatchObject({
+      pixFmt: "yuv420p10le",
+      colorTransfer: "smpte2084",
       level: 8,
       mimeCodec: "av01.0.08M.10.0.110.02.02.09.0",
       colorPrimaries: "bt2020",

@@ -16,6 +16,11 @@ export interface SegmenterOptions {
   trackId: number;
   /** The segment this run started at; anything before it is dropped. */
   first: number;
+  /**
+   * Seconds before the first boundary still taken into the first segment: an audio file's later
+   * run starts that early (its fragments do not begin on the boundary), so it leaves no gap.
+   */
+  preroll?: number;
 }
 
 /**
@@ -44,8 +49,9 @@ export class Segmenter {
       return [];
     }
     const at = t + EPSILON;
-    if (at < (this.#o.boundaries[this.#o.first] as number)) return [];
-    const index = segmentAt(this.#o.boundaries, at);
+    const first = this.#o.boundaries[this.#o.first] as number;
+    if (at < first - (this.#index === null ? (this.#o.preroll ?? 0) : 0)) return [];
+    const index = Math.max(this.#o.first, segmentAt(this.#o.boundaries, at));
     if (index === this.#index) {
       this.#parts.push(f.bytes);
       return [];

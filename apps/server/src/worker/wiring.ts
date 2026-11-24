@@ -7,6 +7,8 @@ import type { DownloadQueues } from "../downloads/queues.ts";
 import type { PushService } from "../push/service.ts";
 import type { MediaStore } from "../storage/index.ts";
 import type { PlaybackBus } from "../transcode/bus.ts";
+import { transcoderPaths } from "../transcode/binaries.ts";
+import { PipelineMemo } from "../transcode/hwaccel.ts";
 import type { WorkerDeps } from "./deps.ts";
 
 /** The connections a server process opens once and shares between HTTP and its job consumers. */
@@ -48,7 +50,21 @@ export function workerDeps(
     ffprobe: { binary: "ffprobe" },
     subtitles: config.worker.subtitles,
     push: shared.push,
-    ffmpeg: { binary: "ffmpeg" },
     transcodeConcurrency: config.worker.transcode.concurrency,
+    playbackBus: shared.playbackBus,
+    transcoder: transcoderFor(config),
+  };
+}
+
+/** The transcoder's binaries and this replica's GPU; the startup test may turn the GPU off. */
+function transcoderFor(config: Config): WorkerDeps["transcoder"] {
+  const paths = transcoderPaths();
+  return {
+    ffmpeg: { binary: paths.ffmpeg },
+    ffprobe: { binary: paths.ffprobe },
+    hwaccel: config.worker.transcode.hwaccel,
+    vaapiDevice: config.worker.transcode.vaapiDevice,
+    gpuWorks: true,
+    memo: new PipelineMemo(),
   };
 }

@@ -6,6 +6,7 @@ import { startAutomationWorkers } from "./automationWorkers.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { createCancelRegistry, fetchProcessor } from "./fetch.ts";
 import { probeProcessor } from "./probe.ts";
+import { selfTest } from "../transcode/hwaccel.ts";
 
 export interface DownloadWorkers {
   workers: Worker[];
@@ -51,6 +52,16 @@ export async function startDownloadWorkers(
   for (const w of [probe, download]) {
     w.on("error", (err) => {
       deps.logger.error({ err, queue: w.name }, "worker error");
+    });
+  }
+  // A replica that runs playback sessions tries its GPU once; a broken one sends runs to the CPU.
+  if (deps.transcodeConcurrency > 0) {
+    deps.transcoder.gpuWorks = await selfTest({
+      hwaccel: deps.transcoder.hwaccel,
+      vaapiDevice: deps.transcoder.vaapiDevice,
+      ffmpeg: deps.transcoder.ffmpeg.binary,
+      ...(deps.transcoder.ffmpeg.env === undefined ? {} : { env: deps.transcoder.ffmpeg.env }),
+      logger: deps.logger,
     });
   }
   const automation = startAutomationWorkers(connection, deps, { prefix: opts.prefix });
