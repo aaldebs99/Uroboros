@@ -71,6 +71,30 @@ describe("POST /api/downloads", () => {
     expect(await h.queues.probe.getJob(`probe|${req.id}`)).toBeDefined();
   });
 
+  it("records why the link was pasted: to download (the default) or to subscribe", async () => {
+    const intents = [];
+    for (const body of [
+      { url: "https://www.youtube.com/@a" },
+      { url: "https://www.youtube.com/@b", intent: "subscribe" },
+    ]) {
+      const req = DownloadRequest.parse(
+        await (await post(h.app(alice), "/api/downloads", body)).json(),
+      );
+      const row = await testDb.db
+        .selectFrom("download_requests")
+        .select("intent")
+        .where("id", "=", req.id)
+        .executeTakeFirstOrThrow();
+      intents.push(row.intent);
+    }
+    expect(intents).toEqual(["download", "subscribe"]);
+    const bad = await post(h.app(alice), "/api/downloads", {
+      url: "https://www.youtube.com/@c",
+      intent: "later",
+    });
+    expect(bad.status).toBe(400);
+  });
+
   it("refuses an unknown profile (400)", async () => {
     const res = await post(h.app(alice), "/api/downloads", {
       url: "https://www.youtube.com/watch?v=a",

@@ -185,12 +185,29 @@ async function preview(
     .execute();
 }
 
-/** Resolves a pasted link: a video is queued; a playlist or channel becomes a preview. */
+/** A link pasted to subscribe to that is one video: nothing to follow, and nothing downloaded. */
+async function refuseVideo(deps: Deps, requestId: string): Promise<void> {
+  await deps.db
+    .updateTable("download_requests")
+    .set({
+      state: "failed",
+      kind: "video",
+      error_kind: "not_a_feed",
+      error_message: "a single video, not a channel or playlist",
+    })
+    .where("id", "=", requestId)
+    .execute();
+}
+
+/**
+ * Resolves a pasted link: a video is queued (or, pasted to subscribe to, refused); a playlist or
+ * channel becomes a preview.
+ */
 export function probeProcessor(deps: Deps) {
   return async (job: { data: ProbeJob }): Promise<void> => {
     const req = await deps.db
       .selectFrom("download_requests")
-      .select(["id", "user_id", "profile_id", "url", "state"])
+      .select(["id", "user_id", "profile_id", "url", "state", "intent"])
       .where("id", "=", job.data.requestId)
       .executeTakeFirst();
     if (req?.state !== "probing") return;
@@ -201,8 +218,9 @@ export function probeProcessor(deps: Deps) {
         ...ytdlpOptions(signedIn),
         extraArgs: previewArgs(deps),
       });
-      if (info.kind === "video") await queueVideo(signedIn, req, info);
-      else await preview(signedIn, req, info);
+      if (info.kind !== "video") await preview(signedIn, req, info);
+      else if (req.intent === "subscribe") await refuseVideo(deps, req.id);
+      else await queueVideo(signedIn, req, info);
     } catch (err) {
       const failure = toDownloadError(err);
       deps.logger.warn({ err, requestId: req.id }, "probe failed");

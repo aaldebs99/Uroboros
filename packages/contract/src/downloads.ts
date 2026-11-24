@@ -2,7 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 /**
  * Why a download or probe failed: every yt-dlp wrapper error kind, plus `storage` for a file that
- * could not be stored. The web shows a message per kind, so a new kind breaks `tsc` there.
+ * could not be stored and `not_a_feed` for a single video pasted to subscribe to. The web shows a message per kind, so a new kind breaks `tsc` there.
  */
 export const DOWNLOAD_ERROR_KINDS = [
   "unavailable",
@@ -22,6 +22,7 @@ export const DOWNLOAD_ERROR_KINDS = [
   "spawn_failed",
   "invalid_output",
   "storage",
+  "not_a_feed",
 ] as const;
 export const DownloadErrorKind = z.enum(DOWNLOAD_ERROR_KINDS).openapi("DownloadErrorKind");
 export type DownloadErrorKind = z.infer<typeof DownloadErrorKind>;
@@ -106,6 +107,11 @@ export const NewDownloadBody = z
     url: z.url({ protocol: /^https?$/ }).max(2048),
     /** Omitted: the default profile. */
     profileId: Id.optional(),
+    /**
+     * `subscribe` (Subscriptions › Add subscription): the link is for a subscription, so a single
+     * video fails as `not_a_feed` instead of being downloaded. Omitted: `download`.
+     */
+    intent: z.enum(["download", "subscribe"]).optional(),
   })
   .openapi("NewDownloadBody");
 export type NewDownloadBody = z.infer<typeof NewDownloadBody>;

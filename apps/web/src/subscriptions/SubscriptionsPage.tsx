@@ -11,13 +11,13 @@ import {
   updateSubscription,
   useSubscriptions,
 } from "@/api/subscriptions";
-import { DownloadDialog } from "@/components/DownloadDialog";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { notify } from "@/components/ui/sonner";
 
+import { AddSubscriptionDialog } from "./AddSubscriptionDialog";
 import { SubscriptionRow, type RowActions } from "./SubscriptionRow";
 
 /** After Check now, when to look for the check having started. */
@@ -100,12 +100,7 @@ export function SubscriptionsPage() {
         </ul>
       )}
       {actions.dialog}
-      <DownloadDialog
-        open={adding}
-        onOpenChange={setAdding}
-        title="Add a subscription"
-        hint="Paste a channel or playlist link. Its preview offers Subscribe."
-      />
+      <AddSubscriptionDialog open={adding} onOpenChange={setAdding} />
     </section>
   );
 }

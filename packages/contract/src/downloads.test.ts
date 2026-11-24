@@ -42,8 +42,10 @@ const download = {
 };
 
 describe("downloads contract", () => {
-  it("has every yt-dlp error kind plus storage", () => {
-    expect([...DOWNLOAD_ERROR_KINDS].sort()).toEqual([...YTDLP_ERROR_KINDS, "storage"].sort());
+  it("has every yt-dlp error kind plus storage and not_a_feed", () => {
+    expect([...DOWNLOAD_ERROR_KINDS].sort()).toEqual(
+      [...YTDLP_ERROR_KINDS, "storage", "not_a_feed"].sort(),
+    );
   });
 
   it("parses each event variant and refuses an unknown type", () => {

@@ -444,6 +444,7 @@
           "spawn_failed",
           "invalid_output",
           "storage",
+          "not_a_feed",
           null
         ],
         "nullable": true,
@@ -1277,6 +1278,13 @@
       },
       "NewDownloadBody": {
         "properties": {
+          "intent": {
+            "enum": [
+              "download",
+              "subscribe"
+            ],
+            "type": "string"
+          },
           "profileId": {
             "format": "uuid",
             "type": "string"

@@ -20,4 +20,5 @@ export const DOWNLOAD_ERROR_TEXT = {
   spawn_failed: "yt-dlp couldn't be started on the server.",
   invalid_output: "yt-dlp's output couldn't be read.",
   storage: "The file couldn't be stored.",
+  not_a_feed: "That's a single video. Subscriptions follow a channel or a playlist.",
 } as const satisfies Record<DownloadErrorKind, string>;

@@ -6,9 +6,10 @@ request handler.
 
 ## Flow
 
-1. `POST /api/downloads {url, profileId?}` records a `download_requests` row (`probing`) and adds
-   `probe|<requestId>` to the `probe` queue. Without `profileId` the default format profile is
-   used.
+1. `POST /api/downloads {url, profileId?, intent?}` records a `download_requests` row (`probing`)
+   and adds `probe|<requestId>` to the `probe` queue. Without `profileId` the default format
+   profile is used. `intent: "subscribe"` (Subscriptions › Add subscription) makes a single video
+   fail as `not_a_feed` rather than download: the link was for a subscription.
 2. A replica's probe consumer probes the link with `--flat-playlist` (`src/worker/probe.ts`):
    - a **video** upserts its `media` row, creates one `downloads` row and dispatches it; the
      request becomes `queued`;

@@ -6,8 +6,12 @@ in [downloads.md](downloads.md), the library in [library.md](library.md).
 
 ## Subscribing
 
-A subscription is made from the preview downloads already use (`src/subscriptions/`): paste a
-channel or playlist link, and its preview offers **Subscribe** beside queueing entries. The probe
+A subscription is made from the preview downloads already use (`src/subscriptions/`). The way in
+is Subscriptions › **Add subscription**: paste a channel or playlist link and the app goes straight
+to the new subscription's settings (`/subscriptions/new?request=…`), which wait there while the
+link is looked at. That request is marked `intent: "subscribe"`, so a single video is refused
+(`not_a_feed`) instead of downloaded. A link pasted to download shows a preview on the Downloads
+page, which offers **Subscribe** beside queueing entries. The probe
 records the source (a channel's id with its videos' extractor, so the subscription's channel key
 matches the library's channel page; a playlist's id with its listing's extractor) and each group's
 listing URL (a channel's tabs, or the playlist). A channel's main URL lists under its handle

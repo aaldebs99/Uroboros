@@ -22,32 +22,24 @@ import { YtDlpDetails } from "@/downloads/YtDlpDetails";
 
 /**
  * "Download a link", opened from the Create menu (the top bar's pill, or the phone's "+"): a form
- * dialog that starts a download in one step. The Subscriptions page opens it as "Add a
- * subscription" (`title`, `hint`): a channel or playlist comes back as a preview with Subscribe.
+ * dialog that starts a download in one step. A channel or playlist comes back as a preview on the
+ * Downloads page, which also offers Subscribe (Subscriptions › Add subscription is
+ * `AddSubscriptionDialog`).
  */
 export function DownloadDialog({
   open,
   onOpenChange,
-  title = "Download a link",
-  hint,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title?: string;
-  /** A visible line under the title; without it the description is for screen readers only. */
-  hint?: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>{title}</DialogTitle>
-        {hint === undefined ? (
-          <DialogDescription className="sr-only">
-            Paste a link and pick a format to start a download.
-          </DialogDescription>
-        ) : (
-          <DialogDescription>{hint}</DialogDescription>
-        )}
+        <DialogTitle>Download a link</DialogTitle>
+        <DialogDescription className="sr-only">
+          Paste a link and pick a format to start a download.
+        </DialogDescription>
         <QuickDownloadForm
           onDone={() => {
             onOpenChange(false);

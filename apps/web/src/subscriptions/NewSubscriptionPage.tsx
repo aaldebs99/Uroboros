@@ -1,3 +1,4 @@
+import type { DownloadErrorKind, DownloadRequest } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LoaderCircle } from "lucide-react";
@@ -7,11 +8,30 @@ import { useRequest } from "@/api/downloads";
 import { createSubscription, subscriptionKeys } from "@/api/subscriptions";
 import { PageHeader } from "@/components/ui/page-header";
 import { notify } from "@/components/ui/sonner";
+import { DOWNLOAD_ERROR_TEXT } from "@/downloads/errorText";
+import { LoginHint } from "@/downloads/LoginHint";
+import { YtDlpDetails } from "@/downloads/YtDlpDetails";
 
 import { fromRequest, toCreateBody } from "./formValues";
 import { SubscriptionForm } from "./SubscriptionForm";
 
-/** `/subscriptions/new?request=<id>`: subscribe to the channel or playlist a preview shows. */
+/** Why a link can't be subscribed to: its check failed (with yt-dlp's words), or it is one video. */
+function NotSubscribable({ request }: { request: DownloadRequest }) {
+  const kind: DownloadErrorKind =
+    request.state === "failed" ? (request.errorKind ?? "unknown") : "not_a_feed";
+  return (
+    <div className="grid gap-2">
+      <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[kind]}</p>
+      <LoginHint kind={kind} />
+      <YtDlpDetails lines={request.stderrTail} />
+    </div>
+  );
+}
+
+/**
+ * `/subscriptions/new?request=<id>`: subscribe to the channel or playlist a pasted link shows,
+ * waiting here while it is looked at (Subscriptions › Add subscription comes straight here).
+ */
 export function NewSubscriptionPage({ requestId }: { requestId: string }) {
   const req = useRequest(requestId);
   const client = useQueryClient();
@@ -21,15 +41,14 @@ export function NewSubscriptionPage({ requestId }: { requestId: string }) {
   if (data === undefined || data.state === "probing") {
     return (
       <p className="flex items-center gap-2 text-muted-foreground">
-        <LoaderCircle className="size-4 animate-spin" aria-hidden /> Looking at the link…
+        <LoaderCircle className="size-4 animate-spin" aria-hidden /> Looking at the link… a big
+        channel can take a minute.
       </p>
     );
   }
   const kind = data.kind;
   if (data.state !== "choosing" || (kind !== "channel" && kind !== "playlist")) {
-    return (
-      <p className="text-destructive">Only a channel or playlist link can be subscribed to.</p>
-    );
+    return <NotSubscribable request={data} />;
   }
   const title = data.title ?? data.url;
   return (

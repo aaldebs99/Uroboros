@@ -37,7 +37,11 @@ export function toRequest(row: RequestRow): DownloadRequest {
 export async function createRequest(
   ctx: DownloadContext,
   userId: string,
-  body: { url: string; profileId?: string | undefined },
+  body: {
+    url: string;
+    profileId?: string | undefined;
+    intent?: "download" | "subscribe" | undefined;
+  },
 ): Promise<DownloadRequest> {
   const profile =
     body.profileId === undefined
@@ -46,7 +50,12 @@ export async function createRequest(
   if (profile === undefined) throw new ApiError("bad_request", "no such format profile");
   const row = await ctx.db
     .insertInto("download_requests")
-    .values({ user_id: userId, url: body.url, profile_id: profile.id })
+    .values({
+      user_id: userId,
+      url: body.url,
+      profile_id: profile.id,
+      intent: body.intent ?? "download",
+    })
     .returningAll()
     .executeTakeFirstOrThrow();
   await ctx.queues.probe.add(

@@ -24,11 +24,14 @@ afterAll(async () => {
   await testDb.close();
 });
 
-async function request(url: string): Promise<string> {
+async function request(
+  url: string,
+  intent: "download" | "subscribe" = "download",
+): Promise<string> {
   const p = await seededDefault(testDb.db);
   const row = await testDb.db
     .insertInto("download_requests")
-    .values({ user_id: user.userId, url, profile_id: p.id })
+    .values({ user_id: user.userId, url, profile_id: p.id, intent })
     .returning("id")
     .executeTakeFirstOrThrow();
   return row.id;
@@ -64,6 +67,23 @@ describe("probe", () => {
       .executeTakeFirstOrThrow();
     expect(d.dispatched_at).not.toBeNull();
     expect(await h.queues.download.getJob(d.fetch_key)).toBeDefined();
+  });
+
+  it("refuses a single video pasted to subscribe to, downloading nothing", async () => {
+    const id = await request("https://www.youtube.com/watch?v=sub-1", "subscribe");
+    await run(id, await h.deps({ steps: [{ stdout: await fixture("probe-video.json") }] }));
+    expect(await load(id)).toMatchObject({
+      state: "failed",
+      kind: "video",
+      errorKind: "not_a_feed",
+      errorMessage: "a single video, not a channel or playlist",
+    });
+    const queued = await testDb.db
+      .selectFrom("downloads")
+      .select("id")
+      .where("request_id", "=", id)
+      .execute();
+    expect(queued).toEqual([]);
   });
 
   it("has yt-dlp solve JavaScript challenges with Node", async () => {
