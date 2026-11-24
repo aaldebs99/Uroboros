@@ -128,6 +128,10 @@ Flat rows with no card: a label column on the left, and rules between rows.
   edge (`flex items-center justify-between gap-4`).
 - Below `md` the columns stack: label, description, control.
 - A group of sections gets a section heading (16/700) and optionally a muted line.
+- A secret the server keeps for someone (a saved site login's password) is write-only: the form
+  takes it with `autoComplete="new-password"` (so the browser doesn't offer the Uroboros password),
+  the list shows only what identifies it (site, username, when it changed) and whether it still
+  works, and changing it means entering it again in a form dialog.
 
 ## Dialogs
 

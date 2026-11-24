@@ -13,6 +13,7 @@ import { notify } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 import { DOWNLOAD_ERROR_TEXT } from "./errorText";
+import { LoginHint } from "./LoginHint";
 import { YtDlpDetails } from "./YtDlpDetails";
 import { formatDuration } from "./format";
 
@@ -222,6 +223,7 @@ function PanelBody({
     return (
       <div className="grid gap-1">
         <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[data.errorKind ?? "unknown"]}</p>
+        <LoginHint kind={data.errorKind} />
         <YtDlpDetails lines={data.stderrTail} />
       </div>
     );

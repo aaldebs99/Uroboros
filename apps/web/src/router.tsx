@@ -8,7 +8,7 @@ import {
 
 import { ChannelsPage } from "./library/ChannelsPage";
 import { PlaylistsPage } from "./library/PlaylistsPage";
-import { SettingsPage } from "./routes";
+import { SettingsLoginsPage, SettingsPage } from "./routes";
 import { AccountRoute, AdminProfilesRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
 import { ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
@@ -70,6 +70,11 @@ const routeTree = rootRoute.addChildren([
     component: SharedPlaylistRoute,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/settings", component: SettingsPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/settings/logins",
+    component: SettingsLoginsPage,
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: "/account", component: AccountRoute }),
   createRoute({
     getParentRoute: () => rootRoute,

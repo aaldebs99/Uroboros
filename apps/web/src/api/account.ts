@@ -19,7 +19,7 @@ const keys = {
 };
 
 /** A mutation that refreshes `key` when it settles. */
-function useRefreshing<A, R>(key: QueryKey, fn: (arg: A) => Promise<R>) {
+export function useRefreshing<A, R>(key: QueryKey, fn: (arg: A) => Promise<R>) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: fn,

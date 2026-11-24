@@ -5,6 +5,7 @@ import { DownloadBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 
 import { DOWNLOAD_ERROR_TEXT } from "./errorText";
+import { LoginHint } from "./LoginHint";
 import { YtDlpDetails } from "./YtDlpDetails";
 import { formatBytes, formatDuration } from "./format";
 
@@ -66,6 +67,7 @@ function Failure({ download }: { download: Download }) {
   return (
     <div className="grid gap-1">
       <p className="text-destructive">{DOWNLOAD_ERROR_TEXT[download.errorKind ?? "unknown"]}</p>
+      <LoginHint kind={download.errorKind} />
       <YtDlpDetails lines={download.stderrTail} />
     </div>
   );

@@ -56,7 +56,7 @@ on a watch page). Pages use all of it:
 - A block that reads badly stretched (a form's fields, a settings column, a long paragraph) caps
   its own width (`max-w-3xl`, about 768px) and stays at the left margin.
 - Sign-in, which has no shell, is the one centred page. Dialogs are centred overlays.
-- Not yet followed: Settings, Account, Users and Format profiles still centre a `max-w-3xl` to
+- Not yet followed: Account, Users and Format profiles still centre a `max-w-3xl` to
   `max-w-5xl` column. Bring each one to this rule when you next change it.
 
 ## Create and the download dialog
@@ -117,7 +117,9 @@ Filters are a row of pills; views are underlined text tabs.
   beside it; the select doesn't shrink.
 - **Tabs:** text at 500, muted; the current tab is `text-foreground` with a 2px `border-foreground`
   underline over a hairline (`border-b border-border`). Use `role="tablist"` only for real
-  tabpanels; links between routes stay links with `aria-current`.
+  tabpanels; links between routes stay links with `aria-current`. A page whose views each have
+  an address (Shared's With me and By me, Settings' Notifications and Logins) uses
+  `components/ui/route-tabs.tsx`; add the view's route to its `RouteTab` union.
 
 ## Page header
 
