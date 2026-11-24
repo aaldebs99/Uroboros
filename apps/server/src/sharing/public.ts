@@ -13,6 +13,7 @@ import { playlistEntryIds } from "../playlists/listing.ts";
 import { linkShare, visibleEntry, type LiveShare, type VisibleEntry } from "./access.ts";
 import { describeTarget } from "./targets.ts";
 import { playbackFacts } from "../transcode/itemFacts.ts";
+import { platformName } from "../library/platform.ts";
 
 type Db = Kysely<Database>;
 
@@ -56,6 +57,8 @@ async function listItems(db: Db, code: string, ids: string[]): Promise<PublicLis
       "e.id",
       "m.title",
       "m.video_id",
+      "m.extractor",
+      "m.webpage_url",
       "m.channel",
       "m.uploader",
       "m.duration",
@@ -72,7 +75,7 @@ async function listItems(db: Db, code: string, ids: string[]): Promise<PublicLis
       {
         id,
         title: r.title ?? r.video_id,
-        channel: r.channel ?? r.uploader,
+        channel: r.channel ?? r.uploader ?? platformName(r.extractor, r.webpage_url),
         duration: r.duration,
         uploadDate: dashed(r.upload_date),
         thumbnailUrl: r.thumbnail_key === null ? null : `${itemBase(code, id)}/thumbnail`,
@@ -107,6 +110,7 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
       .select([
         "m.description",
         "m.chapters",
+        "m.webpage_url",
         "r.video_codec",
         "r.audio_codec",
         "r.video_codecs",
@@ -129,7 +133,7 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
   return {
     id: entryId,
     title: e.title ?? e.video_id,
-    channel: e.channel ?? e.uploader,
+    channel: e.channel ?? e.uploader ?? platformName(e.extractor, extra.webpage_url),
     duration: e.duration,
     uploadDate: dashed(e.upload_date),
     thumbnailUrl: e.thumbnail_key === null ? null : `${base}/thumbnail`,

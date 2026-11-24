@@ -120,6 +120,7 @@ export const PublicListItem = z
   .object({
     id: z.uuid(),
     title: z.string(),
+    /** The channel, else the uploader, else the site's own name, as `LibraryEntry.channel`. */
     channel: z.string().nullable(),
     duration: z.number().nullable(),
     uploadDate: z.string().nullable(),

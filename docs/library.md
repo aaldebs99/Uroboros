@@ -27,7 +27,10 @@ Each entry carries the caller's progress and tags, and the key of its channel pa
 
 A channel is the extractor plus the site's channel id, or the channel's name when the site gives no
 id; its key is that, base64url-encoded (`src/library/channelKey.ts`). Videos with neither belong to
-no channel. `GET /api/library/channels` lists the caller's channels, most entries first.
+no channel: their `channel` is the site's name instead (`src/library/platform.ts`: YouTube, Vimeo
+and other well-known sites by name, any other site, a direct link included, by its page's host),
+with a null `channelKey`, so the web shows the site where the channel would be and links nowhere.
+`GET /api/library/channels` lists the caller's channels, most entries first.
 
 Queueing a **playlist** from a preview, or following one with a subscription, records it
 (`sources`, shared by extractor and id), that this person has it (`user_sources`), and its entries

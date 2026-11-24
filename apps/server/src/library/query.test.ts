@@ -327,6 +327,24 @@ describe("GET /api/library", () => {
     expect((await app(alice).request("/api/library?channel=garbage")).status).toBe(400);
   });
 
+  it("names the site where a video has no channel or uploader, and links no channel page", async () => {
+    const dave = await signedIn(testDb.db, { username: "qdave" });
+    const none = { channel: null, channel_id: null, uploader: null };
+    await add(dave, 1, { ...none, extractor: "vimeo", webpage_url: "https://vimeo.com/1" });
+    await add(dave, 2, {
+      ...none,
+      extractor: "generic",
+      webpage_url: "https://www.example.com/a.mp4",
+    });
+    await add(dave, 3, { channel: null, channel_id: null, uploader: "Someone" });
+    const entries = (await page(dave, "?sort=title&order=asc")).entries;
+    expect(entries.map((e) => [e.title, e.channel, e.channelKey === null])).toEqual([
+      ["Video 1", "Vimeo", true],
+      ["Video 2", "example.com", true],
+      ["Video 3", "Someone", false],
+    ]);
+  });
+
   it("keeps the bunny reachable by its entry id", () => {
     expect(bunny.entryId).toMatch(/^[0-9a-f-]{36}$/);
   });

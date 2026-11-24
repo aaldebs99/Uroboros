@@ -231,6 +231,10 @@ export const LibraryEntry = z
     id: Id,
     mediaId: Id,
     title: z.string(),
+    /**
+     * Who the video is by: its channel, else its uploader, else the site's own name ("Vimeo",
+     * "example.com"), so the server always sends one. Only `channelKey` says a channel page exists.
+     */
     channel: z.string().nullable(),
     /** YYYY-MM-DD. */
     uploadDate: z.string().nullable(),

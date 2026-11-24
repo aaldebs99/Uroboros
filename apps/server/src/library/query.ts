@@ -8,6 +8,7 @@ import { sql, type Kysely, type RawBuilder, type SelectQueryBuilder } from "kyse
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { channelKey, parseChannelKey } from "./channelKey.ts";
+import { platformName } from "./platform.ts";
 import { decodeCursor, encodeCursor, type Cursor } from "./cursor.ts";
 
 export interface LibraryFilters {
@@ -245,6 +246,8 @@ export const ENTRY_COLUMNS = [
   "m.channel",
   "m.channel_id",
   "m.uploader",
+  // Aliased: the item query also selects m.webpage_url itself.
+  "m.webpage_url as page_url",
   "m.upload_date",
   "m.duration",
   "m.thumbnail_key",
@@ -276,6 +279,7 @@ export interface EntryRow {
   channel: string | null;
   channel_id: string | null;
   uploader: string | null;
+  page_url: string | null;
   upload_date: string | null;
   duration: number | null;
   thumbnail_key: string | null;
@@ -310,7 +314,8 @@ export function toEntry(r: EntryRow, own = true): LibraryEntry {
     id: r.id,
     mediaId: r.media_id,
     title: r.title ?? r.video_id,
-    channel: r.channel ?? r.uploader,
+    // The site's own name when it names neither a channel nor an uploader.
+    channel: r.channel ?? r.uploader ?? platformName(r.extractor, r.page_url),
     uploadDate: dashed(r.upload_date),
     duration: r.duration,
     thumbnailUrl: r.thumbnail_key === null ? null : `/api/library/${r.id}/thumbnail`,
