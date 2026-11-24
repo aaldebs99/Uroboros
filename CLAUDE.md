@@ -258,7 +258,10 @@ committed; do not `git add` anything under them.
 
 ## Forge and release
 
-The repository lives on Forgejo at https://code.example.com/aaldebs99/Uroboros. The workflows
+The repository lives on a self-hosted Forgejo (the `origin` remote) and is mirrored to
+https://github.com/aaldebs99/Uroboros, where Actions are off. The forge's domain is never
+written into a tracked file, the history included: say "the forge", or use the `REGISTRY`
+variable. The workflows
 run on Forgejo Actions with the Gitea runner's labels (`small`, `big`, `big-dind` and so on,
 listed in `.github/actionlint.yaml`). They carry no `permissions:` blocks, because Forgejo ignores
 the field and warns about it; zizmor's audit of it is off in `.github/zizmor.yml` for that reason.
@@ -271,15 +274,18 @@ last tag and rebuilds the `release/next` branch with one `chore(release): X.Y.Z`
 commit stamps the version into both `package.json` files and `api/openapi.json`, and prepends
 the CHANGELOG section. Merging the PR cuts the release. The release
 event triggers `release.yml`, which builds the image, runs `scripts/image/smoke-test.sh` against
-it, and only then pushes `<REGISTRY>/aaldebs99/uroboros:X.Y.Z`, `:X.Y` and `:latest`. Every push to
-main also publishes `:main`, without the smoke test. Only feat, fix, perf, revert, deps and breaking commits
+it, and only then pushes `:X.Y.Z`, `:X.Y` and `:latest` from one build to both
+`<REGISTRY>/aaldebs99/uroboros` and the public `ghcr.io/aaldebs99/uroboros`, whose labels point
+at the GitHub mirror and which carries no provenance attestation (either would name the forge).
+Every push to main also publishes `:main` to both, without the smoke test. Only feat, fix, perf, revert, deps and breaking commits
 cut a release, so tooling changes belong under ci, chore or build. PR titles must be
 conventional commits (`pr-title.yml`), because the squash subject feeds the changelog.
 
 | Name                        | Kind     | Used by                 | What it is                                                                                                                                |
 | --------------------------- | -------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `REGISTRY`                  | variable | `release.yml`           | The registry host the images go to, e.g. `code.example.com`.                                                                          |
+| `REGISTRY`                  | variable | `release.yml`           | The forge's registry host the images go to (kept out of the repository).                                                                  |
 | `REGISTRY_TOKEN`            | secret   | `release.yml`, `ci.yml` | An access token of `aaldebs99` scoped `write:package`; only the namespace owner may push. `ci.yml` reads the ffmpeg mirror image with it. |
+| `GHCR_TOKEN`                | secret   | `release.yml`           | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.                                       |
 | `RELEASE_PLEASE_TOKEN`      | secret   | `release-pr.yml`        | The release bot's token (`write:repository`, `write:issue`, `read:user`), so its PRs and releases trigger workflows.                      |
 | `RENOVATE_TOKEN`            | secret   | `renovate.yml`          | The Renovate bot's token (`write:repository`, `write:issue`, `read:user`, `read:organization`).                                           |
 | `RENOVATE_GITHUB_COM_TOKEN` | secret   | `renovate.yml`          | A github.com token with no scopes, for looking up GitHub-hosted actions and tools.                                                        |

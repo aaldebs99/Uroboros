@@ -7,7 +7,7 @@
 # a pull request a person merges.
 #
 # Environment:
-#   FORGE_API              forge API root, e.g. https://code.example.com/api/v1
+#   FORGE_API              forge API root, e.g. https://forge.example/api/v1
 #                          (CI passes github.api_url)
 #   FORGE_REPO             owner/name (CI passes github.repository)
 #   RELEASE_PLEASE_TOKEN   the release bot's access token: write:repository,

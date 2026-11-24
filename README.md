@@ -215,8 +215,9 @@ signs in with a dev-only bootstrap admin, `admin` / `admin`, unless you set
 
 ## CI and releases
 
-The repository is hosted on Forgejo at https://code.example.com/aaldebs99/Uroboros, and the
-workflows in `.github/workflows` run on its Actions runners. `ci.yml` runs every gate as one
+The repository is hosted on a self-hosted Forgejo and mirrored to
+https://github.com/aaldebs99/Uroboros, and the workflows in `.github/workflows` run on the
+forge's Actions runners (Actions are off on the mirror). `ci.yml` runs every gate as one
 `mise run <task>` step, and its `CI` job is the required status check. `pr-title.yml` requires a
 conventional-commit PR title.
 
@@ -224,8 +225,9 @@ Releases come from a PR. On every push to main, `release-pr.yml` proposes the ne
 `chore(release): X.Y.Z` PR from the `release/next` branch, with the version stamped into
 `apps/server/package.json`, `package.json` and `api/openapi.json`, and the changelog
 section prepended. Merging it publishes the release, and `release.yml` then builds the image,
-smoke-tests it, and pushes `<REGISTRY>/aaldebs99/uroboros:X.Y.Z`, `:X.Y` and `:latest`. Pushes to
-main publish `:main`. `renovate.yml` runs a self-hosted Renovate twice a day. It looks up the ffmpeg image's tags in the
+smoke-tests it, and pushes `:X.Y.Z`, `:X.Y` and `:latest` to both `<REGISTRY>/aaldebs99/uroboros`
+and `ghcr.io/aaldebs99/uroboros`, one build with one digest. Pushes to main publish `:main` to
+both. `renovate.yml` runs a self-hosted Renovate twice a day. It looks up the ffmpeg image's tags in the
 private registry with `RENOVATE_DOCKER_CODE_example_COM_USERNAME` and `_PASSWORD`, user-scope secrets under
 `aaldebs99` (a token with `read:package`) that this repository inherits.
 
@@ -233,8 +235,9 @@ The repository needs these Actions variables and secrets:
 
 | Name                        | Kind     | For                                                                                                                        |
 | --------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `REGISTRY`                  | variable | The registry host the images are pushed to, e.g. `code.example.com`.                                                   |
+| `REGISTRY`                  | variable | The forge's registry host the images are pushed to (kept out of the repository).                                           |
 | `REGISTRY_TOKEN`            | secret   | An access token of the `aaldebs99` account scoped `write:package` (`release.yml` pushes, `ci.yml` pulls the ffmpeg image). |
+| `GHCR_TOKEN`                | secret   | A GitHub personal access token (classic) of `aaldebs99` scoped `write:packages`, for the GHCR copy.                        |
 | `RELEASE_PLEASE_TOKEN`      | secret   | The release bot's token, scoped `write:repository`, `write:issue` and `read:user`.                                         |
 | `RENOVATE_TOKEN`            | secret   | The Renovate bot's token, scoped `write:repository`, `write:issue`, `read:user` and `read:organization`.                   |
 | `RENOVATE_GITHUB_COM_TOKEN` | secret   | A github.com token with no scopes, so Renovate can look up GitHub-hosted dependencies.                                     |
