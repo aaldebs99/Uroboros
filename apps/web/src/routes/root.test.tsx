@@ -72,6 +72,7 @@ describe("app shell", () => {
       "Notifications",
       "Logins",
       "Profiles",
+      "Groups",
     ]);
   });
 

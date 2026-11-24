@@ -7,10 +7,10 @@ export interface RouteTab {
   to:
     | "/shared"
     | "/shared/by-me"
-    | "/shared/groups"
     | "/settings"
     | "/settings/logins"
-    | "/settings/profiles";
+    | "/settings/profiles"
+    | "/settings/groups";
   label: string;
 }
 

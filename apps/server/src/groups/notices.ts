@@ -9,7 +9,7 @@ import type { Message } from "../push/pusher.ts";
 export function addedNotice(actor: string, group: { id: string; name: string }): Message {
   return {
     title: `${actor} added you to ${group.name}`,
-    path: `/shared/groups/${group.id}`,
+    path: `/settings/groups/${group.id}`,
     tag: `group-${group.id}`,
   };
 }

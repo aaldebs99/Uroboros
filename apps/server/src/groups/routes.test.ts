@@ -339,7 +339,7 @@ describe("being added", () => {
     expect(got).toHaveLength(1);
     expect(got[0]?.message).toEqual({
       title: "grann added you to Neighbours",
-      path: `/shared/groups/${g.id}`,
+      path: `/settings/groups/${g.id}`,
       tag: `group-${g.id}`,
     });
     expect(await notices(ann.userId)).toEqual([]);

@@ -41,7 +41,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     to: "/shared",
     label: "Shared",
     icon: Share2,
-    blurb: "Videos and playlists shared with you and by you, and your groups.",
+    blurb: "Videos and playlists shared with you, and by you.",
   },
   { to: "/settings", label: "Settings", icon: Settings, blurb: "Tune Uroboros to your setup." },
 ];
@@ -58,6 +58,7 @@ export const SETTINGS_VIEWS = [
   { to: "/settings", label: "Notifications" },
   { to: "/settings/logins", label: "Logins" },
   { to: "/settings/profiles", label: "Profiles" },
+  { to: "/settings/groups", label: "Groups" },
 ] as const;
 
 /** Whether `pathname` is one of Settings' views. */

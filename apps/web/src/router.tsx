@@ -3,12 +3,18 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
   type RouterHistory,
 } from "@tanstack/react-router";
 
 import { ChannelsPage } from "./library/ChannelsPage";
 import { PlaylistsPage } from "./library/PlaylistsPage";
-import { SettingsLoginsPage, SettingsPage, SettingsProfilesPage } from "./routes";
+import {
+  SettingsGroupsPage,
+  SettingsLoginsPage,
+  SettingsPage,
+  SettingsProfilesPage,
+} from "./routes";
 import { AccountRoute, AdminGroupsRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
 import { GroupRoute } from "./routes/groups";
@@ -18,7 +24,6 @@ import { NewSubscriptionRoute, SubscriptionRoute } from "./routes/subscriptions"
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
 import { PublicRoute } from "./routes/public";
 import { SharedPlaylistRoute } from "./routes/shared";
-import { GroupsPage } from "./sharing/GroupsPage";
 import { SharedByMe } from "./sharing/SharedByMe";
 import { SharedPage } from "./sharing/SharedPage";
 
@@ -66,11 +71,20 @@ const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: "/s/$code", component: PublicRoute }),
   createRoute({ getParentRoute: () => rootRoute, path: "/shared", component: SharedPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/shared/by-me", component: SharedByMe }),
-  createRoute({ getParentRoute: () => rootRoute, path: "/shared/groups", component: GroupsPage }),
+  // Groups lived under Shared before Settings; notifications already sent still link there.
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/shared/groups",
+    beforeLoad: () => {
+      redirect({ to: "/settings/groups", replace: true, throw: true });
+    },
+  }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/shared/groups/$groupId",
-    component: GroupRoute,
+    beforeLoad: ({ params }) => {
+      redirect({ to: "/settings/groups/$groupId", params, replace: true, throw: true });
+    },
   }),
   createRoute({
     getParentRoute: () => rootRoute,
@@ -87,6 +101,16 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/settings/profiles",
     component: SettingsProfilesPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/settings/groups",
+    component: SettingsGroupsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/settings/groups/$groupId",
+    component: GroupRoute,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/account", component: AccountRoute }),
   createRoute({

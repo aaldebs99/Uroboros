@@ -102,7 +102,7 @@ characters, not unique (two households can each have "Family"). Its maker is its
 - **Admins** list every group (`GET /api/admin/groups`: name, members, managers) and delete any;
   they never see what is shared with one.
 
-The web app lists them under Shared › Groups, each with its own page; Admin › Groups is the admin
+The web app lists them under Settings › Groups, each with its own page; Admin › Groups is the admin
 view.
 
 ## Public links

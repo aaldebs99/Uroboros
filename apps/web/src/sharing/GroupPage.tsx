@@ -46,7 +46,7 @@ function GroupActions({ group, myId }: { group: GroupDetail; myId: string | unde
   const [renaming, setRenaming] = useState(false);
   const confirm = useConfirm();
   const navigate = useNavigate();
-  const toList = () => navigate({ to: "/shared/groups" });
+  const toList = () => navigate({ to: "/settings/groups" });
   const remove = useGroupExit(deleteGroup, group.id, toList);
   const leave = useGroupExit(removeMember, group.id, toList);
   const busy = remove.isPending || leave.isPending;
@@ -247,14 +247,17 @@ function SharedWithGroup({ group }: { group: GroupDetail }) {
   );
 }
 
-/** One group: what its members share with it, and everyone in it (docs/sharing.md "Groups"). */
+/**
+ * One group (Settings › Groups): what its members share with it, and everyone in it
+ * (docs/sharing.md "Groups"), in the settings column.
+ */
 export function GroupPage({ groupId }: { groupId: string }) {
   const group = useGroup(groupId);
   const myId = useMe().data?.id;
   if (group.isError) return <p className="text-destructive">{errorText(group.error)}</p>;
   const g = group.data;
   return (
-    <section className="grid w-full grid-cols-1 gap-8">
+    <section className="grid w-full max-w-3xl grid-cols-1 gap-8">
       <PageHeader
         showTitle
         title={g?.name ?? "Group"}

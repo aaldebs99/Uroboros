@@ -1,4 +1,4 @@
-import { Bell, KeyRound, SlidersHorizontal } from "lucide-react";
+import { Bell, KeyRound, SlidersHorizontal, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Section } from "@/account/Section";
@@ -9,6 +9,7 @@ import { NotificationKinds } from "@/settings/NotificationKinds";
 import { FormatProfiles } from "@/settings/Profiles";
 import { SettingsTabs } from "@/settings/SettingsTabs";
 import { SiteLogins } from "@/settings/SiteLogins";
+import { Groups } from "@/sharing/GroupsPage";
 
 const settings = NAV_ITEMS.find((item) => item.to === "/settings");
 
@@ -69,6 +70,21 @@ export function SettingsProfilesPage() {
         description="The yt-dlp presets you download with. The built-in ones are everyone's until you change them; your changes, and the profiles you add, are yours alone. Your default is used whenever you don't pick one."
       >
         <FormatProfiles />
+      </Section>
+    </SettingsFrame>
+  );
+}
+
+/** Settings › Groups: the groups the person is in, and New group (docs/sharing.md "Groups"). */
+export function SettingsGroupsPage() {
+  return (
+    <SettingsFrame>
+      <Section
+        icon={Users}
+        title="Groups"
+        description="Share videos and playlists with everyone in a group at once. Anyone can make one; its managers add and remove people, and everyone in it can share with it or leave."
+      >
+        <Groups />
       </Section>
     </SettingsFrame>
   );

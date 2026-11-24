@@ -12,7 +12,7 @@ import { renderInRouter } from "@/test/render";
 import { SidebarNav } from "../components/SidebarNav";
 import { createAppRouter } from "../router";
 import { GroupPage } from "./GroupPage";
-import { GroupsPage } from "./GroupsPage";
+import { Groups } from "./GroupsPage";
 
 const id = (n: number) => `0190a3f2-7c1e-7000-8000-${String(n).padStart(12, "0")}`;
 const ME = id(1);
@@ -114,13 +114,69 @@ async function showGroup(role: "manager" | "member", extra: Parameters<typeof fa
   return calls;
 }
 
-describe("Shared › Groups", () => {
+function renderApp(path: string, routes: Parameters<typeof fakeApi>[0]) {
+  const calls = fakeApi({
+    "GET /api/ready": () => Response.json({ status: "ok", failing: [] }),
+    "GET /api/info": () =>
+      Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
+    "GET /api/me": () => Response.json(me),
+    ...routes,
+  });
+  const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  return { calls, router };
+}
+
+describe("Settings › Groups", () => {
+  it("is a Settings view with an address of its own, and no longer a Shared one", async () => {
+    renderApp("/settings/groups", {
+      "GET /api/groups": () => Response.json([]),
+      "GET /api/shared": () => Response.json([]),
+    });
+    const tabs = await screen.findByRole("navigation", { name: "Settings views" });
+    expect(within(tabs).getByRole("link", { name: "Groups" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(await screen.findByRole("heading", { name: "Groups" })).toBeInTheDocument();
+    expect(await screen.findByText("No groups yet")).toBeInTheDocument();
+  });
+
+  it("leaves Shared with its two views", async () => {
+    renderApp("/shared", { "GET /api/shared": () => Response.json([]) });
+    const tabs = await screen.findByRole("navigation", { name: "Shared views" });
+    expect(
+      within(tabs)
+        .getAllByRole("link")
+        .map((l) => l.textContent),
+    ).toEqual(["With me", "By me"]);
+  });
+
+  it("sends the old Shared › Groups addresses (in notifications already sent) here", async () => {
+    const { router } = renderApp(`/shared/groups/${G}`, {
+      [`GET /api/groups/${G}`]: () => Response.json(detail("member")),
+      [`GET /api/groups/${G}/shares`]: () => Response.json([]),
+    });
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(`/settings/groups/${G}`);
+    });
+    expect(await screen.findByRole("heading", { name: "Family" })).toBeInTheDocument();
+    await router.navigate({ to: "/shared/groups" });
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe("/settings/groups");
+    });
+  });
+
   it("points an empty list at New group", async () => {
     fakeApi({ "GET /api/groups": () => Response.json([]) });
-    await renderInRouter(<GroupsPage />);
+    await renderInRouter(<Groups />);
     expect(await screen.findByText("No groups yet")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New group" })).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Shared views" })).toBeInTheDocument();
   });
 
   it("lists the person's groups, each a link to its page", async () => {
@@ -131,10 +187,10 @@ describe("Shared › Groups", () => {
           { id: id(11), name: "Club", role: "member", members: 1 },
         ]),
     });
-    await renderInRouter(<GroupsPage />);
+    await renderInRouter(<Groups />);
     // The whole row is the link (a 44px+ target on phones), not only its name.
     const family = await screen.findByRole("link", { name: /^Family/ });
-    expect(family).toHaveAttribute("href", `/shared/groups/${G}`);
+    expect(family).toHaveAttribute("href", `/settings/groups/${G}`);
     expect(within(family).getByText("Manager")).toBeInTheDocument();
     expect(within(family).getByText("3 people")).toBeInTheDocument();
     expect(within(screen.getByRole("link", { name: /^Club/ })).getByText("1 person")).toBeVisible();
@@ -156,7 +212,7 @@ describe("Shared › Groups", () => {
       [`GET /api/groups/${G}/shares`]: () => Response.json([]),
       "GET /api/directory": () => Response.json(directory),
     });
-    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/shared/groups"] }));
+    const router = createAppRouter(createMemoryHistory({ initialEntries: ["/settings/groups"] }));
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
@@ -168,7 +224,7 @@ describe("Shared › Groups", () => {
     await userEvent.type(within(dialog).getByLabelText("Name"), "Family");
     await userEvent.click(within(dialog).getByRole("button", { name: "Create" }));
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe(`/shared/groups/${G}`);
+      expect(router.state.location.pathname).toBe(`/settings/groups/${G}`);
     });
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({ name: "Family" });
     expect(await screen.findByRole("heading", { name: "Family" })).toBeInTheDocument();
@@ -282,7 +338,7 @@ describe("leaving or deleting a group", () => {
       [`DELETE /api/groups/${G}/members/${ME}`]: () => new Response(null, { status: 204 }),
     });
     const router = createAppRouter(
-      createMemoryHistory({ initialEntries: [`/shared/groups/${G}`] }),
+      createMemoryHistory({ initialEntries: [`/settings/groups/${G}`] }),
     );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -306,7 +362,7 @@ describe("leaving or deleting a group", () => {
       within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Leave" }),
     );
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/shared/groups");
+      expect(router.state.location.pathname).toBe("/settings/groups");
     });
     expect(await screen.findByText("No groups yet")).toBeInTheDocument();
     expect(askedAfterDelete(calls)).toEqual([]);
@@ -319,7 +375,7 @@ describe("leaving or deleting a group", () => {
       within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }),
     );
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe("/shared/groups");
+      expect(router.state.location.pathname).toBe("/settings/groups");
     });
     expect(askedAfterDelete(calls)).toEqual([]);
   });
@@ -332,6 +388,10 @@ describe("Admin › Groups in the navigation", () => {
         Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
     });
     await renderInRouter(<SidebarNav isAdmin />);
-    expect(screen.getByRole("link", { name: "Groups" })).toHaveAttribute("href", "/admin/groups");
+    // Settings › Groups (your groups) and Admin › Groups (everyone's).
+    const hrefs = screen
+      .getAllByRole("link", { name: "Groups" })
+      .map((l) => l.getAttribute("href"));
+    expect(hrefs).toEqual(["/settings/groups", "/admin/groups"]);
   });
 });

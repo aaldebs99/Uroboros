@@ -39,7 +39,7 @@ A list of sections in the page colour, below the top bar, not a separate coloure
   **Admin** for admins (Users, Groups).
 - **A section's views are indented under it** (`SECTIONS` in `components/SidebarNav.tsx`, the
   lists in `nav.ts`): Library's Videos, Channels and Playlists, and Settings' Notifications,
-  Logins and Profiles, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
+  Logins, Profiles and Groups, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
   turns medium while one of its pages is open. On phones the same views are underlined tabs atop
   the page (`ViewTabs`, `RouteTabs phoneOnly`); the mini rail has no room for them.
 - When subscriptions exist, a **Subscriptions** group lists channels with 24px round avatars.
@@ -198,7 +198,7 @@ Filters are a row of pills; views are underlined text tabs.
 - **Tabs:** text at 500, muted; the current tab is `text-foreground` with a 2px `border-foreground`
   underline over a hairline (`border-b border-border`). Use `role="tablist"` only for real
   tabpanels; links between routes stay links with `aria-current`. A page whose views each have
-  an address (Shared's With me, By me and Groups, Settings' Notifications and Logins) uses
+  an address (Shared's With me and By me, Settings' Notifications, Logins and Groups) uses
   `components/ui/route-tabs.tsx`; add the view's route to its `RouteTab` union.
 
 ## Page header
