@@ -20,7 +20,8 @@ function SettingsFrame({ children }: { children: ReactNode }) {
     <section className="grid w-full max-w-3xl gap-6">
       <PageHeader title={settings?.label ?? "Settings"} description={settings?.blurb} />
       <SettingsTabs />
-      {children}
+      {/* Its own block, so the view's first section draws no rule under the tabs' hairline. */}
+      <div className="grid grid-cols-1 gap-6">{children}</div>
     </section>
   );
 }
