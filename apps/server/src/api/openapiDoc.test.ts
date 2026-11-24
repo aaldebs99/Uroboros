@@ -16,13 +16,13 @@ function doc() {
 }
 
 describe("the API document", () => {
-  it("declares token and cookie sign-in for every operation by default", () => {
+  it("declares token (with the REST scope) and cookie sign-in for every operation by default", () => {
     const d = doc();
     expect(d.components?.securitySchemes).toMatchObject({
       bearerAuth: { type: "http", scheme: "bearer" },
       cookieAuth: { type: "apiKey", in: "cookie", name: "uroboros_session" },
     });
-    expect(d.security).toEqual([{ bearerAuth: [] }, { cookieAuth: [] }]);
+    expect(d.security).toEqual([{ bearerAuth: ["api"] }, { cookieAuth: [] }]);
   });
 
   it("marks the routes anyone may call", () => {

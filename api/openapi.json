@@ -155,11 +155,22 @@
           },
           "name": {
             "type": "string"
+          },
+          "readOnly": {
+            "type": "boolean"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/TokenScope"
+            },
+            "type": "array"
           }
         },
         "required": [
           "id",
           "name",
+          "scopes",
+          "readOnly",
           "createdAt",
           "lastUsedAt"
         ],
@@ -1791,6 +1802,21 @@
             "maxLength": 64,
             "minLength": 1,
             "type": "string"
+          },
+          "readOnly": {
+            "default": false,
+            "type": "boolean"
+          },
+          "scopes": {
+            "default": [
+              "api"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TokenScope"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "type": "array"
           }
         },
         "required": [
@@ -3791,6 +3817,39 @@
         ],
         "type": "object"
       },
+      "TokenList": {
+        "properties": {
+          "mcp": {
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "type": "object"
+          },
+          "tokens": {
+            "items": {
+              "$ref": "#/components/schemas/ApiTokenView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "mcp",
+          "tokens"
+        ],
+        "type": "object"
+      },
+      "TokenScope": {
+        "enum": [
+          "api",
+          "mcp"
+        ],
+        "type": "string"
+      },
       "Upload": {
         "properties": {
           "createdAt": {
@@ -3893,7 +3952,7 @@
     },
     "securitySchemes": {
       "bearerAuth": {
-        "description": "A personal API token (Account › Tokens).",
+        "description": "A personal API token (Account › Tokens) with the `api` scope; a read-only one may only read.",
         "scheme": "bearer",
         "type": "http"
       },
@@ -3906,7 +3965,7 @@
     }
   },
   "info": {
-    "description": "Everything the web app does goes through this API, so a script can do it too.\n\n## Signing in\n\n**With a token** (scripts): create a personal API token in the web app under Account › Tokens\nand send it as `Authorization: Bearer <token>`. A token acts as its owner, needs no CSRF header,\nand is refused (403) on `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`,\n`/api/me/sessions*`, `/api/me/push*` and `/api/me/site-logins*`, so a leaked token cannot\nmint another, act as an admin, change the password, move notifications or touch saved site logins.\nClick **Authorize** above and paste a token to try the routes here.\n\n**With the browser's session**: the `uroboros_session` cookie, set by signing in. Every write\n(anything but GET, HEAD and OPTIONS) must also send the `X-Uroboros-CSRF` header with the value\nof the `uroboros_csrf` cookie.\n\nRoutes marked with no security (health, readiness, sign-in, and public links under\n`/api/public/s/{code}`) need neither: a public link's code is its own key.\n\n## Errors\n\nEvery error is an `ApiErrorBody`, `{ \"code\": \"...\", \"message\": \"...\" }`; `code` decides the\nstatus: `bad_request` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404,\n`conflict` 409, `payload_too_large` 413 (bodies over 64 KiB), `unprocessable` 422,\n`too_many_requests` 429, `internal` 500, `unavailable` 503 (starting, or a dependency is down).\nAnother person's things answer 404, never 403.\n\n## Paging\n\nLists that can grow page with a keyset cursor: pass the `nextCursor` of one page as `cursor`\nfor the next; it is `null` on the last. Things added while you page never cause duplicates or\ngaps.\n\n## Live progress\n\n`GET /api/downloads/events` is a server-sent event stream of the caller's download changes\n(state and progress), from whichever replica serves it, and of a `notice` nudge whenever their\nnotifications (`GET /api/notices`) change.\n",
+    "description": "Everything the web app does goes through this API, so a script can do it too.\n\n## Signing in\n\n**With a token** (scripts): create a personal API token in the web app under Account › Tokens\nand send it as `Authorization: Bearer <token>`. A token acts as its owner, needs no CSRF header,\nand is refused (403) on `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`,\n`/api/me/sessions*`, `/api/me/push*` and `/api/me/site-logins*`, so a leaked token cannot\nmint another, act as an admin, change the password, move notifications or touch saved site logins.\nClick **Authorize** above and paste a token to try the routes here.\n\nA token reaches only what its scopes name: `api` for every route here, `mcp` for the MCP\nserver at `/api/mcp` (JSON-RPC, outside this document; see docs/mcp.md), and a token without the\nscope gets 403. A **read-only** token gets 403 on every write (anything but GET, HEAD and OPTIONS).\n\n**With the browser's session**: the `uroboros_session` cookie, set by signing in. Every write\n(anything but GET, HEAD and OPTIONS) must also send the `X-Uroboros-CSRF` header with the value\nof the `uroboros_csrf` cookie.\n\nRoutes marked with no security (health, readiness, sign-in, and public links under\n`/api/public/s/{code}`) need neither: a public link's code is its own key.\n\n## Errors\n\nEvery error is an `ApiErrorBody`, `{ \"code\": \"...\", \"message\": \"...\" }`; `code` decides the\nstatus: `bad_request` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404,\n`conflict` 409, `payload_too_large` 413 (bodies over 64 KiB), `unprocessable` 422,\n`too_many_requests` 429, `internal` 500, `unavailable` 503 (starting, or a dependency is down).\nAnother person's things answer 404, never 403.\n\n## Paging\n\nLists that can grow page with a keyset cursor: pass the `nextCursor` of one page as `cursor`\nfor the next; it is `null` on the last. Things added while you page never cause duplicates or\ngaps.\n\n## Live progress\n\n`GET /api/downloads/events` is a server-sent event stream of the caller's download changes\n(state and progress), from whichever replica serves it, and of a `notice` nudge whenever their\nnotifications (`GET /api/notices`) change.\n",
     "title": "Uroboros API",
     "version": "0.0.0"
   },
@@ -7786,10 +7845,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ApiTokenView"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/TokenList"
                 }
               }
             },
@@ -7806,7 +7862,7 @@
             "description": "Called with an API token"
           }
         },
-        "summary": "The caller's API tokens (never their secrets)",
+        "summary": "The caller's API tokens (never their secrets), and whether the MCP server is on",
         "tags": [
           "tokens"
         ]
@@ -7841,7 +7897,7 @@
                 }
               }
             },
-            "description": "A token with that name exists"
+            "description": "A token with that name exists, or it asks for MCP while the MCP server is off"
           },
           "422": {
             "content": {
@@ -10506,7 +10562,9 @@
   },
   "security": [
     {
-      "bearerAuth": []
+      "bearerAuth": [
+        "api"
+      ]
     },
     {
       "cookieAuth": []

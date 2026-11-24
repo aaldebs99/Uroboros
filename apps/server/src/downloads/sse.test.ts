@@ -265,7 +265,12 @@ describe("GET /api/downloads/events", () => {
         auth: {
           secureCookies: false,
           resolveToken: () =>
-            Promise.resolve({ userId: a.userId, tokenId: "0190a3f2-7c1e-7000-8000-0000000000ff" }),
+            Promise.resolve({
+              userId: a.userId,
+              tokenId: "0190a3f2-7c1e-7000-8000-0000000000ff",
+              scopes: ["api"],
+              readOnly: false,
+            }),
         },
       },
       { webDist: null },

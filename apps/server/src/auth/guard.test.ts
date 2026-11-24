@@ -12,6 +12,8 @@ let testDb: TestDb;
 let app: OpenAPIHono;
 /** Bearer secrets the injected token resolver knows, mapped to their owner. */
 const tokens = new Map<string, string>();
+/** A secret's scopes when not just `api`. */
+const scopes = new Map<string, ("api" | "mcp")[]>();
 
 beforeAll(async () => {
   testDb = await TestDb.create();
@@ -24,13 +26,19 @@ beforeAll(async () => {
         secureCookies: false,
         resolveToken: (_db, secret) => {
           const userId = tokens.get(secret);
-          return Promise.resolve(userId === undefined ? null : { userId, tokenId: "t" });
+          return Promise.resolve(
+            userId === undefined
+              ? null
+              : { userId, tokenId: "t", scopes: scopes.get(secret) ?? ["api"], readOnly: false },
+          );
         },
       },
     },
     { webDist: null },
   );
   app.get("/api/test/whoami", (c) => c.json(currentPrincipal(c)));
+  app.get("/api/mcp/x", (c) => c.json({ ok: true }));
+  app.get("/api/mcpx", (c) => c.json({ ok: true }));
   app.post("/api/test/write", (c) => c.json({ ok: true }));
   for (const prefix of ["admin", "me/tokens", "me/password", "me/sessions", "me/push"]) {
     app.get(`/api/${prefix}/x`, (c) => c.json({ ok: true }));
@@ -145,6 +153,23 @@ describe("the API guard", () => {
       headers: { cookie: `uroboros_session=${expired.token}` },
     });
     expect(res.status).toBe(401);
+  });
+
+  it("lets only an MCP token under the MCP path, and keeps it there", async () => {
+    const s = await signedIn(testDb.db, { username: "hank" });
+    const rest = newSecret();
+    tokens.set(rest, s.userId);
+    const mcp = newSecret();
+    tokens.set(mcp, s.userId);
+    scopes.set(mcp, ["mcp"]);
+    const get = (path: string, secret: string) =>
+      req(path, { headers: { authorization: `Bearer ${secret}` } });
+    expect((await get("/api/mcp/x", rest)).status).toBe(403);
+    expect((await get("/api/mcp/x", mcp)).status).toBe(200);
+    // a lookalike path is an ordinary REST route
+    expect((await get("/api/mcpx", mcp)).status).toBe(403);
+    expect((await get("/api/mcpx", rest)).status).toBe(200);
+    expect((await req("/api/mcp/x", { headers: s.headers })).status).toBe(401);
   });
 
   it("401s a malformed bearer token", async () => {

@@ -66,10 +66,17 @@ export const SessionView = z
   .openapi("SessionView");
 export type SessionView = z.infer<typeof SessionView>;
 
+/** What a token may reach: `api` the REST API under `/api`, `mcp` the MCP server (`MCP_PATH`). */
+export const TokenScope = z.enum(["api", "mcp"]).openapi("TokenScope");
+export type TokenScope = z.infer<typeof TokenScope>;
+
 export const ApiTokenView = z
   .object({
     id: z.uuid(),
     name: z.string(),
+    scopes: z.array(TokenScope),
+    /** A read-only token only reads: no REST write and no MCP tool that changes anything. */
+    readOnly: z.boolean(),
     createdAt: z.iso.datetime(),
     lastUsedAt: z.iso.datetime().nullable(),
   })
@@ -77,9 +84,24 @@ export const ApiTokenView = z
 export type ApiTokenView = z.infer<typeof ApiTokenView>;
 
 export const NewApiTokenBody = z
-  .object({ name: z.string().trim().min(1).max(64) })
+  .object({
+    name: z.string().trim().min(1).max(64),
+    scopes: z
+      .array(TokenScope)
+      .min(1)
+      .max(4)
+      .default(["api"])
+      .transform((scopes) => [...new Set(scopes)].sort()),
+    readOnly: z.boolean().default(false),
+  })
   .openapi("NewApiTokenBody");
-export type NewApiTokenBody = z.infer<typeof NewApiTokenBody>;
+export type NewApiTokenBody = z.input<typeof NewApiTokenBody>;
+
+/** The caller's tokens, and whether the MCP server is on (an `mcp` token needs it on to be made). */
+export const TokenList = z
+  .object({ mcp: z.object({ enabled: z.boolean() }), tokens: z.array(ApiTokenView) })
+  .openapi("TokenList");
+export type TokenList = z.infer<typeof TokenList>;
 
 /** A created token; `secret` is shown this once and never again. */
 export const NewApiToken = z

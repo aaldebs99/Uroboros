@@ -100,6 +100,8 @@ export interface ApiTokensTable {
   user_id: string;
   name: string;
   token_hash: Buffer;
+  scopes: ColumnType<("api" | "mcp")[], ("api" | "mcp")[] | undefined, never>;
+  read_only: ColumnType<boolean, boolean | undefined, never>;
   created_at: ColumnType<Date, Date | string | undefined, never>;
   last_used_at: Timestamp | null;
 }

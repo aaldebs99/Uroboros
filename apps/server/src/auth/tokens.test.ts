@@ -1,5 +1,5 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import { ApiTokenView, NewApiToken } from "@uroboros/contract";
+import { NewApiToken, TokenList } from "@uroboros/contract";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
@@ -42,11 +42,9 @@ describe("API tokens", () => {
     expect(made.token.name).toBe("laptop script");
     const listed = await (await asUser(app, u).request("/api/me/tokens")).text();
     expect(listed).not.toContain(made.secret);
-    expect(
-      ApiTokenView.array()
-        .parse(JSON.parse(listed))
-        .map((t) => t.name),
-    ).toEqual(["laptop script"]);
+    expect(TokenList.parse(JSON.parse(listed)).tokens.map((t) => t.name)).toEqual([
+      "laptop script",
+    ]);
   });
 
   it("authenticates as its owner, records its use, and stops when revoked", async () => {

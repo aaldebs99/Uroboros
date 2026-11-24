@@ -97,6 +97,12 @@ CREATE TABLE api_tokens (
   user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   name TEXT NOT NULL CHECK (char_length(name) BETWEEN 1 AND 64),
   token_hash BYTEA NOT NULL UNIQUE,
+  -- What the token may reach: 'api' the REST API, 'mcp' the MCP server (docs/auth.md).
+  scopes TEXT[] NOT NULL DEFAULT '{api}'
+    CHECK (cardinality(scopes) BETWEEN 1 AND 2 AND scopes <@ ARRAY['api', 'mcp']::TEXT[]),
+  -- A read-only token is refused every write: REST methods other than GET, HEAD and OPTIONS, and
+  -- the MCP tools that change anything.
+  read_only BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_used_at TIMESTAMPTZ,
   UNIQUE (user_id, name)

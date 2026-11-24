@@ -80,12 +80,26 @@ everywhere.
 
 `/api/me/tokens` creates (the secret is shown once), lists and revokes personal tokens: 64 hex
 characters sent as `Authorization: Bearer …`, SHA-256 at rest, at most 20 per user, names unique per
-user, no scopes and no expiry (Djinn's choices). A token acts as its owner except on
+user, and no expiry (Djinn's choices). A token acts as its owner except on
 `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`, `/api/me/sessions*`, `/api/me/push*` and
 `/api/me/site-logins*`, which answer 403 "an API token cannot be used here; sign in in the
 browser": a leaked token must not mint successors, act as an admin, change the password, move
 someone's notifications or read and replace their saved site logins. Token requests need no CSRF
 header.
+
+Each token carries **scopes**, chosen when it is made (Djinn left scopes for later; Uroboros needed
+them for its MCP server, docs/mcp.md): `api` reaches the REST API, `mcp` the MCP server at
+`/api/mcp`, and a token may hold both (the default is `api` alone). The guard checks them after it
+has found the token's owner (`checkTokenReach` in `auth/guard.ts`), so a refused request still
+counts as the token's use: `/api/mcp` without `mcp` answers 403 "this token cannot use MCP", any
+other route without `api` 403 "this token cannot use the REST API". A **read-only** token gets 403
+"this token is read-only" on every REST write (anything but GET, HEAD and OPTIONS, so it cannot
+start a playback session either), and the MCP server hides and refuses its tools that change
+anything. `/api/mcp` takes tokens only, never the session cookie, and its 401 carries
+`WWW-Authenticate: Bearer`. A token for MCP can be made only while an admin has the MCP server on
+(409 otherwise); turning it off later keeps the token but stops it at the MCP server (404). Over
+REST an admin's token keeps the admin's reach outside `/api/admin` (all downloads, for one); the
+MCP server always acts as a member.
 
 ## Claims sync
 
@@ -107,5 +121,5 @@ from Admin › Users, which refreshes every SSO user, due or not, even with the 
 ## Out of scope
 
 Device-authorization sign-in (with the browser extension), Discord linking, password reset by
-email, self-registration, several OIDC providers, token scopes and expiry, sliding sessions, a
+email, self-registration, several OIDC providers, token expiry, sliding sessions, a
 Host/Origin allowlist and `__Host-` cookies.

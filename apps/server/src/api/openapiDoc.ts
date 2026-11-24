@@ -12,6 +12,10 @@ and is refused (403) on \`/api/admin/*\`, \`/api/me/tokens*\`, \`/api/me/passwor
 mint another, act as an admin, change the password, move notifications or touch saved site logins.
 Click **Authorize** above and paste a token to try the routes here.
 
+A token reaches only what its scopes name: \`api\` for every route here, \`mcp\` for the MCP
+server at \`/api/mcp\` (JSON-RPC, outside this document; see docs/mcp.md), and a token without the
+scope gets 403. A **read-only** token gets 403 on every write (anything but GET, HEAD and OPTIONS).
+
 **With the browser's session**: the \`uroboros_session\` cookie, set by signing in. Every write
 (anything but GET, HEAD and OPTIONS) must also send the \`X-Uroboros-CSRF\` header with the value
 of the \`uroboros_csrf\` cookie.
@@ -45,7 +49,7 @@ export function openApiConfig(version: string) {
   return {
     openapi: "3.1.0",
     info: { title: "Uroboros API", version, description: OVERVIEW },
-    security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+    security: [{ bearerAuth: ["api"] }, { cookieAuth: [] }],
   };
 }
 
@@ -54,7 +58,8 @@ export function registerSecuritySchemes(app: OpenAPIHono): void {
   app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
     type: "http",
     scheme: "bearer",
-    description: "A personal API token (Account › Tokens).",
+    description:
+      "A personal API token (Account › Tokens) with the `api` scope; a read-only one may only read.",
   });
   app.openAPIRegistry.registerComponent("securitySchemes", "cookieAuth", {
     type: "apiKey",

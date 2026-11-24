@@ -32,7 +32,7 @@ function api(over: Parameters<typeof fakeApi>[0] = {}) {
         },
         { id: "bbbbbbbbbbbbbbbb", current: false, userAgent: "Phone", createdAt: T, lastSeenAt: T },
       ]),
-    "GET /api/me/tokens": () => Response.json([]),
+    "GET /api/me/tokens": () => Response.json({ mcp: { enabled: false }, tokens: [] }),
     ...over,
   });
 }
@@ -100,6 +100,8 @@ describe("AccountPage", () => {
     const token = {
       id: "0190a3f2-7c1e-7000-8000-0000000000aa",
       name: "cron",
+      scopes: ["api"],
+      readOnly: false,
       createdAt: T,
       lastUsedAt: null,
     };
@@ -115,11 +117,13 @@ describe("AccountPage", () => {
     const token = {
       id: "0190a3f2-7c1e-7000-8000-0000000000aa",
       name: "cron",
+      scopes: ["api"],
+      readOnly: false,
       createdAt: T,
       lastUsedAt: null,
     };
     const calls = api({
-      "GET /api/me/tokens": () => Response.json([token]),
+      "GET /api/me/tokens": () => Response.json({ mcp: { enabled: false }, tokens: [token] }),
       "DELETE /api/me/tokens/0190a3f2-7c1e-7000-8000-0000000000aa": () =>
         new Response(null, { status: 204 }),
     });

@@ -1,8 +1,8 @@
 import {
   AdminUser,
-  ApiTokenView,
   NewApiToken,
   SessionView,
+  TokenList,
   type AdminUserPatch,
   type ChangePasswordBody,
   type NewLocalUserBody,
@@ -46,7 +46,7 @@ export const useChangePassword = () =>
 export const useTokens = () =>
   useQuery({
     queryKey: keys.tokens,
-    queryFn: ({ signal }) => getJson("/api/me/tokens", z.array(ApiTokenView), { signal }),
+    queryFn: ({ signal }) => getJson("/api/me/tokens", TokenList, { signal }),
   });
 export const useCreateToken = () =>
   useRefreshing(keys.tokens, (name: string) => postJson("/api/me/tokens", NewApiToken, { name }));

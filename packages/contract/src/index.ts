@@ -29,6 +29,8 @@ export {
   ResetPasswordBody,
   Role,
   SessionView,
+  TokenList,
+  TokenScope,
   Username,
 } from "./auth.ts";
 export {
@@ -173,3 +175,4 @@ export {
   NewGroupBody,
 } from "./groups.ts";
 export { InstanceSettings, InstanceSettingsPatch } from "./settings.ts";
+export { MCP_PATH } from "./mcp.ts";
