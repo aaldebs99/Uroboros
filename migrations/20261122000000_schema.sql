@@ -500,32 +500,6 @@ CREATE TABLE notification_prefs (
   shares BOOLEAN NOT NULL DEFAULT true
 );
 
--- Transcoding (docs/transcoding.md): a compatible HLS copy of a rendition, made on demand for
--- browsers that cannot play the file and kept while used. Its files live under
--- `.transcodes/<id>/<attempt>/`; `encoder` is fixed when it is made, and `settings` revises the
--- encode settings with it, so changing either makes new copies.
-CREATE TABLE transcodes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  source_rendition_id UUID NOT NULL REFERENCES renditions ON DELETE CASCADE,
-  encoder TEXT NOT NULL CHECK (encoder IN ('libx264', 'nvenc')),
-  settings TEXT NOT NULL,
-  mode TEXT CHECK (mode IN ('encode', 'remux', 'audio')),
-  state TEXT NOT NULL DEFAULT 'queued' CHECK (state IN ('queued', 'running', 'done', 'failed')),
-  attempt INTEGER NOT NULL DEFAULT 1 CHECK (attempt > 0),
-  ready_segments INTEGER NOT NULL DEFAULT 0,
-  duration DOUBLE PRECISION,
-  progress DOUBLE PRECISION NOT NULL DEFAULT 0,
-  -- The variant's RFC 6381 codecs and its resolution, for the multivariant playlist.
-  codecs TEXT,
-  resolution TEXT,
-  error_message TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  started_at TIMESTAMPTZ,
-  finished_at TIMESTAMPTZ,
-  last_used_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (source_rendition_id, settings)
-);
-
 -- A video's keyframe times in seconds from the file's start, sorted: where a playback session that
 -- copies the video (a remux) can cut segments (docs/transcoding.md). Written by the fetch consumer
 -- after a download, or by the first session that needs it.
@@ -563,9 +537,22 @@ CREATE INDEX playback_sessions_viewer ON playback_sessions (entry_id, user_id, s
 CREATE INDEX playback_sessions_ended ON playback_sessions (stopped_at)
   WHERE state IN ('stopped', 'failed');
 
+-- A session's row can go many ways (swept, or with its entry, rendition or link); its folder goes
+-- to the trash each time, so a runner that died before cleaning up never leaves files behind.
+CREATE FUNCTION trash_playback_session() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO storage_trash (key) VALUES ('.transcodes/' || OLD.id || '/')
+    ON CONFLICT (key) DO NOTHING;
+  RETURN OLD;
+END
+$$;
+
 -- Storage keys whose rows are gone and whose files the reaper still has to delete. A key ending in
 -- `/` is a prefix: everything under it goes.
 CREATE TABLE storage_trash (
   key TEXT PRIMARY KEY,
   added_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TRIGGER playback_sessions_trash BEFORE DELETE ON playback_sessions
+  FOR EACH ROW EXECUTE FUNCTION trash_playback_session();

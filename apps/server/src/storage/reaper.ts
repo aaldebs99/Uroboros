@@ -2,7 +2,6 @@ import { sql, type Kysely, type Transaction } from "kysely";
 import type { Logger } from "pino";
 import type { Database } from "../db/schema.ts";
 import { fetchKey } from "../downloads/fetchKey.ts";
-import { transcodePrefix } from "../transcode/keys.ts";
 import type { MediaStore } from "./store.ts";
 
 /**
@@ -79,14 +78,9 @@ async function sweepOne(db: Kysely<Database>, id: string): Promise<boolean> {
       .where("state", "in", ACTIVE)
       .executeTakeFirst();
     if (active !== undefined) return false;
-    // Its playback copies go with it (cascade); their folders go to the trash now.
-    const copies = await tx
-      .selectFrom("transcodes")
-      .select("id")
-      .where("source_rendition_id", "=", id)
-      .execute();
+    // Any playback sessions go with it (cascade), and their folders to the trash (a trigger).
     await tx.deleteFrom("renditions").where("id", "=", id).execute();
-    await trash(tx, [r.storage_key, ...copies.map((c) => transcodePrefix(c.id))]);
+    await trash(tx, [r.storage_key]);
     return true;
   });
 }
@@ -188,7 +182,7 @@ export async function emptyTrash(
   for (const { key } of keys) {
     try {
       if (key.endsWith("/")) {
-        // A prefix (a transcode's folder): nothing else is stored under it.
+        // A prefix (a playback session's folder): nothing else is stored under it.
         await store.deletePrefix(key);
         deleted++;
       } else if (!(await inUse(db, key))) {
@@ -203,48 +197,19 @@ export async function emptyTrash(
   return deleted;
 }
 
-/**
- * Deletes playback copies nobody has used for `keepDays` and failed ones older than a day (never a
- * queued or running one), their folders to the trash; returns how many went.
- */
-export async function sweepTranscodes(db: Kysely<Database>, keepDays: number): Promise<number> {
-  return db.transaction().execute(async (tx) => {
-    const gone = await tx
-      .deleteFrom("transcodes")
-      .where((eb) =>
-        eb.or([
-          eb.and([
-            eb("state", "=", "done"),
-            eb("last_used_at", "<", olderThan(keepDays * 86_400_000)),
-          ]),
-          eb.and([eb("state", "=", "failed"), eb("created_at", "<", olderThan(86_400_000))]),
-        ]),
-      )
-      .returning("id")
-      .execute();
-    await trash(
-      tx,
-      gone.map((c) => transcodePrefix(c.id)),
-    );
-    return gone.length;
-  });
-}
-
-/** One reaper pass: mark, sweep renditions, media and unused copies, empty the trash. */
+/** One reaper pass: mark, sweep renditions and media, empty the trash. */
 export async function reapOnce(
   db: Kysely<Database>,
   store: MediaStore,
   logger: Logger,
   graceMs = REAPER_GRACE_MS,
-  keepDays = 30,
 ) {
   const marks = await markOrphans(db);
   const renditions = await sweepRenditions(db, graceMs);
   const media = await sweepMedia(db, graceMs);
-  const copies = await sweepTranscodes(db, keepDays);
   const files = await emptyTrash(db, store, logger);
-  if (renditions + media + copies + files > 0) {
-    logger.info({ ...marks, renditions, media, copies, files }, "the reaper freed storage");
+  if (renditions + media + files > 0) {
+    logger.info({ ...marks, renditions, media, files }, "the reaper freed storage");
   }
-  return { ...marks, renditions, media, copies, files };
+  return { ...marks, renditions, media, files };
 }

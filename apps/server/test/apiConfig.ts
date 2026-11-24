@@ -42,8 +42,6 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
         concurrency: 0,
         hwaccel: "none",
         vaapiDevice: "/dev/dri/renderD128",
-        encoder: "libx264",
-        keepDays: 30,
       },
     },
     secretsKey: null,

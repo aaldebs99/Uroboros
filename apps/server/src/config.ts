@@ -2,7 +2,6 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
 import { authEnvProblems, authEnvSchema, toAuthConfig, type AuthConfig } from "./auth/config.ts";
-import type { TranscodeEncoder } from "./db/schema.ts";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 import { vapidPairProblem } from "./push/keys.ts";
 import {
@@ -76,10 +75,6 @@ export interface WorkerSettings {
     hwaccel: "none" | "nvenc" | "vaapi";
     /** The VA-API render node (`UROBOROS_TRANSCODE_VAAPI_DEVICE`). */
     vaapiDevice: string;
-    /** The cached copies' encoder, derived from `hwaccel` (goes with the copies). */
-    encoder: TranscodeEncoder;
-    /** Days an unused copy is kept (`UROBOROS_TRANSCODE_KEEP_DAYS`). */
-    keepDays: number;
   };
 }
 
@@ -205,9 +200,6 @@ const workerEnvSchema = z.object({
       .string()
       .regex(/^\//, "UROBOROS_TRANSCODE_VAAPI_DEVICE must be an absolute path (a render node)")
       .prefault("/dev/dri/renderD128"),
-  ),
-  UROBOROS_TRANSCODE_KEEP_DAYS: unsetIfEmpty(
-    positiveInt("UROBOROS_TRANSCODE_KEEP_DAYS").prefault("30"),
   ),
 });
 
@@ -336,8 +328,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
         concurrency: e.UROBOROS_TRANSCODE_CONCURRENCY,
         hwaccel: e.UROBOROS_TRANSCODE_HWACCEL,
         vaapiDevice: e.UROBOROS_TRANSCODE_VAAPI_DEVICE,
-        encoder: e.UROBOROS_TRANSCODE_HWACCEL === "nvenc" ? "nvenc" : "libx264",
-        keepDays: e.UROBOROS_TRANSCODE_KEEP_DAYS,
       },
     },
     secretsKey: e.UROBOROS_SECRETS_KEY ?? null,

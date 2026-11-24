@@ -82,6 +82,18 @@ describe("schema: playback sessions", () => {
     expect(await t.db.selectFrom("playback_sessions").select("id").execute()).toHaveLength(0);
   });
 
+  it("puts a deleted session's folder in the trash, however it went (cascades too)", async () => {
+    const s = await setup();
+    const a = await session(s, { user_id: s.owner.id });
+    const b = await session(s, { user_id: s.owner.id });
+    await t.db.deleteFrom("playback_sessions").where("id", "=", a.id).execute();
+    await t.db.deleteFrom("library_entries").where("id", "=", s.entryId).execute();
+    const trash = (await t.db.selectFrom("storage_trash").select("key").execute()).map(
+      (r) => r.key,
+    );
+    expect(trash.sort()).toEqual([`.transcodes/${a.id}/`, `.transcodes/${b.id}/`].sort());
+  });
+
   it("allows only known states, modes and encoders (23514)", async () => {
     const s = await setup();
     const { id } = await session(s, { user_id: s.owner.id });

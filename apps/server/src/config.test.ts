@@ -251,8 +251,6 @@ describe("loadConfig transcoding", () => {
       concurrency: 2,
       hwaccel: "none",
       vaapiDevice: "/dev/dri/renderD128",
-      encoder: "libx264",
-      keepDays: 30,
     });
   });
 
@@ -262,9 +260,8 @@ describe("loadConfig transcoding", () => {
         ...base,
         UROBOROS_TRANSCODE_CONCURRENCY: "0",
         UROBOROS_TRANSCODE_HWACCEL: "nvenc",
-        UROBOROS_TRANSCODE_KEEP_DAYS: "7",
       }).worker.transcode,
-    ).toMatchObject({ concurrency: 0, hwaccel: "nvenc", encoder: "nvenc", keepDays: 7 });
+    ).toMatchObject({ concurrency: 0, hwaccel: "nvenc" });
   });
 
   it("takes VA-API with its render node", () => {
@@ -281,7 +278,6 @@ describe("loadConfig transcoding", () => {
     ["UROBOROS_TRANSCODE_CONCURRENCY", "-1"],
     ["UROBOROS_TRANSCODE_HWACCEL", "qsv"],
     ["UROBOROS_TRANSCODE_VAAPI_DEVICE", "renderD128"],
-    ["UROBOROS_TRANSCODE_KEEP_DAYS", "0"],
   ])("rejects %s=%j", (name, bad) => {
     expect(() => loadConfig({ ...base, [name]: bad })).toThrow(ConfigError);
   });

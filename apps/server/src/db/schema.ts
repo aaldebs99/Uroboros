@@ -231,31 +231,6 @@ export interface SubscriptionItemsTable {
   backfill: Defaulted<boolean>;
 }
 
-export type TranscodeEncoder = "libx264" | "nvenc";
-export type TranscodeMode = "encode" | "remux" | "audio";
-export type TranscodeState = "queued" | "running" | "done" | "failed";
-
-/** `transcodes`: a compatible HLS copy of a rendition (docs/transcoding.md). */
-export interface TranscodesTable {
-  id: Generated<string>;
-  source_rendition_id: string;
-  encoder: TranscodeEncoder;
-  settings: string;
-  mode: TranscodeMode | null;
-  state: Defaulted<TranscodeState>;
-  attempt: Defaulted<number>;
-  ready_segments: Defaulted<number>;
-  duration: number | null;
-  progress: Defaulted<number>;
-  codecs: string | null;
-  resolution: string | null;
-  error_message: string | null;
-  created_at: Created;
-  started_at: Timestamp | null;
-  finished_at: Timestamp | null;
-  last_used_at: Defaulted<Date | string>;
-}
-
 /** `storage_trash`: keys whose rows are gone and whose files are still to delete. */
 export interface StorageTrashTable {
   key: string;
@@ -444,7 +419,6 @@ export interface Database {
   subscriptions: SubscriptionsTable;
   subscription_items: SubscriptionItemsTable;
   storage_trash: StorageTrashTable;
-  transcodes: TranscodesTable;
   rendition_keyframes: RenditionKeyframesTable;
   playback_sessions: PlaybackSessionsTable;
   playlists: PlaylistsTable;

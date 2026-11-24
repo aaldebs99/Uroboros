@@ -5,7 +5,7 @@ import type { DownloadContext } from "../downloads/dispatch.ts";
 import { periodicDuty } from "../shared/periodic.ts";
 import { reapOnce, REAPER_EVERY_MS } from "../storage/reaper.ts";
 import type { MediaStore } from "../storage/store.ts";
-import { reconcileTranscodes, TRANSCODE_RECONCILE_EVERY_MS } from "../transcode/reconcile.ts";
+import { reconcileSessions, SESSION_DUTY_EVERY_MS } from "../transcode/sessionDuties.ts";
 import { scheduleCheck, type CheckJob } from "./queue.ts";
 import { applyRetention, RETENTION_EVERY_MS } from "./retention.ts";
 
@@ -48,14 +48,10 @@ export async function resyncSchedulers(
 
 /**
  * The leader's automation duties: keep schedules in step, apply retention hourly, run the reaper
- * every 15 minutes (with unused playback copies older than `keepDays`), and re-add lost transcode
- * jobs every minute.
+ * every 15 minutes, and look after playback sessions every minute (lost runs, abandoned and ended
+ * sessions).
  */
-export function automationDuties(
-  ctx: DownloadContext,
-  store: MediaStore,
-  opts: { keepDays: number } = { keepDays: 30 },
-) {
+export function automationDuties(ctx: DownloadContext, store: MediaStore) {
   const resync = periodicDuty(
     "scheduler re-sync",
     RESYNC_EVERY_MS,
@@ -74,16 +70,16 @@ export function automationDuties(
   const reaper = periodicDuty(
     "reaper",
     REAPER_EVERY_MS,
-    () => reapOnce(ctx.db, store, ctx.logger, undefined, opts.keepDays),
+    () => reapOnce(ctx.db, store, ctx.logger),
     ctx.logger,
   );
-  const transcodes = periodicDuty(
-    "transcode reconcile",
-    TRANSCODE_RECONCILE_EVERY_MS,
-    () => reconcileTranscodes(ctx),
+  const sessions = periodicDuty(
+    "playback sessions",
+    SESSION_DUTY_EVERY_MS,
+    () => reconcileSessions(ctx),
     ctx.logger,
   );
   return async (signal: AbortSignal): Promise<void> => {
-    await Promise.all([resync(signal), retention(signal), reaper(signal), transcodes(signal)]);
+    await Promise.all([resync(signal), retention(signal), reaper(signal), sessions(signal)]);
   };
 }

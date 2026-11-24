@@ -99,19 +99,33 @@ describe("runSegments", () => {
   });
 
   it("reads no further while the gate is closed", async () => {
+    const first = fmp4Stream([0]);
     const run = await fake([
-      { stdoutBase64: fmp4Stream([0]).toString("base64") },
+      { stdoutBase64: first.toString("base64") },
       { sleepMs: 100 },
-      {
-        stdoutBase64: fmp4Stream([0, 6, 12])
-          .subarray(fmp4Stream([0]).length)
-          .toString("base64"),
-      },
+      { stdoutBase64: fmp4Stream([0, 6, 12]).subarray(first.length).toString("base64") },
     ]);
+    // The gate closes once the init is in, so the rest waits behind it whatever the timing.
+    const gate = { closed: false };
     let open: () => void = () => undefined;
-    let closed = false;
-    const gate = () => (closed ? new Promise<void>((r) => (open = r)) : Promise.resolve());
-    const { events, hooks } = recorder(gate);
+    const events: string[] = [];
+    const hooks: RunHooks = {
+      onInit: () => {
+        events.push("init");
+        gate.closed = true;
+        return Promise.resolve();
+      },
+      onSegment: (index) => {
+        events.push(`seg ${String(index)}`);
+        return Promise.resolve();
+      },
+      gate: () =>
+        gate.closed
+          ? new Promise<void>((resolve) => {
+              open = resolve;
+            })
+          : Promise.resolve(),
+    };
     const done = runSegments({
       ...run.options,
       args: [],
@@ -120,13 +134,13 @@ describe("runSegments", () => {
       signal: new AbortController().signal,
       hooks,
     });
-    await new Promise((r) => setTimeout(r, 50));
-    closed = true;
-    await new Promise((r) => setTimeout(r, 400));
-    expect(events).toEqual(["init true"]);
-    closed = false;
+    const until = Date.now() + 5000;
+    while (!gate.closed && Date.now() < until) await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(events).toEqual(["init"]);
+    gate.closed = false;
     open();
     await done;
-    expect(events).toEqual(["init true", "seg 0", "seg 1", "seg 2"]);
+    expect(events).toEqual(["init", "seg 0", "seg 1", "seg 2"]);
   });
 });
