@@ -96,7 +96,7 @@ menu's **Size** (90, 100, 110 or 125%, per device, `lib/uiScale.ts`) sets `--ui-
 | ----------------------------------------------- | --------------------------- |
 | Buttons, selects, icon buttons, navigation rows | 10px                        |
 | Outlined text field                             | 8px                         |
-| Chips, avatars, switches, search, Create        | full                        |
+| Chips, avatars, switches, search, Add           | full                        |
 | Thumbnails                                      | 12px (none on phones' feed) |
 | Cards and panels                                | 16px                        |
 | Menus and dialogs (one dialog primitive)        | 12px                        |

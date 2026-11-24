@@ -132,9 +132,10 @@ describe("the search palette", () => {
   it("leaves another open dialog alone", async () => {
     setup();
     await screen.findByRole("navigation", { name: "Primary" });
-    const [create] = screen.getAllByRole("button", { name: "Create" });
-    if (create === undefined) throw new Error("no Create button");
-    await userEvent.click(create);
+    const [add] = screen.getAllByRole("button", { name: "Add" });
+    if (add === undefined) throw new Error("no Add button");
+    await userEvent.click(add);
+    await userEvent.click(await screen.findByRole("button", { name: "Download" }));
     await screen.findByRole("dialog", { name: "Download a link" });
     await userEvent.keyboard("{Control>}k{/Control}");
     expect(screen.queryByRole("dialog", { name: "Search or download" })).not.toBeInTheDocument();

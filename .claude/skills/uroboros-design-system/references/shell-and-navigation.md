@@ -18,7 +18,8 @@ to right:
 3. The [search](actions-and-forms.md#search), centred and up to about 640px wide. While it is
    empty it shows a `<kbd>` hint for the [search palette](#search-palette-ctrlk) ("Ctrl K", or "⌘K"
    on a Mac, from `paletteHint()`).
-4. **"+ Create"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500.
+4. **"+ Add"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500,
+   opening the [Add menu](#add-menu-and-its-dialogs).
 5. The account avatar, a 32px circle, which opens the [account menu](#account-menu).
 
 The bell slot stays empty until an in-app notification list exists. There's no separate theme
@@ -87,12 +88,15 @@ opens it too.
   collapsed yt-dlp output. What a download came to is a toast, and a YouTube result's row keeps it
   ("Queued" in success, "In your library" muted), so several can be downloaded in a row.
 
-## Create and the download dialog
+## Add menu and its dialogs
 
-- **"+ Create"** opens the **Download a link** dialog directly: with one thing to create, a menu in
-  between is a wasted click. It becomes a Radix dropdown (the [menu](actions-and-forms.md#menus)
-  recipe) listing only real actions once there is a second one.
-- The dialog (`rounded-[12px]`, the [dialog](feedback-and-containers.md#dialogs) recipe) holds:
+- **"+ Add"** opens a menu (`AddMenu` over `ResponsiveMenu`: the
+  [menu](actions-and-forms.md#menus) recipe as a Radix dropdown from `md` up, the phone's bottom
+  sheet below) with exactly two real actions: **Download** (lucide `Download`), opening the
+  Download a link dialog, and **Upload** (lucide `Upload`), opening the Upload a video dialog. A
+  new item joins only when its feature exists.
+- The Download a link dialog (`rounded-[12px]`, the
+  [dialog](feedback-and-containers.md#dialogs) recipe) holds:
   - the title "Download a link";
   - the [outlined field](actions-and-forms.md#text-fields) "Link", autofocused;
   - the format `<select>`, with the default profile first ("Default (…)") from `useProfiles`;
@@ -102,6 +106,21 @@ opens it too.
   - `choosing` navigates to `/downloads?request=<id>`;
   - `probing` or `queued` closes the dialog and shows a toast with a View action;
   - `failed` and API errors show inline and keep the dialog open.
+- The **Upload a video** dialog (`uploads/UploadDialog.tsx`, the same recipe) holds:
+  - the file: a `bg-raised` `rounded-2xl` area with the file's name and size, which takes a
+    dropped video from `md` up, and a secondary **Choose a video** button (the real input is
+    `sr-only`, labelled "Choose a video");
+  - the outlined fields Title (the file's name until the person writes one, with a counter),
+    Description, Creator (their display name, with help), and Tags (comma-separated, with help);
+  - the thumbnail picker (`ThumbnailPicker`): a 16:9 `rounded-[12px]` preview from a data: URL,
+    **Choose an image**, and help saying a frame stands in without one;
+  - footer buttons: quiet **Cancel**, then primary **Upload**.
+- Once the server takes it, the dialog shows the upload instead: the title, the 8px glowing bar
+  with real bytes ("12.0 MB of 40.0 MB"), and text pills **Cancel upload** (danger text), **Try
+  again** when sending paused, and **Hide**, which keeps it going. It closes itself once the video
+  is in the library; the toast "Uploaded: <title>" with an Open action reports it. Unfinished
+  uploads also show on the Downloads page under **Uploads**, with the same badge and bar, and
+  "Choose the file" to finish one a reload stopped.
 
 ## Account menu
 

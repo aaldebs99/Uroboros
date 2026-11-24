@@ -80,11 +80,11 @@ function setup(routes: Record<string, Handler> = {}) {
 }
 
 async function openLine() {
-  const [create] = await screen.findAllByRole("button", { name: "Create" });
-  if (create === undefined) throw new Error("no Create button");
-  // Create opens the dialog straight away: there is no menu in between.
-  await userEvent.click(create);
-  expect(screen.queryByRole("button", { name: "Download a link" })).not.toBeInTheDocument();
+  const [add] = await screen.findAllByRole("button", { name: "Add" });
+  if (add === undefined) throw new Error("no Add button");
+  // Add opens its menu (a bottom sheet in jsdom, which has no desktop width): Download, Upload.
+  await userEvent.click(add);
+  await userEvent.click(await screen.findByRole("button", { name: "Download" }));
   return screen.findByRole("textbox", { name: "Link" });
 }
 

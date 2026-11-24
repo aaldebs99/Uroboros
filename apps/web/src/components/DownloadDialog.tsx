@@ -17,7 +17,7 @@ import { useStartDownload } from "@/downloads/useStartDownload";
 import { YtDlpDetails } from "@/downloads/YtDlpDetails";
 
 /**
- * "Download a link", opened from the Create menu (the top bar's pill, or the phone's "+"), or by
+ * "Download a link", opened from the Add menu's Download (the top bar's pill, or the phone's "+"), or by
  * the Ctrl+K palette's "Choose a format…" with its link filled in: a form dialog that starts a
  * download in one step. A channel or playlist comes back as a preview on the Downloads page,
  * which also offers Subscribe (Subscriptions › Add subscription is `AddSubscriptionDialog`).

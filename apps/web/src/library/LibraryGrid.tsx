@@ -10,6 +10,7 @@ import { TileSkeleton } from "@/components/ui/skeleton";
 import { notify } from "@/components/ui/sonner";
 
 import { AddToPlaylist } from "./AddToPlaylist";
+import { removeDescription } from "./removeText";
 import { EntryTile, tileGrid } from "./VideoTile";
 
 /** Loads the next page when the sentinel scrolls into view (where IntersectionObserver exists). */
@@ -43,7 +44,7 @@ export function LibraryGrid({ filters, empty }: { filters: LibraryFilters; empty
   const onRemove = (entry: LibraryEntry) => {
     confirm.ask({
       title: `Remove "${entry.title}"?`,
-      description: "It leaves your library. Others who downloaded it keep their copy.",
+      description: removeDescription(entry.origin),
       confirmLabel: "Remove",
       destructive: true,
       onConfirm: () => {

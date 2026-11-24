@@ -2,6 +2,7 @@ import type {
   Download,
   DownloadProgress,
   RequestState,
+  UploadState,
   Subscription,
   SubscriptionItemOutcome,
 } from "@uroboros/contract";
@@ -31,6 +32,20 @@ const PHASE = {
   merging: { label: "Merging", tone: "warning" },
   postprocessing: { label: "Processing", tone: "warning" },
 } as const satisfies Record<DownloadProgress["phase"], Look>;
+
+const UPLOAD = {
+  receiving: (sending) =>
+    sending ? { label: "Uploading", tone: "primary" } : { label: "Paused", tone: "warning" },
+  processing: () => ({ label: "Processing", tone: "warning" }),
+  done: () => ({ label: "Done", tone: "success" }),
+  failed: () => ({ label: "Failed", tone: "destructive" }),
+} as const satisfies Record<UploadState, (sending: boolean) => Look>;
+
+/** An upload's state as an outlined pill: receiving is Uploading while this tab sends it. */
+export function UploadBadge({ state, sending }: { state: UploadState; sending: boolean }) {
+  const { label, tone } = UPLOAD[state](sending);
+  return <Badge tone={tone}>{label}</Badge>;
+}
 
 /** A download request's state as an outlined pill. */
 export function RequestBadge({ state }: { state: RequestState }) {

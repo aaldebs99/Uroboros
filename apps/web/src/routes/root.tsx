@@ -4,6 +4,7 @@ import { Menu, Plus, Search } from "lucide-react";
 import { useState } from "react";
 
 import { Brand } from "@/components/Brand";
+import { AddMenu } from "@/components/AddMenu";
 import { DownloadDialog } from "@/components/DownloadDialog";
 import { NavDrawer } from "@/components/NavDrawer";
 import { SearchBar } from "@/components/SearchBar";
@@ -20,6 +21,8 @@ import { usePaletteShortcut } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 import { isWatchPage } from "@/nav";
 import { usePushSync } from "@/push/usePushSync";
+import { UploadDialog } from "@/uploads/UploadDialog";
+import { UploadProvider } from "@/uploads/UploadProvider";
 
 import { readMini, storeMini } from "./miniNav";
 
@@ -41,16 +44,26 @@ export function RootLayout() {
 
 /**
  * The app shell, on the page colour throughout. From `md` up: a 3.5rem top bar (menu, brand,
- * search, "+ Create", avatar) over the side navigation, full or mini; a watch page gives the
+ * search, "+ Add", avatar) over the side navigation, full or mini; a watch page gives the
  * navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar (menu,
  * brand, search, avatar), the navigation as a drawer that the menu opens or a finger drags in from
  * anywhere, and the bottom tabs. Ctrl+K (⌘K), or the phone's search button, opens the search
- * palette. It also mends this browser's push subscription once per launch.
+ * palette. It also mends this browser's push subscription once per launch. Uploads in progress
+ * live in the shell, so they go on while the person moves around the app.
  */
 function Shell({ me }: { me: Me }) {
+  return (
+    <UploadProvider>
+      <ShellFrame me={me} />
+    </UploadProvider>
+  );
+}
+
+function ShellFrame({ me }: { me: Me }) {
   const [mini, setMini] = useState(readMini);
   const [downloading, setDownloading] = useState(false);
-  /** The link the Download a link dialog starts with: the palette's, or none from Create. */
+  const [uploading, setUploading] = useState(false);
+  /** The link the Download a link dialog starts with: the palette's, or none from Add. */
   const [downloadUrl, setDownloadUrl] = useState("");
   const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
@@ -63,6 +76,9 @@ function Shell({ me }: { me: Me }) {
   const openDownload = () => {
     setDownloadUrl("");
     setDownloading(true);
+  };
+  const openUpload = () => {
+    setUploading(true);
   };
   return (
     <div
@@ -114,16 +130,16 @@ function Shell({ me }: { me: Me }) {
           >
             <Search className="size-5" />
           </Button>
-          {/* Downloading a link is the one thing to create, so Create opens its dialog directly;
-              it becomes a menu once there is more than one. */}
-          <Button
-            variant="icon"
-            className="hidden h-9 rounded-full pr-4 pl-3 md:inline-flex"
-            onClick={openDownload}
-          >
-            <Plus className="size-5" aria-hidden />
-            Create
-          </Button>
+          <AddMenu
+            onDownload={openDownload}
+            onUpload={openUpload}
+            trigger={
+              <Button variant="icon" className="hidden h-9 rounded-full pr-4 pl-3 md:inline-flex">
+                <Plus className="size-5" aria-hidden />
+                Add
+              </Button>
+            }
+          />
           <UserMenu
             me={me}
             onOpenSettings={() => {
@@ -146,8 +162,12 @@ function Shell({ me }: { me: Me }) {
       <main className={cn("px-4 py-6", watching ? "md:p-6" : "md:px-8 md:py-8")}>
         <Outlet />
       </main>
-      <TabBar onDownload={openDownload} />
+      <TabBar onDownload={openDownload} onUpload={openUpload} />
       <DownloadDialog open={downloading} onOpenChange={setDownloading} initialUrl={downloadUrl} />
+      {/* Mounted only while open, so each opening starts a fresh form. */}
+      {uploading ? (
+        <UploadDialog open onOpenChange={setUploading} creator={me.displayName} />
+      ) : null}
       <SearchPalette
         open={searching}
         onOpenChange={setSearching}

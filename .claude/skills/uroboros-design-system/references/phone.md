@@ -56,11 +56,12 @@ A sheet of action rows that slides up from the bottom:
 - Build it from the existing radix `Dialog` or `Sheet` with `side="bottom"`. Keep one component
   that renders a dropdown at `md` and up and a sheet below it.
 
-## Download a link
+## Add: Download or Upload
 
-The **"+"** opens the same centred **Download a link** [dialog](feedback-and-containers.md#dialogs)
-as desktop's Create, inset 24px from the sides. Once there is more than one thing to create, it
-opens them as a bottom sheet (above) instead.
+The **"+"** (`aria-label="Add"`) opens the Add menu as the bottom sheet above, with **Download**
+and **Upload**. Each opens the same centred [dialog](feedback-and-containers.md#dialogs) as on
+desktop (Download a link, Upload a video), inset 24px from the sides; the upload dialog's file area
+is a button there (phones have nothing to drag from).
 
 ## Rules
 

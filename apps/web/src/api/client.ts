@@ -200,6 +200,55 @@ export async function putBytes<S extends z.ZodType>(
   return parseBody(res, `PUT ${path}`, schema);
 }
 
+/**
+ * PUT of raw bytes that expects no body back (204), over XMLHttpRequest so `onProgress` hears the
+ * bytes as they go (fetch can't tell): an upload's part or thumbnail (docs/uploads.md).
+ */
+export function putBytesWithProgress(
+  path: string,
+  body: Blob,
+  opts: { onProgress?: (loaded: number) => void; signal?: AbortSignal } = {},
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", path);
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.setRequestHeader("Content-Type", body.type || "application/octet-stream");
+    const csrf = csrfToken();
+    if (csrf !== null) xhr.setRequestHeader("X-Uroboros-CSRF", csrf);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) opts.onProgress?.(event.loaded);
+    };
+    xhr.onload = () => {
+      if (xhr.status === 401) onUnauthorized?.();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+      const res = new Response(xhr.responseText || null, { status: xhr.status });
+      void failureOf("PUT", path, res).then(reject, reject);
+    };
+    xhr.onerror = () => {
+      reject(new TypeError(`PUT ${path} failed: the network is down`));
+    };
+    xhr.onabort = () => {
+      reject(new DOMException(`PUT ${path} was cancelled`, "AbortError"));
+    };
+    if (opts.signal?.aborted === true) {
+      reject(new DOMException(`PUT ${path} was cancelled`, "AbortError"));
+      return;
+    }
+    opts.signal?.addEventListener(
+      "abort",
+      () => {
+        xhr.abort();
+      },
+      { once: true },
+    );
+    xhr.send(body);
+  });
+}
+
 /** PUT that sends JSON and expects no body back (204). */
 export async function putNoContent(path: string, body: unknown): Promise<void> {
   const res = await send("PUT", path, {

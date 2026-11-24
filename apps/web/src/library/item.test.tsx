@@ -370,6 +370,13 @@ describe("ItemPage editing an upload", () => {
     expect(await within(dialog).findByText("Give it a title.")).toBeInTheDocument();
   });
 
+  it("warns that removing it deletes the upload", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(upload) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    expect(await screen.findByText(/an upload can't be downloaded again/i)).toBeInTheDocument();
+  });
+
   it("offers no editing on a downloaded video", async () => {
     fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
     await renderInRouter(<ItemPage entryId={ID} />);

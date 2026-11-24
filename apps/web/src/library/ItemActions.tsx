@@ -17,6 +17,7 @@ import { formatDuration } from "@/downloads/format";
 import { ShareButton } from "../sharing/ShareDialog";
 import { AddToPlaylist } from "./AddToPlaylist";
 import { EditDetailsDialog } from "./EditDetailsDialog";
+import { removeDescription } from "./removeText";
 
 function ChannelLine({ item }: { item: LibraryItem }) {
   // A real basis (not flex-1's zero): when the row is short the actions wrap below, rather than
@@ -87,7 +88,7 @@ function RemoveButton({ item }: { item: LibraryItem }) {
         onClick={() => {
           confirm.ask({
             title: `Remove "${item.title}"?`,
-            description: "It leaves your library. Others who downloaded it keep their copy.",
+            description: removeDescription(item.origin),
             confirmLabel: "Remove",
             destructive: true,
             onConfirm: () => {

@@ -45,6 +45,7 @@ beforeEach(() => {
 afterEach(() => {
   document.documentElement.classList.remove("dark");
   localStorage.clear();
+  vi.unstubAllGlobals();
 });
 
 describe("app shell", () => {
@@ -151,7 +152,7 @@ describe("app shell", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 
-  it("puts the bottom tabs on phones: Library, Downloads, Create, Subscriptions, You", async () => {
+  it("puts the bottom tabs on phones: Library, Downloads, Add, Subscriptions, You", async () => {
     await renderAt("/");
 
     const tabs = screen.getByRole("navigation", { name: "Tabs" });
@@ -160,7 +161,47 @@ describe("app shell", () => {
         .getAllByRole("link")
         .map((link) => link.textContent),
     ).toEqual(["Library", "Downloads", "Subscriptions", "You"]);
-    expect(within(tabs).getByRole("button", { name: "Create" })).toBeInTheDocument();
+    expect(within(tabs).getByRole("button", { name: "Add" })).toBeInTheDocument();
+  });
+
+  it("adds a video from the phone's + sheet: Download a link, or Upload a video", async () => {
+    await renderAt("/");
+
+    const tabs = screen.getByRole("navigation", { name: "Tabs" });
+    await userEvent.click(within(tabs).getByRole("button", { name: "Add" }));
+    const sheet = await screen.findByRole("dialog", { name: "Add" });
+    expect(
+      within(sheet)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Download", "Upload"]);
+    await userEvent.click(within(sheet).getByRole("button", { name: "Upload" }));
+    expect(await screen.findByRole("dialog", { name: "Upload a video" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Creator")).toHaveValue("Alice");
+  });
+
+  it("adds from the top bar's menu on wide screens", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      (query: string) =>
+        ({
+          matches: query === "(min-width: 48rem)",
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        }) as unknown as MediaQueryList,
+    );
+    await renderAt("/");
+
+    const header = screen.getByRole("banner");
+    await userEvent.click(within(header).getByRole("button", { name: "Add" }));
+    const menu = await screen.findByRole("menu", { name: "Add" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => i.textContent),
+    ).toEqual(["Download", "Upload"]);
+    await userEvent.click(within(menu).getByRole("menuitem", { name: "Download" }));
+    expect(await screen.findByRole("dialog", { name: "Download a link" })).toBeInTheDocument();
   });
 
   it("collapses the side navigation to the mini rail and remembers it", async () => {

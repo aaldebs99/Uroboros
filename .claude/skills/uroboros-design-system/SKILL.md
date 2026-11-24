@@ -50,7 +50,7 @@ skill, this skill wins. The existing files are listed in each reference.
    bar, whose menu button opens the navigation as a drawer, and the **bottom tab bar**. Nothing
    may widen a 375px page. Touch targets are at least 44px. At every width a section's page title
    is for screen readers only; a page about one thing shows its title (`showTitle`).
-9. **Show only real features.** No bell, Pause, watched bar, subscriber count or Create menu
+9. **Show only real features.** No bell, Pause, watched bar, subscriber count or Add menu
    item until the feature behind it exists.
 10. **Pages use the whole page.** A page fills the main area from its left margin to its right:
     grids, lists, tables and the watch page grow with the window. Never centre a page in an
@@ -68,14 +68,14 @@ skill, this skill wins. The existing files are listed in each reference.
 
 ## Where each primitive is
 
-| Primitive                                                                                           | Pick                                                                                                                               | Reference                                                        |
-| --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Palette, tokens, type, density, corners, focus, elevation                                           | Today's blues refined; Roboto 14/20; 44px; 10px controls, 16px cards; soft ring                                                    | [foundations](references/foundations.md)                         |
-| Buttons, icon buttons, links, text fields, selects, menus, checkboxes, radios, switches, search     | Glowing primary, tonal delete; underline-on-hover links, label-inside fields, pill search                                          | [actions-and-forms](references/actions-and-forms.md)             |
-| Top bar, side navigation, Create and the download dialog, account menu, chips and tabs, page header | Page-coloured bar and side navigation, Create opening the dialog, inverted chips; header with action right                         | [shell-and-navigation](references/shell-and-navigation.md)       |
-| Video tile, list row, channel header, playlist tile, progress, queue row, preview picker            | Bare thumbnail tiles, stacked playlist tiles, checkbox picker; thick glowing progress bar                                          | [media-and-library](references/media-and-library.md)             |
-| Toasts, status badges, notices, empty states, loading, settings sections, dialogs, tables           | Corner toast with timer line; outlined badges; circled-glyph empty state; flat settings rows, text-button dialogs, gridless tables | [feedback-and-containers](references/feedback-and-containers.md) |
-| Phone shell, library feed, ⋮ sheet, download dialog                                                 | Bottom tabs with a centred +, edge-to-edge feed, bottom sheet                                                                      | [phone](references/phone.md)                                     |
+| Primitive                                                                                       | Pick                                                                                                                               | Reference                                                        |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Palette, tokens, type, density, corners, focus, elevation                                       | Today's blues refined; Roboto 14/20; 44px; 10px controls, 16px cards; soft ring                                                    | [foundations](references/foundations.md)                         |
+| Buttons, icon buttons, links, text fields, selects, menus, checkboxes, radios, switches, search | Glowing primary, tonal delete; underline-on-hover links, label-inside fields, pill search                                          | [actions-and-forms](references/actions-and-forms.md)             |
+| Top bar, side navigation, Add menu and its dialogs, account menu, chips and tabs, page header   | Page-coloured bar and side navigation, an Add menu (Download, Upload), inverted chips; header with action right                    | [shell-and-navigation](references/shell-and-navigation.md)       |
+| Video tile, list row, channel header, playlist tile, progress, queue row, preview picker        | Bare thumbnail tiles, stacked playlist tiles, checkbox picker; thick glowing progress bar                                          | [media-and-library](references/media-and-library.md)             |
+| Toasts, status badges, notices, empty states, loading, settings sections, dialogs, tables       | Corner toast with timer line; outlined badges; circled-glyph empty state; flat settings rows, text-button dialogs, gridless tables | [feedback-and-containers](references/feedback-and-containers.md) |
+| Phone shell, library feed, ⋮ sheet, download dialog                                             | Bottom tabs with a centred +, edge-to-edge feed, bottom sheet                                                                      | [phone](references/phone.md)                                     |
 
 Read the reference for the family you are touching before you write classes.
 

@@ -50,6 +50,19 @@ export function extOf(filename: string): string | null {
 
 const partsOf = (size: number, partBytes: number) => Math.ceil(size / partBytes);
 
+/** 10737418240 → "10 GiB", 1572864 → "1.5 MiB": the cap in words for its person. */
+function sizeText(bytes: number): string {
+  const units = ["bytes", "KiB", "MiB", "GiB"] as const;
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  const shown = Number.isInteger(value) ? String(value) : value.toFixed(1);
+  return `${shown} ${units[unit] ?? "bytes"}`;
+}
+
 /** Part `n`'s size: the part size, or what is left for the last. */
 function sizeOfPart(row: UploadRow, n: number): number {
   const size = Number(row.size_bytes);
@@ -130,7 +143,7 @@ export async function createUpload(
   ) {
     throw new ApiError(
       "payload_too_large",
-      `files of up to ${String(ctx.limits.uploadMaxBytes)} bytes can be uploaded`,
+      `videos of up to ${sizeText(ctx.limits.uploadMaxBytes)} can be uploaded`,
     );
   }
   const id = randomUUID();

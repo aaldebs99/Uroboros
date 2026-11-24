@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Download, Library, Plus, Rss, UserRound, type LucideIcon } from "lucide-react";
 
+import { AddMenu } from "@/components/AddMenu";
 import { Button } from "@/components/ui/button";
 
 type Tab = {
@@ -32,8 +33,11 @@ function TabLink({ tab }: { tab: Tab }) {
   );
 }
 
-/** Phones' bottom tabs: Library, Downloads, a centred "+" (Download a link), Subscriptions, You. */
-export function TabBar({ onDownload }: { onDownload: () => void }) {
+/**
+ * Phones' bottom tabs: Library, Downloads, a centred "+" (the Add sheet: Download or Upload),
+ * Subscriptions, You.
+ */
+export function TabBar({ onDownload, onUpload }: { onDownload: () => void; onUpload: () => void }) {
   return (
     <nav
       aria-label="Tabs"
@@ -43,15 +47,20 @@ export function TabBar({ onDownload }: { onDownload: () => void }) {
         <TabLink key={tab.to} tab={tab} />
       ))}
       <div className="flex flex-1 items-center justify-center">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Create"
-          className="rounded-full border-[0.09375rem] border-foreground"
-          onClick={onDownload}
-        >
-          <Plus className="size-5.5" aria-hidden />
-        </Button>
+        <AddMenu
+          onDownload={onDownload}
+          onUpload={onUpload}
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Add"
+              className="rounded-full border-[0.09375rem] border-foreground"
+            >
+              <Plus className="size-5.5" aria-hidden />
+            </Button>
+          }
+        />
       </div>
       {RIGHT.map((tab) => (
         <TabLink key={tab.to} tab={tab} />

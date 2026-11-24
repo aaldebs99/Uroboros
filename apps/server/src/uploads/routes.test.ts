@@ -75,10 +75,6 @@ async function create(a: OpenAPIHono, over: Record<string, unknown> = {}): Promi
   return Upload.parse(await res.json());
 }
 
-async function codeOf(res: Response): Promise<string> {
-  return ApiErrorBody.parse(await res.json()).code;
-}
-
 describe("starting an upload", () => {
   it("records it receiving, by the uploader unless named, with its tags once each", async () => {
     const me = await signedIn(t.db, { username: "upstart" });
@@ -122,7 +118,10 @@ describe("starting an upload", () => {
       title: "X",
     });
     expect(big.status).toBe(413);
-    expect(await codeOf(big)).toBe("payload_too_large");
+    expect(ApiErrorBody.parse(await big.json())).toEqual({
+      code: "payload_too_large",
+      message: "videos of up to 10 GiB can be uploaded",
+    });
     expect(
       (await post(a, "/api/uploads", { filename: "x.mp4", size: 10, title: " " })).status,
     ).toBe(400);

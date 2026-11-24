@@ -84,6 +84,17 @@ describe("LibraryPage", () => {
     });
   });
 
+  it("warns that removing an upload deletes it", async () => {
+    const upload = { ...entry, profileName: null, origin: "upload" };
+    fakeApi({ "GET /api/library": () => Response.json({ entries: [upload], nextCursor: null }) });
+    await renderInRouter(<LibraryPage />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Actions for Big Buck Bunny" }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    expect(await screen.findByText(/an upload can't be downloaded again/i)).toBeInTheDocument();
+  });
+
   it("puts the sort beside the filter chips, and sorting keeps the filters", async () => {
     fakeApi({ "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }) });
     const onFilters = vi.fn();
