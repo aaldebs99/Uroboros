@@ -8,6 +8,7 @@ import { startDownloadWorkers } from "../worker/downloadWorkers.ts";
 import { DEFAULT_PREFIX } from "../worker/queues.ts";
 import { DEFAULT_SHUTDOWN_GRACE_MS, startWorker } from "../worker/start.ts";
 import type { StartWorkerOptions } from "../worker/start.ts";
+import { transcoderPaths } from "../transcode/binaries.ts";
 import { logToolVersions } from "../worker/versions.ts";
 import { workerDeps } from "../worker/wiring.ts";
 
@@ -66,6 +67,9 @@ export async function main(_argv: string[] = []): Promise<number> {
     }
     throw err;
   }
-  await logToolVersions(logger, { ytdlp: config.worker.ytdlpPath });
+  await logToolVersions(logger, {
+    ytdlp: config.worker.ytdlpPath,
+    transcoder: transcoderPaths().ffmpeg,
+  });
   return runUntilSignal(await startServer(config, logger), logger);
 }

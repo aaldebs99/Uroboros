@@ -20,16 +20,20 @@ describe("logToolVersions", () => {
   it("warns and does not throw when a tool fails", async () => {
     const { log, info, warn } = fakeLog();
     await expect(
-      logToolVersions(log, { ytdlp: "/bin/false", ffmpeg: "/bin/false" }),
+      logToolVersions(log, { ytdlp: "/bin/false", ffmpeg: "/bin/false", transcoder: "/bin/false" }),
     ).resolves.toBeUndefined();
-    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledTimes(3);
     expect(info).not.toHaveBeenCalled();
   });
 
   it("warns and does not throw when a tool is missing", async () => {
     const { log, warn } = fakeLog();
-    await logToolVersions(log, { ytdlp: "/nonexistent/yt-dlp", ffmpeg: "/nonexistent/ffmpeg" });
-    expect(warn).toHaveBeenCalledTimes(2);
+    await logToolVersions(log, {
+      ytdlp: "/nonexistent/yt-dlp",
+      ffmpeg: "/nonexistent/ffmpeg",
+      transcoder: "/nonexistent/transcoder",
+    });
+    expect(warn).toHaveBeenCalledTimes(3);
   });
 
   it("logs the first line of each tool's version output", async () => {
@@ -43,11 +47,16 @@ describe("logToolVersions", () => {
     await logToolVersions(log, {
       ytdlp: stub("yt-dlp", 'echo "$1"; echo 2026.01.01'),
       ffmpeg: stub("ffmpeg", 'echo "ffmpeg version 7.1 $1"; echo second line'),
+      transcoder: stub("transcoder", 'echo "ffmpeg version 8.1.3-Jellyfin $1"'),
     });
     expect(warn).not.toHaveBeenCalled();
     expect(info).toHaveBeenCalledWith({ tool: "yt-dlp", version: "--version" }, "tool version");
     expect(info).toHaveBeenCalledWith(
       { tool: "ffmpeg", version: "ffmpeg version 7.1 -version" },
+      "tool version",
+    );
+    expect(info).toHaveBeenCalledWith(
+      { tool: "transcoder", version: "ffmpeg version 8.1.3-Jellyfin -version" },
       "tool version",
     );
   });

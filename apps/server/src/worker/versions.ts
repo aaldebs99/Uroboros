@@ -11,6 +11,8 @@ export interface ToolPaths {
   ytdlp: string;
   /** Path to ffmpeg. Default `ffmpeg` on PATH. */
   ffmpeg?: string;
+  /** Path to the transcoder's ffmpeg (jellyfin-ffmpeg in the image). Not logged when absent. */
+  transcoder?: string;
 }
 
 async function firstLine(command: string, arg: string): Promise<string> {
@@ -19,14 +21,18 @@ async function firstLine(command: string, arg: string): Promise<string> {
 }
 
 /**
- * Logs the yt-dlp and ffmpeg versions at worker startup. A missing or broken tool is a warning,
- * never a failure: crash-looping the pod would hide the cause, while a download job fails later
- * with a clear error. This is the only place a child process is spawned outside a job.
+ * Logs the yt-dlp, ffmpeg and transcoder versions at worker startup. A missing or broken tool is
+ * a warning, never a failure: crash-looping the pod would hide the cause, while a download job
+ * fails later with a clear error. Besides this, the transcoder's startup self-test
+ * (`checkEncoder`) is the only child process spawned outside a job.
  */
 export async function logToolVersions(log: Logger, paths: ToolPaths): Promise<void> {
   const tools: [name: string, command: string, arg: string][] = [
     ["yt-dlp", paths.ytdlp, "--version"],
     ["ffmpeg", paths.ffmpeg ?? "ffmpeg", "-version"],
+    ...(paths.transcoder === undefined
+      ? []
+      : [["transcoder", paths.transcoder, "-version"] as [string, string, string]]),
   ];
   await Promise.all(
     tools.map(async ([tool, command, arg]) => {

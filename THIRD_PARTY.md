@@ -15,6 +15,7 @@ Built `FROM node:<version>-trixie-slim` (Debian 13).
 | Python 3 and its venv module   | Python Software Foundation License                    | Debian's `python3` packages                                                              |
 | yt-dlp (`/opt/yt-dlp`)         | Unlicense (public domain)                             | https://github.com/yt-dlp/yt-dlp, pinned in `scripts/image/requirements.txt`             |
 | ffmpeg and ffprobe             | GNU GPL version 3                                     | yt-dlp's FFmpeg build, see below                                                         |
+| jellyfin-ffmpeg (transcoding)  | GNU GPL version 3, with its bundled libraries' own    | Jellyfin's Debian package, see below                                                     |
 | tini (PID 1)                   | MIT                                                   | Debian's `tini` package; copyright under `/usr/share/doc/tini/`                          |
 | The server bundle (`/app`)     | MIT (Uroboros), plus the bundled npm dependencies     | `/usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt`, see below                        |
 | The web app (`/app/web`)       | MIT (Uroboros), plus React and the other npm packages | `/usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt`                                   |
@@ -60,7 +61,21 @@ checksums. Distributing the Uroboros image outside that registry means making th
 available alongside it on the same terms, for instance by distributing the pinned mirror image
 too. Building the image needs a login to the registry (`docker login code.example.com`).
 
-### Future: transcoding
+### jellyfin-ffmpeg
 
-Transcoding, when it exists, will use jellyfin-ffmpeg (https://github.com/jellyfin/jellyfin-ffmpeg,
-GPL) instead of this build. This file will list it when the image does.
+Playback sessions (docs/transcoding.md) transcode with jellyfin-ffmpeg
+(https://github.com/jellyfin/jellyfin-ffmpeg): FFmpeg with Jellyfin's patches, built as a GPL
+version 3 build, and the libraries and VA-API drivers it bundles (among them Mesa's radeonsi and
+Intel's iHD drivers, dav1d, SVT-AV1 and libass) under `/usr/lib/jellyfin-ffmpeg/`. The image
+installs Jellyfin's `jellyfin-ffmpeg8` Debian 13 package from the project's GitHub release, pinned
+in the Dockerfile by release tag and the package's sha256; apt adds the Debian libraries it depends
+on, each with its own copyright file. It is not on PATH: `ffmpeg` stays yt-dlp's build above.
+
+The image contains the package's Debian copyright file, which lists the licence of every part, at
+`/usr/share/doc/jellyfin-ffmpeg8/copyright`, and `/usr/share/licenses/jellyfin-ffmpeg/SOURCE.md`,
+which names the release.
+
+Corresponding source: the release's tag in the jellyfin-ffmpeg repository holds the FFmpeg source
+with Jellyfin's patches and the build scripts, which fetch each bundled library's pinned source.
+The image does not carry that source. Distributing the image means making it available alongside
+on the same terms, for instance by mirroring that tag and the library sources it names.

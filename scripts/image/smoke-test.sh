@@ -4,12 +4,14 @@
 #   image   runs as 65532:65532 with tini as PID 1; `yt-dlp --version` and `ffmpeg -version`
 #           answer, no other downloader is installed, ffmpeg and ffprobe are the pinned mirror's
 #           yt-dlp build (a GPL build, with its licence, SOURCE.md, notices and library licences
-#           under /usr/share/licenses/ffmpeg), the npm notices are under
-#           /usr/share/licenses/uroboros, and /media is writable.
+#           under /usr/share/licenses/ffmpeg), jellyfin-ffmpeg is the pinned transcoder package
+#           with the encoders and filters playback sessions use, its copyright and SOURCE.md, and
+#           writes fragmented MP4 to a pipe, the npm notices are under /usr/share/licenses/uroboros,
+#           and /media is writable.
 #   server  starts on an empty database and applies the migrations itself, answers
 #           {"status":"ok"} on /api/health (liveness) and {"status":"ok","failing":[]} on
 #           /api/ready, takes the leader lock, starts its job consumers and logs both tool
-#           versions, after which the manual migrate finds nothing to do and exits 0; it serves its
+#           versions and the transcoder's, after which the manual migrate finds nothing to do and exits 0; it serves its
 #           OpenAPI document and the Swagger UI bundle it ships, falls back to the SPA's
 #           index.html on a deep link, and exits 0 on SIGTERM.
 #
@@ -31,6 +33,11 @@ NODE_VERSION="$(sed -n 's/^ARG NODE_VERSION=//p' "$(dirname "$0")/../../Dockerfi
 FFMPEG_TAG="$(sed -n 's/^FROM .*\/ffmpeg-ytdlp:\([^@ ]*\)@sha256:[0-9a-f]* AS ffmpeg$/\1/p' "$(dirname "$0")/../../Dockerfile")"
 test -n "${FFMPEG_TAG}" || { echo "no ffmpeg-ytdlp mirror pin in the Dockerfile" >&2; exit 1; }
 FFMPEG_DATE="$(echo "${FFMPEG_TAG}" | sed -n 's/^autobuild-\([0-9]*\)-\([0-9]*\)-\([0-9]*\)-.*$/\1\2\3/p')"
+
+# The transcoder package the image must carry: the Dockerfile's jellyfin-ffmpeg pin.
+JELLYFIN_FFMPEG_VERSION="$(sed -n 's/^ARG JELLYFIN_FFMPEG_VERSION=//p' "$(dirname "$0")/../../Dockerfile")"
+test -n "${JELLYFIN_FFMPEG_VERSION}" || { echo "no jellyfin-ffmpeg pin in the Dockerfile" >&2; exit 1; }
+JF=/usr/lib/jellyfin-ffmpeg
 
 SUFFIX="$$"
 NETWORK="uroboros-smoke-${SUFFIX}"
@@ -175,6 +182,21 @@ check "ffmpeg licence, SOURCE.md, notices and library licences are installed, th
     "test -s /usr/share/licenses/ffmpeg/LICENSE && grep -q 'GNU GENERAL PUBLIC LICENSE' /usr/share/licenses/ffmpeg/LICENSE && grep -qF '${FFMPEG_TAG}' /usr/share/licenses/ffmpeg/SOURCE.md && grep -q '/usr/src/ffmpeg-ytdlp' /usr/share/licenses/ffmpeg/SOURCE.md && test -s /usr/share/licenses/ffmpeg/NOTICES.md && test -n \"\$(find /usr/share/licenses/ffmpeg/libs -type f)\" && test ! -e /usr/src/ffmpeg-ytdlp"
 check "no apt ffmpeg: the binaries are the ones in /usr/local/bin" docker run --rm --entrypoint sh "${IMAGE}" -c \
     "test \"\$(command -v ffmpeg)\" = /usr/local/bin/ffmpeg && test \"\$(command -v ffprobe)\" = /usr/local/bin/ffprobe && ! dpkg -s ffmpeg"
+# The transcoder: jellyfin-ffmpeg's pinned package (a GPL build), off PATH, with what the playback
+# pipelines need (docs/transcoding.md): the CPU, NVENC and VA-API H.264 encoders, the GPU scalers
+# and tone mappers, and fragmented MP4 written to a pipe.
+check "jellyfin-ffmpeg is the pinned package (${JELLYFIN_FFMPEG_VERSION})" docker run --rm --entrypoint sh "${IMAGE}" -c \
+    "test \"\$(dpkg-query -W -f='\${Version}' jellyfin-ffmpeg8)\" = '${JELLYFIN_FFMPEG_VERSION#v}-trixie' && \
+     ${JF}/ffmpeg -version | sed -n 1p | grep -q Jellyfin && ${JF}/ffmpeg -version | grep -q -- '--enable-gpl' && \
+     ${JF}/ffprobe -version | sed -n 1p | grep -q Jellyfin"
+check "jellyfin-ffmpeg has the encoders and filters playback uses" docker run --rm --entrypoint sh "${IMAGE}" -c \
+    "e=\$(${JF}/ffmpeg -hide_banner -encoders) && f=\$(${JF}/ffmpeg -hide_banner -filters) && \
+     for x in libx264 h264_nvenc h264_vaapi aac; do echo \"\$e\" | grep -q \" \$x \" || exit 1; done && \
+     for x in tonemapx scale_cuda tonemap_cuda hwupload_cuda scale_vaapi setparams; do echo \"\$f\" | grep -q \" \$x \" || exit 1; done"
+check "jellyfin-ffmpeg's copyright and SOURCE.md are installed" docker run --rm --entrypoint sh "${IMAGE}" -c \
+    "grep -q 'Upstream-Name: FFmpeg' /usr/share/doc/jellyfin-ffmpeg8/copyright && grep -qF 'tag/${JELLYFIN_FFMPEG_VERSION}' /usr/share/licenses/jellyfin-ffmpeg/SOURCE.md"
+check "jellyfin-ffmpeg writes fragmented MP4 to a pipe" docker run --rm --entrypoint sh "${IMAGE}" -c \
+    "test \"\$(${JF}/ffmpeg -hide_banner -loglevel error -f lavfi -i testsrc2=s=320x180:d=1 -c:v libx264 -f mp4 -movflags +frag_keyframe+empty_moov+default_base_moof pipe:1 2>/dev/null | head -c 8 | tail -c 4)\" = ftyp"
 check "carries the npm notices (fonts included) and Uroboros' licence" docker run --rm --entrypoint sh "${IMAGE}" -c \
     "grep -q '@fontsource-variable/roboto@' /usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt && grep -q 'swagger-ui-dist@' /usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt && grep -q 'pg@' /usr/share/licenses/uroboros/THIRD_PARTY_NOTICES.txt && grep -q MIT /usr/share/licenses/uroboros/LICENSE"
 # yt-dlp is the only downloader; none of its forks may be on the image.
@@ -201,6 +223,7 @@ check "took the leader lock" wait_for 20 logged "leader acquired"
 check "started its job consumers" wait_for 20 logged "job consumers started"
 check "logged the yt-dlp version" logged_version yt-dlp
 check "logged the ffmpeg version" logged_version ffmpeg
+check "logged the transcoder version" logged_version transcoder
 check "tini is PID 1" test "$(docker exec "${SERVER}" cat /proc/1/comm)" = tini
 check "the server runs as uid 65532" test "$(docker exec "${SERVER}" id -u)" = 65532
 # The image's CMD is the server; the manual migrate is the same image with another CMD.

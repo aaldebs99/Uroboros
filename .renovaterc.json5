@@ -208,6 +208,19 @@
       automerge: false,
     },
     {
+      // jellyfin-ffmpeg, the transcoder (Dockerfile, custom manager below): reviewed like the
+      // download ffmpeg, `build(image)`, never a `feat!`; the soak applies (GitHub releases carry
+      // their dates). A new major also renames the package (jellyfin-ffmpeg8), which the
+      // Dockerfile's URL and the smoke test name, so it needs a hand anyway.
+      description: "jellyfin-ffmpeg, reviewed",
+      matchDepNames: ["jellyfin/jellyfin-ffmpeg"],
+      semanticCommitType: "build",
+      semanticCommitScope: "image",
+      commitMessageTopic: "tool jellyfin-ffmpeg",
+      commitMessagePrefix: "{{semanticCommitType}}({{semanticCommitScope}}):",
+      automerge: false,
+    },
+    {
       // package.json runs two compilers side by side: `@typescript/native` is an alias for
       // `typescript@7` (the native `tsc` that typecheck/build run), and `typescript` is an alias
       // for `@typescript/typescript6`, the JS API that typescript-eslint loads (it does not
@@ -295,6 +308,21 @@
       ],
       datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}docker{{/if}}",
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
+    },
+    {
+      // jellyfin-ffmpeg, the transcoder: the Dockerfile's release tag and the .deb's sha256 move
+      // together. github-release-attachments finds the attachment of the pinned release whose
+      // sha256 is the pinned one and hashes the same attachment of the new release. The annotated
+      // ARG manager above does not match these lines (they carry no `# renovate:` comment).
+      customType: "regex",
+      description: "jellyfin-ffmpeg's release and .deb checksum in the Dockerfile",
+      managerFilePatterns: ["/(^|/)Dockerfile$/"],
+      matchStrings: [
+        "ARG JELLYFIN_FFMPEG_VERSION=(?<currentValue>v\\S+)\\nARG JELLYFIN_FFMPEG_SHA256=(?<currentDigest>[0-9a-f]{64})",
+      ],
+      depNameTemplate: "jellyfin/jellyfin-ffmpeg",
+      datasourceTemplate: "github-release-attachments",
+      versioningTemplate: "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d+)$",
     },
     {
       // The pinned validator in the `lint:renovate` task (`pnpm dlx ... --package renovate@X`).

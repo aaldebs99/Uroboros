@@ -4,7 +4,8 @@
 # dist/*.mjs files, so the image carries no node_modules:
 #
 #     build (pnpm install, server + web build) ──┬──> uroboros (Debian slim Node + static ffmpeg +
-#                                                │             pinned yt-dlp; the last stage)
+#                                                │             pinned yt-dlp + jellyfin-ffmpeg;
+#                                                │             the last stage)
 #                                                └──> dev      (the build stage plus the same tools,
 #                                                              for compose.dev.yaml's hot reload)
 #
@@ -22,6 +23,11 @@ ARG PNPM_VERSION=12.12.1
 # Stamped into the image labels.
 ARG VERSION=0.0.0-dev
 ARG REVISION=unknown
+# The transcoder (docs/transcoding.md): jellyfin-ffmpeg's Debian 13 package, by release tag and the
+# .deb's sha256 (a custom manager in .renovaterc.json5 moves both). The package name carries the
+# major version (jellyfin-ffmpeg8), so a new major is a reviewed edit, not just a bump.
+ARG JELLYFIN_FFMPEG_VERSION=v8.1.3-2
+ARG JELLYFIN_FFMPEG_SHA256=82bd7422530740af738891c54b548eadf9bb572ff875976eddbe231e6f02482b
 
 # --- build: install the workspace from the lockfile and build the server bundles and the SPA.
 # pnpm is installed from the npm registry (sha512-verified by npm), not via corepack: Node
@@ -71,15 +77,29 @@ COPY migrations migrations
 # (.renovaterc.json5).
 FROM code.example.com/aaldebs99/ffmpeg-ytdlp:autobuild-2026-10-31-18-18@sha256:929ec76e4767e6e925b264743d2640ce3d4e0989a482c8cdebf7bac57ab8e748 AS ffmpeg
 
+# --- jellyfin-ffmpeg: the transcoder's package, fetched once and checked against its pinned
+# sha256. The stages below install it from a bind mount, so the .deb never lands in a layer. It
+# brings its own libraries and VA-API drivers (Mesa radeonsi, Intel iHD) under
+# /usr/lib/jellyfin-ffmpeg/; NVENC uses the driver the NVIDIA container runtime mounts.
+FROM scratch AS jellyfin-ffmpeg
+ARG JELLYFIN_FFMPEG_VERSION
+ARG JELLYFIN_FFMPEG_SHA256
+ADD --checksum=sha256:${JELLYFIN_FFMPEG_SHA256} \
+    https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/${JELLYFIN_FFMPEG_VERSION}/jellyfin-ffmpeg8_${JELLYFIN_FFMPEG_VERSION#v}-trixie_amd64.deb \
+    /jellyfin-ffmpeg.deb
+
 # --- dev: the build stage (node, pnpm, the installed workspace) plus the image's tools, so the
 # hot-reload stack (compose.dev.yaml) downloads like the real thing. Runs `tsx watch` as root over
 # the mounted sources; never published.
 FROM build AS dev
 COPY scripts/image/install-*.sh /tmp/scripts/
 COPY scripts/image/requirements.txt /tmp/scripts/
-RUN chmod +x /tmp/scripts/*.sh && \
+ARG JELLYFIN_FFMPEG_VERSION
+RUN --mount=type=bind,from=jellyfin-ffmpeg,source=/jellyfin-ffmpeg.deb,target=/tmp/jellyfin-ffmpeg.deb \
+    chmod +x /tmp/scripts/*.sh && \
     /tmp/scripts/install-apt-packages.sh && \
     /tmp/scripts/install-pip-packages.sh /tmp/scripts/requirements.txt /opt/yt-dlp && \
+    /tmp/scripts/install-jellyfin-ffmpeg.sh /tmp/jellyfin-ffmpeg.deb "${JELLYFIN_FFMPEG_VERSION}" && \
     rm -rf /tmp/scripts /var/lib/apt/lists/*
 COPY --from=ffmpeg /usr/local/bin/ffmpeg /usr/local/bin/ffprobe /usr/local/bin/
 ENV YTDLP_PATH=/opt/yt-dlp/bin/yt-dlp
@@ -87,15 +107,19 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # --- uroboros: the image. Debian slim Node with tini as PID 1, python3, yt-dlp's static ffmpeg (from the ffmpeg
 # stage, with its licences and notices; glibc and libgcc_s, the only libraries it needs, come from
-# this base) and a venv holding the one downloader, yt-dlp, pinned with hashes in
+# this base), a venv holding the one downloader, yt-dlp, pinned with hashes in
 # scripts/image/requirements.txt (Renovate's pip_requirements manager) and installed with
-# --require-hashes. yt-dlp is the only downloader.
+# --require-hashes, and jellyfin-ffmpeg for transcoding (/usr/lib/jellyfin-ffmpeg/). yt-dlp is
+# the only downloader; its ffmpeg serves downloads, jellyfin-ffmpeg only playback sessions.
 FROM node:${NODE_VERSION}-trixie-slim AS uroboros
+ARG JELLYFIN_FFMPEG_VERSION
 COPY scripts/image/install-*.sh /tmp/scripts/
 COPY scripts/image/requirements.txt /tmp/scripts/
-RUN chmod +x /tmp/scripts/*.sh && \
+RUN --mount=type=bind,from=jellyfin-ffmpeg,source=/jellyfin-ffmpeg.deb,target=/tmp/jellyfin-ffmpeg.deb \
+    chmod +x /tmp/scripts/*.sh && \
     /tmp/scripts/install-apt-packages.sh && \
     /tmp/scripts/install-pip-packages.sh /tmp/scripts/requirements.txt /opt/yt-dlp && \
+    /tmp/scripts/install-jellyfin-ffmpeg.sh /tmp/jellyfin-ffmpeg.deb "${JELLYFIN_FFMPEG_VERSION}" && \
     rm -rf /tmp/scripts /var/lib/apt/lists/* && \
     groupadd --gid 65532 uroboros && \
     useradd --uid 65532 --gid uroboros --create-home --home-dir /home/uroboros --shell /usr/sbin/nologin uroboros && \
