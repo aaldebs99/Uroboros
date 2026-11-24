@@ -153,8 +153,8 @@ unless the person turned the kind's pushes off in Settings › Notifications (`G
 
 ## The API document
 
-`/api/docs` reads `/api/openapi.json`, whose overview explains tokens (`Authorization: Bearer`, and
-the routes a token cannot use), the session cookie with the `X-Uroboros-CSRF` header, errors,
+`/api/docs` reads `/api/openapi.json`, whose overview explains tokens (`Authorization: Bearer`, the
+routes a token cannot use, its scopes and read-only), the session cookie with the `X-Uroboros-CSRF` header, errors,
 paging and the event stream. It declares both ways in (`bearerAuth`, `cookieAuth`) for every route
 and marks the routes anyone may call with no security, so Swagger's **Authorize** takes a token and
 "Try it out" works (`src/api/openapiDoc.ts`).

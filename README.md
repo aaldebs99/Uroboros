@@ -6,7 +6,11 @@ run as several replicas. It ships with:
 - **API**: [Hono](https://hono.dev) with `GET /api/health` (liveness), `GET /api/ready`
   (readiness), `GET /api/info`, OpenAPI generated from the routes and Swagger UI, typed
   `{ code, message }` errors, and the SPA served behind a deep-link fallback. The server is
-  stateless and runs as several replicas; one of them at a time holds the leader lock.
+  stateless and runs as several replicas; one of them at a time holds the leader lock. Personal API
+  tokens are scoped to the REST API, the MCP server or both, and may be read-only.
+- **MCP server**: `/api/mcp`, for AI tools such as Claude Code, Cursor and VS Code: searching the
+  library and its transcripts, saving videos, playlists and subscriptions, as the token's owner. An
+  admin turns it on under Admin › Server ([docs/mcp.md](docs/mcp.md)).
 - **Download jobs**: a job queue on Postgres ([docs/jobs.md](docs/jobs.md)), consumed by every
   replica beside its HTTP, with a graceful shutdown that hands a running download to another replica.
   They run [yt-dlp](https://github.com/yt-dlp/yt-dlp), the only downloader, and ffmpeg.
