@@ -114,6 +114,22 @@ describe("parseVtt", () => {
     expect(segments.map((s) => s.text).join(" ")).toBe(line);
   });
 
+  it("reads hostile lines in linear time", () => {
+    const quick = (line: string) => {
+      const started = performance.now();
+      const segments = parseVtt(vtt(cue(0, 1, line)));
+      return { ms: performance.now() - started, segments };
+    };
+    // Bracket groups and punctuation that a backtracking pattern would try 2^40 ways.
+    for (const line of ["[]".repeat(40) + "a", "[\u266a] ".repeat(40) + "a", "<".repeat(80_000)]) {
+      expect(quick(line).ms, line.slice(0, 12)).toBeLessThan(200);
+    }
+    // One enormous line is cut to its start, not split a piece at a time.
+    const huge = quick("word ".repeat(400_000));
+    expect(huge.ms).toBeLessThan(500);
+    expect(huge.segments.length).toBeLessThanOrEqual(20);
+  });
+
   it("stops at the segment cap", () => {
     const cues = Array.from({ length: 20 }, (_, i) => cue(i * 10, i * 10 + 1, `line ${String(i)}`));
     expect(parseVtt(vtt(...cues), 3).map((s) => s.text)).toEqual(["line 0", "line 1", "line 2"]);

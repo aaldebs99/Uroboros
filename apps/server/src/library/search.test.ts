@@ -245,12 +245,34 @@ describe("where a search matched", () => {
 
 describe("underSearchTimeout", () => {
   it("cuts a search that runs too long short with a 503", async () => {
-    const slow = underSearchTimeout(testDb.db, (tx) => sql`SELECT pg_sleep(2)`.execute(tx), 50);
+    const slow = underSearchTimeout(testDb.db, (tx) => sql`SELECT pg_sleep(2)`.execute(tx), {
+      timeoutMs: 50,
+    });
     await expect(slow).rejects.toMatchObject({ code: "unavailable" });
     await expect(slow).rejects.toBeInstanceOf(ApiError);
     const quick = await underSearchTimeout(testDb.db, (tx) =>
       sql<{ n: number }>`SELECT 1 AS n`.execute(tx),
     );
     expect(quick.rows).toEqual([{ n: 1 }]);
+  });
+
+  it("refuses a search at once while too many run on this replica, so they can't take the pool", async () => {
+    const opts = { maxConcurrent: 2 };
+    const sleep = () =>
+      underSearchTimeout(testDb.db, (tx) => sql`SELECT pg_sleep(0.3)`.execute(tx), opts);
+    const running = [sleep(), sleep()];
+    const started = performance.now();
+    const refused = underSearchTimeout(testDb.db, (tx) => sql`SELECT 1`.execute(tx), opts);
+    await expect(refused).rejects.toMatchObject({ code: "unavailable" });
+    await expect(refused).rejects.toThrow(/too many/);
+    expect(performance.now() - started).toBeLessThan(200);
+    await Promise.all(running);
+    // Their slots are free again, even after a failure.
+    await expect(
+      underSearchTimeout(testDb.db, () => Promise.reject(new Error("boom")), opts),
+    ).rejects.toThrow("boom");
+    await expect(
+      underSearchTimeout(testDb.db, (tx) => sql`SELECT 1`.execute(tx), opts),
+    ).resolves.toBeDefined();
   });
 });

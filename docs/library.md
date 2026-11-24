@@ -53,7 +53,10 @@ is stemmed (`src/library/searchTerms.ts`, `src/library/search.ts`).
   the caller's own media (`(m.id IN (SELECT media_id FROM owned)) IS TRUE`, a hashed filter), so the
   planner never walks a whole library to filter it; the page then joins them as `h`.
 - **Bound.** A search runs under `SET LOCAL statement_timeout = '10s'`; one cut short (a common word
-  like "the" in a very large library) is 503 `unavailable`, asking for more specific words.
+  like "the" in a very large library) is 503 `unavailable`, asking for more specific words. At most
+  4 searches run at once on a replica (each holds a pooled connection, and the pool also serves
+  the job consumers); one more is 503 at once. The web never retries a search refused with 400 or
+  503 (`retryLibrary`).
 
 - **Where it matched.** With `q`, each entry carries `match` (`src/library/searchMatches.ts`): the
   best place it matched that the tile doesn't show already, the first chapter, else the
@@ -198,7 +201,8 @@ the `.info.json` into `media.chapters`.
 - **Parsing.** WebVTT cues lose their tags, inline timestamps and entities; YouTube's rolling auto
   captions (each cue repeats the last line, and 10 ms cues repeat everything) are read once each,
   a repeated line stretching the one already read; lines that are only a sound tag (`[Music]`) or
-  notes are dropped. Lines join into runs of at most 240 characters and 30 seconds, a silence of 5
+  notes are dropped. Only the first 4096 characters of a payload line are read, and every pattern
+  runs in linear time, so a hostile file cannot stall the replica parsing it. Lines join into runs of at most 240 characters and 30 seconds, a silence of 5
   seconds starting a new one, and each run keeps where and when every line begins, so a match can
   play from its own line. A line over 400 characters is cut between words.
 - **Which tracks.** One per language (the code before any `-`): manual over automatic, then the

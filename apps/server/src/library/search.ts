@@ -74,19 +74,29 @@ export function hitsTable(
 }
 
 /**
+ * Searches running on this replica at once. Each holds a pooled connection for up to its bound,
+ * and the pool also serves the job consumers, so one past this is refused at once.
+ */
+export const MAX_CONCURRENT_SEARCHES = 4;
+let running = 0;
+
+/**
  * Runs `fn` in a transaction bounded by `statement_timeout`; a search cut short is 503
- * `unavailable`, asking for more specific words.
+ * `unavailable`, asking for more specific words, and so is one while `maxConcurrent` others run.
  */
 export async function underSearchTimeout<T>(
   db: Kysely<Database>,
   fn: (tx: Transaction<Database>) => Promise<T>,
-  timeoutMs = SEARCH_TIMEOUT_MS,
+  opts: { timeoutMs?: number; maxConcurrent?: number } = {},
 ): Promise<T> {
+  if (running >= (opts.maxConcurrent ?? MAX_CONCURRENT_SEARCHES)) {
+    throw new ApiError("unavailable", "too many searches at once; try again in a moment");
+  }
+  running++;
+  const ms = Math.max(1, Math.floor(opts.timeoutMs ?? SEARCH_TIMEOUT_MS));
   try {
     return await db.transaction().execute(async (tx) => {
-      await sql`SET LOCAL statement_timeout = ${sql.raw(String(Math.max(1, Math.floor(timeoutMs))))}`.execute(
-        tx,
-      );
+      await sql`SET LOCAL statement_timeout = ${sql.raw(String(ms))}`.execute(tx);
       return fn(tx);
     });
   } catch (err) {
@@ -94,5 +104,7 @@ export async function underSearchTimeout<T>(
       throw new ApiError("unavailable", "the search took too long; try more specific words");
     }
     throw err;
+  } finally {
+    running--;
   }
 }

@@ -103,19 +103,23 @@ function decode(text: string): string {
   });
 }
 
-/** Only sound tags, notes or punctuation: no words to find. */
-const WORDLESS = /^(?:\[[^\]]*\]|[\s\p{P}\p{S}])*$/u;
+/** Sound tags (`[Music]`), removed only to see whether any words are left. */
+const SOUND_TAG = /\[[^[\]]*\]/g;
+/** Nothing but notes, punctuation and spaces. Every pattern here runs in linear time. */
+const NO_WORDS = /^[\s\p{P}\p{S}]*$/u;
 const CONTROL = /\p{Cc}/gu;
+/** Of a payload line, only this much is read: no caption line is longer, and a hostile one is. */
+const MAX_RAW_LINE = 4096;
 
 /** The words of a payload line: no tags or inline timestamps, entities decoded, one line. */
 export function cleanLine(raw: string): string {
-  const text = decode(raw.replace(/<[^>]*>/g, ""))
+  const text = decode(raw.slice(0, MAX_RAW_LINE).replace(/<[^<>]*>/g, ""))
     .replace(CONTROL, " ")
     .replace(/\s+/g, " ")
     .trim()
     // YouTube's speaker change.
     .replace(/^(?:>>\s*)+/, "");
-  return WORDLESS.test(text) ? "" : text;
+  return NO_WORDS.test(text.replace(SOUND_TAG, "")) ? "" : text;
 }
 
 /**
@@ -150,14 +154,14 @@ function pieces(line: Line): Line[] {
   const chars = Array.from(line.text);
   if (chars.length <= MAX_LINE_CHARS) return [line];
   const out: Line[] = [];
-  let rest = chars;
-  while (rest.length > MAX_LINE_CHARS) {
-    const space = rest.lastIndexOf(" ", MAX_LINE_CHARS);
-    const cut = space > 0 ? space : MAX_LINE_CHARS;
-    out.push({ ...line, text: rest.slice(0, cut).join("") });
-    rest = rest.slice(space > 0 ? cut + 1 : cut);
+  let at = 0;
+  while (chars.length - at > MAX_LINE_CHARS) {
+    const space = chars.lastIndexOf(" ", at + MAX_LINE_CHARS);
+    const cut = space > at ? space : at + MAX_LINE_CHARS;
+    out.push({ ...line, text: chars.slice(at, cut).join("") });
+    at = space > at ? cut + 1 : cut;
   }
-  if (rest.length > 0) out.push({ ...line, text: rest.join("") });
+  if (at < chars.length) out.push({ ...line, text: chars.slice(at).join("") });
   return out;
 }
 
