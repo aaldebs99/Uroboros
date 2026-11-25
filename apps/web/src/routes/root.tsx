@@ -135,21 +135,19 @@ function ShellFrame({ me }: { me: Me }) {
           >
             <Search className="size-5" />
           </Button>
-          <AddMenu
-            onDownload={openDownload}
-            onUpload={openUpload}
-            trigger={
-              // A round "+" on phones; the "+ Add" pill from md up.
-              <Button
-                variant="icon"
-                aria-label="Add"
-                className="size-10 rounded-full md:h-9 md:w-auto md:pr-4 md:pl-3"
-              >
-                <Plus className="size-5" aria-hidden />
-                <span className="hidden md:inline">Add</span>
-              </Button>
-            }
-          />
+          {/* The "+ Add" pill from md up; phones add from the tab bar's centred "+" alone. */}
+          {desktop ? (
+            <AddMenu
+              onDownload={openDownload}
+              onUpload={openUpload}
+              trigger={
+                <Button variant="icon" aria-label="Add" className="h-9 rounded-full pr-4 pl-3">
+                  <Plus className="size-5" aria-hidden />
+                  Add
+                </Button>
+              }
+            />
+          ) : null}
           <NoticesButton />
           <UserMenu
             me={me}

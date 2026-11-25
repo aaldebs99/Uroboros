@@ -13,7 +13,8 @@ export interface RouteTab {
     | "/settings"
     | "/settings/logins"
     | "/settings/profiles"
-    | "/settings/groups";
+    | "/settings/groups"
+    | "/settings/tokens";
   label: string;
 }
 

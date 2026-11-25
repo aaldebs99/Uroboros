@@ -1,14 +1,22 @@
 import type { NewApiToken, TokenScope } from "@uroboros/contract";
-import { KeyRound } from "lucide-react";
 import { useState, type SubmitEvent } from "react";
 
 import { useCreateToken } from "@/api/account";
 import { errorText } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { notify } from "@/components/ui/sonner";
 
+import { NewTokenSecret } from "./NewTokenSecret";
 import { SCOPE_LABELS } from "./tokenLabels";
 
 const SCOPE_HELP: Record<TokenScope, string> = {
@@ -56,8 +64,8 @@ function CheckRow({
   );
 }
 
-/** Makes a token: its name, what it reaches (at least one), and whether it only reads. */
-export function TokenForm({
+/** The token's options: its name, what it reaches (at least one), and whether it only reads. */
+function TokenForm({
   mcpEnabled,
   onCreated,
 }: {
@@ -80,10 +88,7 @@ export function TokenForm({
     create.mutate(
       { name: name.trim(), scopes: wanted, readOnly },
       {
-        onSuccess: (made) => {
-          onCreated(made);
-          setName("");
-        },
+        onSuccess: onCreated,
         onError: (error) => {
           notify.error(`Could not create the token: ${errorText(error)}`);
         },
@@ -91,7 +96,7 @@ export function TokenForm({
     );
   };
   return (
-    <form className="grid max-w-xl gap-3" onSubmit={submit}>
+    <form className="grid gap-3" onSubmit={submit}>
       <Field
         label="Token name"
         id="token-name"
@@ -131,12 +136,61 @@ export function TokenForm({
         checked={readOnly}
         onChange={setReadOnly}
       />
-      <div>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="quiet">
+            Cancel
+          </Button>
+        </DialogClose>
         <Button type="submit" disabled={create.isPending || wanted.length === 0}>
-          <KeyRound aria-hidden />
-          {create.isPending ? "Creating…" : "Create token"}
+          {create.isPending ? "Creating…" : "Create"}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
+  );
+}
+
+/**
+ * New token, in a form dialog: the options, then Create, after which the same dialog shows the
+ * secret this once (and for an MCP token how to connect a client) until Done. A click outside
+ * doesn't close it then, so the secret isn't lost by accident.
+ */
+export function TokenDialog({ mcpEnabled, onClose }: { mcpEnabled: boolean; onClose: () => void }) {
+  const [made, setMade] = useState<NewApiToken | null>(null);
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        onInteractOutside={(event) => {
+          if (made !== null) event.preventDefault();
+        }}
+      >
+        {made === null ? (
+          <>
+            <DialogTitle>New token</DialogTitle>
+            <DialogDescription>
+              For scripts and AI tools. It acts as you, within the access you give it, except for
+              account and admin changes.
+            </DialogDescription>
+            <TokenForm mcpEnabled={mcpEnabled} onCreated={setMade} />
+          </>
+        ) : (
+          <>
+            <DialogTitle>Token created</DialogTitle>
+            <DialogDescription>{`"${made.token.name}" is ready to use.`}</DialogDescription>
+            <NewTokenSecret made={made} />
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button">Done</Button>
+              </DialogClose>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

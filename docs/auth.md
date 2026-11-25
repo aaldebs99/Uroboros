@@ -85,14 +85,15 @@ tokens on the next request. The leader deletes expired sessions and pending sign
 
 People see their signed-in browsers on the Account page and can sign out one, or all but this one.
 Changing your password signs out your other sessions and keeps your API tokens (the Account page
-says so, above the list to revoke them from). An admin resetting it, or disabling the account,
-signs you out everywhere and deletes every API token you have, so nothing made with a stolen
-session outlives the steps taken after a compromise; re-enabling the account brings none of it
-back (`revokeAccess` in `auth/adminUserRoutes.ts`).
+says so, and points to Settings › Tokens, where they are listed to revoke). An admin resetting
+it, or disabling the account, signs you out everywhere and deletes every API token you have, so
+nothing made with a stolen session outlives the steps taken after a compromise; re-enabling the
+account brings none of it back (`revokeAccess` in `auth/adminUserRoutes.ts`).
 
 ## API tokens
 
-`/api/me/tokens` creates (the secret is shown once), lists and revokes personal tokens: 64 hex
+`/api/me/tokens` creates (the secret is shown once), lists and revokes personal tokens, which people
+manage in Settings › Tokens (New token opens a dialog for the options, then shows the secret): 64 hex
 characters sent as `Authorization: Bearer …`, SHA-256 at rest, at most 20 per user, names unique per
 user, and no expiry (Djinn's choices). A token acts as its owner except on
 `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`, `/api/me/sessions*`, `/api/me/push*` and

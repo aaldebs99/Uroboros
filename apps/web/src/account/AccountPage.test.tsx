@@ -32,7 +32,6 @@ function api(over: Parameters<typeof fakeApi>[0] = {}) {
         },
         { id: "bbbbbbbbbbbbbbbb", current: false, userAgent: "Phone", createdAt: T, lastSeenAt: T },
       ]),
-    "GET /api/me/tokens": () => Response.json({ mcp: { enabled: false }, tokens: [] }),
     ...over,
   });
 }
@@ -46,12 +45,19 @@ describe("AccountPage", () => {
     expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
   });
 
-  it("says a password change leaves API tokens working, to be revoked below", async () => {
+  it("leaves API tokens to Settings", async () => {
+    api();
+    await renderInRouter(<AccountPage me={local} />);
+    expect(await screen.findByRole("heading", { name: "Sessions" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "API tokens" })).not.toBeInTheDocument();
+  });
+
+  it("says a password change leaves API tokens working, to be revoked in Settings", async () => {
     api();
     await renderInRouter(<AccountPage me={local} />);
     expect(
       await screen.findByText(
-        "Changing it signs out your other browsers. Your API tokens keep working; revoke them below if you need to.",
+        "Changing it signs out your other browsers. Your API tokens keep working; revoke them in Settings › Tokens if you need to.",
       ),
     ).toBeInTheDocument();
   });
@@ -103,47 +109,6 @@ describe("AccountPage", () => {
         "/api/me/sessions/bbbbbbbbbbbbbbbb",
         "/api/me/sessions",
       ]);
-    });
-  });
-
-  it("creates a token and shows its secret once", async () => {
-    const token = {
-      id: "0190a3f2-7c1e-7000-8000-0000000000aa",
-      name: "cron",
-      scopes: ["api"],
-      readOnly: false,
-      createdAt: T,
-      lastUsedAt: null,
-    };
-    api({ "POST /api/me/tokens": () => Response.json({ token, secret: "f".repeat(64) }) });
-    await renderInRouter(<AccountPage me={local} />);
-    await userEvent.type(await screen.findByLabelText("Token name"), "cron");
-    await userEvent.click(screen.getByRole("button", { name: "Create token" }));
-    expect(await screen.findByText("f".repeat(64))).toBeInTheDocument();
-    expect(screen.getByText("Copy it now: it won't be shown again.")).toBeInTheDocument();
-  });
-
-  it("revokes a token after confirming", async () => {
-    const token = {
-      id: "0190a3f2-7c1e-7000-8000-0000000000aa",
-      name: "cron",
-      scopes: ["api"],
-      readOnly: false,
-      createdAt: T,
-      lastUsedAt: null,
-    };
-    const calls = api({
-      "GET /api/me/tokens": () => Response.json({ mcp: { enabled: false }, tokens: [token] }),
-      "DELETE /api/me/tokens/0190a3f2-7c1e-7000-8000-0000000000aa": () =>
-        new Response(null, { status: 204 }),
-    });
-    await renderInRouter(<AccountPage me={local} />);
-    await userEvent.click(await screen.findByRole("button", { name: "Revoke cron" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Revoke" }));
-    await waitFor(() => {
-      expect(calls.some((c) => c.method === "DELETE" && c.path.startsWith("/api/me/tokens/"))).toBe(
-        true,
-      );
     });
   });
 });

@@ -8,6 +8,19 @@ import { createAppRouter } from "../router";
 import { stubApi } from "../test/render";
 
 /** Renders the app at `path`, once the shell is up: its side navigation, or `ready`. */
+/** A window from `md` (48rem) up: the top bar's Add pill and the side navigation. */
+function stubWide() {
+  vi.stubGlobal(
+    "matchMedia",
+    (query: string) =>
+      ({
+        matches: query === "(min-width: 48rem)",
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }) as unknown as MediaQueryList,
+  );
+}
+
 async function renderAt(
   path: string,
   ready = () => screen.findByRole("navigation", { name: "Primary" }),
@@ -75,6 +88,7 @@ describe("app shell", () => {
       "Logins",
       "Profiles",
       "Groups",
+      "Tokens",
     ]);
   });
 
@@ -116,7 +130,8 @@ describe("app shell", () => {
     expect(within(nav).queryByText("Uroboros")).not.toBeInTheDocument();
   });
 
-  it("puts the bell between Add and the account menu, at every width", async () => {
+  it("puts the bell between Add and the account menu on wide screens", async () => {
+    stubWide();
     await renderAt("/");
 
     const header = screen.getByRole("banner");
@@ -124,6 +139,19 @@ describe("app shell", () => {
       .getAllByRole("button")
       .map((b) => b.getAttribute("aria-label"));
     expect(buttons.slice(-3)).toEqual(["Add", "Notifications", "Account menu for Alice"]);
+  });
+
+  it("leaves Add to the tab bar on phones: the top bar has none", async () => {
+    await renderAt("/");
+
+    const header = screen.getByRole("banner");
+    expect(within(header).queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
+    const buttons = within(header)
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"));
+    expect(buttons.slice(-3)).toEqual(["Open search", "Notifications", "Account menu for Alice"]);
+    const tabs = screen.getByRole("navigation", { name: "Tabs" });
+    expect(within(tabs).getByRole("button", { name: "Add" })).toBeInTheDocument();
   });
 
   it("takes the brand in the top bar to the library, dropping a search", async () => {
@@ -198,15 +226,7 @@ describe("app shell", () => {
   });
 
   it("adds from the top bar's menu on wide screens", async () => {
-    vi.stubGlobal(
-      "matchMedia",
-      (query: string) =>
-        ({
-          matches: query === "(min-width: 48rem)",
-          addEventListener: () => undefined,
-          removeEventListener: () => undefined,
-        }) as unknown as MediaQueryList,
-    );
+    stubWide();
     await renderAt("/");
 
     const header = screen.getByRole("banner");

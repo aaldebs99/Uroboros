@@ -19,8 +19,8 @@ to right:
    empty it shows a `<kbd>` hint for the [search palette](#search-palette-ctrlk) ("Ctrl K", or "⌘K"
    on a Mac, from `paletteHint()`).
 4. **"+ Add"**: a 36px full-round pill on `bg-raised` with a 20px `Plus` and the label at 500,
-   opening the [Add menu](#add-menu-and-its-dialogs). On phones it is a 40px round "+" with no
-   label ([phone](phone.md#getting-around)).
+   opening the [Add menu](#add-menu-and-its-dialogs). Phones have none in the top bar: they add
+   from the tab bar's centred "+" ([phone](phone.md#add-download-or-upload)).
 5. **The bell**: a ghost icon button with `Bell`, opening the [notifications](#notifications).
 6. The account avatar, a 32px circle, which opens the [account menu](#account-menu).
 
@@ -39,7 +39,7 @@ A list of sections in the page colour, below the top bar, not a separate coloure
   **Admin** for admins (Users, Groups).
 - **A section's views are indented under it** (`SECTIONS` in `components/SidebarNav.tsx`, the
   lists in `nav.ts`): Library's Videos, Channels and Playlists, Shared's With me and By me, and
-  Settings' Notifications, Logins, Profiles and Groups, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
+  Settings' Notifications, Logins, Profiles, Groups and Tokens, as `h-9 pl-14` muted rows, the current view filled. The section's own row then only
   turns medium while one of its pages is open. On phones the same views are underlined tabs atop
   the page (`RouteTabs phoneOnly`; `ViewTabs` is Library's); the mini rail has no room for them.
 - When subscriptions exist, a **Subscriptions** group lists channels with 24px round avatars.

@@ -26,6 +26,7 @@ function renderAt(path: string) {
     "GET /api/me/notifications": () =>
       Response.json({ downloads: true, shares: true, groups: true }),
     "GET /api/me/site-logins": () => Response.json({ enabled: true, logins: [] }),
+    "GET /api/me/tokens": () => Response.json({ mcp: { enabled: true }, tokens: [] }),
   });
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -59,6 +60,21 @@ describe("Settings", () => {
       "aria-current",
       "page",
     );
+  });
+
+  it("keeps API tokens under the Tokens tab, made from a New token dialog", async () => {
+    const router = renderAt("/settings");
+    const tabs = await screen.findByRole("navigation", { name: "Settings views" });
+    expect(
+      within(tabs)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Notifications", "Logins", "Profiles", "Groups", "Tokens"]);
+    await userEvent.click(within(tabs).getByRole("link", { name: "Tokens" }));
+    expect(await screen.findByRole("heading", { name: "API tokens" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/settings/tokens");
+    await userEvent.click(await screen.findByRole("button", { name: "New token" }));
+    expect(await screen.findByRole("dialog", { name: "New token" })).toBeInTheDocument();
   });
 
   it("lists its views under Settings in the side navigation, the current one filled", async () => {

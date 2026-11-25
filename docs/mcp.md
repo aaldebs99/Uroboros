@@ -17,10 +17,10 @@ the tokens that already exist.
 
 ## Tokens for MCP
 
-A person makes a token under **Account › API tokens** and ticks **MCP** among its access (docs/auth.md
-has the scopes). The box is greyed out while the server is off, and the server refuses such a token
+A person makes a token under **Settings › Tokens** (New token opens a dialog) and ticks **MCP**
+among its access (docs/auth.md has the scopes). The box is greyed out while the server is off, and the server refuses such a token
 then (409). A token can hold both scopes, and **Read-only** limits it to the tools that change
-nothing. After making an MCP token the page shows its secret once, the server's address
+nothing. After making an MCP token the dialog shows its secret once, the server's address
 (`UROBOROS_PUBLIC_BASE_URL` + `/api/mcp`, or the page's own origin) and a command for Claude Code:
 
 ```sh

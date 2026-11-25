@@ -1,4 +1,4 @@
-import { Bell, KeyRound, SlidersHorizontal, Users } from "lucide-react";
+import { Bell, KeyRound, KeySquare, SlidersHorizontal, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Section } from "@/account/Section";
@@ -9,6 +9,7 @@ import { NotificationKinds } from "@/settings/NotificationKinds";
 import { FormatProfiles } from "@/settings/Profiles";
 import { SettingsTabs } from "@/settings/SettingsTabs";
 import { SiteLogins } from "@/settings/SiteLogins";
+import { Tokens } from "@/settings/Tokens";
 import { Groups } from "@/sharing/GroupsPage";
 
 const settings = NAV_ITEMS.find((item) => item.to === "/settings");
@@ -70,6 +71,21 @@ export function SettingsProfilesPage() {
         description="The yt-dlp presets you download with. The built-in ones are everyone's until you change them; your changes, and the profiles you add, are yours alone. Your default is used whenever you don't pick one."
       >
         <FormatProfiles />
+      </Section>
+    </SettingsFrame>
+  );
+}
+
+/** Settings › Tokens: the person's API tokens, and New token. */
+export function SettingsTokensPage() {
+  return (
+    <SettingsFrame>
+      <Section
+        icon={KeySquare}
+        title="API tokens"
+        description="For scripts and AI tools. A token acts as you, within the access you give it, except for account and admin changes."
+      >
+        <Tokens />
       </Section>
     </SettingsFrame>
   );

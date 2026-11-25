@@ -14,6 +14,7 @@ import {
   SettingsLoginsPage,
   SettingsPage,
   SettingsProfilesPage,
+  SettingsTokensPage,
 } from "./routes";
 import {
   AccountRoute,
@@ -116,6 +117,11 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/settings/groups/$groupId",
     component: GroupRoute,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/settings/tokens",
+    component: SettingsTokensPage,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: "/account", component: AccountRoute }),
   createRoute({

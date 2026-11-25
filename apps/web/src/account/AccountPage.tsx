@@ -1,6 +1,6 @@
 import type { Me } from "@uroboros/contract";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, KeyRound, Lock, Monitor, UserRound } from "lucide-react";
+import { ChevronRight, Lock, Monitor, UserRound } from "lucide-react";
 
 import { Avatar } from "@/components/Avatar";
 import { PageHeader } from "@/components/ui/page-header";
@@ -10,7 +10,6 @@ import { ADMIN_ITEMS, NAV_ITEMS, type NavItem } from "@/nav";
 import { PasswordForm } from "./PasswordForm";
 import { Section } from "./Section";
 import { Sessions } from "./Sessions";
-import { Tokens } from "./Tokens";
 
 const ROLE = { admin: "Admin", member: "Member" } as const satisfies Record<Me["role"], string>;
 
@@ -38,7 +37,7 @@ function PhoneLinks({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-/** The signed-in user's own account: profile, password, sessions and API tokens. */
+/** The signed-in user's own account: profile, password and sessions (tokens are in Settings). */
 export function AccountPage({ me }: { me: Me }) {
   return (
     <section className="grid w-full max-w-3xl grid-cols-1 gap-6">
@@ -70,20 +69,13 @@ export function AccountPage({ me }: { me: Me }) {
         <Section
           icon={Lock}
           title="Password"
-          description="Changing it signs out your other browsers. Your API tokens keep working; revoke them below if you need to."
+          description="Changing it signs out your other browsers. Your API tokens keep working; revoke them in Settings › Tokens if you need to."
         >
           <PasswordForm />
         </Section>
       ) : null}
       <Section icon={Monitor} title="Sessions" description="Browsers signed in to your account.">
         <Sessions />
-      </Section>
-      <Section
-        icon={KeyRound}
-        title="API tokens"
-        description="For scripts and AI tools. A token acts as you, within the access you give it, except for account and admin changes."
-      >
-        <Tokens />
       </Section>
     </section>
   );

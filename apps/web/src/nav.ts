@@ -67,6 +67,7 @@ export const SETTINGS_VIEWS = [
   { to: "/settings/logins", label: "Logins" },
   { to: "/settings/profiles", label: "Profiles" },
   { to: "/settings/groups", label: "Groups" },
+  { to: "/settings/tokens", label: "Tokens" },
 ] as const;
 
 /** Whether `pathname` is one of Settings' views. */

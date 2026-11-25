@@ -3,4 +3,5 @@ export {
   SettingsLoginsPage,
   SettingsPage,
   SettingsProfilesPage,
+  SettingsTokensPage,
 } from "./settings";
