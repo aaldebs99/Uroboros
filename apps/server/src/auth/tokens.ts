@@ -7,10 +7,11 @@ import {
   TokenList,
   type TokenScope,
 } from "@uroboros/contract";
-import type { Kysely, Transaction } from "kysely";
+import { type Kysely, sql, type Transaction } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
+import { lockKey } from "../shared/lockKeys.ts";
 import type { ResolveToken } from "./guard.ts";
 import { digest, newSecret } from "./secrets.ts";
 
@@ -105,8 +106,12 @@ interface NewToken {
   secret: string;
 }
 
-/** Stores a new token's digest, within the per-user cap and with a name unique to its owner. */
+/**
+ * Stores a new token's digest, within the per-user cap and with a name unique to its owner. The
+ * owner's lock makes concurrent creates count one after another, so the cap holds under a race.
+ */
 async function insertToken(tx: Transaction<Database>, t: NewToken) {
+  await sql`SELECT pg_advisory_xact_lock(${lockKey("TOKN", t.userId)})`.execute(tx);
   const { n } = await tx
     .selectFrom("api_tokens")
     .select((eb) => eb.fn.countAll<string>().as("n"))
@@ -147,6 +152,7 @@ export function registerTokenRoutes(
       .select(COLUMNS)
       .where("user_id", "=", userId)
       .orderBy("created_at")
+      .orderBy("id")
       .execute();
     return c.json({ mcp: { enabled: mcpEnabled }, tokens: rows.map(view) }, 200);
   });

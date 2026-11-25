@@ -1,5 +1,6 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { NewApiToken, TokenList } from "@uroboros/contract";
+import { sql } from "kysely";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
@@ -78,12 +79,57 @@ describe("API tokens", () => {
     expect((await create(u, "one too many")).status).toBe(422);
   });
 
+  it("holds the cap when creates race at the last free place", async () => {
+    const u = await signedIn(testDb.db, { username: "tok7" });
+    await testDb.db
+      .insertInto("api_tokens")
+      .values(
+        Array.from({ length: MAX_TOKENS_PER_USER - 1 }, (_, i) => ({
+          user_id: u.userId,
+          name: `seeded${String(i)}`,
+          scopes: ["api"],
+          read_only: false,
+          token_hash: Buffer.from(`seeded-${u.userId}-${String(i)}`),
+        })),
+      )
+      .execute();
+    // Open the pool's connections first, so the creates run side by side rather than one at a
+    // time while new connections are made.
+    await Promise.all(
+      Array.from({ length: 8 }, () => sql`SELECT pg_sleep(0.05)`.execute(testDb.db)),
+    );
+    const statuses = await Promise.all(
+      Array.from({ length: 5 }, async (_, i) => (await create(u, `racer${String(i)}`)).status),
+    );
+    expect(statuses.sort()).toEqual([200, 422, 422, 422, 422]);
+    const { n } = await testDb.db
+      .selectFrom("api_tokens")
+      .select((eb) => eb.fn.countAll<string>().as("n"))
+      .where("user_id", "=", u.userId)
+      .executeTakeFirstOrThrow();
+    expect(Number(n)).toBe(MAX_TOKENS_PER_USER);
+  });
+
   it("cannot be used to list, create or delete tokens", async () => {
     const u = await signedIn(testDb.db, { username: "tok4" });
     const made = NewApiToken.parse(await (await create(u, "ci")).json());
-    expect((await app.request("/api/me/tokens", { headers: bearer(made.secret) })).status).toBe(
-      403,
-    );
+    const headers = bearer(made.secret);
+    expect((await app.request("/api/me/tokens", { headers })).status).toBe(403);
+    const made2 = await app.request("/api/me/tokens", {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({ name: "by bearer" }),
+    });
+    expect(made2.status).toBe(403);
+    const del = await app.request(`/api/me/tokens/${made.token.id}`, {
+      method: "DELETE",
+      headers,
+    });
+    expect(del.status).toBe(403);
+    // Nothing changed: the only token is the one made with the session, and it still works.
+    const listed = TokenList.parse(await (await asUser(app, u).request("/api/me/tokens")).json());
+    expect(listed.tokens.map((t) => t.name)).toEqual(["ci"]);
+    expect((await app.request("/api/me", { headers })).status).toBe(200);
   });
 
   it("cannot delete another user's token", async () => {
