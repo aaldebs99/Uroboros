@@ -28,9 +28,13 @@ The **bootstrap admin** (`UROBOROS_BOOTSTRAP_USERNAME` and `_PASSWORD`, both or 
 created on the first start and re-seeded on every start: its username, password and admin role are
 put back if they changed, and the password is re-hashed only when it no longer verifies. With no
 flagged account, an existing local account of that name is adopted. Replicas starting together
-are fine. This is how a fresh install gets its first admin. The password must be at least 12
-characters unless `UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD` is true, which the compose dev stack
-sets for its `admin` / `admin` account (the api logs a warning); never in production.
+are fine. This is how a fresh install without SSO gets its first admin, so without OIDC it is
+required: the server refuses to start without it (a fresh install would have no account to sign
+in with, and there is no account CLI). With OIDC it is optional, since the provider's groups make
+the admins. The password must be at least 12 characters unless
+`UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD` is true (the api logs a warning); never in production.
+`compose.yaml` has no default account. The dev overlay, `mise run docker:up` and `mise run
+dev:server` pass a dev-only `admin` / `admin` with that opt-out unless the shell sets the pair.
 
 ## Signing in
 

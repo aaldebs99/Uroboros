@@ -91,12 +91,11 @@ const OIDC_VARS = [
   "UROBOROS_OIDC_CLIENT_SECRET",
 ] as const;
 
-/** Cross-variable rules; each problem is `[variable, message]`. */
-export function authEnvProblems(
-  env: AuthEnv,
-  publicBaseUrl: string | undefined,
-): [string, string][] {
-  const problems: [string, string][] = [];
+type Problem = [string, string];
+
+/** The bootstrap pair's own rules: both or neither, the password's length, the username's shape. */
+function bootstrapProblems(env: AuthEnv): Problem[] {
+  const problems: Problem[] = [];
   const user = env.UROBOROS_BOOTSTRAP_USERNAME;
   const pass = env.UROBOROS_BOOTSTRAP_PASSWORD;
   if ((user === undefined) !== (pass === undefined)) {
@@ -121,25 +120,51 @@ export function authEnvProblems(
       "UROBOROS_BOOTSTRAP_USERNAME must be 1–64 of a-z 0-9 . _ -",
     ]);
   }
-  const setOidc = OIDC_VARS.filter((name) => env[name] !== undefined);
-  if (setOidc.length > 0 && setOidc.length < OIDC_VARS.length) {
-    for (const name of OIDC_VARS.filter((n) => env[n] === undefined)) {
-      problems.push([name, `${name} is required with the other UROBOROS_OIDC_* settings`]);
-    }
-  }
-  if (setOidc.length === OIDC_VARS.length && publicBaseUrl === undefined) {
-    problems.push([
-      "UROBOROS_PUBLIC_BASE_URL",
-      "UROBOROS_PUBLIC_BASE_URL is required for OIDC sign-in",
-    ]);
-  }
-  if (!env.UROBOROS_LOCAL_LOGIN && setOidc.length === 0) {
-    problems.push([
-      "UROBOROS_LOCAL_LOGIN",
-      "no sign-in method: enable local login or configure OIDC",
-    ]);
-  }
   return problems;
+}
+
+/** OIDC's rules: all three variables or none, and a public base URL for the callback. */
+function oidcProblems(env: AuthEnv, publicBaseUrl: string | undefined): Problem[] {
+  const setOidc = OIDC_VARS.filter((name) => env[name] !== undefined);
+  if (setOidc.length === 0) return [];
+  if (setOidc.length < OIDC_VARS.length) {
+    return OIDC_VARS.filter((n) => env[n] === undefined).map((name) => [
+      name,
+      `${name} is required with the other UROBOROS_OIDC_* settings`,
+    ]);
+  }
+  return publicBaseUrl === undefined
+    ? [["UROBOROS_PUBLIC_BASE_URL", "UROBOROS_PUBLIC_BASE_URL is required for OIDC sign-in"]]
+    : [];
+}
+
+/**
+ * Without OIDC, local sign-in is the only way in, and the bootstrap admin the only first admin: a
+ * fresh install has no other account, and there is no account CLI. With OIDC the provider's groups
+ * make the admins, so the bootstrap admin is optional.
+ */
+function signInProblems(env: AuthEnv): Problem[] {
+  if (OIDC_VARS.some((name) => env[name] !== undefined)) return [];
+  if (!env.UROBOROS_LOCAL_LOGIN) {
+    return [["UROBOROS_LOCAL_LOGIN", "no sign-in method: enable local login or configure OIDC"]];
+  }
+  if (
+    env.UROBOROS_BOOTSTRAP_USERNAME === undefined &&
+    env.UROBOROS_BOOTSTRAP_PASSWORD === undefined
+  ) {
+    return [
+      [
+        "UROBOROS_BOOTSTRAP_USERNAME",
+        "UROBOROS_BOOTSTRAP_USERNAME and UROBOROS_BOOTSTRAP_PASSWORD are required without OIDC: local sign-in needs a first admin",
+      ],
+    ];
+  }
+  return [];
+}
+
+/** Cross-variable rules; each problem is `[variable, message]`. */
+export function authEnvProblems(env: AuthEnv, publicBaseUrl: string | undefined): Problem[] {
+  return [...bootstrapProblems(env), ...oidcProblems(env, publicBaseUrl), ...signInProblems(env)];
 }
 
 /** Builds `AuthConfig` from an env that already passed `authEnvSchema` and `authEnvProblems`. */

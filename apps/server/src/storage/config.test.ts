@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "../config.ts";
 import { DEFAULT_LAYOUT } from "./config.ts";
 
-const base = { DATABASE_URL: "postgres://u:p@h/db" };
+// The bootstrap admin a config without OIDC must have (auth/config.test.ts).
+const base = {
+  DATABASE_URL: "postgres://u:p@h/db",
+  UROBOROS_BOOTSTRAP_USERNAME: "admin",
+  UROBOROS_BOOTSTRAP_PASSWORD: "correct horse battery",
+};
 const s3 = {
   UROBOROS_STORAGE: "s3",
   UROBOROS_S3_ENDPOINT: "http://rustfs:9000",

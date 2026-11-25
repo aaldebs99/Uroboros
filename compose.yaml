@@ -52,16 +52,17 @@ x-server-env: &server-env
   UROBOROS_VAPID_PRIVATE_KEY: ${UROBOROS_VAPID_PRIVATE_KEY:-}
   UROBOROS_PUSH_ALLOWED_HOSTS: ${UROBOROS_PUSH_ALLOWED_HOSTS:-}
   # Sign-in (docs/auth.md). Caddy is the proxy in front, so the client IP comes from
-  # X-Forwarded-For. A dev-only bootstrap admin, admin / admin, so a fresh stack can be signed
-  # into; the weak-password opt-out exists for exactly this and never belongs in production.
-  # Override both from the shell. OIDC is off unless its three variables are set (it also needs an https
-  # UROBOROS_PUBLIC_BASE_URL for the callback).
+  # X-Forwarded-For. There is no default account: without OIDC the server refuses to start until
+  # the bootstrap admin's username and password (12+ characters) are set in the shell; with OIDC
+  # it is optional. `mise run docker:up` and the dev overlay pass a dev-only admin / admin with
+  # the weak-password opt-out. OIDC is off unless its three variables are set (it also needs an
+  # https UROBOROS_PUBLIC_BASE_URL for the callback).
   UROBOROS_TRUST_PROXY: "true"
   UROBOROS_SESSION_TTL_HOURS: ${UROBOROS_SESSION_TTL_HOURS:-}
   UROBOROS_LOCAL_LOGIN: ${UROBOROS_LOCAL_LOGIN:-}
-  UROBOROS_BOOTSTRAP_USERNAME: ${UROBOROS_BOOTSTRAP_USERNAME:-admin}
-  UROBOROS_BOOTSTRAP_PASSWORD: ${UROBOROS_BOOTSTRAP_PASSWORD:-admin}
-  UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD: ${UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD:-true}
+  UROBOROS_BOOTSTRAP_USERNAME: ${UROBOROS_BOOTSTRAP_USERNAME:-}
+  UROBOROS_BOOTSTRAP_PASSWORD: ${UROBOROS_BOOTSTRAP_PASSWORD:-}
+  UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD: ${UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD:-}
   UROBOROS_OIDC_ISSUER: ${UROBOROS_OIDC_ISSUER:-}
   UROBOROS_OIDC_CLIENT_ID: ${UROBOROS_OIDC_CLIENT_ID:-}
   UROBOROS_OIDC_CLIENT_SECRET: ${UROBOROS_OIDC_CLIENT_SECRET:-}

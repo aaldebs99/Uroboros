@@ -205,10 +205,12 @@ check "the committed login-site list is this yt-dlp's (mise run gen:login-sites)
 check "can write /media (filesystem storage)" docker run --rm --entrypoint sh "${IMAGE}" -c \
     'touch /media/.probe && echo writable'
 
-# The database is empty: the server applies the migrations itself before it reports ready.
+# The database is empty: the server applies the migrations itself before it reports ready. Without
+# OIDC it needs a bootstrap admin to start.
 docker run -d --name "${SERVER}" --network "${NETWORK}" \
     -e DATABASE_URL="${DATABASE_URL}" \
     -e UROBOROS_STORAGE=filesystem -e UROBOROS_STORAGE_ROOT=/tmp/media \
+    -e UROBOROS_BOOTSTRAP_USERNAME=smoke -e UROBOROS_BOOTSTRAP_PASSWORD=smoke-test-password \
     "${IMAGE}" > /dev/null
 if wait_for 60 ready_ok; then
     pass "readiness is {\"status\":\"ok\",\"failing\":[]}"

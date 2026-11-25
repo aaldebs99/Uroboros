@@ -46,6 +46,11 @@ services:
       # A fixed key for the dev stack only, so saved site logins work there: never use it for a
       # real deployment (generate one with openssl rand -base64 32).
       UROBOROS_SECRETS_KEY: ${UROBOROS_SECRETS_KEY:-ZGV2LW9ubHkta2V5LWRvLW5vdC11c2UtZm9yLXJlYWw=}
+      # The dev stack's own bootstrap admin, admin / admin, with the weak-password opt-out that
+      # exists for exactly this; compose.yaml has no default account. Never for a real deployment.
+      UROBOROS_BOOTSTRAP_USERNAME: ${UROBOROS_BOOTSTRAP_USERNAME:-admin}
+      UROBOROS_BOOTSTRAP_PASSWORD: ${UROBOROS_BOOTSTRAP_PASSWORD:-admin}
+      UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD: ${UROBOROS_ALLOW_WEAK_BOOTSTRAP_PASSWORD:-true}
     healthcheck:
       test:
         - CMD

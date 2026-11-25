@@ -6,6 +6,11 @@ const base = {
   UROBOROS_STORAGE: "filesystem",
   UROBOROS_STORAGE_ROOT: "/media",
 };
+/** A bootstrap admin, which a config without OIDC must have. */
+const admin = {
+  UROBOROS_BOOTSTRAP_USERNAME: "admin",
+  UROBOROS_BOOTSTRAP_PASSWORD: "correct horse battery",
+};
 const oidc = {
   UROBOROS_PUBLIC_BASE_URL: "https://uro.example",
   UROBOROS_OIDC_ISSUER: "https://sso.example/application/o/uroboros/",
@@ -13,14 +18,44 @@ const oidc = {
   UROBOROS_OIDC_CLIENT_SECRET: "s3cret",
 };
 
+/** What loadConfig reports for `env`, or "" when it loads. */
+function problems(env: Record<string, string>): string {
+  try {
+    loadConfig(env);
+    return "";
+  } catch (e) {
+    return (e as Error).message;
+  }
+}
+
 describe("auth config", () => {
-  it("defaults: local login on, no bootstrap, no OIDC, 720 h sessions, proxy untrusted", () => {
-    expect(loadConfig(base).auth).toEqual({
+  it("defaults: local login on, no OIDC, 720 h sessions, proxy untrusted", () => {
+    expect(loadConfig({ ...base, ...admin }).auth).toEqual({
       sessionTtlHours: 720,
       trustProxy: false,
-      local: { enabled: true, bootstrap: null },
+      local: {
+        enabled: true,
+        bootstrap: { username: "admin", password: admin.UROBOROS_BOOTSTRAP_PASSWORD, weak: false },
+      },
       oidc: null,
     });
+  });
+
+  it("requires a bootstrap admin without OIDC, so local sign-in has a first admin", () => {
+    expect(() => loadConfig(base)).toThrow(ConfigError);
+    expect(() => loadConfig(base)).toThrow(
+      /UROBOROS_BOOTSTRAP_USERNAME and UROBOROS_BOOTSTRAP_PASSWORD are required without OIDC/,
+    );
+  });
+
+  it("leaves the bootstrap admin optional with OIDC, whose groups make the admins", () => {
+    expect(loadConfig({ ...base, ...oidc }).auth.local).toEqual({ enabled: true, bootstrap: null });
+  });
+
+  it("asks a half-configured OIDC for its missing variables, not for a bootstrap admin", () => {
+    const found = problems({ ...base, UROBOROS_OIDC_ISSUER: oidc.UROBOROS_OIDC_ISSUER });
+    expect(found).toMatch(/UROBOROS_OIDC_CLIENT_ID/);
+    expect(found).not.toMatch(/BOOTSTRAP/);
   });
 
   it("needs both bootstrap variables or neither, naming both", () => {
@@ -120,10 +155,10 @@ describe("auth config", () => {
     );
   });
 
-  it("refuses a config with no sign-in method", () => {
-    expect(() => loadConfig({ ...base, UROBOROS_LOCAL_LOGIN: "false" })).toThrow(
-      /no sign-in method/,
-    );
+  it("refuses a config with no sign-in method, and says only that", () => {
+    const found = problems({ ...base, UROBOROS_LOCAL_LOGIN: "false" });
+    expect(found).toMatch(/no sign-in method/);
+    expect(found).not.toMatch(/BOOTSTRAP/);
     expect(loadConfig({ ...base, ...oidc, UROBOROS_LOCAL_LOGIN: "false" }).auth.local.enabled).toBe(
       false,
     );
@@ -132,12 +167,13 @@ describe("auth config", () => {
   it("reads the session TTL and proxy trust", () => {
     const auth = loadConfig({
       ...base,
+      ...admin,
       UROBOROS_SESSION_TTL_HOURS: "24",
       UROBOROS_TRUST_PROXY: "true",
     }).auth;
     expect(auth.sessionTtlHours).toBe(24);
     expect(auth.trustProxy).toBe(true);
-    expect(() => loadConfig({ ...base, UROBOROS_TRUST_PROXY: "yes" })).toThrow(
+    expect(() => loadConfig({ ...base, ...admin, UROBOROS_TRUST_PROXY: "yes" })).toThrow(
       /UROBOROS_TRUST_PROXY/,
     );
   });
