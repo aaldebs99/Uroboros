@@ -38,7 +38,7 @@ export function bellLabel(unread: number, working: number, ready = 0): string {
  * notifications read up to the newest one shown; those stay marked as new until it closes.
  */
 export function NoticesButton() {
-  const { notices, unread, ready, work } = useActivity();
+  const { notices, unread, ready, now, work } = useActivity();
   const toasts = useToastLog();
   const [open, setOpen] = useState(false);
   const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
@@ -92,6 +92,7 @@ export function NoticesButton() {
     >
       <ActivityPanel
         ready={ready}
+        now={now}
         work={work}
         notices={notices}
         fresh={fresh}

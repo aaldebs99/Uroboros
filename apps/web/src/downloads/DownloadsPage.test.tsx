@@ -157,6 +157,42 @@ describe("DownloadsPage", () => {
     });
   });
 
+  it("lists the previews waiting for a pick, and Pick opens one in the picker", async () => {
+    const ready = {
+      id: choosingRequest.id,
+      url: choosingRequest.url,
+      title: "Blender",
+      kind: "channel",
+      entries: 3,
+      selected: 2,
+      expiresAt: new Date(Date.now() + 5 * 3600_000 + 60_000).toISOString(),
+    };
+    const gone = {
+      ...ready,
+      id: "0190a3f2-7c1e-7000-8000-0000000000e9",
+      title: "Gone already",
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+    };
+    api({
+      "GET /api/downloads/requests": () => Response.json([ready, gone]),
+      [`GET /api/downloads/requests/${choosingRequest.id}`]: () => Response.json(choosingRequest),
+    });
+    await renderInRouter(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
+    const section = await screen.findByRole("region", { name: "Ready to pick" });
+    expect(section).toHaveTextContent("Channel · 2 of 3 picked · 5h left");
+    expect(screen.queryByText("Gone already")).not.toBeInTheDocument();
+    await userEvent.click(within(section).getByRole("button", { name: "Pick from Blender" }));
+    expect(await screen.findByRole("checkbox", { name: "Video v1" })).toBeChecked();
+    // The one open in the picker leaves the list until the picker closes.
+    expect(screen.queryByRole("region", { name: "Ready to pick" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(await screen.findByRole("region", { name: "Ready to pick" })).toBeInTheDocument();
+  });
+
   it("offers Subscribe for a channel preview", async () => {
     api({
       [`GET /api/downloads/requests/${choosingRequest.id}`]: () => Response.json(choosingRequest),

@@ -38,6 +38,7 @@ function Section({
  */
 export function ActivityPanel({
   ready,
+  now,
   work,
   notices,
   fresh,
@@ -46,6 +47,7 @@ export function ActivityPanel({
   onClose,
 }: {
   ready: readonly ReadyPreview[];
+  now: number;
   work: readonly WorkItem[];
   notices: readonly Notice[];
   fresh: ReadonlySet<string>;
@@ -82,7 +84,7 @@ export function ActivityPanel({
         <div className="grid border-t border-border">
           {ready.length > 0 ? (
             <Section title="Ready to pick">
-              <ReadyRows ready={ready} onNavigate={onClose} />
+              <ReadyRows ready={ready} now={now} onNavigate={onClose} />
             </Section>
           ) : null}
           {work.length > 0 ? (

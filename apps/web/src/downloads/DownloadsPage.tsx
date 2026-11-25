@@ -22,8 +22,13 @@ import { useMyDownloadProgress } from "./LiveEvents";
 import { PasteForm } from "./PasteForm";
 import { RequestPanel } from "./Preview";
 import { QueueRow } from "./QueueRow";
+import { useWaitingPreviews } from "./readyPreviews";
+import { ReadySection } from "./ReadySection";
 
-/** Downloads: paste a link, finish a playlist or channel preview, and follow the live queue. */
+/**
+ * Downloads: paste a link, finish a playlist or channel preview (any still waiting for a pick are
+ * listed, as in the bell), and follow the live queue.
+ */
 export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | null }) {
   const client = useQueryClient();
   const [active, setActive] = useState<string | null>(requestId);
@@ -40,6 +45,7 @@ export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | n
   const mine = useMyDownloadProgress();
   const theirs = useEveryoneDownloadEvents(everyone);
   const progress = everyone ? theirs : mine;
+  const waiting = useWaitingPreviews();
   const act = (fn: (id: string) => Promise<void>) => (id: string) => {
     fn(id)
       .then(() => client.invalidateQueries({ queryKey: ["api", "downloads"] }))
@@ -82,6 +88,13 @@ export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | n
           }}
         />
       )}
+      <ReadySection
+        ready={waiting.ready.filter((p) => p.id !== active)}
+        now={waiting.now}
+        onPick={(id) => {
+          setActive(id);
+        }}
+      />
       <UploadsSection />
       <ExportsSection />
       {downloads.isError ? <p className="text-destructive">{errorText(downloads.error)}</p> : null}

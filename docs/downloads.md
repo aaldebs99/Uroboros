@@ -43,7 +43,8 @@ request handler.
    - a pasted playlist or channel (`intent: "download"`, not a search's results or a link to
      subscribe to) is listed by `GET /api/downloads/requests` with how many entries it has, how
      many are picked and when it goes, and the bell shows it under "Ready to pick", counted on its
-     badge, until it is queued or its day is up. The probe, a saved pick and queueing publish
+     badge, until it is queued or its day is up; so does the Downloads page, whose Pick opens it
+     in the picker there. The probe, a saved pick and queueing publish
      `{ kind: "requests", userId }` on `uroboros_downloads`, and the person's open tabs fetch the
      list again. This is how a playlist added from the Ctrl+K palette (or the Download a link
      dialog, which close while the link is still being looked at) is found again;
