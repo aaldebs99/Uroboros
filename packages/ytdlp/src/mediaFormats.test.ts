@@ -87,7 +87,7 @@ const exported: ExportPlan = {
 const preview: PreviewPlan = {
   input: "/media/a.webm",
   output: "/work/preview.mp4",
-  duration: 100,
+  audio: { index: 1 },
   video: {
     index: 0,
     pipeline: "cpu",

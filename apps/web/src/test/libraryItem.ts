@@ -14,6 +14,7 @@ export const itemFixture: LibraryItem = {
   duration: 596,
   thumbnailUrl: null,
   previewUrl: null,
+  hasVideo: true,
   profileName: "Best up to 1080p (MP4)",
   origin: "download",
   sizeBytes: 1024,

@@ -49,10 +49,12 @@ const job = (mediaId: string, attempts = 2, attemptsMade = 1) => ({
 
 const output = (mediaId: string) => join(h.workDir, `preview-${mediaId}`, "preview.mp4");
 
-/** Deps whose transcoder runs `ffmpeg`, its ffprobe saying the file lasts `seconds`. */
-async function depsFor(ffmpeg: Scenario, seconds = 3) {
-  const probe = JSON.parse(await fixture("ffprobe-clip.json")) as { format: { duration: string } };
-  probe.format.duration = seconds.toFixed(6);
+/** Deps whose transcoder runs `ffmpeg`, its ffprobe describing the fixture clip (silent: no audio). */
+async function depsFor(ffmpeg: Scenario, { silent = false } = {}) {
+  const probe = JSON.parse(await fixture("ffprobe-clip.json")) as {
+    streams: { codec_type: string }[];
+  };
+  if (silent) probe.streams = probe.streams.filter((s) => s.codec_type !== "audio");
   const deps = await h.sessionDeps(ffmpeg, probe);
   const ffmpegRun = h.runs.at(-2) as FakeRun;
   return { deps, ffmpegRun };
@@ -66,33 +68,34 @@ const mediaOf = (id: string) =>
     .executeTakeFirstOrThrow();
 
 describe("making a hover preview", () => {
-  it("cuts five snippets on the CPU and stores the clip beside the media", async () => {
-    const id = await storedVideo();
-    const { deps, ffmpegRun } = await depsFor(
-      { steps: [{ writeFile: output(id), content: "clip" }] },
-      100,
-    );
-    await previewProcessor(deps).process(job(id));
-    expect(await mediaOf(id)).toEqual({ preview_key: previewKey(id), preview_failed_at: null });
-    expect(await readFile(join(h.root, previewKey(id)), "utf8")).toBe("clip");
-    const args = await ffmpegRun.argv();
-    expect(args.filter((a) => a === "-i")).toHaveLength(5);
-    expect(args.filter((a, i) => a === "-ss" && args[i + 1] === "80.000")).toHaveLength(1);
-    expect(args[args.indexOf("-c:v") + 1]).toBe("libx264");
-    // The fixture is 320x240, under 480p, so it keeps its size.
-    expect(args[args.indexOf("-filter_complex") + 1]).toContain("scale=320:240");
-    expect(args).toContain("-an");
-  });
-
-  it("takes a short video whole", async () => {
+  it("encodes the whole video with its sound on the CPU and stores it beside the media", async () => {
     const id = await storedVideo();
     const { deps, ffmpegRun } = await depsFor({
       steps: [{ writeFile: output(id), content: "clip" }],
     });
     await previewProcessor(deps).process(job(id));
+    expect(await mediaOf(id)).toEqual({ preview_key: previewKey(id), preview_failed_at: null });
+    expect(await readFile(join(h.root, previewKey(id)), "utf8")).toBe("clip");
     const args = await ffmpegRun.argv();
     expect(args.filter((a) => a === "-i")).toHaveLength(1);
-    expect(args.join(" ")).toContain("-t 15.000");
+    expect(args).not.toContain("-ss");
+    expect(args.flatMap((a, i) => (a === "-map" ? [args[i + 1]] : []))).toEqual(["0:0", "0:1"]);
+    expect(args[args.indexOf("-c:v") + 1]).toBe("libx264");
+    expect(args[args.indexOf("-c:a") + 1]).toBe("aac");
+    // The fixture is 320x240, under 480p, so it keeps its size.
+    expect(args[args.indexOf("-vf") + 1]).toContain("scale=320:240");
+  });
+
+  it("makes a silent preview of a file without sound", async () => {
+    const id = await storedVideo();
+    const { deps, ffmpegRun } = await depsFor(
+      { steps: [{ writeFile: output(id), content: "clip" }] },
+      { silent: true },
+    );
+    await previewProcessor(deps).process(job(id));
+    const args = await ffmpegRun.argv();
+    expect(args.filter((a) => a === "-map")).toHaveLength(1);
+    expect(args).toContain("-an");
   });
 
   it("runs nothing for a media that already has its preview", async () => {

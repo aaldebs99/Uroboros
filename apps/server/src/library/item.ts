@@ -34,7 +34,6 @@ export async function getItem(
       "m.uploaded_by",
       "e.rendition_id",
       "r.skip_segments",
-      "r.video_codec",
       "r.audio_codec",
       "r.video_codecs",
       "r.audio_codecs",
@@ -49,7 +48,6 @@ export async function getItem(
         uploaded_by: string | null;
         rendition_id: string;
         skip_segments: unknown;
-        video_codec: string | null;
         audio_codec: string | null;
       } & RenditionPlayback)
     | undefined;

@@ -45,6 +45,7 @@ const entry = (n: number) => ({
   duration: 596,
   thumbnailUrl: null,
   previewUrl: null,
+  hasVideo: false,
   profileName: "Best available",
   origin: "download",
   sizeBytes: 1024,

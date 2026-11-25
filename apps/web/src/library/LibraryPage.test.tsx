@@ -16,6 +16,7 @@ const entry = {
   duration: 596,
   thumbnailUrl: null,
   previewUrl: null,
+  hasVideo: false,
   profileName: "Best up to 1080p (MP4)",
   origin: "download",
   sizeBytes: 5 * 1024 * 1024,

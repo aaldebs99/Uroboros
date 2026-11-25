@@ -18,9 +18,9 @@ import type { WorkerDeps } from "./deps.ts";
 import { readInput } from "./sessionSource.ts";
 
 /**
- * The `preview` job (docs/library.md "Hover previews"): cuts a media's hover preview, two seconds
- * from each fifth of the video (or the whole of a short one), at 480p without sound, on the CPU
- * with the transcoder's ffmpeg, and stores it beside the thumbnail.
+ * The `preview` job (docs/library.md "Hover previews"): makes a media's hover preview, the whole
+ * video at 480p with its sound, on the CPU with the transcoder's ffmpeg, and stores it beside the
+ * thumbnail.
  */
 
 /** The preview's short side, and the most it may run at. */
@@ -128,7 +128,7 @@ async function makePreview(deps: WorkerDeps, mediaId: string, dir: string, signa
   await storePreview(deps, mediaId, plan.output);
 }
 
-/** The clip's plan from the file's own streams: 480p at most, on the CPU, HDR tone-mapped. */
+/** The preview's plan from the file's own streams: 480p at most, on the CPU, HDR tone-mapped. */
 async function planFor(
   deps: WorkerDeps,
   input: string,
@@ -139,15 +139,13 @@ async function planFor(
   const info = await ffprobe(input, { binary: t.ffprobe.binary, ...env(t.ffprobe.env), signal });
   const video = info.streams.find((s) => s.type === "video" && !s.attachedPic);
   if (video === undefined) throw new UnrecoverableError("the file has no video");
-  if (info.duration === null || info.duration <= 0) {
-    throw new UnrecoverableError("the file's length is unknown");
-  }
+  const audio = info.streams.find((s) => s.type === "audio");
   const size = outputSize(video.width ?? 1280, video.height ?? 720, PREVIEW_SHORT_SIDE);
   const transfer = video.colorTransfer ?? "";
   return {
     input,
     output,
-    duration: info.duration,
+    audio: audio === undefined ? null : { index: audio.index },
     video: {
       index: video.index,
       pipeline: "cpu",

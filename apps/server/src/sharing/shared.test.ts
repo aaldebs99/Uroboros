@@ -153,6 +153,27 @@ describe("what is shared with me", () => {
     expect(page.entries.map((x) => x.id)).toEqual([e.entryId]);
   });
 
+  it("says whether a shared video has a picture to preview, and never a playlist", async () => {
+    const film = await seedEntry(t.db, alice.userId, { title: "Film" });
+    const podcast = await seedEntry(t.db, alice.userId, { title: "Podcast" });
+    await t.db
+      .updateTable("renditions")
+      .set({ video_codec: "h264" })
+      .where("id", "=", film.renditionId)
+      .execute();
+    for (const e of [film, podcast]) {
+      await send(alice, "PUT", `/api/shares/entry/${e.entryId}/people`, {
+        people: [{ kind: "user", id: bob.userId }],
+        expiresAt: null,
+      });
+    }
+    const { playlist } = await sharedPlaylist();
+    const shares = await withMe(bob);
+    expect(shares.find((x) => x.id === film.entryId)?.hasVideo).toBe(true);
+    expect(shares.find((x) => x.id === podcast.entryId)?.hasVideo).toBe(false);
+    expect(shares.find((x) => x.id === playlist.id)?.hasVideo).toBe(false);
+  });
+
   it("the directory lists enabled accounts and the caller's own groups, without the caller", async () => {
     // A provider group lists nothing any more; only groups the caller is in do.
     await t.db

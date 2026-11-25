@@ -29,14 +29,7 @@ export {
   progressSeconds,
   type ExportPlan,
 } from "./exportArgs.ts";
-export {
-  PREVIEW_SNIPPETS,
-  previewArgs,
-  previewWindows,
-  SNIPPET_SECONDS,
-  WHOLE_UNDER_SECONDS,
-  type PreviewPlan,
-} from "./previewArgs.ts";
+export { previewArgs, type PreviewPlan } from "./previewArgs.ts";
 export { checkEncoder, type EncoderCheck, type EncoderCheckOptions } from "./encoderCheck.ts";
 export { probeKeyframes, type KeyframeOptions } from "./keyframes.ts";
 export {

@@ -341,6 +341,22 @@ describe("GET /api/library", () => {
     ]);
   });
 
+  it("says which entries have a picture to preview, and which are sound alone", async () => {
+    const erin = await signedIn(testDb.db, { username: "qerin" });
+    const film = await add(erin, 1, { title: "Film" });
+    await add(erin, 2, { title: "Podcast" });
+    await testDb.db
+      .updateTable("renditions")
+      .set({ video_codec: "h264" })
+      .where("media_id", "=", film.mediaId)
+      .execute();
+    const entries = (await page(erin, "?sort=title&order=asc")).entries;
+    expect(entries.map((e) => [e.title, e.hasVideo])).toEqual([
+      ["Film", true],
+      ["Podcast", false],
+    ]);
+  });
+
   it("keeps the bunny reachable by its entry id", () => {
     expect(bunny.entryId).toMatch(/^[0-9a-f-]{36}$/);
   });

@@ -306,6 +306,7 @@ export const ENTRY_COLUMNS = [
   "m.preview_key",
   "r.size_bytes",
   "r.container",
+  "r.video_codec",
   "p.name as profile_name",
   "wp.position_s",
   "wp.duration_s",
@@ -339,6 +340,7 @@ export interface EntryRow {
   preview_key: string | null;
   size_bytes: string;
   container: string | null;
+  video_codec: string | null;
   profile_name: string | null;
   position_s: number | null;
   duration_s: number | null;
@@ -376,6 +378,7 @@ export function toEntry(r: EntryRow, own = true): LibraryEntry {
     duration: r.duration,
     thumbnailUrl: thumbnailUrl(`/api/library/${r.id}/thumbnail`, r.thumbnail_key),
     previewUrl: thumbnailUrl(`/api/library/${r.id}/preview`, r.preview_key),
+    hasVideo: r.video_codec !== null,
     profileName: r.profile_name,
     origin: originOf(r.extractor),
     sizeBytes: Number(r.size_bytes),
