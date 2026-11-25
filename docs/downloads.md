@@ -235,8 +235,10 @@ provider's metadata address. What yt-dlp can read there as a video is downloaded
 any other, and a failed request shows yt-dlp's error output, which says whether the host
 answered. Uroboros treats the people it has accounts for as trusted to fetch from its network (a
 NAS on the LAN is a fair source). An operator who doesn't trust them that far restricts what the
-containers can reach at the network: a firewall rule, or an egress proxy. ffmpeg never follows a
-downloaded file to anywhere else: its inputs are pinned to media containers (the fetch, step 6).
+containers can reach at the network: a firewall rule, or an egress proxy. ffmpeg never reads
+another file or URL into anything stored or played: its inputs are pinned to media containers (the
+fetch, step 6). yt-dlp's own ffprobe calls take no arguments and still open what a fake playlist
+names, but only to read it and throw the answer away, so they add blind requests and nothing more.
 
 ## Not yet
 
