@@ -22,7 +22,10 @@ solves sites' JavaScript challenges with the yt-dlp-ejs scripts; the server pass
 ## Behaviour worth knowing
 
 Programs run without a shell, with the URL last behind `--`, and only http(s) URLs are accepted.
-Every run passes `--ignore-config --no-update --color never`.
+Every run passes `--ignore-config --no-update --color never`, and pins the inputs of yt-dlp's
+ffmpeg post-processors to media, subtitle and image formats (`--postprocessor-args
+<PP>+ffmpeg_i:…`, `src/mediaFormats.ts`); every ffmpeg and ffprobe input the wrapper builds is
+pinned to the media containers the same way.
 
 `extraArgs` goes through an allowlist (`ALLOWED_FLAGS`, defined in `src/flags.ts`), not a
 block-list. yt-dlp expands shortened long options (`--exe` means `--exec`) and unbundles short
@@ -31,7 +34,10 @@ complete. `normalizeExtraArgs` matches each token exactly: `--name`, `--name=val
 `--name value`, or one of a few whole short spellings such as `-x`. It checks each value against
 that flag's pattern and re-emits everything as `--name` or `--name=value`, so yt-dlp only ever
 sees spellings the wrapper wrote. Anything else fails as `invalid_arguments` before anything
-spawns, including a bare `--` or a positional argument. The basic set covers rate limits,
+spawns, including a bare `--` or a positional argument. The flags that pace a download are
+bounded too (`--limit-rate` at least 100K, retries at most 50 and never `infinite`, sleeps and
+`--socket-timeout` at most 300 s), so no profile can hold a download slot until the fetch times
+out. The basic set covers rate limits,
 retries and sleeps, playlist selection and filters, format sorting and remuxing, audio
 extraction, subtitles, thumbnails, metadata, chapters, SponsorBlock and filename sanitising. To
 allow another flag, add a row to the table. Never add one that takes a path, a URL, a binary, or

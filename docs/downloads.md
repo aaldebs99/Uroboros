@@ -116,7 +116,9 @@ channel ([jobs.md](jobs.md)).
 
 yt-dlp presets (`format_profiles`, `src/downloads/profiles.ts`): a format selector, a container to
 merge into, or audio-only with an audio format, SponsorBlock categories to get rid of, and extra arguments
-from the wrapper's allowlist (checked by the server with `@uroboros/ytdlp/flags` when saved, and
+from the wrapper's allowlist (each value checked against its flag's pattern, and the pacing ones
+bounded: `--limit-rate` at least 100K, retries at most 50, sleeps at most 300 s; checked by the
+server with `@uroboros/ytdlp/flags` when saved, and
 again, with the server's own subtitle arguments, when the job runs; its one extractor argument is
 `youtube:skip=translated_subs`, which those use, [library.md](library.md#subtitles-and-chapters)). `revision` hashes the file-shaping arguments, and renditions are keyed by
 profile and revision, so editing a profile makes new downloads fetch a fresh file instead of

@@ -31,7 +31,7 @@ describe("normalizeExtraArgs", () => {
         "aac>m4a/mov>mp4/mkv",
         "--dateafter=today-2weeks",
         "--retries",
-        "infinite",
+        "10",
       ]),
     ).toEqual([
       "--extract-audio",
@@ -44,7 +44,7 @@ describe("normalizeExtraArgs", () => {
       "--sponsorblock-remove=sponsor,selfpromo",
       "--remux-video=aac>m4a/mov>mp4/mkv",
       "--dateafter=today-2weeks",
-      "--retries=infinite",
+      "--retries=10",
     ]);
     expect(normalizeExtraArgs([])).toEqual([]);
   });
@@ -122,6 +122,46 @@ describe("normalizeExtraArgs", () => {
     ]) {
       expect(refusal(args), JSON.stringify(args)).not.toBeNull();
     }
+  });
+
+  it("bounds the flags that pace a download, so no profile holds a download slot for hours", () => {
+    for (const args of [
+      ["--limit-rate=1"],
+      ["--limit-rate=99K"],
+      ["-r", "50K"],
+      ["--retries=infinite"],
+      ["-R", "51"],
+      ["--fragment-retries=infinite"],
+      ["--extractor-retries=999"],
+      ["--sleep-interval=301"],
+      ["--max-sleep-interval=999999999"],
+      ["--sleep-requests=1000"],
+      ["--sleep-subtitles=300.5"],
+      ["--socket-timeout=3600"],
+    ]) {
+      expect(refusal(args), JSON.stringify(args)).toMatch(/out of range/);
+    }
+    expect(
+      normalizeExtraArgs([
+        "--limit-rate=100K",
+        "-r",
+        "2.5M",
+        "-R",
+        "50",
+        "--fragment-retries=0",
+        "--sleep-interval=300",
+        "--max-sleep-interval=5.5",
+        "--socket-timeout=30",
+      ]),
+    ).toEqual([
+      "--limit-rate=100K",
+      "--limit-rate=2.5M",
+      "--retries=50",
+      "--fragment-retries=0",
+      "--sleep-interval=300",
+      "--max-sleep-interval=5.5",
+      "--socket-timeout=30",
+    ]);
   });
 
   it("names the offending token", () => {

@@ -115,6 +115,31 @@ const SHORT: Readonly<Record<string, string>> = {
 
 const MAX_VALUE_LENGTH = 200;
 
+/** A rate's bytes per second: yt-dlp reads `K`, `M` and `G` as powers of 1024. */
+function bytesPerSecond(rate: string): number {
+  const unit = "kmg".indexOf(rate.slice(-1).toLowerCase()) + 1;
+  return Number(unit === 0 ? rate : rate.slice(0, -1)) * 1024 ** unit;
+}
+
+const atMost = (max: number) => (v: string) => Number(v) <= max;
+
+/**
+ * Bounds on the flags that pace a download, checked after their pattern: a profile could
+ * otherwise crawl at a byte a second, sleep for years or retry forever, and hold its owner's
+ * download slots, and the replica's, until the fetch timeout (6 hours).
+ */
+const BOUNDS: Readonly<Record<string, (value: string) => boolean>> = {
+  "limit-rate": (v) => bytesPerSecond(v) >= 100 * 1024,
+  retries: atMost(50),
+  "fragment-retries": atMost(50),
+  "extractor-retries": atMost(50),
+  "socket-timeout": atMost(300),
+  "sleep-requests": atMost(300),
+  "sleep-interval": atMost(300),
+  "max-sleep-interval": atMost(300),
+  "sleep-subtitles": atMost(300),
+};
+
 /** Every flag name `normalizeExtraArgs` accepts, without the leading `--`. */
 export const ALLOWED_FLAGS: readonly string[] = Object.keys(FLAGS);
 
@@ -139,6 +164,8 @@ function checkValue(name: string, pattern: RegExp, value: string): void {
   if (value.length > MAX_VALUE_LENGTH || !pattern.test(value)) {
     refuse(`invalid value for --${name}: ${value.slice(0, 50)}`);
   }
+  const bound = Object.hasOwn(BOUNDS, name) ? BOUNDS[name] : undefined;
+  if (bound !== undefined && !bound(value)) refuse(`out of range for --${name}: ${value}`);
 }
 
 /**
