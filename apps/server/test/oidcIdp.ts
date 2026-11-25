@@ -12,7 +12,16 @@ export const CLIENT_ID = "uroboros";
 export const CLIENT_SECRET = "test-secret";
 
 /** How the next token response misbehaves. */
-export type Forgery = "none" | "signature" | "hs256" | "nonce" | "issuer";
+export type Forgery =
+  | "none"
+  | "signature"
+  | "hs256"
+  | "nonce"
+  | "issuer"
+  /** Signed for another client. */
+  | "audience"
+  /** Expired before it was handed over. */
+  | "expired";
 
 export interface Person {
   sub: string;
@@ -45,6 +54,8 @@ export interface TestIdp {
   forge(kind: Forgery): void;
   /** Whether discovery is served (false: the provider is unreachable at start). */
   discoverable(on: boolean): void;
+  /** How many times discovery was asked for, served or not. */
+  discoveryCount(): number;
   refreshCount(): number;
   /** Whether a refresh answer carries an ID token (default true; false sends the client to userinfo). */
   refreshIdToken(on: boolean): void;
@@ -164,6 +175,7 @@ export async function startIdp(): Promise<TestIdp> {
   let isDown = false;
   let discover = true;
   let refreshes = 0;
+  let discoveries = 0;
   let issuer = "";
   let withIdToken = true;
   let failingUserinfo: string | null = null;
@@ -186,9 +198,9 @@ export async function startIdp(): Promise<TestIdp> {
     const jwt = new SignJWT(claims)
       .setIssuer(forgery === "issuer" ? "https://evil.example" : issuer)
       .setSubject(person.sub)
-      .setAudience(CLIENT_ID)
-      .setIssuedAt()
-      .setExpirationTime("5m");
+      .setAudience(forgery === "audience" ? "someone-else" : CLIENT_ID)
+      .setIssuedAt(forgery === "expired" ? "2h ago" : new Date())
+      .setExpirationTime(forgery === "expired" ? "1h ago" : "5m");
     if (forgery === "hs256") {
       return jwt.setProtectedHeader({ alg: "HS256" }).sign(Buffer.from(CLIENT_SECRET));
     }
@@ -286,6 +298,7 @@ export async function startIdp(): Promise<TestIdp> {
   const server = createServer({ key: tls.key, cert: tls.cert }, (req, res) => {
     const path = new URL(req.url ?? "/", "http://x").pathname;
     if (path === "/.well-known/openid-configuration") {
+      discoveries++;
       if (!discover) {
         send(res, 503, {});
         return;
@@ -361,6 +374,7 @@ export async function startIdp(): Promise<TestIdp> {
       discover = on;
     },
     refreshCount: () => refreshes,
+    discoveryCount: () => discoveries,
     refreshIdToken: (on) => {
       withIdToken = on;
     },

@@ -218,7 +218,7 @@ describe("OIDC sign-in", () => {
     );
   });
 
-  it.each(["nonce", "signature", "hs256", "issuer"] as const)(
+  it.each(["nonce", "signature", "hs256", "issuer", "audience", "expired"] as const)(
     "refuses an ID token with a bad %s",
     async (kind) => {
       idp.forge(kind);
@@ -354,8 +354,13 @@ describe("before discovery", () => {
     idp.discoverable(false);
     const cold = createOidcProvider(oidcConfig(), { logger, fetch: idp.fetch });
     const s = new AbortController();
+    const asked = idp.discoveryCount();
     cold.start(s.signal);
     try {
+      // Not ready because discovery was tried and failed, not merely because it hasn't run yet.
+      await eventually(() => {
+        expect(idp.discoveryCount()).toBeGreaterThan(asked);
+      });
       const a = makeApp(cold);
       expect(
         AuthMethods.parse(await (await a.request("/api/auth/methods")).json()).oidc?.ready,
