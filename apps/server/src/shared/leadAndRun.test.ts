@@ -1,6 +1,7 @@
 import { getEventListeners } from "node:events";
 import { pino } from "pino";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { eventually } from "../../test/eventually.ts";
 import { type LeaderLock, LeaderGuard, LeaderStatus, leadAndRun } from "./leader.ts";
 
 const logger = pino({ level: "silent" });
@@ -56,7 +57,7 @@ describe("leadAndRun", () => {
       status,
       logger,
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(runs.count).toBe(1);
     });
     expect(lock.attempts).toBeGreaterThanOrEqual(3);
@@ -82,11 +83,11 @@ describe("leadAndRun", () => {
       status,
       logger,
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(runs.count).toBe(1);
     });
     first.abort();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(runs.count).toBe(2);
     });
     expect(status.leading).toBe(true);
@@ -109,7 +110,7 @@ describe("leadAndRun", () => {
       status,
       logger,
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(lock.attempts).toBe(1);
     });
     const start = Date.now();
@@ -141,7 +142,7 @@ describe("leadAndRun", () => {
       status: new LeaderStatus(),
       logger,
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(runs.count).toBe(1);
     });
     shutdown.abort();
@@ -189,11 +190,11 @@ describe("leadAndRun", () => {
       status,
       logger,
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(status.leading).toBe(true);
     });
     lose.abort();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(status.leading).toBe(false);
     });
     shutdown.abort();
@@ -213,12 +214,13 @@ describe("leadAndRun", () => {
       status: new LeaderStatus(),
       logger,
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(lock.attempts).toBeGreaterThanOrEqual(10);
     });
     const early = getEventListeners(shutdown.signal, "abort").length;
-    await vi.waitFor(() => {
-      expect(lock.attempts).toBeGreaterThanOrEqual(300);
+    // A listener left per attempt would show as about a hundred more.
+    await eventually(() => {
+      expect(lock.attempts).toBeGreaterThanOrEqual(110);
     });
     expect(getEventListeners(shutdown.signal, "abort").length).toBe(early);
     expect(early).toBeLessThanOrEqual(2);
@@ -251,11 +253,11 @@ describe("leadAndRun", () => {
       status,
       logger,
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(status.leading).toBe(true);
     });
     shutdown.abort();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(leadingAtRelease).toEqual([false]);
     });
     // Still releasing (a silent server), yet no longer reported as leader.
