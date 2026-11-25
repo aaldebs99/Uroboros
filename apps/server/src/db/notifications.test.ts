@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cutListeners, nextMessage, testBus } from "../../test/bus.ts";
 import { eventually } from "../../test/eventually.ts";
 import { TestDb } from "../../test/testDb.ts";
-import { createPgBus, MAX_PAYLOAD_BYTES, notify } from "./notifications.ts";
+import { createPgBus, MAX_PAYLOAD_BYTES, notify, notifyAll } from "./notifications.ts";
 import type { PgBus } from "./notifications.ts";
 
 let t: TestDb;
@@ -84,6 +84,26 @@ describe("the notification bus", () => {
     ).rejects.toThrow("roll back");
     await settle();
     expect(got).toEqual(["committed"]);
+  });
+
+  it("sends several payloads in one statement, in order, checking each one's size", async () => {
+    const a = bus();
+    await a.ready;
+    const heard: string[] = [];
+    a.on("uroboros_playback", (m) => heard.push(m));
+    await notifyAll(t.db, "uroboros_playback", ["one", "two", "three"]);
+    await eventually(() => {
+      expect(heard).toEqual(["one", "two", "three"]);
+    });
+    await expect(
+      notifyAll(t.db, "uroboros_playback", ["fine", "x".repeat(MAX_PAYLOAD_BYTES + 1)]),
+    ).rejects.toThrow(/8000/);
+    // Nothing of a refused batch went out, and an empty one sends nothing.
+    await notifyAll(t.db, "uroboros_playback", []);
+    await notify(t.db, "uroboros_playback", "after");
+    await eventually(() => {
+      expect(heard).toEqual(["one", "two", "three", "after"]);
+    });
   });
 
   it("refuses a payload of 8000 bytes or more", async () => {
