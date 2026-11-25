@@ -2,16 +2,22 @@ import { z } from "zod";
 import { num, str } from "./lenient.ts";
 
 /**
- * yt-dlp reports progress through `--progress-template` and the finished files through
- * `--print after_move:`, both as tab-separated lines behind a marker, with every value JSON
- * encoded by the template's `j` conversion (so a value never contains a raw tab). Download
- * progress goes to stdout and postprocessor progress to stderr, so both streams are scanned.
+ * yt-dlp reports progress through `--progress-template`, the size of what it picked through
+ * `--print before_dl:` and the finished files through `--print after_move:`, all as tab-separated
+ * lines behind a marker, with every value JSON encoded by the template's `j` conversion (so a value
+ * never contains a raw tab). Download progress goes to stdout and postprocessor progress to stderr,
+ * so both streams are scanned.
  */
 export const MARKER = "[uroboros]";
 
 const DOWNLOAD_TEMPLATE = `download:${MARKER}\tdownload\t%(info.id)j\t%(progress)j`;
 const POSTPROCESS_TEMPLATE = `postprocess:${MARKER}\tpostprocess\t%(info.id)j\t%(progress)j`;
 const FILE_PRINT = `after_move:${MARKER}\tfile\t%(id)j\t%(filepath)j\t%(__infojson_filename)j`;
+/**
+ * Once the formats are picked and before a byte of them is fetched: their size, exact for one file
+ * (`filesize`) and yt-dlp's estimate otherwise, which for a merged pick (`bv+ba`) is the parts' sum.
+ */
+const SIZE_PRINT = `before_dl:${MARKER}\tsize\t%(id)j\t%(filesize,filesize_approx)j`;
 
 /** The arguments that make yt-dlp emit the lines `parseMarkedLine` reads. */
 export const REPORTING_ARGS: readonly string[] = [
@@ -21,6 +27,8 @@ export const REPORTING_ARGS: readonly string[] = [
   DOWNLOAD_TEMPLATE,
   "--progress-template",
   POSTPROCESS_TEMPLATE,
+  "--print",
+  SIZE_PRINT,
   "--print",
   FILE_PRINT,
 ];
@@ -60,8 +68,16 @@ export interface FinishedFile {
   infoJsonPath: string | null;
 }
 
+/** The size of what yt-dlp picked for a video, told before it downloads it. */
+export interface PickedSize {
+  videoId: string | null;
+  /** Bytes, exact or estimated; null when yt-dlp knows neither (a live stream, say). */
+  bytes: number | null;
+}
+
 export type MarkedLine =
   | { type: "progress"; event: ProgressEvent }
+  | { type: "size"; size: PickedSize }
   | { type: "file"; file: FinishedFile };
 
 const DownloadProgress = z.object({
@@ -164,6 +180,15 @@ function fileLine(fields: readonly string[]): MarkedLine | null {
   };
 }
 
+function sizeLine(fields: readonly string[]): MarkedLine {
+  const bytes = value(fields[2]);
+  const known = typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0;
+  return {
+    type: "size",
+    size: { videoId: idOf(fields[1]), bytes: known ? Math.round(bytes) : null },
+  };
+}
+
 /** Parses one output line; null for anything that is not a well-formed marked line. */
 export function parseMarkedLine(line: string): MarkedLine | null {
   if (!line.startsWith(`${MARKER}\t`)) return null;
@@ -172,6 +197,7 @@ export function parseMarkedLine(line: string): MarkedLine | null {
   let event: ProgressEvent | null = null;
   if (kind === "download") event = downloadEvent(idOf(id), value(payload));
   else if (kind === "postprocess") event = postprocessEvent(idOf(id), value(payload));
+  else if (kind === "size") return sizeLine(fields);
   else if (kind === "file") return fileLine(fields);
   return event === null ? null : { type: "progress", event };
 }

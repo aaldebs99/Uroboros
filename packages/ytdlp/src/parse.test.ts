@@ -224,6 +224,23 @@ describe("progress lines", () => {
     });
   });
 
+  it("reads the size of what yt-dlp picked, exact or estimated, or none", () => {
+    expect(parseMarkedLine(`${MARKER}\tsize\t"vid"\t722647490`)).toEqual({
+      type: "size",
+      size: { videoId: "vid", bytes: 722647490 },
+    });
+    // yt-dlp's estimates are floats (tbr × duration); a live stream has neither field.
+    expect(parseMarkedLine(`${MARKER}\tsize\t"vid"\t1234.6`)).toMatchObject({
+      size: { bytes: 1235 },
+    });
+    for (const unknown of ["NA", '"NA"', "null", '"big"', "-5"]) {
+      expect(parseMarkedLine(`${MARKER}\tsize\t"vid"\t${unknown}`)).toEqual({
+        type: "size",
+        size: { videoId: "vid", bytes: null },
+      });
+    }
+  });
+
   it("ignores ordinary output and malformed marked lines", () => {
     for (const line of [
       "[download] Destination: clip.mp4",

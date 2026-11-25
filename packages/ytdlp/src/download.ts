@@ -19,6 +19,7 @@ import {
   parseMarkedLine,
   REPORTING_ARGS,
   type FinishedFile,
+  type PickedSize,
   type ProgressEvent,
 } from "./progress.ts";
 
@@ -34,6 +35,12 @@ export interface DownloadOptions extends YtDlpOptions {
    * and then rejects with that error.
    */
   onProgress?: (event: ProgressEvent) => void;
+  /**
+   * Told the size of what yt-dlp picked for each video, once picked and before it is downloaded,
+   * so a caller can stop a run that would be too large (through `signal`). Errors are kept as
+   * `onProgress`'s are.
+   */
+  onSize?: (size: PickedSize) => void;
 }
 
 export interface DownloadedFile {
@@ -95,15 +102,17 @@ async function readInfo(
   }
 }
 
-/** Collects the marked lines of both streams: progress to the callback, files to a list. */
+/** Collects the marked lines of both streams: progress and sizes to the callbacks, files to a list. */
 class Reporter {
   readonly files: FinishedFile[] = [];
   callbackError: { error: unknown } | null = null;
 
   private readonly onProgress: ((event: ProgressEvent) => void) | undefined;
+  private readonly onSize: ((size: PickedSize) => void) | undefined;
 
-  constructor(onProgress: ((event: ProgressEvent) => void) | undefined) {
-    this.onProgress = onProgress;
+  constructor(options: Pick<DownloadOptions, "onProgress" | "onSize">) {
+    this.onProgress = options.onProgress;
+    this.onSize = options.onSize;
   }
 
   readonly line = (line: string): void => {
@@ -113,9 +122,10 @@ class Reporter {
       this.files.push(parsed.file);
       return;
     }
-    if (this.onProgress === undefined || this.callbackError !== null) return;
+    if (this.callbackError !== null) return;
     try {
-      this.onProgress(parsed.event);
+      if (parsed.type === "size") this.onSize?.(parsed.size);
+      else this.onProgress?.(parsed.event);
     } catch (error) {
       this.callbackError = { error };
     }
@@ -145,7 +155,7 @@ export async function download(url: string, options: DownloadOptions): Promise<D
     ...REPORTING_ARGS,
     ...runtimeArgs(options.jsRuntime),
   ];
-  const reporter = new Reporter(options.onProgress);
+  const reporter = new Reporter(options);
   const result = await withRunFiles(options, (files) =>
     runProcess({
       binary: options.binary ?? DEFAULT_BINARY,

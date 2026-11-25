@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { download } from "./download.ts";
 import { YtDlpError } from "./errors.ts";
-import type { ProgressEvent } from "./progress.ts";
+import type { PickedSize, ProgressEvent } from "./progress.ts";
 import {
   FakeRun,
   fixture,
@@ -90,6 +90,28 @@ describe("download", () => {
     }
     expect(argv).toContain("--write-info-json");
     expect(argv).toContain("--newline");
+  });
+
+  it("tells the size of what yt-dlp picked before it downloads, and asks yt-dlp to say it", async () => {
+    const run = await fake({
+      steps: [
+        { stdout: `[uroboros]\tsize\t"clip"\t722647490\n` },
+        { writeFile: "clip.mp4", content: "media" },
+        { writeFile: "clip.info.json", content: await fixture("info-clip.json") },
+        { stdout: `[uroboros]\tfile\t"clip"\t"{{cwd}}/clip.mp4"\t"clip.info.json"\n` },
+      ],
+    });
+    const sizes: PickedSize[] = [];
+    const result = await download(URL, {
+      ...run.options,
+      workDir: run.workDir,
+      format: "b",
+      onSize: (size) => sizes.push(size),
+    });
+    expect(sizes).toEqual([{ videoId: "clip", bytes: 722647490 }]);
+    expect(result.files).toHaveLength(1);
+    const argv = await run.argv();
+    expect(argv).toContain("before_dl:[uroboros]\tsize\t%(id)j\t%(filesize,filesize_approx)j");
   });
 
   it("rethrows a progress callback's error once the run is over", async () => {
