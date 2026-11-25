@@ -1,7 +1,8 @@
 import { readdirSync } from "node:fs";
 import { pino } from "pino";
-import { afterEach, describe, expect, inject, it, vi } from "vitest";
+import { afterEach, describe, expect, inject, it } from "vitest";
 import { apiConfig, fixtureMigrations, MIGRATIONS, recordingLogger } from "../../test/apiConfig.ts";
+import { eventually } from "../../test/eventually.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { createEmptyDatabase, TestDb } from "../../test/testDb.ts";
 import { MIGRATE_KEY_NAME } from "../shared/lockKeys.ts";
@@ -109,7 +110,7 @@ describe("api leadership", () => {
       startApi(apiConfig(url), logger, opts).then(track),
     ]);
     await Promise.all(apis.map((api) => api.attached));
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(apis.filter((api) => api.leader.leading)).toHaveLength(1);
     });
     const leader = apis.find((api) => api.leader.leading);
@@ -117,7 +118,7 @@ describe("api leadership", () => {
     if (leader === undefined || follower === undefined) throw new Error("one of each expected");
     await leader.close();
     expect(leader.leader.leading).toBe(false);
-    await vi.waitFor(
+    await eventually(
       () => {
         expect(follower.leader.leading).toBe(true);
       },

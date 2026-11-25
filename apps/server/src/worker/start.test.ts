@@ -1,7 +1,8 @@
 import { Writable } from "node:stream";
 import { pino } from "pino";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { testBus } from "../../test/bus.ts";
+import { eventually } from "../../test/eventually.ts";
 import { liveJobs } from "../../test/jobs.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { PgBus } from "../db/notifications.ts";
@@ -42,7 +43,7 @@ function consumers(process: Consumer["process"], onCut: () => void = () => undef
 
 const add = (key: string) => new JobQueue(t.db, "download").add("fetch", { key }, { key });
 const running = async () =>
-  vi.waitFor(async () => {
+  eventually(async () => {
     expect((await liveJobs(t.db, "download")).some((j) => j.state === "running")).toBe(true);
   });
 

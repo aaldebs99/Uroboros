@@ -1,6 +1,7 @@
 import type { DownloadProgress } from "@uroboros/contract";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { testBus } from "../../test/bus.ts";
+import { eventually } from "../../test/eventually.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { PgBus } from "../db/notifications.ts";
 import {
@@ -60,7 +61,7 @@ describe("download events", () => {
     const heard: unknown[] = [];
     bus.on("uroboros_downloads", (p) => heard.push(JSON.parse(p)));
     await saveProgress(t.db, "fetch|a", progress(30));
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(heard).toEqual([{ kind: "progress", fetchKey: "fetch|a", progress: progress(30) }]);
     });
   });
@@ -75,7 +76,7 @@ describe("download events", () => {
       { kind: "state", downloadId: "d2", userId: "u1" },
     ]);
     await publishCancel(t.db, "fetch|x");
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(states).toEqual([
         { kind: "state", downloadId: "d1", userId: "u1" },
         { kind: "state", downloadId: "d2", userId: "u1" },

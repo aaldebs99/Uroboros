@@ -1,7 +1,8 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { AuthMethods, LogoutResult, Me } from "@uroboros/contract";
 import { pino } from "pino";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { eventually } from "../../../test/eventually.ts";
 import {
   CLIENT_ID,
   CLIENT_SECRET,
@@ -58,7 +59,7 @@ beforeAll(async () => {
   idp = await startIdp();
   provider = createOidcProvider(oidcConfig(), { logger, fetch: idp.fetch });
   provider.start(stop.signal);
-  await vi.waitFor(
+  await eventually(
     () => {
       expect(provider.ready()).toBe(true);
     },
@@ -290,7 +291,7 @@ describe("with UROBOROS_OIDC_AUTO_CREATE off", () => {
       { logger, fetch: idp.fetch },
     );
     p.start(stopClosed.signal);
-    await vi.waitFor(
+    await eventually(
       () => {
         expect(p.ready()).toBe(true);
       },

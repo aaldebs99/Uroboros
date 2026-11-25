@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { testBus } from "../../test/bus.ts";
 import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
+import { eventually } from "../../test/eventually.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { claim } from "../jobs/store.ts";
 import { dispatchFor, queueDownload } from "./dispatch.ts";
@@ -158,7 +159,7 @@ describe("cancel and retry", () => {
       ).not.toHaveLength(0);
       expect((await h.queues.download.get(key))?.state).toBe("running");
       expect((await post(h.app(u), `/api/downloads/${id}/cancel`)).status).toBe(204);
-      await vi.waitFor(() => {
+      await eventually(() => {
         expect(messages.map((m) => (JSON.parse(m) as { fetchKey: string }).fetchKey)).toContain(
           key,
         );

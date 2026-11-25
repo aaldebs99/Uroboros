@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { testBus } from "../../test/bus.ts";
+import { eventually } from "../../test/eventually.ts";
 import { liveJobs } from "../../test/jobs.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { JobQueue } from "./queues.ts";
@@ -52,7 +53,7 @@ describe("JobQueue", () => {
         await new Promise((r) => setTimeout(r, 150));
         expect(woke).toEqual([]);
       });
-      await vi.waitFor(() => {
+      await eventually(() => {
         expect(woke).toEqual(["probe"]);
       });
       await expect(

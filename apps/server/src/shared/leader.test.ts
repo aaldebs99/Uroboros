@@ -1,8 +1,9 @@
 import { createServer } from "node:net";
 import type { AddressInfo, Socket } from "node:net";
 import { pino } from "pino";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { recordingLogger } from "../../test/apiConfig.ts";
+import { eventually } from "../../test/eventually.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { silentProxy } from "../../test/silentProxy.ts";
 import { TestDb } from "../../test/testDb.ts";
@@ -80,7 +81,7 @@ describe("PgLeaderLock", () => {
     const guard = await win(lock(KEY, 200));
     expect(guard.isLost).toBe(false);
     expect(await terminateHolder()).toBe(1);
-    await vi.waitFor(
+    await eventually(
       () => {
         expect(guard.isLost).toBe(true);
       },
@@ -99,7 +100,7 @@ describe("PgLeaderLock", () => {
       const guard = await win(l);
       proxy.silence();
       const start = Date.now();
-      await vi.waitFor(
+      await eventually(
         () => {
           expect(guard.isLost).toBe(true);
         },
@@ -188,7 +189,7 @@ describe("PgLeaderLock against a server that never answers", () => {
     expect(Date.now() - start).toBeLessThan(2000);
     // The attempt's socket is closed, not left to the silent server.
     expect(sockets).toHaveLength(1);
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(closed).toBe(1);
     });
   });

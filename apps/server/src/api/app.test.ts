@@ -6,8 +6,9 @@ import { join } from "node:path";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { ApiErrorBody } from "@uroboros/contract";
 import { pino } from "pino";
-import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
+import { eventually } from "../../test/eventually.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { createDb } from "../db/kysely.ts";
@@ -105,7 +106,7 @@ describe("pool resilience", () => {
             [dbName],
           ),
         );
-        await vi.waitFor(
+        await eventually(
           () => {
             expect(logged.some((line) => line.includes("idle postgres client error"))).toBe(true);
           },

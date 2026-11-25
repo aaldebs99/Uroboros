@@ -1,10 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { type Kysely, sql } from "kysely";
 import pg from "pg";
-import { afterEach, beforeEach, describe, expect, inject, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, inject, it } from "vitest";
 import { createDb } from "../db/kysely.ts";
 import type { Database } from "../db/schema.ts";
 import { MigrationError, runMigrations } from "./runner.ts";
+import { eventually } from "../../test/eventually.ts";
 import { createEmptyDatabase } from "../../test/testDb.ts";
 
 const fixture = (name: string): string =>
@@ -64,7 +65,7 @@ describe("runMigrations", () => {
         runMigrations(connect(), fixture("migrations-ok")),
       ];
       // Two fresh pools connecting and queueing can outlast the 1 s default on a loaded runner.
-      await vi.waitFor(
+      await eventually(
         async () => {
           const r = await holder.query<{ n: string }>(`
           SELECT count(*)::text AS n FROM pg_locks

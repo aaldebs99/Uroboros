@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { pino } from "pino";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { asUser, signedIn } from "../../test/auth.ts";
+import { eventually } from "../../test/eventually.ts";
 import { CLIENT_ID, CLIENT_SECRET, startIdp, type TestIdp } from "../../test/oidcIdp.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
@@ -45,7 +46,7 @@ beforeAll(async () => {
   idp = await startIdp();
   provider = createOidcProvider(oidc(), { logger, fetch: idp.fetch });
   provider.start(stop.signal);
-  await vi.waitFor(
+  await eventually(
     () => {
       expect(provider.ready()).toBe(true);
     },
@@ -263,7 +264,7 @@ describe("claims sync", () => {
     );
     const s = new AbortController();
     p.start(s.signal);
-    await vi.waitFor(
+    await eventually(
       () => {
         expect(p.ready()).toBe(true);
       },

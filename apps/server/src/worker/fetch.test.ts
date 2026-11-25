@@ -1,11 +1,12 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { downloadScenario, downloadStates, fetchJob, queuedFetch } from "../../test/fetchJobs.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import { testBus } from "../../test/bus.ts";
+import { eventually } from "../../test/eventually.ts";
 import { queuedData } from "../../test/jobs.ts";
 import type { FetchJob, PreviewJob } from "../downloads/queues.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
@@ -255,7 +256,7 @@ describe("fetch", () => {
       ),
       registry,
     )(job(data));
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await states("cancel-1"))[0]?.state).toBe("running");
     });
     await testDb.db
@@ -284,7 +285,7 @@ describe("shutdown", () => {
       ),
       registry,
     )(job(data));
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await states("shutdown-1"))[0]?.state).toBe("running");
     });
     registry.abortAll();
@@ -303,7 +304,7 @@ describe("shutdown", () => {
       await h.deps(await downloadScenario([{ sleepMs: 10_000 }])),
       createCancelRegistry(),
     )({ ...job(data), signal: lost.signal });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await states("lost-1"))[0]?.state).toBe("running");
     });
     lost.abort();
@@ -321,7 +322,7 @@ describe("cancel races", () => {
       await h.deps(await downloadScenario([{ sleepMs: 10_000 }])),
       registry,
     )(job(data));
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await states("race-c"))[0]?.state).toBe("running");
     });
     await testDb.db

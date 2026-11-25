@@ -1,5 +1,6 @@
 import { pino } from "pino";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { eventually } from "../../test/eventually.ts";
 import { silentProxy } from "../../test/silentProxy.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createDb } from "../db/kysely.ts";
@@ -49,7 +50,7 @@ describe("a database that goes silent after the handshake", () => {
       // Postgres is reachable again on new connections, but the muted ones never answer. Health
       // is ok again only if the hung clients were released and dropped, not kept in the pool.
       proxy.resume();
-      await vi.waitFor(
+      await eventually(
         async () => {
           expect((await timedHealth(app)).status).toBe("ok");
         },
@@ -77,7 +78,7 @@ describe("the readiness database check", () => {
       expect(hung.ms).toBeLessThan(3000);
       proxy.resume();
       const start = Date.now();
-      await vi.waitFor(
+      await eventually(
         async () => {
           expect((await timedHealth(app)).status).toBe("ok");
         },

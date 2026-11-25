@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { DownloadRequest, ReadyPreview } from "@uroboros/contract";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { testBus } from "../../test/bus.ts";
 import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
+import { eventually } from "../../test/eventually.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { PgBus } from "../db/notifications.ts";
 
@@ -151,7 +152,7 @@ describe("GET /api/downloads/requests", () => {
     const off = bus.on("uroboros_downloads", (payload) => messages.push(JSON.parse(payload)));
     try {
       await post(h.app(alice), `/api/downloads/requests/${id}/queue`, { entryIds: ["g1"] });
-      await vi.waitFor(() => {
+      await eventually(() => {
         expect(messages).toContainEqual({ kind: "requests", userId: alice.userId });
       });
     } finally {

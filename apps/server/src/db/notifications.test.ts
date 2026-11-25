@@ -2,6 +2,7 @@ import { sql } from "kysely";
 import type { Logger } from "pino";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cutListeners, nextMessage, testBus } from "../../test/bus.ts";
+import { eventually } from "../../test/eventually.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createPgBus, MAX_PAYLOAD_BYTES, notify } from "./notifications.ts";
 import type { PgBus } from "./notifications.ts";
@@ -117,7 +118,7 @@ describe("the notification bus", () => {
       maxBackoffMs: 40,
     });
     b.start();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(logger.warn.mock.calls.length).toBeGreaterThanOrEqual(3);
     });
     const started = Date.now();

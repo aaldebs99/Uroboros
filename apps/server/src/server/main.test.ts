@@ -3,6 +3,7 @@ import { pino } from "pino";
 import type { Logger } from "pino";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiConfig } from "../../test/apiConfig.ts";
+import { eventually } from "../../test/eventually.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { RunningApi } from "../api/main.ts";
@@ -54,7 +55,7 @@ describe("one server process", () => {
       return s;
     });
     await server.attached;
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(messages).toContain("job consumers started");
     }, WAIT);
     await server.close();
