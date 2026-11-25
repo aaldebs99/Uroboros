@@ -41,4 +41,22 @@ describe("execute", () => {
     expect(result.code).toBe(1);
     expect(result.stderr).toContain("ghost.ts");
   });
+
+  it("runs every gate for all, exiting with the worst of them", async () => {
+    const frozen = JSON.stringify({
+      lines: [{ key: "ghost.ts", value: 1200, reason: "a long enough justification here" }],
+      complexity: [],
+      suppressions: [],
+      pixels: [],
+    });
+    const repo = tempRepo({ ...many(20), "tools/ratchet/frozen.json": frozen });
+    const result = await execute(["all"], repo);
+    // Lines fails (1); the gates this bare repo has no layout for error (2): the worst wins, and
+    // one gate's failure hides none of the others' reports.
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("ghost.ts");
+    expect(result.stdout).toContain("ratchet suppressions: ok");
+    expect((await execute(["lines"], repo)).code).toBe(1);
+    expect((await execute(["all", "extra"], repo)).code).toBe(2);
+  });
 });
