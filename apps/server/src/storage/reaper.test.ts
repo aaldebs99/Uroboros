@@ -2,11 +2,12 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sql } from "kysely";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
-import { sleep } from "../../test/listings.ts";
+import { eventually } from "../../test/eventually.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { queueDownload } from "../downloads/dispatch.ts";
 import { fetchKey } from "../downloads/fetchKey.ts";
@@ -148,21 +149,33 @@ describe("the reaper", () => {
       .where("id", "=", a.renditionId)
       .forUpdate()
       .execute();
-    const queued = t.db.transaction().execute((tx) =>
-      queueDownload(tx, {
-        userId: u.userId,
-        requestId: null,
-        extractor: "youtube",
-        videoId: a.videoId,
-        url: "https://www.youtube.com/watch?v=x",
-        title: null,
-        profile,
-      }),
-    );
-    await sleep(200);
-    await reaper.deleteFrom("renditions").where("id", "=", a.renditionId).execute();
-    await reaper.commit().execute();
-    expect((await queued).outcome).toBe("queued");
+    try {
+      const queued = t.db.transaction().execute((tx) =>
+        queueDownload(tx, {
+          userId: u.userId,
+          requestId: null,
+          extractor: "youtube",
+          videoId: a.videoId,
+          url: "https://www.youtube.com/watch?v=x",
+          title: null,
+          profile,
+        }),
+      );
+      queued.catch(() => undefined);
+      // queueDownload is now waiting on the reaper's row lock (not merely not there yet).
+      await eventually(async () => {
+        const r = await sql<{ n: string }>`
+          SELECT count(*)::text AS n FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
+          WHERE NOT l.granted AND a.datname = current_database()`.execute(t.db);
+        expect(r.rows[0]?.n).toBe("1");
+      });
+      await reaper.deleteFrom("renditions").where("id", "=", a.renditionId).execute();
+      await reaper.commit().execute();
+      expect((await queued).outcome).toBe("queued");
+    } finally {
+      // A failed wait must not leave the transaction holding a pooled connection.
+      if (!reaper.isCommitted) await reaper.rollback().execute();
+    }
   });
 
   it("deletes media with no renditions, its sidecar keys and subtitles", async () => {
