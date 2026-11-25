@@ -26,6 +26,7 @@ export async function downloadRows(
     .$if(opts.active === true, (qb) => qb.where("d.state", "in", ["queued", "running"]))
     .orderBy((eb) => eb.case().when("d.state", "in", ["queued", "running"]).then(0).else(1).end())
     .orderBy("d.created_at", "desc")
+    .orderBy("d.id", "desc")
     .limit(opts.limit ?? 500)
     .execute();
 }

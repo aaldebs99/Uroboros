@@ -118,6 +118,7 @@ export async function listUploads(db: Kysely<Database>, userId: string): Promise
     .where("user_id", "=", userId)
     .where("state", "in", ["receiving", "processing", "failed"])
     .orderBy("created_at")
+    .orderBy("id")
     .execute();
   return Promise.all(rows.map((r) => describeUpload(db, r)));
 }

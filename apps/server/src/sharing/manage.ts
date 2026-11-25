@@ -304,6 +304,7 @@ export async function listMyShares(db: Db, ownerId: string): Promise<ShareState[
     .selectAll()
     .where("owner_id", "=", ownerId)
     .orderBy("updated_at", "desc")
+    .orderBy("id", "desc")
     .execute();
   const seen = new Set<string>();
   const things = rows.flatMap((r) => {

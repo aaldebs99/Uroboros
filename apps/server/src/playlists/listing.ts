@@ -58,7 +58,8 @@ function manualRows(db: Kysely<Database>, userId: string) {
         WHERE pi.playlist_id = p.id AND m.thumbnail_key IS NOT NULL
         ORDER BY pi.position LIMIT 1)`.as("cover"),
     ])
-    .orderBy("p.updated_at", "desc");
+    .orderBy("p.updated_at", "desc")
+    .orderBy("p.id", "desc");
 }
 
 /** The caller's YouTube playlists, with how many of their own entries each holds. */
@@ -84,7 +85,8 @@ function youtubeRows(db: Kysely<Database>, userId: string) {
       >`(SELECT e.id || '|' || m.thumbnail_key ${mine} AND m.thumbnail_key IS NOT NULL
         ORDER BY si.position LIMIT 1)`.as("cover"),
     ])
-    .orderBy("us.queued_at", "desc");
+    .orderBy("us.queued_at", "desc")
+    .orderBy("s.id", "desc");
 }
 
 /** The caller's playlists: manual ones (last changed first), then YouTube ones holding their videos. */
