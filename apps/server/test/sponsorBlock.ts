@@ -67,16 +67,19 @@ export class SponsorBlockStub {
 
 /**
  * A SponsorBlock client for job tests: answers each video id from `answers` (an Error fails it),
- * `[]` for any other, and records the ids it was asked about.
+ * `[]` for any other, and records the ids (and file lengths) it was asked about.
  */
 export function fakeSponsorBlock(
   answers: Record<string, StoredSegment[] | Error> = {},
-): SponsorBlockClient & { asked: string[] } {
+): SponsorBlockClient & { asked: string[]; durations: (number | null)[] } {
   const asked: string[] = [];
+  const durations: (number | null)[] = [];
   return {
     asked,
-    segments(videoId) {
+    durations,
+    segments(videoId, duration) {
       asked.push(videoId);
+      durations.push(duration);
       const answer = answers[videoId];
       if (answer instanceof Error) {
         return Promise.reject(new SponsorBlockError(answer.message, { cause: answer }));

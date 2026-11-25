@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { publishDownloadEvent } from "../downloads/events.ts";
 import type { SkipsJob } from "../downloads/queues.ts";
 import { sponsorBlockOf } from "../library/preferences.ts";
@@ -19,7 +20,12 @@ export function refetchSkipsProcessor(deps: WorkerDeps) {
     const entry = await deps.db
       .selectFrom("library_entries as e")
       .innerJoin("renditions as r", "r.id", "e.rendition_id")
-      .select(["e.rendition_id", "r.video_codec"])
+      .innerJoin("media as m", "m.id", "r.media_id")
+      .select([
+        "e.rendition_id",
+        "r.video_codec",
+        sql<number | null>`coalesce(r.duration, m.duration)`.as("duration"),
+      ])
       .where("e.id", "=", entryId)
       .where("e.user_id", "=", userId)
       .executeTakeFirst();
@@ -32,7 +38,7 @@ export function refetchSkipsProcessor(deps: WorkerDeps) {
       return;
     }
     try {
-      const segments = await deps.sponsorBlock.segments(source.videoId);
+      const segments = await deps.sponsorBlock.segments(source.videoId, entry.duration);
       await deps.db
         .updateTable("renditions")
         .set({ skip_segments: JSON.stringify(segments) })

@@ -54,6 +54,9 @@ describe("a copy of an audio file without some of it (docs/transcoding.md)", () 
     const argv = audioExportArgs(plan);
     expect(argv.join(" ")).toContain("-f ffmetadata -i /work/chapters.txt");
     expect(after(argv, "-map_metadata")).toBe("0");
+    // Ogg (Opus, Vorbis) keeps its tags on the audio stream, which a filter graph's output doesn't
+    // inherit: they're mapped across too.
+    expect(argv.join(" ")).toContain("-map_metadata:s:a 0:s:a:0");
     expect(after(argv, "-map_chapters")).toBe("1");
     const bare = audioExportArgs({ ...plan, chapters: null });
     expect(after(bare, "-map_chapters")).toBe("-1");

@@ -18,6 +18,9 @@ export function useUpdatePreferences() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (patch: PreferencesPatch) => patchJson("/api/me/preferences", Preferences, patch),
+    // One at a time: each patch carries a whole field (SponsorBlock's choices), so two in flight
+    // could land out of order and the older one win.
+    scope: { id: "preferences" },
     onMutate: async (patch) => {
       await client.cancelQueries({ queryKey: preferencesKey });
       const before = client.getQueryData<Preferences>(preferencesKey);

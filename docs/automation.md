@@ -167,7 +167,10 @@ Format profiles carry no categories, and no file is marked or cut for anyone:
 - **Every YouTube file keeps every category's segments.** After a download the fetch asks
   SponsorBlock's API itself (`src/sponsorblock/client.ts`, `src/worker/fetchSegments.ts`) for the
   video's segments, by the first four hex digits of its id's SHA-256 as yt-dlp does, so SponsorBlock
-  never learns which video it was, and stores their "skip" action's segments on the rendition
+  never learns which video it was, fits them to the file's length as yt-dlp does (a start within a
+  second of 0 is 0, an end within a second of the end is the end, and a segment SponsorBlock timed
+  on a video of another length, an older cut of it, is dropped unless that is under a second, or
+  under 5 s and under 5 % of the segment), and stores their "skip" action's segments on the rendition
   (`renditions.skip_segments`), the same for everyone who has the file. Nothing goes through yt-dlp,
   so the file has no SponsorBlock chapters and nothing cut. A lookup that fails stores none and the
   download stands; its owner can fetch them again (below). Other sites have none: SponsorBlock knows

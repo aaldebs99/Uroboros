@@ -91,4 +91,38 @@ describe("Settings › SponsorBlock", () => {
       expect(screen.getByRole("switch", { name: "Audio: show Intro" })).not.toBeChecked();
     });
   });
+
+  it("sends quick toggles one at a time, so the last click is what the server keeps", async () => {
+    let release: (() => void) | undefined;
+    const first = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let patches = 0;
+    const calls = fakeApi({
+      "GET /api/me/preferences": () => Response.json(prefs),
+      "PATCH /api/me/preferences": async (init) => {
+        patches += 1;
+        if (patches === 1) await first;
+        const body = typeof init?.body === "string" ? (JSON.parse(init.body) as object) : {};
+        return Response.json({ ...prefs, ...body });
+      },
+    });
+    renderWithQuery(<SponsorBlockSettings />);
+    const intro = await screen.findByRole("switch", { name: "Videos: show Intro" });
+    await waitFor(() => {
+      expect(intro).toBeEnabled();
+    });
+    await userEvent.click(intro);
+    await userEvent.click(screen.getByRole("switch", { name: "Videos: skip Intro" }));
+    // The second waits for the first to be answered.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(1);
+    release?.();
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(2);
+    });
+    expect(calls.filter((c) => c.method === "PATCH").at(-1)?.body).toMatchObject({
+      sponsorBlock: { video: { show: ["interaction", "intro", "selfpromo", "sponsor"] } },
+    });
+  });
 });

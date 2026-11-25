@@ -107,10 +107,13 @@ export function audioExportArgs(p: AudioExportPlan): string[] {
     ...(cover === null
       ? []
       : ["-map", `0:${String(cover.index)}`, "-c:v", "copy", "-disposition:v", "attached_pic"]),
-    // The source's tags (artist, album…) stay; its chapters are on the uncut timeline, so they come
-    // from the chapters file, remapped, or not at all.
+    // The source's tags (artist, album…) stay, the file's and, for Ogg, which keeps them on the
+    // audio stream, the stream's (a filter graph's output inherits none); its chapters are on the
+    // uncut timeline, so they come from the chapters file, remapped, or not at all.
     "-map_metadata",
     "0",
+    "-map_metadata:s:a",
+    "0:s:a:0",
     "-map_chapters",
     p.chapters === null ? "-1" : "1",
     "-f",

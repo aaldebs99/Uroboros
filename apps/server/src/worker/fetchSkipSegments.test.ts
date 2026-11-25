@@ -61,6 +61,8 @@ describe("a fetch's SponsorBlock segments (docs/automation.md#sponsorblock)", ()
     const sb = fakeSponsorBlock({ "sb-video": FOUND });
     expect(await fetched(data, sb)).toEqual({ segments: FOUND, state: "done" });
     expect(sb.asked).toEqual(["sb-video"]);
+    // With the stored file's own length, so segments from another cut of the video are dropped.
+    expect(sb.durations).toEqual([expect.any(Number)]);
   });
 
   it("are kept for an audio-only download too: nothing is cut from the file", async () => {

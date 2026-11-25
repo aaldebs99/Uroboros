@@ -289,7 +289,7 @@ async function store(
   });
   await storeSubtitles(deps, mediaId, key, await findSubtitles(file.path, file.info));
   // Asked before the rendition's insert, outside any transaction: SponsorBlock can be slow.
-  const segments = await lookUpSegments(deps, data, data.args);
+  const segments = await lookUpSegments(deps, data, data.args, probed.duration);
   const facts = renditionFacts(probed);
   await deps.db
     .insertInto("renditions")

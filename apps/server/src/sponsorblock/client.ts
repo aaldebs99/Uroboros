@@ -21,8 +21,16 @@ export class SponsorBlockError extends Error {
 
 /** Asks SponsorBlock for one video's segments: every category's, its "skip" action's. */
 export interface SponsorBlockClient {
-  /** The video's segments, sorted by start; `[]` when it has none. Throws `SponsorBlockError`. */
-  segments(videoId: string, signal?: AbortSignal): Promise<StoredSegment[]>;
+  /**
+   * The video's segments, sorted by start; `[]` when it has none. `duration` is the stored file's
+   * length (null when unknown): segments timed on a video of another length are dropped, and ends
+   * within a second of it reach it. Throws `SponsorBlockError`.
+   */
+  segments(
+    videoId: string,
+    duration: number | null,
+    signal?: AbortSignal,
+  ): Promise<StoredSegment[]>;
 }
 
 const Answer = z.array(
@@ -33,18 +41,44 @@ const Answer = z.array(
         segment: z.tuple([z.number(), z.number()]),
         category: z.string(),
         actionType: z.string().optional(),
+        videoDuration: z.number().nullish(),
       }),
     ),
   }),
 );
 
-function segmentsOf(answer: z.infer<typeof Answer>, videoId: string): StoredSegment[] {
+type Answered = z.infer<typeof Answer>[number]["segments"][number];
+
+/**
+ * A segment on the file's timeline, or null when it doesn't fit the file, as yt-dlp's SponsorBlock
+ * step judges it: a start within a second of 0 is 0, an end within a second of the end (or past
+ * it) is the end, and a segment SponsorBlock timed on a video more than a second longer or shorter
+ * (an older cut of it, before its creator trimmed a sponsor out) counts only when that is under
+ * 5 s and under 5 % of the segment. Without the file's length, segments stand as given.
+ */
+function fitted(s: Answered, duration: number | null): { start: number; end: number } | null {
+  let [start, end] = s.segment;
+  if (start <= 1) start = 0;
+  if (duration === null) return { start, end };
+  if (duration - end <= 1) end = duration;
+  const diff = s.videoDuration ? Math.abs(duration - s.videoDuration) : 0;
+  const fits = diff < 1 || (diff < 5 && end > start && diff / (end - start) < 0.05);
+  return fits ? { start, end } : null;
+}
+
+function segmentsOf(
+  answer: z.infer<typeof Answer>,
+  videoId: string,
+  duration: number | null,
+): StoredSegment[] {
   const mine = answer.find((v) => v.videoID === videoId)?.segments ?? [];
   return mine
-    .flatMap(({ segment: [start, end], category, actionType }) => {
-      const known = SponsorBlockCategory.safeParse(category);
-      const skips = actionType === undefined || actionType === "skip";
-      return known.success && skips && end > start ? [{ start, end, category: known.data }] : [];
+    .flatMap((s) => {
+      const known = SponsorBlockCategory.safeParse(s.category);
+      const skips = s.actionType === undefined || s.actionType === "skip";
+      if (!known.success || !skips) return [];
+      const span = fitted(s, duration);
+      return span !== null && span.end > span.start ? [{ ...span, category: known.data }] : [];
     })
     .sort((a, b) => a.start - b.start || a.end - b.end);
 }
@@ -55,7 +89,7 @@ export function sponsorBlockClient(opts: {
 }): SponsorBlockClient {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   return {
-    async segments(videoId, signal) {
+    async segments(videoId, duration, signal) {
       const prefix = createHash("sha256").update(videoId).digest("hex").slice(0, 4);
       const url = new URL(`/api/skipSegments/${prefix}`, opts.baseUrl);
       url.searchParams.set("service", "YouTube");
@@ -76,7 +110,7 @@ export function sponsorBlockClient(opts: {
       const body: unknown = await res.json().catch(() => null);
       const answer = Answer.safeParse(body);
       if (!answer.success) throw new SponsorBlockError("SponsorBlock's answer was unreadable");
-      return segmentsOf(answer.data, videoId);
+      return segmentsOf(answer.data, videoId, duration);
     },
   };
 }

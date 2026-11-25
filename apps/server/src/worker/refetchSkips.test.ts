@@ -84,6 +84,8 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
       data: { entryId: e.entryId, userId: u.userId },
     });
     expect(sb.asked).toEqual([id]);
+    // With the file's length (the seeded media's 100 s), as the fetch asks.
+    expect(sb.durations).toEqual([100]);
     // Every category is stored; the asker's setting only decides what they hear about.
     expect(await segmentsOf(e.renditionId)).toEqual(found);
     // yt-dlp never ran: the lookup is the server's own.
