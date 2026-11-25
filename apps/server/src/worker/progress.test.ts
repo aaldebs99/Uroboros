@@ -1,7 +1,8 @@
 import type { ProgressEvent } from "@uroboros/ytdlp";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { testBus } from "../../test/bus.ts";
 import { TestDb } from "../../test/testDb.ts";
+import { eventually } from "../../test/eventually.ts";
 import type { PgBus } from "../db/notifications.ts";
 import { latestProgress } from "../downloads/events.ts";
 import { createProgressPublisher } from "./progress.ts";
@@ -54,7 +55,7 @@ describe("progress", () => {
       downloadedBytes: null,
       totalBytes: null,
     });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(heard.some((m) => m.progress.phase === "merging")).toBe(true);
     });
     expect(heard.length).toBeLessThanOrEqual(3);
@@ -67,10 +68,14 @@ describe("progress", () => {
     publish({ ...base, phase: "merging", state: "started", downloadedBytes: 2, totalBytes: null });
     publish(downloading(3));
     publish({ ...base, phase: "merging", state: "started", downloadedBytes: 4, totalBytes: null });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await latestProgress(t.db, ["k"])).get("k")?.downloadedBytes).toBe(4);
     });
-    await new Promise((r) => setTimeout(r, 200));
+    // The NOTIFY goes with the write but reaches the listener later; anything sent before it
+    // arrives before it.
+    await eventually(() => {
+      expect(heard.map((m) => m.progress.downloadedBytes)).toContain(4);
+    });
     expect(heard.map((m) => m.progress.downloadedBytes)).toEqual([1, 4]);
   });
 });

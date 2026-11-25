@@ -134,13 +134,15 @@ describe("local sign-in", () => {
     const median = (xs: number[]) => xs.sort((x, y) => x - y)[Math.floor(xs.length / 2)] ?? 0;
     const known: number[] = [];
     const unknown: number[] = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 7; i++) {
       known.push(await time("alice"));
       unknown.push(await time(`ghost${String(i)}`));
     }
+    // Skipping the hash for an unknown user makes it some thirty times quicker; the wide band
+    // leaves room for other test files using the CPU meanwhile.
     const ratio = median(unknown) / median(known);
-    expect(ratio).toBeGreaterThan(0.5);
-    expect(ratio).toBeLessThan(2);
+    expect(ratio).toBeGreaterThan(0.33);
+    expect(ratio).toBeLessThan(3);
   });
 
   it("locks a username after 5 failures from one address in 15 minutes, shared across app instances", async () => {

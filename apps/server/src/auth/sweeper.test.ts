@@ -2,6 +2,7 @@ import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
+import { eventually } from "../../test/eventually.ts";
 import { createSession, resolveSession } from "./sessions.ts";
 import { sweeperDuty } from "./sweeper.ts";
 
@@ -28,13 +29,14 @@ describe("sweeperDuty", () => {
       .execute();
     const stop = new AbortController();
     const running = sweeperDuty(testDb.db, pino({ level: "silent" }))(stop.signal);
-    await new Promise((r) => setTimeout(r, 200));
-    const left = await testDb.db
-      .selectFrom("auth_sessions")
-      .select("csrf")
-      .where("user_id", "=", live.userId)
-      .execute();
-    expect(left.map((r) => r.csrf)).toEqual([live.csrf]);
+    await eventually(async () => {
+      const left = await testDb.db
+        .selectFrom("auth_sessions")
+        .select("csrf")
+        .where("user_id", "=", live.userId)
+        .execute();
+      expect(left.map((r) => r.csrf)).toEqual([live.csrf]);
+    });
     expect(await resolveSession(testDb.db, live.token)).not.toBeNull();
     stop.abort();
     await expect(running).resolves.toBeUndefined();
