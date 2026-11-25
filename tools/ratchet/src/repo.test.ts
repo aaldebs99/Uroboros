@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 
-import { extension, isGovernedSource, listedFiles, splitNul } from "./repo.ts";
+import { extension, isGovernedSource, listedFiles, repoRoot, splitNul } from "./repo.ts";
 
 const roots: string[] = [];
 afterAll(() => {
@@ -41,6 +41,21 @@ describe("repo", () => {
     symlinkSync("tracked.ts", join(root, "link.ts"));
     rmSync(join(root, "gone.ts"));
     expect(listedFiles(root)).toEqual([".gitignore", "new file ü.ts", "tracked.ts"]);
+  });
+
+  it("finds the root from its own folder inside a git hook, which exports GIT_DIR", () => {
+    const here = { cwd: import.meta.dirname, encoding: "utf8" } as const;
+    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], here).trim();
+    const gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], here).trim();
+    const saved = process.env["GIT_DIR"];
+    // As a pre-push hook runs, from a linked worktree or the main checkout alike.
+    process.env["GIT_DIR"] = gitDir;
+    try {
+      expect(repoRoot()).toBe(root);
+    } finally {
+      if (saved === undefined) delete process.env["GIT_DIR"];
+      else process.env["GIT_DIR"] = saved;
+    }
   });
 
   it("splitNul drops empty entries", () => {

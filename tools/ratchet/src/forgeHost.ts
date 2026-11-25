@@ -17,7 +17,7 @@ import { execFileSync } from "node:child_process";
 
 import { newReport, pushSection, section, type Report } from "./report.ts";
 import { historyMentions } from "./forgeHistory.ts";
-import { read, type Repo } from "./repo.ts";
+import { gitEnv, read, type Repo } from "./repo.ts";
 
 const GATE = "ratchet forge-host";
 
@@ -136,6 +136,7 @@ function originUrl(root: string): string | undefined {
   try {
     return execFileSync("git", ["remote", "get-url", "origin"], {
       cwd: root,
+      env: gitEnv(),
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();

@@ -7,7 +7,7 @@
  */
 import { execFileSync } from "node:child_process";
 
-import { LayoutError } from "./repo.ts";
+import { gitEnv, LayoutError } from "./repo.ts";
 
 /** Field and record separators of the formats below (a commit message holds neither). */
 const FIELD = "\0";
@@ -74,6 +74,7 @@ export function tagMentions(raw: string, pattern: RegExp): string[] {
 function git(root: string, args: string[]): string {
   return execFileSync("git", args, {
     cwd: root,
+    env: gitEnv(),
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
     stdio: ["ignore", "pipe", "pipe"],

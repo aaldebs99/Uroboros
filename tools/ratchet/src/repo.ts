@@ -21,11 +21,26 @@ export class LayoutError extends Error {
   override name = "LayoutError";
 }
 
+/**
+ * The environment every git command here runs in: the caller's, less the repository a git hook
+ * exports. A hook runs with `GIT_DIR` set (a linked worktree's `.git/worktrees/<name>`), and with
+ * `GIT_DIR` alone git takes the current directory for the work tree, so `--show-toplevel` answered
+ * this module's folder and every gate read files from there. Without them git finds the
+ * repository from where it runs, a linked worktree's included.
+ */
+export function gitEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env["GIT_DIR"];
+  delete env["GIT_WORK_TREE"];
+  return env;
+}
+
 /** The repository root, as git reports it for this module's location. */
 export function repoRoot(): string {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd: import.meta.dirname,
+      env: gitEnv(),
       encoding: "utf8",
     }).trim();
   } catch (error) {
@@ -59,7 +74,7 @@ export function listedFiles(root: string): string[] {
     stdout = execFileSync(
       "git",
       ["-c", "core.quotepath=off", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-      { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+      { cwd: root, env: gitEnv(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
     );
   } catch (error) {
     throw new LayoutError(
