@@ -1,5 +1,5 @@
 import { LibraryPage } from "@uroboros/contract";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness, seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
@@ -11,17 +11,23 @@ let bob: SignedIn;
 let entryId: string;
 let renditionId: string;
 
+let n = 0;
+
 beforeAll(async () => {
   testDb = await TestDb.create();
   h = await downloadHarness(testDb.db);
-  alice = await signedIn(testDb.db, { username: "lalice" });
-  bob = await signedIn(testDb.db, { username: "lbob" });
+});
+// Each test's own people and entry: the delete test removes the entry the list test reads.
+beforeEach(async () => {
+  n++;
+  alice = await signedIn(testDb.db, { username: `lalice${String(n)}` });
+  bob = await signedIn(testDb.db, { username: `lbob${String(n)}` });
   const p = await seededDefault(testDb.db);
   const media = await testDb.db
     .insertInto("media")
     .values({
       extractor: "youtube",
-      video_id: "lib1",
+      video_id: `lib${String(n)}`,
       title: "Big Buck Bunny",
       channel: "Blender",
       upload_date: "20080520",
@@ -35,7 +41,7 @@ beforeAll(async () => {
       media_id: media.id,
       profile_id: p.id,
       profile_revision: p.revision,
-      storage_key: "k/v.mp4",
+      storage_key: `k/v${String(n)}.mp4`,
       size_bytes: 1234,
       container: "mp4",
     })

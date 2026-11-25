@@ -158,6 +158,12 @@ describe("public links", () => {
   });
 
   it("public playback URLs stay under the code", async () => {
+    // No segments found yet (the SponsorBlock test below gives the film some).
+    await t.db
+      .updateTable("renditions")
+      .set({ skip_segments: JSON.stringify([]) })
+      .where("id", "=", film.renditionId)
+      .execute();
     const code = await link({ entry_id: film.entryId });
     const item = PublicItem.parse(
       await (await anon(`/api/public/s/${code}/items/${film.entryId}`)).json(),

@@ -218,7 +218,8 @@ describe("the reaper", () => {
     const flaky: MediaStore = {
       ...store,
       async delete(k) {
-        if (failOnce) {
+        // Only this key's: the pass also empties what other tests left in the trash.
+        if (failOnce && k === key) {
           failOnce = false;
           throw new Error("storage is down");
         }

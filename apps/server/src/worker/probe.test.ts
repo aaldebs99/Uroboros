@@ -1,6 +1,6 @@
 import { fixture } from "@uroboros/ytdlp/testing";
 import { YOUTUBE_SEARCH_RESULTS, type DownloadRequest } from "@uroboros/contract";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { busFor, nextMessage } from "../../test/bus.ts";
 import { seededDefault } from "../../test/downloads.ts";
@@ -18,7 +18,12 @@ const KEY = Buffer.alloc(32, 5);
 beforeAll(async () => {
   testDb = await TestDb.create();
   h = await workerHarness(testDb.db);
-  user = await signedIn(testDb.db, { username: "probe" });
+});
+// A person of each test's own: one shared person filled the dispatch cap, and a video another
+// test had already given them was no new download.
+let n = 0;
+beforeEach(async () => {
+  user = await signedIn(testDb.db, { username: `probe${String(++n)}` });
 });
 afterAll(async () => {
   await h.close();
@@ -340,9 +345,6 @@ async function genericProbe(url: string): Promise<string> {
 }
 
 describe("a link yt-dlp has no extractor for", () => {
-  const media = (videoId: string) =>
-    testDb.db.selectFrom("media").select("id").where("video_id", "like", `${videoId}%`).execute();
-
   it("is its own video even when another link has the same file name", async () => {
     const mine = "https://files.example/private/meeting.mp4";
     const theirs = "https://evil.example/meeting.mp4";
@@ -356,7 +358,13 @@ describe("a link yt-dlp has no extractor for", () => {
       .where("request_id", "in", [a, b])
       .execute();
     expect(new Set(keys.map((k) => k.fetch_key)).size).toBe(2);
-    expect(await media("meeting")).toHaveLength(2);
+    // By link: the next test makes another "meeting" of its own.
+    const made = await testDb.db
+      .selectFrom("media")
+      .select("id")
+      .where("webpage_url", "in", [mine, theirs])
+      .execute();
+    expect(made).toHaveLength(2);
   });
 
   it("is the same video again for the same link", async () => {

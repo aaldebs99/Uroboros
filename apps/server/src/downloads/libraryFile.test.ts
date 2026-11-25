@@ -136,6 +136,12 @@ describe("GET /api/library/{id}/thumbnail", () => {
 
 describe("GET /api/library/{id}/preview", () => {
   it("answers 404 until the preview is made", async () => {
+    // Not made (the next test makes it; this one must not depend on running first).
+    await testDb.db
+      .updateTable("media")
+      .set({ preview_key: null })
+      .where("id", "=", mediaId)
+      .execute();
     const res = await app(alice).request(`/api/library/${entryId}/preview`);
     expect(res.status).toBe(404);
   });

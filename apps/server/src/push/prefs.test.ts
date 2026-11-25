@@ -8,21 +8,24 @@ import { wantsNotice } from "./prefs.ts";
 
 const logger = pino({ level: "silent" });
 let t: TestDb;
-let alice: SignedIn;
+let n = 0;
 
 beforeAll(async () => {
   t = await TestDb.create();
-  alice = await signedIn(t.db, { username: "pralice" });
 });
 afterAll(async () => {
   await t.close();
 });
 
-const app = () => asUser(createApp({ db: t.db, version: "t", logger }, { webDist: null }), alice);
+const app = (u: SignedIn) =>
+  asUser(createApp({ db: t.db, version: "t", logger }, { webDist: null }), u);
+/** A person of each test's own, so no test sees another's choices. */
+const person = () => signedIn(t.db, { username: `prefs${String(++n)}` });
 
 describe("which notifications a person wants", () => {
   it("defaults to all of them", async () => {
-    const res = await app().request("/api/me/notifications");
+    const alice = await person();
+    const res = await app(alice).request("/api/me/notifications");
     expect(res.status).toBe(200);
     expect(NotificationPrefs.parse(await res.json())).toEqual({
       downloads: true,
@@ -33,7 +36,8 @@ describe("which notifications a person wants", () => {
   });
 
   it("saves a choice", async () => {
-    const res = await app().request("/api/me/notifications", {
+    const alice = await person();
+    const res = await app(alice).request("/api/me/notifications", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ downloads: false, shares: true, groups: false }),

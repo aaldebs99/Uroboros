@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { LibraryItem, TagsBody } from "@uroboros/contract";
 import { pino } from "pino";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
@@ -237,6 +237,8 @@ describe("library item", () => {
   });
 
   it("answers 404 for another person on every route", async () => {
+    // Someone of this test's own: bob is given the entry by the SponsorBlock tests below.
+    const stranger = await signedIn(testDb.db, { username: "istranger" });
     for (const [method, path, body] of [
       ["GET", `/api/library/${entryId}`, undefined],
       ["GET", `/api/library/${entryId}/stream`, undefined],
@@ -245,7 +247,7 @@ describe("library item", () => {
       ["PUT", `/api/library/${entryId}/watched`, { watched: true }],
       ["PUT", `/api/library/${entryId}/tags`, { tags: [] }],
     ] as const) {
-      const res = await app(bob).request(path, {
+      const res = await app(stranger).request(path, {
         method,
         headers: { "content-type": "application/json" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -284,6 +286,13 @@ describe("an item's SponsorBlock segments (docs/automation.md#sponsorblock)", ()
     await testDb.db
       .insertInto("share_people")
       .values({ share_id: share.id, user_id: bob.userId })
+      .execute();
+  });
+  // Nobody has chosen at the start of each test: the others here save choices.
+  beforeEach(async () => {
+    await testDb.db
+      .deleteFrom("user_preferences")
+      .where("user_id", "in", [alice.userId, bob.userId])
       .execute();
   });
 

@@ -276,13 +276,26 @@ describe("GET /api/library", () => {
   });
 
   it("sorts by title, duration and upload date", async () => {
-    expect(titles((await page(alice, "?sort=title")).entries).slice(0, 2)).toEqual([
-      "Added later",
-      "Big Buck Bunny",
+    // A library of this test's own: alice's changes as the other tests add to it.
+    const dana = await signedIn(testDb.db, { username: "qdana" });
+    await add(dana, 3, { title: "Zebra", upload_date: "20210301" });
+    await add(dana, 2000, { title: "Aardvark", upload_date: "20190101" });
+    await add(dana, 5, { title: "Mango", upload_date: "20230501" });
+    expect(titles((await page(dana, "?sort=title")).entries)).toEqual([
+      "Aardvark",
+      "Mango",
+      "Zebra",
     ]);
-    expect((await page(alice, "?sort=duration")).entries[0]?.duration).toBe(10000);
-    const uploaded = (await page(alice, "?sort=uploaded")).entries.map((e) => e.uploadDate ?? "");
-    expect([...uploaded].sort().reverse()).toEqual(uploaded);
+    expect(titles((await page(dana, "?sort=duration")).entries)).toEqual([
+      "Aardvark",
+      "Mango",
+      "Zebra",
+    ]);
+    expect(titles((await page(dana, "?sort=uploaded")).entries)).toEqual([
+      "Mango",
+      "Zebra",
+      "Aardvark",
+    ]);
   });
 
   it("lists a playlist in its order, and only for whoever queued it", async () => {

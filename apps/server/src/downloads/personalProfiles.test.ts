@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DownloadRequest, FormatProfile } from "@uroboros/contract";
 import { z } from "zod";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { downloadHarness, post } from "../../test/downloads.ts";
 import { insertSubscription } from "../../test/listings.ts";
@@ -13,11 +13,17 @@ let h: Awaited<ReturnType<typeof downloadHarness>>;
 let alice: SignedIn;
 let bob: SignedIn;
 
+let n = 0;
+
 beforeAll(async () => {
   testDb = await TestDb.create();
   h = await downloadHarness(testDb.db);
-  alice = await signedIn(testDb.db, { username: "ppalice" });
-  bob = await signedIn(testDb.db, { username: "ppbob" });
+});
+// People of each test's own: profiles one test makes are never in another's lists.
+beforeEach(async () => {
+  n++;
+  alice = await signedIn(testDb.db, { username: `ppalice${String(n)}` });
+  bob = await signedIn(testDb.db, { username: `ppbob${String(n)}` });
 });
 afterAll(async () => {
   await h.close();
