@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Chapter } from "@uroboros/contract";
 import {
@@ -26,6 +26,7 @@ import { choosePipeline, encoderOf, pipelinesFor, sourceKey } from "../transcode
 import { h264Level, outputSize, rungFor } from "../transcode/ladder.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { audioPlanFor } from "./exportAudio.ts";
+import { openScratch, type Scratch } from "./scratch.ts";
 import { readInput } from "./sessionSource.ts";
 
 /**
@@ -70,9 +71,11 @@ export function exportProcessor(deps: WorkerDeps): ExportProcessor {
       const cut = new AbortController();
       running.add(cut);
       const { exportId } = job.data;
-      const dir = join(deps.workDir, `export-${exportId}`);
+      let scratch: Scratch | undefined;
       try {
-        await makeCopy(deps, exportId, dir, AbortSignal.any([job.signal, cut.signal]));
+        // A folder of this run's own: a run that lost the job may still be writing in its folder.
+        scratch = await openScratch(deps.workDir, `export-${exportId}`);
+        await makeCopy(deps, exportId, scratch.dir, AbortSignal.any([job.signal, cut.signal]));
       } catch (err) {
         if (err instanceof Gone) return;
         if (cut.signal.aborted) {
@@ -87,7 +90,7 @@ export function exportProcessor(deps: WorkerDeps): ExportProcessor {
         throw err;
       } finally {
         running.delete(cut);
-        await rm(dir, { recursive: true, force: true });
+        await scratch?.dispose();
       }
     },
   };
@@ -313,7 +316,8 @@ async function storeCopy(
   encoder: string,
 ): Promise<void> {
   const key = exportKey(row.id, row.format);
-  const { size } = await deps.store.put(key, output, contentTypeOf(row.format));
+  // Scratch on the library's disk makes this a rename (docs/downloads.md "Scratch space").
+  const { size } = await deps.store.move(key, output, contentTypeOf(row.format));
   const done = await deps.db
     .updateTable("exports")
     .set({

@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { buffer } from "node:stream/consumers";
 import {
@@ -19,6 +19,7 @@ import { announcePreview, previewKey } from "../previews/queue.ts";
 import { h264Level, outputSize } from "../transcode/ladder.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { downloadPreviewCopy, previewPage } from "./previewDownload.ts";
+import { openScratch, type Scratch } from "./scratch.ts";
 import { readInput } from "./sessionSource.ts";
 
 /**
@@ -63,9 +64,11 @@ export function previewProcessor(deps: WorkerDeps): PreviewProcessor {
       const cut = new AbortController();
       running.add(cut);
       const { mediaId } = job.data;
-      const dir = join(deps.workDir, `preview-${mediaId}`);
+      let scratch: Scratch | undefined;
       try {
-        await makePreview(deps, mediaId, dir, AbortSignal.any([job.signal, cut.signal]));
+        // A folder of this run's own: a run that lost the job may still be writing in its folder.
+        scratch = await openScratch(deps.workDir, `preview-${mediaId}`);
+        await makePreview(deps, mediaId, scratch.dir, AbortSignal.any([job.signal, cut.signal]));
       } catch (err) {
         if (cut.signal.aborted) throw new RequeueError(SHUTDOWN_REQUEUE_DELAY_MS, { cause: err });
         // Waiting out the site's cooldown is no failure, on the last attempt either.
@@ -76,7 +79,7 @@ export function previewProcessor(deps: WorkerDeps): PreviewProcessor {
         throw err;
       } finally {
         running.delete(cut);
-        await rm(dir, { recursive: true, force: true });
+        await scratch?.dispose();
       }
       await tell(deps, mediaId);
     },

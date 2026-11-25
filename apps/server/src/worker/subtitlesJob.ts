@@ -1,5 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname } from "node:path";
 import { downloadSubtitles, YtDlpError } from "@uroboros/ytdlp";
 import type { SubtitlesJob } from "../downloads/queues.ts";
 import {
@@ -13,6 +12,7 @@ import { RequeueError } from "../jobs/errors.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { withLoginsOf } from "./logins.ts";
 import { ytdlpOptions } from "./probe.ts";
+import { openScratch } from "./scratch.ts";
 import { storeSubtitles, SUBTITLE_FAILED, subtitleArgs, subtitlesNamed } from "./subtitles.ts";
 
 /** One subtitles job per media: a second ask while one waits adds none. */
@@ -64,13 +64,12 @@ export function subtitlesProcessor(deps: WorkerDeps) {
     const site = siteOf(url);
     const until = await cooling(deps, site);
     if (until !== null) throw new RequeueError(requeueDelay(until));
-    const scratch = join(deps.workDir, `subtitles-${mediaId}`);
-    await rm(scratch, { recursive: true, force: true });
-    await mkdir(scratch, { recursive: true });
+    // A folder of this run's own: a run that lost the job may still be writing in its folder.
+    const scratch = await openScratch(deps.workDir, `subtitles-${mediaId}`);
     try {
       const got = await downloadSubtitles(url, {
         ...ytdlpOptions(await withLoginsOf(deps, userId)),
-        workDir: scratch,
+        workDir: scratch.dir,
         extraArgs: args,
       });
       const base = basename(got.infoJsonPath, ".info.json");
@@ -94,7 +93,7 @@ export function subtitlesProcessor(deps: WorkerDeps) {
       deps.logger.warn({ err, mediaId }, "fetching held-back subtitles failed");
       throw err;
     } finally {
-      await rm(scratch, { recursive: true, force: true });
+      await scratch.dispose();
     }
   };
 }

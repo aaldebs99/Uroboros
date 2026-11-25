@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fixture, type Scenario } from "@uroboros/ytdlp/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -69,7 +69,8 @@ const job = (exportId: string, attempts = 1) => ({
   signal: new AbortController().signal,
 });
 
-const output = (id: string) => join(h.workDir, `export-${id}`, "copy.mp4");
+/** Where the fake ffmpeg writes: its last argument, the copy in the run's scratch folder. */
+const OUTPUT = "{{lastArg}}";
 const progress = (s: number) => ({
   stdout: `out_time_us=${String(s * 1_000_000)}\nprogress=continue\n`,
 });
@@ -86,10 +87,36 @@ const rowOf = (id: string) =>
   t.db.selectFrom("exports").selectAll().where("id", "=", id).executeTakeFirst();
 
 describe("making a copy without sponsors", () => {
+  it("moves the copy into storage, never copying it", async () => {
+    const copy = await queuedCopy();
+    const { deps } = await depsFor({ steps: [{ writeFile: OUTPUT, content: "mp4 bytes" }] });
+    let handed: number | null = null;
+    const store = {
+      ...deps.store,
+      async move(key: string, file: string, contentType: string) {
+        handed = (await stat(file)).ino;
+        return deps.store.move(key, file, contentType);
+      },
+    };
+    await exportProcessor({ ...deps, store }).process(job(copy.id));
+    expect((await stat(join(h.root, exportKey(copy.id, "mp4")))).ino).toBe(handed);
+  });
+
+  it("never clears a folder another run of the copy still writes in", async () => {
+    const copy = await queuedCopy();
+    const theirs = join(h.workDir, `export-${copy.id}`);
+    await mkdir(theirs, { recursive: true });
+    await writeFile(join(theirs, "copy.mp4"), "theirs");
+    const { deps } = await depsFor({ steps: [{ writeFile: OUTPUT, content: "mp4 bytes" }] });
+    await exportProcessor(deps).process(job(copy.id));
+    expect(await readFile(join(theirs, "copy.mp4"), "utf8")).toBe("theirs");
+    await rm(theirs, { recursive: true });
+  });
+
   it("trims, joins and encodes on the CPU, stores the copy, and tells its person", async () => {
     const copy = await queuedCopy();
     const { deps, ffmpegRun } = await depsFor({
-      steps: [progress(1), { writeFile: output(copy.id), content: "mp4 bytes" }, progress(2)],
+      steps: [progress(1), { writeFile: OUTPUT, content: "mp4 bytes" }, progress(2)],
     });
     await exportProcessor(deps).process(job(copy.id));
     expect(await rowOf(copy.id)).toMatchObject({
@@ -121,7 +148,7 @@ describe("making a copy without sponsors", () => {
     const memo = new PipelineMemo();
     const { deps } = await depsFor(
       {
-        steps: [{ writeFile: output(copy.id), content: "cpu" }],
+        steps: [{ writeFile: OUTPUT, content: "cpu" }],
         variants: [
           { whenArg: "h264_nvenc", steps: [{ stderr: "Cannot load libcuda.so.1\n" }], exitCode: 1 },
         ],
@@ -183,9 +210,8 @@ describe("making a copy of an audio file", () => {
 
   it("makes an MP3 copy of an MP3 with libmp3lame, keeping the cover", async () => {
     const copy = await queuedCopy("mp3");
-    const out = join(h.workDir, `export-${copy.id}`, "copy.mp3");
     const deps = await h.sessionDeps(
-      { steps: [progress(1), { writeFile: out, content: "mp3 bytes" }] },
+      { steps: [progress(1), { writeFile: OUTPUT, content: "mp3 bytes" }] },
       audioProbe("mp3", "mp3"),
     );
     const ffmpegRun = h.runs.at(-2);
@@ -203,7 +229,7 @@ describe("making a copy of an audio file", () => {
     expect(args[args.indexOf("-filter_complex") + 1]).toContain(
       "[0:0]atrim=start=2.000,asetpts=PTS-STARTPTS[a1]",
     );
-    expect(args.at(-1)).toBe(out);
+    expect(args.at(-1)).toMatch(new RegExp(`/export-${copy.id}\\.[0-9a-f]{12}/copy\\.mp3$`));
   });
 
   it("fails a codec it can't encode again, saying which", async () => {

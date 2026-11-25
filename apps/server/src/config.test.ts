@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { generateVAPIDKeys } from "web-push";
 import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig, loadMigrateConfig, loadMigrationsDir } from "./config.ts";
@@ -242,6 +244,30 @@ describe("loadConfig job consumers", () => {
   it("reads UROBOROS_WORKER_CONCURRENCY, treating an empty one as unset", () => {
     expect(loadConfig({ ...base, UROBOROS_WORKER_CONCURRENCY: "8" }).worker.concurrency).toBe(8);
     expect(loadConfig({ ...base, UROBOROS_WORKER_CONCURRENCY: "" }).worker.concurrency).toBe(4);
+  });
+
+  it("downloads into the library's own folder with filesystem storage", () => {
+    expect(loadConfig(base).worker.workDir).toBe("/media/.uroboros-work");
+    expect(loadConfig({ ...base, UROBOROS_WORK_DIR: "" }).worker.workDir).toBe(
+      "/media/.uroboros-work",
+    );
+  });
+
+  it("downloads into a temp folder with S3 storage", () => {
+    const s3 = {
+      ...base,
+      UROBOROS_STORAGE: "s3",
+      UROBOROS_S3_ENDPOINT: "http://rustfs:9000",
+      UROBOROS_S3_BUCKET: "uroboros",
+      UROBOROS_S3_ACCESS_KEY_ID: "id",
+      UROBOROS_S3_SECRET_ACCESS_KEY: "secret",
+    };
+    expect(loadConfig(s3).worker.workDir).toBe(join(tmpdir(), "uroboros-work"));
+    expect(loadConfig({ ...s3, UROBOROS_WORK_DIR: "/scratch" }).worker.workDir).toBe("/scratch");
+  });
+
+  it("downloads wherever UROBOROS_WORK_DIR says, with either storage", () => {
+    expect(loadConfig({ ...base, UROBOROS_WORK_DIR: "/scratch" }).worker.workDir).toBe("/scratch");
   });
 
   it.each(["0", "-1", "2.5", "abc", "4 "])("rejects concurrency %j", (bad) => {

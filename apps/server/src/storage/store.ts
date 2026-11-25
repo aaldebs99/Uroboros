@@ -46,6 +46,12 @@ export interface MediaStore {
   abortUpload(key: string, uploadId: string): Promise<void>;
   /** Stores a local file under `key`, replacing what was there. */
   put(key: string, file: string, contentType: string): Promise<{ size: number }>;
+  /**
+   * Stores a local file under `key` like `put`, but may take the file rather than copy it: the
+   * filesystem renames it into place when it is on the same disk (docs/downloads.md "Scratch
+   * space"), so read it at `localPath(key)` afterwards. S3 uploads it and leaves it.
+   */
+  move(key: string, file: string, contentType: string): Promise<{ size: number }>;
   /** Stores bytes under `key` (a playback session's segment), replacing what was there. */
   putBytes(key: string, bytes: Buffer, contentType: string): Promise<void>;
   /** `range.end` is inclusive. */

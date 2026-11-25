@@ -13,6 +13,11 @@ function isNotFound(err: unknown): boolean {
   return (err as { code?: string }).code === "ENOENT";
 }
 
+/** A rename refused because the file is on another disk than its target. */
+function isCrossDevice(err: unknown): boolean {
+  return (err as { code?: string }).code === "EXDEV";
+}
+
 /** Removes `dir` and its parents while they are empty, stopping at `base` (never removed). */
 async function pruneEmpty(base: string, dir: string): Promise<void> {
   for (let d = dir; d.startsWith(base + sep); d = dirname(d)) {
@@ -101,6 +106,22 @@ export function createFilesystemStore(root: string): MediaStore {
     async put(key, file) {
       const target = pathOf(key);
       await atomically(target, (temp) => copyFile(file, temp));
+      return { size: (await stat(target)).size };
+    },
+    async move(key, file) {
+      const target = pathOf(key);
+      await mkdir(dirname(target), { recursive: true });
+      try {
+        // On the same disk, a rename: the file is never written twice. It replaces what was there
+        // in one step, as `atomically` does.
+        await rename(file, target);
+      } catch (err) {
+        if (!isCrossDevice(err)) {
+          await pruneEmpty(base, dirname(target));
+          throw err;
+        }
+        await atomically(target, (temp) => copyFile(file, temp));
+      }
       return { size: (await stat(target)).size };
     },
     async putBytes(key, bytes) {

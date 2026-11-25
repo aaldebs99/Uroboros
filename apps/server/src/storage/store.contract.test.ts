@@ -1,6 +1,7 @@
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { existsSync, statSync } from "node:fs";
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TestS3 } from "../../test/testS3.ts";
 import type { StorageConfig } from "./config.ts";
@@ -26,6 +27,10 @@ async function text(stream: ReadableStream<Uint8Array>): Promise<string> {
 }
 
 const MIB = 1024 * 1024;
+
+/** `/dev/shm` is a tmpfs, another device than the temp folder the filesystem roots are made in. */
+const SHM = "/dev/shm";
+const shmIsAnotherDevice = existsSync(SHM) && statSync(SHM).dev !== statSync(tmpdir()).dev;
 
 const backends: [string, () => Promise<StorageConfig>][] = [
   ["s3", () => TestS3.bucket()],
@@ -68,6 +73,14 @@ describe.each(backends)("MediaStore (%s)", (kind, make) => {
     await store.put("x/three.txt", await source("old"), "text/plain");
     await store.put("x/three.txt", await source("newer"), "text/plain");
     expect(await text((await store.open("x/three.txt")).body)).toBe("newer");
+  });
+
+  it("moves a file in, replacing what was there, and reports its size", async () => {
+    await store.put("mv/one.txt", await source("old"), "text/plain");
+    expect(await store.move("mv/one.txt", await source("moved in"), "text/plain")).toEqual({
+      size: 8,
+    });
+    expect(await text((await store.open("mv/one.txt")).body)).toBe("moved in");
   });
 
   it("deletes a file, and deleting a missing one is fine", async () => {
@@ -198,6 +211,36 @@ describe.each(backends)("MediaStore (%s)", (kind, make) => {
       expect(await readdir(root)).not.toContain("a");
       await store.delete("a/gone.txt");
       expect(await readdir(root)).toBeDefined();
+    });
+
+    it("moves a file on its own disk by renaming it, never copying it", async () => {
+      const root = config.kind === "filesystem" ? config.root : "";
+      const from = join(root, ".uroboros-work", "run.0123456789ab", "clip.mp4");
+      await mkdir(dirname(from), { recursive: true });
+      await writeFile(from, "renamed");
+      const { ino } = await stat(from);
+      expect(await store.move("mv/two.mp4", from, "video/mp4")).toEqual({ size: 7 });
+      expect((await stat(join(root, "mv/two.mp4"))).ino).toBe(ino);
+      expect(existsSync(from)).toBe(false);
+    });
+
+    it.runIf(shmIsAnotherDevice)("copies a file that is on another disk", async () => {
+      const from = join(SHM, `uroboros-move-${String(Math.random()).slice(2)}`);
+      await writeFile(from, "copied across");
+      try {
+        expect(await store.move("mv/three.txt", from, "text/plain")).toEqual({ size: 13 });
+        expect(await text((await store.open("mv/three.txt")).body)).toBe("copied across");
+      } finally {
+        await rm(from, { force: true });
+      }
+    });
+
+    it("leaves nothing behind when a move fails", async () => {
+      await expect(
+        store.move("z/six.txt", join(scratch, "missing"), "text/plain"),
+      ).rejects.toThrow();
+      const root = config.kind === "filesystem" ? config.root : "";
+      expect(await readdir(join(root, "z")).catch(() => [])).toEqual([]);
     });
 
     it("leaves nothing behind when a put fails", async () => {

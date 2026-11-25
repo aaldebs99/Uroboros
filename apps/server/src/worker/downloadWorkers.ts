@@ -11,6 +11,7 @@ import { uploadProcessor } from "../uploads/process.ts";
 import { exportProcessor } from "./exportRun.ts";
 import { previewProcessor } from "./previewRun.ts";
 import { refetchSkipsProcessor } from "./refetchSkips.ts";
+import { SCRATCH_SWEEP_EVERY_MS, sweepScratch } from "./scratch.ts";
 import { subtitlesProcessor } from "./subtitlesJob.ts";
 import type { ProbeJob, SkipsJob, SubtitlesJob } from "../downloads/queues.ts";
 
@@ -30,6 +31,25 @@ export interface DownloadWorkers {
   abortRunning(): void;
   /** Stops listening for cancels (the job worker is drained by the caller first). */
   close(): Promise<void>;
+}
+
+/**
+ * Sweeps the scratch folders a dead replica left (docs/downloads.md "Scratch space") now and every
+ * 15 minutes, until the returned stop is called. Every replica does: a live run's folder is never
+ * stale, whichever replica looks.
+ */
+function sweepScratchEvery(deps: WorkerDeps): () => void {
+  const sweep = () => {
+    sweepScratch(deps.workDir, deps.logger).catch((err: unknown) => {
+      deps.logger.warn({ err }, "sweeping the scratch space failed");
+    });
+  };
+  sweep();
+  const every = setInterval(sweep, SCRATCH_SWEEP_EVERY_MS);
+  every.unref();
+  return () => {
+    clearInterval(every);
+  };
 }
 
 /**
@@ -112,6 +132,7 @@ export async function startDownloadWorkers(
       : []),
   ];
   const jobs = startJobWorker({ db: deps.db, bus: opts.bus, logger: deps.logger, consumers });
+  const stopSweeping = sweepScratchEvery(deps);
   return {
     jobs,
     abortRunning() {
@@ -122,6 +143,7 @@ export async function startDownloadWorkers(
       automation.abortRunning();
     },
     close() {
+      stopSweeping();
       offCancels();
       return Promise.resolve();
     },

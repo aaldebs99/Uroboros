@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fixture, type Scenario } from "@uroboros/ytdlp/testing";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -63,6 +65,16 @@ const outcome = (p: Promise<void>) =>
   );
 
 describe("subtitles a rate limit held back", () => {
+  it("never clear a folder another run for the video still writes in", async () => {
+    const data = await held("sj0.example");
+    const theirs = join(h.workDir, `subtitles-${data.mediaId}`);
+    await mkdir(theirs, { recursive: true });
+    await writeFile(join(theirs, "clip.en.vtt"), "theirs");
+    await run(data, await subtitlesScenario());
+    expect(await readFile(join(theirs, "clip.en.vtt"), "utf8")).toBe("theirs");
+    await rm(theirs, { recursive: true });
+  });
+
   it("are fetched alone, stored and searchable, and the site's subtitle limit is over", async () => {
     const data = await held("sj1.example");
     await testDb.db

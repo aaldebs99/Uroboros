@@ -61,7 +61,10 @@ export interface MigrateConfig {
 
 /** How this process's job consumers run yt-dlp and how many jobs they take at once. */
 export interface WorkerSettings {
-  /** Scratch space for downloads in progress (`UROBOROS_WORK_DIR`; a tmpfs in compose). */
+  /**
+   * Scratch space for downloads in progress (`UROBOROS_WORK_DIR`; unset, a folder in the library
+   * with filesystem storage, a temp folder with S3; docs/downloads.md "Scratch space").
+   */
   workDir: string;
   /** Subtitles captured with each download: yt-dlp `--sub-langs` (null: none), and auto captions. */
   subtitles: { langs: string | null; automatic: boolean };
@@ -314,9 +317,19 @@ function parse<S extends z.ZodType>(schema: S, env: NodeJS.ProcessEnv): z.output
   return result.data;
 }
 
+/** The scratch folder for downloads in progress (docs/downloads.md "Scratch space"). */
+function workDirOf(set: string | undefined, storage: StorageConfig): string {
+  if (set !== undefined) return set;
+  // On the library's own disk, a finished file is renamed into place rather than copied.
+  return storage.kind === "filesystem"
+    ? join(storage.root, ".uroboros-work")
+    : join(tmpdir(), "uroboros-work");
+}
+
 /** Full configuration for the server process (HTTP and the job consumers). */
 export function loadConfig(env: NodeJS.ProcessEnv): Config {
   const e = parse(configSchema, env);
+  const storage = toStorageConfig(e);
   return {
     bind: e.UROBOROS_BIND,
     databaseUrl: e.DATABASE_URL,
@@ -336,10 +349,10 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       maxDevices: e.UROBOROS_PUSH_MAX_DEVICES,
     },
     auth: toAuthConfig(e, e.UROBOROS_PUBLIC_BASE_URL),
-    storage: toStorageConfig(e),
+    storage,
     downloads: toDownloadLimits(e),
     worker: {
-      workDir: e.UROBOROS_WORK_DIR ?? join(tmpdir(), "uroboros-work"),
+      workDir: workDirOf(e.UROBOROS_WORK_DIR, storage),
       subtitles: {
         langs:
           e.UROBOROS_SUBTITLE_LANGS === undefined

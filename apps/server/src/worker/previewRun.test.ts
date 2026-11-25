@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fixture, type FakeRun, type Scenario } from "@uroboros/ytdlp/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -47,7 +47,8 @@ const job = (mediaId: string, attempts = 2, attemptsMade = 1) => ({
   signal: new AbortController().signal,
 });
 
-const output = (mediaId: string) => join(h.workDir, `preview-${mediaId}`, "preview.mp4");
+/** Where the fake ffmpeg writes: its last argument, the preview in the run's scratch folder. */
+const OUTPUT = "{{lastArg}}";
 
 /** Deps whose transcoder runs `ffmpeg`, its ffprobe describing the fixture clip (silent: no audio). */
 async function depsFor(ffmpeg: Scenario, { silent = false } = {}) {
@@ -80,7 +81,7 @@ describe("making a hover preview", () => {
   it("encodes the whole video with its sound on the CPU and stores it beside the media", async () => {
     const id = await storedVideo();
     const { deps, ffmpegRun } = await depsFor({
-      steps: [{ writeFile: output(id), content: "clip" }],
+      steps: [{ writeFile: OUTPUT, content: "clip" }],
     });
     await previewProcessor(deps).process(job(id));
     expect(await mediaOf(id)).toEqual({ preview_key: previewKey(id), preview_failed_at: null });
@@ -96,10 +97,21 @@ describe("making a hover preview", () => {
     expect(args[args.indexOf("-vf") + 1]).toContain("scale=320:240");
   });
 
+  it("never clears a folder another run of the preview still writes in", async () => {
+    const id = await storedVideo();
+    const theirs = join(h.workDir, `preview-${id}`);
+    await mkdir(theirs, { recursive: true });
+    await writeFile(join(theirs, "preview.mp4"), "theirs");
+    const { deps } = await depsFor({ steps: [{ writeFile: OUTPUT, content: "clip" }] });
+    await previewProcessor(deps).process(job(id));
+    expect(await readFile(join(theirs, "preview.mp4"), "utf8")).toBe("theirs");
+    await rm(theirs, { recursive: true });
+  });
+
   it("makes a silent preview of a file without sound", async () => {
     const id = await storedVideo();
     const { deps, ffmpegRun } = await depsFor(
-      { steps: [{ writeFile: output(id), content: "clip" }] },
+      { steps: [{ writeFile: OUTPUT, content: "clip" }] },
       { silent: true },
     );
     await previewProcessor(deps).process(job(id));
@@ -163,7 +175,7 @@ describe("making a hover preview", () => {
     });
     const made = await storedVideo();
     const userId = (await owner(made)).user_id;
-    const ok = await depsFor({ steps: [{ writeFile: output(made), content: "clip" }] });
+    const ok = await depsFor({ steps: [{ writeFile: OUTPUT, content: "clip" }] });
     await previewProcessor(ok.deps).process(job(made));
     await expect.poll(() => heard.filter((u) => u === userId).length).toBe(2);
     const failed = await storedVideo();
@@ -177,7 +189,7 @@ describe("making a hover preview", () => {
   it("takes the clip back when the media went while it was cut", async () => {
     const id = await storedVideo();
     const { deps, ffmpegRun } = await depsFor({
-      steps: [{ sleepMs: 1500 }, { writeFile: output(id), content: "clip" }],
+      steps: [{ sleepMs: 1500 }, { writeFile: OUTPUT, content: "clip" }],
     });
     const run = previewProcessor(deps).process(job(id));
     await expect

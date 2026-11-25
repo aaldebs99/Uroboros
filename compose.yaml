@@ -84,8 +84,10 @@ x-server-env: &server-env
   # answers). It waits for Postgres to be healthy anyway, so this only matters on a restart.
   UROBOROS_DB_STARTUP_GRACE_SECS: ${UROBOROS_DB_STARTUP_GRACE_SECS:-}
   # The download jobs: scratch space, parallel downloads per replica (default 4), and the subtitles
-  # saved with each download (yt-dlp --sub-langs; an explicitly empty value saves none).
-  UROBOROS_WORK_DIR: /work
+  # saved with each download (yt-dlp --sub-langs; an explicitly empty value saves none). Unset,
+  # scratch is .uroboros-work in the library with filesystem storage (finished files are moved into
+  # place, never copied) and the tmpfs below with S3.
+  UROBOROS_WORK_DIR: ${UROBOROS_WORK_DIR:-}
   UROBOROS_WORKER_CONCURRENCY: ${UROBOROS_WORKER_CONCURRENCY:-}
   # The key people's saved site logins (Settings › Logins) are sealed with: 32 random bytes in
   # base64 (openssl rand -base64 32). Unset, saving logins is off; changing it voids saved ones.
@@ -153,10 +155,12 @@ services:
     environment: *server-env
     volumes:
       - media-data:/media
-    # Scratch space for downloads in progress. The mode is explicit: a restarted container gets a
-    # fresh tmpfs owned by root with 755, which the non-root process could not write.
+    # Scratch space for downloads in progress with S3 storage, where the server looks when
+    # UROBOROS_WORK_DIR is unset ($TMPDIR/uroboros-work). The mode is explicit: a restarted
+    # container gets a fresh tmpfs owned by root with 755, which the non-root process could not
+    # write.
     tmpfs:
-      - /work:mode=1777
+      - /tmp/uroboros-work:mode=1777
     # Above the stop budget: the 25 s job grace (alongside the 20 s HTTP drain), 2 s for cut
     # connections, 2 s cleanup and 2 s hard-exit slack (31 s at most), so compose does not
     # SIGKILL a replica mid-drain (the default is 10 s).

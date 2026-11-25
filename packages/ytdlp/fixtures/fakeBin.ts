@@ -19,6 +19,10 @@ export type Step =
    * go-ahead, so a run lasts exactly until the test has done what it does meanwhile.
    */
   | { waitForFile: string }
+  /**
+   * Writes `content` to `writeFile` (relative to the working directory, or absolute). Both may
+   * name `{{cwd}}`; the path may also be `{{lastArg}}`, the fake's last argument (ffmpeg's output).
+   */
   | { writeFile: string; content: string }
   /**
    * Copies the file named by the value after `copyArgFile` (joined with `name` when that value is
@@ -44,6 +48,11 @@ export interface Scenario {
 
 function fill(text: string): string {
   return text.replaceAll("{{cwd}}", process.cwd());
+}
+
+/** A path a step names, its placeholders filled. */
+function pathOf(path: string): string {
+  return resolve(fill(path).replaceAll("{{lastArg}}", process.argv.at(-1) ?? ""));
 }
 
 function write(stream: NodeJS.WriteStream, text: string): Promise<void> {
@@ -88,7 +97,7 @@ async function run(step: Step): Promise<void> {
     return;
   }
   if ("writeFile" in step) {
-    writeFileSync(resolve(step.writeFile), fill(step.content));
+    writeFileSync(pathOf(step.writeFile), fill(step.content));
     return;
   }
   if ("copyArgFile" in step) {

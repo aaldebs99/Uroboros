@@ -1,4 +1,6 @@
-import { readdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, readdir, utimes, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { testBus } from "../../test/bus.ts";
@@ -12,6 +14,7 @@ import type { PgBus } from "../db/notifications.ts";
 import { notify } from "../db/notifications.ts";
 import { dispatchFor, queueDownload } from "../downloads/dispatch.ts";
 import { type DownloadWorkers, startDownloadWorkers } from "./downloadWorkers.ts";
+import { SCRATCH_STALE_MS } from "./scratch.ts";
 
 /**
  * The replica's consumers as main wires them: a fetch picked off the queue, stopped by the api's
@@ -107,6 +110,18 @@ describe("the replica's download workers", () => {
     expect(Date.now() - asked).toBeLessThan(5000);
     expect((await state(id)).state).toBe("cancelled");
     expect(await readdir(h.workDir)).toEqual([]);
+  });
+
+  it("sweep the scratch folders a dead replica left as they start", async () => {
+    const dead = join(h.workDir, "fetch%7Cdead.0123456789ab");
+    await mkdir(dead, { recursive: true });
+    await writeFile(join(dead, "clip.mp4.part"), "partial");
+    const then = new Date(Date.now() - SCRATCH_STALE_MS - 60_000);
+    await utimes(dead, then, then);
+    await start();
+    await eventually(() => {
+      expect(existsSync(dead)).toBe(false);
+    });
   });
 
   it("put a running fetch back for another replica when cut for shutdown, spending nothing", async () => {

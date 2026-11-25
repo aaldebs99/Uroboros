@@ -1,4 +1,4 @@
-import { access, mkdir, rm } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { download, ffprobe, type DownloadedFile } from "@uroboros/ytdlp";
 import { dispatchFor } from "../downloads/dispatch.ts";
@@ -17,6 +17,7 @@ import type { WorkerDeps } from "./deps.ts";
 import { upsertMedia } from "./media.ts";
 import { lookUpSegments } from "./fetchSegments.ts";
 import { createProgressPublisher } from "./progress.ts";
+import { openScratch, type Scratch } from "./scratch.ts";
 import { afterAnswered, runWithSubtitles, waitForSite, waitIfLimited } from "./fetchWait.ts";
 import { findSubtitles, storeSubtitles } from "./subtitles.ts";
 import { queuePreview } from "../previews/queue.ts";
@@ -183,7 +184,8 @@ async function exists(path: string): Promise<boolean> {
 
 async function put(deps: WorkerDeps, key: string, file: string, ext: string): Promise<number> {
   try {
-    return (await deps.store.put(key, file, contentTypeOf(ext))).size;
+    // Scratch on the library's disk makes this a rename (docs/downloads.md "Scratch space").
+    return (await deps.store.move(key, file, contentTypeOf(ext))).size;
   } catch (err) {
     throw new StorageError(err instanceof Error ? err.message : String(err), { cause: err });
   }
@@ -309,7 +311,8 @@ async function store(
     .execute();
   const rendition = await existingRendition(deps, data);
   if (rendition === undefined) throw new StorageError("the rendition was not recorded");
-  await indexKeyframes(deps, rendition.id, file.path, probed);
+  // Read where the file is now: in the library on the filesystem, still in scratch with S3.
+  await indexKeyframes(deps, rendition.id, deps.store.localPath(key) ?? file.path, probed);
   return rendition;
 }
 
@@ -418,12 +421,12 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
       },
       { once: true },
     );
-    const scratch = join(deps.workDir, encodeURIComponent(data.fetchKey));
+    let scratch: Scratch | undefined;
     try {
       await markRunning(deps, job);
-      await rm(scratch, { recursive: true, force: true });
-      await mkdir(scratch, { recursive: true });
-      await downloadAndSettle(deps, data, scratch, controller.signal);
+      // A folder of this run's own: a run that lost the job may still be writing in its folder.
+      scratch = await openScratch(deps.workDir, encodeURIComponent(data.fetchKey));
+      await downloadAndSettle(deps, data, scratch.dir, controller.signal);
     } catch (err) {
       if (controller.signal.reason instanceof ShutdownAbort) {
         // Back to the queue as it was: no failure, no cancel, and no attempt spent.
@@ -449,7 +452,7 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
       throw err instanceof Error ? err : new Error(String(err));
     } finally {
       cancels.end(data.fetchKey);
-      await rm(scratch, { recursive: true, force: true });
+      await scratch?.dispose();
     }
   };
 }

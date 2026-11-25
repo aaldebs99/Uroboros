@@ -92,6 +92,13 @@ export function createS3Store(config: S3Config): MediaStore {
     } while (marker !== undefined);
     return total;
   };
+  const put: MediaStore["put"] = async (key, file, contentType) => {
+    await new Upload({
+      client: s3,
+      params: { Bucket, Key: key, Body: createReadStream(file), ContentType: contentType },
+    }).done();
+    return { size: (await stat(file)).size };
+  };
   return {
     // CRC32 checksums on every part, as lib-storage's managed uploads send them.
     async startUpload(key, contentType) {
@@ -158,13 +165,9 @@ export function createS3Store(config: S3Config): MediaStore {
         if (!isNoSuchUpload(err)) throw err;
       }
     },
-    async put(key, file, contentType) {
-      await new Upload({
-        client: s3,
-        params: { Bucket, Key: key, Body: createReadStream(file), ContentType: contentType },
-      }).done();
-      return { size: (await stat(file)).size };
-    },
+    put,
+    // A bucket takes a local file only by uploading it.
+    move: put,
     async putBytes(key, bytes, contentType) {
       await s3.send(
         new PutObjectCommand({ Bucket, Key: key, Body: bytes, ContentType: contentType }),

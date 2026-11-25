@@ -59,9 +59,10 @@ request handler.
    transaction, keyed by the **fetch key** `fetch|<extractor>|<videoId>|<profileId>|<revision>`
    (each part URI-encoded). A second add of a live key does nothing, so two people asking for the
    same video and profile at once share one fetch. Whenever a download settles, its owner's next one is dispatched.
-6. **Fetch** (`src/worker/fetch.ts`): in a scratch directory under `UROBOROS_WORK_DIR`, yt-dlp
-   downloads with the snapshot's arguments (plus a jpg thumbnail and the `.info.json`), ffprobe
-   reads the codecs, and the file and its sidecars go to the store. ffmpeg picks a demuxer by a
+6. **Fetch** (`src/worker/fetch.ts`): in a scratch folder of the run's own ([Scratch
+   space](#scratch-space)), yt-dlp downloads with the snapshot's arguments (plus a jpg thumbnail
+   and the `.info.json`), ffprobe reads the codecs, and the file and its sidecars are moved to the
+   store. ffmpeg picks a demuxer by a
    file's contents, not its name, so a link serving a DASH or HLS playlist as `video/mp4` would
    make it open whatever files or URLs the playlist names (another person's stored video, an
    internal address). Every ffmpeg and ffprobe input of a downloaded or stored file (this probe,
@@ -72,7 +73,7 @@ request handler.
    them, plus the subtitle, image and metadata formats they read (and `concat` for the two that
    cut or join through a concat list it writes). Then one transaction records
    the rendition (`ON CONFLICT DO NOTHING`), marks every download waiting on the fetch key `done`
-   and adds their library entries. The scratch directory is removed whatever happens.
+   and adds their library entries. The scratch folder is removed whatever happens.
 7. **Failures**: `network`, `timed_out`, `unknown` and `storage` retry up to 3 attempts with
    exponential backoff (the downloads stay `running`, `attempts` counts); every other kind, or the
    last attempt, marks them `failed` with a server message and the redacted stderr tail. A
@@ -230,6 +231,28 @@ is recorded beside its key, for Admin › Stats ([library.md](library.md#stats))
 Pasted links and new uploads dispatch before a subscription's backfill (`downloads.priority`), and
 every YouTube download keeps its SponsorBlock segments for each person's player to show or skip by
 their own setting ([automation.md](automation.md#sponsorblock)).
+
+## Scratch space
+
+yt-dlp and ffmpeg need a real folder for a download's parts, their merge and any post-processing:
+a bucket can't hold a file still being written. Every job that downloads or encodes (a fetch,
+held-back subtitles, a hover preview, a copy without sponsors) works in a folder of its own run in
+the work dir, `<label>.<12 hex>` (`src/worker/scratch.ts`), removed when the run ends, however it
+ends.
+
+`UROBOROS_WORK_DIR` names the work dir. Unset, it is `.uroboros-work` in the storage root with
+filesystem storage: on the library's own disk, a finished file is renamed into place
+(`MediaStore.move`) rather than copied, so it is written once, and scratch has the volume's room
+rather than memory. With S3 it is `$TMPDIR/uroboros-work` (a tmpfs in compose), and the file is
+uploaded to the bucket. A work dir on another disk than the library works too; its files are
+copied.
+
+The work dir may be shared by every replica and outlive a restart, so no two runs share a folder:
+a run that lost its job to another ([jobs.md](jobs.md)) may still be writing in its own. An open
+run touches its folder every 5 minutes, and every replica, as it starts and every 15 minutes,
+removes the run folders untouched for an hour, which only a replica that died mid-job leaves.
+Saved logins' `.netrc` and the cookie copies never go there; they stay in the process's own temp
+folder.
 
 ## JavaScript challenges
 

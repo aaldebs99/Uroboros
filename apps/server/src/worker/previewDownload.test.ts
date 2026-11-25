@@ -65,12 +65,14 @@ const job = (mediaId: string, attempts = 2, attemptsMade = 0) => ({
   signal: new AbortController().signal,
 });
 
-const output = (mediaId: string) => join(h.workDir, `preview-${mediaId}`, "preview.mp4");
-/** Where the copy from the site lands (the fake yt-dlp writes `clip.mp4` where it runs). */
-const downloaded = (mediaId: string) => join(h.workDir, `preview-${mediaId}`, "site", "clip.mp4");
-const writesClip = (mediaId: string): Scenario => ({
-  steps: [{ writeFile: output(mediaId), content: "clip" }],
-});
+/**
+ * Where the copy from the site lands: the fake yt-dlp writes `clip.mp4` where it runs, the `site`
+ * folder in the run's own scratch folder.
+ */
+const downloaded = (mediaId: string) =>
+  new RegExp(`^${h.workDir}/preview-${mediaId}\\.[0-9a-f]{12}/site/clip\\.mp4$`);
+/** The fake ffmpeg writing its last argument, the preview. */
+const WRITES_CLIP: Scenario = { steps: [{ writeFile: "{{lastArg}}", content: "clip" }] };
 
 type Stream = Record<string, unknown>;
 
@@ -115,7 +117,7 @@ const mediaOf = (id: string) =>
 describe("downloading a hover preview from the video's site", () => {
   it("asks the site for 480p and copies an H.264 copy as it is, encoding nothing", async () => {
     const v = await storedVideo(pageOf(1));
-    const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), writesClip(v.id));
+    const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), WRITES_CLIP);
     await previewProcessor(deps).process(job(v.id));
     const site = await ytdlpRun.argv();
     expect(site).toContain(pageOf(1));
@@ -123,7 +125,7 @@ describe("downloading a hover preview from the video's site", () => {
     expect(site).toContain("--format-sort=res:480,vcodec:h264,acodec:aac");
     expect(site).toContain("--no-playlist");
     const args = await ffmpegRun.argv();
-    expect(after(args, "-i")).toBe(downloaded(v.id));
+    expect(after(args, "-i")).toMatch(downloaded(v.id));
     expect(after(args, "-c")).toBe("copy");
     expect(args).not.toContain("libx264");
     expect(await mediaOf(v.id)).toEqual({ preview_key: previewKey(v.id), preview_failed_at: null });
@@ -142,10 +144,10 @@ describe("downloading a hover preview from the video's site", () => {
     ],
   ])("encodes a copy %s from the copy, not the stored file", async (_, edit) => {
     const v = await storedVideo(pageOf(2));
-    const { deps, ffmpegRun } = await depsFor(await downloadScenario(), writesClip(v.id), edit);
+    const { deps, ffmpegRun } = await depsFor(await downloadScenario(), WRITES_CLIP, edit);
     await previewProcessor(deps).process(job(v.id));
     const args = await ffmpegRun.argv();
-    expect(after(args, "-i")).toBe(downloaded(v.id));
+    expect(after(args, "-i")).toMatch(downloaded(v.id));
     expect(after(args, "-c:v")).toBe("libx264");
     expect((await mediaOf(v.id)).preview_key).toBe(previewKey(v.id));
   });
@@ -153,7 +155,7 @@ describe("downloading a hover preview from the video's site", () => {
   it("encodes the stored file when the site has no copy to give", async () => {
     const v = await storedVideo(pageOf(3));
     const gone = { steps: [{ stderr: "ERROR: [generic] x: Video unavailable\n" }], exitCode: 1 };
-    const { deps, ffmpegRun } = await depsFor(gone, writesClip(v.id));
+    const { deps, ffmpegRun } = await depsFor(gone, WRITES_CLIP);
     await previewProcessor(deps).process(job(v.id));
     const args = await ffmpegRun.argv();
     expect(after(args, "-i")).toBe(join(h.root, v.storageKey));
@@ -167,7 +169,7 @@ describe("downloading a hover preview from the video's site", () => {
       steps: [{ stderr: "ERROR: [generic] x: HTTP Error 429: Too Many Requests\n" }],
       exitCode: 1,
     };
-    const { deps, ffmpegRun } = await depsFor(limited, writesClip(v.id));
+    const { deps, ffmpegRun } = await depsFor(limited, WRITES_CLIP);
     // Its last attempt: a failure now would mark the media for good.
     await expect(previewProcessor(deps).process(job(v.id, 2, 1))).rejects.toBeInstanceOf(
       RequeueError,
@@ -180,7 +182,7 @@ describe("downloading a hover preview from the video's site", () => {
   it("asks nothing of a site cooling down, and waits", async () => {
     const v = await storedVideo(pageOf(5));
     await noteRateLimit(t.db, "pd5.example", "site", 600_000);
-    const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), writesClip(v.id));
+    const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), WRITES_CLIP);
     await expect(previewProcessor(deps).process(job(v.id))).rejects.toBeInstanceOf(RequeueError);
     expect(await started(ytdlpRun)).toBe(false);
     expect(await started(ffmpegRun)).toBe(false);
@@ -204,7 +206,7 @@ describe("downloading a hover preview from the video's site", () => {
     const v = await withVideo(e, pageOf(6));
     const { deps } = await depsFor(
       await downloadScenario([{ copyArgFile: "--netrc-location", name: ".netrc", as: "seen" }]),
-      writesClip(v.id),
+      WRITES_CLIP,
     );
     await previewProcessor({ ...deps, ytdlp: { ...deps.ytdlp, secretsKey: key } }).process(
       job(v.id),
@@ -215,7 +217,7 @@ describe("downloading a hover preview from the video's site", () => {
 
 describe("a hover preview encoded from the stored file instead", () => {
   async function encodedFromStore(v: { id: string; storageKey: string }, over = {}) {
-    const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), writesClip(v.id));
+    const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), WRITES_CLIP);
     await previewProcessor({ ...deps, ...over }).process(job(v.id));
     expect(await started(ytdlpRun)).toBe(false);
     expect(after(await ffmpegRun.argv(), "-i")).toBe(join(h.root, v.storageKey));
@@ -262,7 +264,7 @@ describe("a hover preview encoded from the stored file instead", () => {
 describe("hover previews turned off", () => {
   it("leaves a preview queued before neither downloaded nor made", async () => {
     const v = await storedVideo(pageOf(10));
-    const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), writesClip(v.id));
+    const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), WRITES_CLIP);
     await previewProcessor({ ...deps, generatePreviews: false }).process(job(v.id));
     expect(await started(ytdlpRun)).toBe(false);
     expect(await started(ffmpegRun)).toBe(false);
