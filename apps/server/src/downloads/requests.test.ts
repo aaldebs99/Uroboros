@@ -172,6 +172,18 @@ describe("POST /api/downloads/requests/{id}/queue", () => {
     expect(
       (await post(h.app(bob), `/api/downloads/requests/${id}/queue`, { entryIds: ["b1"] })).status,
     ).toBe(404);
+    // Reading it, or its picks, is no different.
+    expect((await h.app(bob).request(`/api/downloads/requests/${id}`)).status).toBe(404);
+    expect(
+      (
+        await h.app(bob).request(`/api/downloads/requests/${id}/selection`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ entryIds: [] }),
+        })
+      ).status,
+    ).toBe(404);
+    expect((await h.app(alice).request(`/api/downloads/requests/${id}`)).status).toBe(200);
   });
 
   it("finishes at once, without a job, when the rendition is already stored", async () => {

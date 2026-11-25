@@ -173,6 +173,21 @@ describe("cancel and retry", () => {
     expect(await h.queues.download.get(key)).toBeUndefined();
   });
 
+  it("answers 404 to cancelling or retrying another person's download", async () => {
+    const [owner, other] = [await user(), await user()];
+    const id = await queue(owner.userId, "someone-elses-1");
+    expect((await post(h.app(other), `/api/downloads/${id}/cancel`)).status).toBe(404);
+    expect(await dispatched(owner.userId)).toHaveLength(0);
+    expect((await post(h.app(owner), `/api/downloads/${id}/cancel`)).status).toBe(204);
+    expect((await post(h.app(other), `/api/downloads/${id}/retry`)).status).toBe(404);
+    const row = await testDb.db
+      .selectFrom("downloads")
+      .select("state")
+      .where("id", "=", id)
+      .executeTakeFirstOrThrow();
+    expect(row.state).toBe("cancelled");
+  });
+
   it("asks the worker to stop a fetch that is already running", async () => {
     const u = await user();
     const id = await queue(u.userId, "running-1");
