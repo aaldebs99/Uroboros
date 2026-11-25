@@ -173,6 +173,21 @@ describe("local sign-in", () => {
     );
   });
 
+  it("counts guesses from one IPv6 /64 as one address", async () => {
+    const a = app({ trustProxy: true });
+    for (let i = 1; i <= 6; i++) {
+      await login(a, "alice", "wrong password!", {
+        "x-forwarded-for": `2001:db8:5:6::${String(i)}`,
+      });
+    }
+    expect(
+      (await login(a, "alice", PASSWORD, { "x-forwarded-for": "2001:db8:5:6::99" })).status,
+    ).toBe(429);
+    expect(
+      (await login(a, "alice", PASSWORD, { "x-forwarded-for": "2001:db8:5:7::1" })).status,
+    ).toBe(204);
+  });
+
   it("lets at most 5 guesses through when they arrive at once", async () => {
     const a = app();
     const results = await Promise.all(
