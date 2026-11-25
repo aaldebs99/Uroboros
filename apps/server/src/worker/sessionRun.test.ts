@@ -83,9 +83,13 @@ describe("runSegments", () => {
     ]);
     const { events, hooks } = recorder();
     const ac = new AbortController();
-    setTimeout(() => {
-      ac.abort();
-    }, 300);
+    // Stopped once segment 0 is handed over, which happens as segment 1 begins: its bytes are
+    // there, and the run hangs before its end. (A timer here raced the fake's start-up.)
+    hooks.onSegment = (index) => {
+      events.push(`seg ${String(index)}`);
+      if (index === 0) ac.abort();
+      return Promise.resolve();
+    };
     const out = await runSegments({
       ...run.options,
       args: [],
