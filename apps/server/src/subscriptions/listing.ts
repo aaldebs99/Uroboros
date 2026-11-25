@@ -1,5 +1,6 @@
 import { probe, type PlaylistEntry } from "@uroboros/ytdlp";
 import type { FeedJson } from "../db/schema.ts";
+import { mediaVideoId } from "../library/mediaKey.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
 import { ytdlpOptions } from "../worker/probe.ts";
 
@@ -31,12 +32,14 @@ function yyyymmdd(timestamp: number | null): string | null {
 }
 
 function candidate(feed: string, position: number, e: PlaylistEntry, fallback: string): Candidate {
+  const extractor = (e.extractorKey ?? fallback).toLowerCase();
+  const url = e.url ?? "";
   return {
     feed,
     position,
-    extractor: (e.extractorKey ?? fallback).toLowerCase(),
-    videoId: e.id,
-    url: e.url ?? "",
+    extractor,
+    videoId: mediaVideoId(extractor, e.id, url),
+    url,
     title: e.title,
     duration: e.duration,
     liveStatus: e.liveStatus,

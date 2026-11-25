@@ -9,6 +9,7 @@ import type { ProbeJob } from "../downloads/queues.ts";
 import type { DownloadRequestsTable } from "../db/schema.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { withLoginsOf } from "./logins.ts";
+import { mediaVideoId } from "../library/mediaKey.ts";
 import { upsertMedia } from "./media.ts";
 
 const PROBE_TIMEOUT_MS = 120_000;
@@ -43,9 +44,10 @@ type EntrySummary = Omit<PlaylistEntry, "children">;
 
 function previewEntry(e: EntrySummary, fallbackExtractor: string): PreviewEntry | null {
   if (e.kind !== "video" || e.url === null) return null;
+  const extractor = e.extractorKey ?? fallbackExtractor;
   return {
-    id: e.id,
-    extractor: e.extractorKey ?? fallbackExtractor,
+    id: mediaVideoId(extractor, e.id, e.url),
+    extractor,
     url: e.url,
     title: e.title,
     duration: e.duration,
@@ -119,14 +121,16 @@ async function queueVideo(
   const profile = await getProfile(deps.db, req.profile_id);
   if (profile === undefined) throw new Error("the request's profile is gone");
   const extractor = (info.extractorKey ?? "generic").toLowerCase();
-  await upsertMedia(deps.db, { extractor, videoId: info.id }, info);
+  const url = info.url ?? req.url;
+  const videoId = mediaVideoId(extractor, info.id, url);
+  await upsertMedia(deps.db, { extractor, videoId }, info);
   const out = await deps.db.transaction().execute(async (tx) => {
     const queued = await queueDownload(tx, {
       userId: req.user_id,
       requestId: req.id,
       extractor,
-      videoId: info.id,
-      url: info.url ?? req.url,
+      videoId,
+      url,
       title: info.title,
       profile,
     });

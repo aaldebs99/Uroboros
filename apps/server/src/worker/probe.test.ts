@@ -296,3 +296,74 @@ describe("probe", () => {
     expect(await h.lastArgv()).not.toContain("--netrc");
   });
 });
+
+/** yt-dlp's answer for a direct link it has no extractor for: its id is the file's name. */
+async function genericProbe(url: string): Promise<string> {
+  const info = JSON.parse(await fixture("probe-video.json")) as Record<string, unknown>;
+  return JSON.stringify({
+    ...info,
+    id: "meeting",
+    title: "meeting",
+    extractor: "generic",
+    extractor_key: "Generic",
+    webpage_url: url,
+    original_url: url,
+  });
+}
+
+describe("a link yt-dlp has no extractor for", () => {
+  const media = (videoId: string) =>
+    testDb.db.selectFrom("media").select("id").where("video_id", "like", `${videoId}%`).execute();
+
+  it("is its own video even when another link has the same file name", async () => {
+    const mine = "https://files.example/private/meeting.mp4";
+    const theirs = "https://evil.example/meeting.mp4";
+    const a = await request(mine);
+    await run(a, await h.deps({ steps: [{ stdout: await genericProbe(mine) }] }));
+    const b = await request(theirs);
+    await run(b, await h.deps({ steps: [{ stdout: await genericProbe(theirs) }] }));
+    const keys = await testDb.db
+      .selectFrom("downloads")
+      .select("fetch_key")
+      .where("request_id", "in", [a, b])
+      .execute();
+    expect(new Set(keys.map((k) => k.fetch_key)).size).toBe(2);
+    expect(await media("meeting")).toHaveLength(2);
+  });
+
+  it("is the same video again for the same link", async () => {
+    const url = "https://files.example/talks/meeting.mp4";
+    const ids = [await request(url), await request(url)];
+    for (const id of ids) {
+      await run(id, await h.deps({ steps: [{ stdout: await genericProbe(url) }] }));
+    }
+    const rows = await testDb.db
+      .selectFrom("media")
+      .select("video_id")
+      .where("webpage_url", "=", url)
+      .execute();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.video_id).toMatch(/^meeting~[0-9a-f]{16}$/);
+  });
+
+  it("lists a page's videos under ids tied to their links", async () => {
+    const page = "https://evil.example/videos.html";
+    const listing = JSON.parse(await fixture("probe-playlist.json")) as {
+      entries: Record<string, unknown>[];
+    };
+    const stdout = JSON.stringify({
+      ...listing,
+      extractor_key: "Generic",
+      entries: listing.entries.map((e) => ({
+        ...e,
+        ie_key: null,
+        url: `https://evil.example/${String(e.id)}.mp4`,
+      })),
+    });
+    const id = await request(page);
+    await run(id, await h.deps({ steps: [{ stdout }] }));
+    const entries = (await load(id)).groups[0]?.entries ?? [];
+    expect(entries.length).toBeGreaterThan(0);
+    for (const e of entries) expect(e.id).toMatch(/~[0-9a-f]{16}$/);
+  });
+});
