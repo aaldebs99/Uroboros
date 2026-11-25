@@ -204,12 +204,13 @@ describe("a playback session's runner", () => {
       if (m.t === "stop") stops.push(m.sid);
     });
     await start(d, sid).done;
+    // The stop goes out as a Postgres NOTIFY, so it reaches the listener after the run returns.
+    await until(() => Promise.resolve(stops.includes(sid)));
     off();
     expect(await row(sid)).toMatchObject({
       state: "failed",
       error_message: "libx264: cannot open encoder",
     });
-    expect(stops).toContain(sid);
   });
 
   it("stops without requeueing or recording when its run lost the job to another", async () => {
