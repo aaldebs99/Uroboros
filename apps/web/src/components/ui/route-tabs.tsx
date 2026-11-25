@@ -1,4 +1,5 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { useLayoutEffect, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,8 @@ export interface RouteTab {
  *
  * The row scrolls sideways when it doesn't fit, and never up and down: the hairline is an inset
  * shadow rather than a border, so a tab's underline covers it without poking out of the row (which
- * a `-mb-px` tab did, giving the row a vertical scrollbar).
+ * a `-mb-px` tab did, giving the row a vertical scrollbar). On each route it scrolls itself (never
+ * the page) so the current tab is in view, rather than left cut off at the edge of a phone.
  */
 export function RouteTabs({
   label,
@@ -36,8 +38,20 @@ export function RouteTabs({
   /** For a section whose views the side navigation lists from `md` up (Library, Shared, Settings). */
   phoneOnly?: boolean;
 }) {
+  const row = useRef<HTMLElement>(null);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useLayoutEffect(() => {
+    const nav = row.current;
+    const current = nav?.querySelector('[aria-current="page"]');
+    if (!nav || !current) return;
+    const edges = nav.getBoundingClientRect();
+    const tab = current.getBoundingClientRect();
+    if (tab.left < edges.left) nav.scrollLeft -= edges.left - tab.left;
+    else if (tab.right > edges.right) nav.scrollLeft += tab.right - edges.right;
+  }, [pathname]);
   return (
     <nav
+      ref={row}
       aria-label={label}
       className={cn(
         "flex gap-6 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-border)]",
