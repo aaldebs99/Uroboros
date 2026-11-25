@@ -25,7 +25,7 @@ export const libraryTools: Tool[] = [
   defineTool({
     name: "search_library",
     title: "Search the library",
-    description: `Searches or lists the person's video library. With q, entries are ranked best match first and each carries match: where it matched (a chapter, the description or the captions), a snippet, and start, the second to play from. Without q, it lists by sort (newest added first by default), filtered by channel, playlist, YouTube playlist (source), tag or watched. Page with cursor. ${RELATIVE}`,
+    description: `Searches or lists the person's video library. With q, entries are ranked best match first and each carries match: where it matched (a chapter, the description or the captions), a snippet, and start, the second to play from. Without q, it lists by sort (newest added first by default), filtered by channel, playlist, YouTube playlist (source), tag, watched or kind (video or audio). Page with cursor. ${RELATIVE}`,
     input: McpLibraryQuery,
     output: LibraryPage,
     run: (args, { db, caller }) => listLibraryPage(db, caller.userId, args),

@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   ChannelSummary,
   LIBRARY_PAGE_SIZE,
+  LibraryKind,
   LibraryPage,
   LibrarySort,
   MAX_TAGS,
@@ -75,6 +76,10 @@ export const McpLibraryQuery = z.object({
   source: z.uuid().optional().describe("A YouTube playlist the person queued (list_playlists)"),
   tag: z.string().max(64).optional(),
   watched: z.boolean().optional(),
+  kind: z
+    .enum(LibraryKind.options)
+    .optional()
+    .describe("video or audio: only files with a picture, or only files with sound alone"),
   sort: z.enum(LibrarySort.options).optional(),
   cursor: Cursor.optional(),
   limit: PageLimit,

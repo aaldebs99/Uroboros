@@ -94,33 +94,33 @@ The tools call the same service functions as the REST routes, so permissions mat
 
 ## The tools
 
-| Tool                      | Reads or writes | What it does                                                                                                                                            |
-| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `search_library`          | reads           | Search (`q`, with where a match is: chapter, description or captions, and the second it starts) or list by channel, playlist, tag, watched, sort; paged |
-| `get_entry`               | reads           | One video: description, chapters, subtitle tracks, tags, progress                                                                                       |
-| `read_transcript`         | reads           | A video's caption lines with their start times, from the captions indexed for search; paged by `fromSeconds`                                            |
-| `list_channels`           | reads           | The library's channels and their keys                                                                                                                   |
-| `list_playlists`          | reads           | The person's playlists and the YouTube playlists they queued                                                                                            |
-| `get_playlist`            | reads           | One playlist and a page of its videos in order                                                                                                          |
-| `list_downloads`          | reads           | The person's downloads, active first                                                                                                                    |
-| `get_download_request`    | reads           | A link or search being read; `waitSeconds` (up to 15) waits for it to leave `probing`                                                                   |
-| `list_profiles`           | reads           | The format profiles the person may use                                                                                                                  |
-| `list_subscriptions`      | reads           | The channels and playlists the person follows                                                                                                           |
-| `list_subscription_items` | reads           | A subscription's recent activity; paged                                                                                                                 |
-| `download_link`           | writes          | Save a video from a link (a playlist or channel link is previewed for `queue_selection`)                                                                |
-| `search_youtube`          | writes          | List YouTube's top results for a search, to save with `queue_selection`                                                                                 |
-| `queue_selection`         | writes          | Download picked entries of a preview or search                                                                                                          |
-| `cancel_download`         | writes          | Cancel a queued or running download                                                                                                                     |
-| `retry_download`          | writes          | Queue a failed or cancelled download again                                                                                                              |
-| `create_playlist`         | writes          | Make a playlist, optionally with videos                                                                                                                 |
-| `add_to_playlist`         | writes          | Add videos to the end of a playlist                                                                                                                     |
-| `remove_from_playlist`    | writes          | Take a video out of a playlist                                                                                                                          |
-| `update_entry`            | writes          | Replace tags, mark watched or not, keep from clean-up                                                                                                   |
-| `preview_subscription`    | writes          | Read a channel or playlist link for subscribing                                                                                                         |
-| `create_subscription`     | writes          | Follow a previewed channel or playlist                                                                                                                  |
-| `update_subscription`     | writes          | Change one (`enabled: false` pauses it)                                                                                                                 |
-| `delete_subscription`     | writes          | Unsubscribe; downloads not started are cancelled                                                                                                        |
-| `check_subscription_now`  | writes          | Look for new videos now                                                                                                                                 |
+| Tool                      | Reads or writes | What it does                                                                                                                                                                   |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `search_library`          | reads           | Search (`q`, with where a match is: chapter, description or captions, and the second it starts) or list by channel, playlist, tag, watched, kind (video or audio), sort; paged |
+| `get_entry`               | reads           | One video: description, chapters, subtitle tracks, tags, progress                                                                                                              |
+| `read_transcript`         | reads           | A video's caption lines with their start times, from the captions indexed for search; paged by `fromSeconds`                                                                   |
+| `list_channels`           | reads           | The library's channels and their keys                                                                                                                                          |
+| `list_playlists`          | reads           | The person's playlists and the YouTube playlists they queued                                                                                                                   |
+| `get_playlist`            | reads           | One playlist and a page of its videos in order                                                                                                                                 |
+| `list_downloads`          | reads           | The person's downloads, active first                                                                                                                                           |
+| `get_download_request`    | reads           | A link or search being read; `waitSeconds` (up to 15) waits for it to leave `probing`                                                                                          |
+| `list_profiles`           | reads           | The format profiles the person may use                                                                                                                                         |
+| `list_subscriptions`      | reads           | The channels and playlists the person follows                                                                                                                                  |
+| `list_subscription_items` | reads           | A subscription's recent activity; paged                                                                                                                                        |
+| `download_link`           | writes          | Save a video from a link (a playlist or channel link is previewed for `queue_selection`)                                                                                       |
+| `search_youtube`          | writes          | List YouTube's top results for a search, to save with `queue_selection`                                                                                                        |
+| `queue_selection`         | writes          | Download picked entries of a preview or search                                                                                                                                 |
+| `cancel_download`         | writes          | Cancel a queued or running download                                                                                                                                            |
+| `retry_download`          | writes          | Queue a failed or cancelled download again                                                                                                                                     |
+| `create_playlist`         | writes          | Make a playlist, optionally with videos                                                                                                                                        |
+| `add_to_playlist`         | writes          | Add videos to the end of a playlist                                                                                                                                            |
+| `remove_from_playlist`    | writes          | Take a video out of a playlist                                                                                                                                                 |
+| `update_entry`            | writes          | Replace tags, mark watched or not, keep from clean-up                                                                                                                          |
+| `preview_subscription`    | writes          | Read a channel or playlist link for subscribing                                                                                                                                |
+| `create_subscription`     | writes          | Follow a previewed channel or playlist                                                                                                                                         |
+| `update_subscription`     | writes          | Change one (`enabled: false` pauses it)                                                                                                                                        |
+| `delete_subscription`     | writes          | Unsubscribe; downloads not started are cancelled                                                                                                                               |
+| `check_subscription_now`  | writes          | Look for new videos now                                                                                                                                                        |
 
 Saving from a search takes three calls: `search_youtube`, `get_download_request` with `waitSeconds`
 until it is `choosing`, then `queue_selection` with the picked entry ids. `get_download_request`

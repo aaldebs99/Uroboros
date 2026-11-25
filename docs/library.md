@@ -20,6 +20,8 @@ public links in [sharing.md](sharing.md).
   404, and `source` with `playlist` is 400.
 - `inPlaylist`: `true` keeps only the videos in one of the caller's playlists, of either kind, and
   `false` only those in none (see [Hide playlist videos](#hide-playlist-videos)).
+- `kind`: `video` keeps only the files with a picture and `audio` only those with sound alone (see
+  [Videos and audio](#videos-and-audio)).
 - `sort`: `added` (newest first; the default), `uploaded`, `title`, `duration`, `relevance` (best
   match, the default with `q`, and only with it) or `position` (playlist order; the default with
   `source` or `playlist`, and only with one). Another sort with `q` orders the matches.
@@ -86,6 +88,17 @@ YouTube for …" ([downloads.md](downloads.md#flow)), whose results download fro
 one; a link the library doesn't have offers "Download this link" (the default profile) or "Choose
 a format…" (the Download a link dialog, with the link filled in).
 
+## Videos and audio
+
+Library › Videos and Library › Audio (`/library/audio`) split the library by what the file holds:
+a file with a video stream is a video, and one with sound alone, such as a download with an
+audio-only profile, is audio (`renditions.video_codec` null; a music file's cover art is not a
+video stream, `src/transcode/facts.ts`). That is the same line `hasVideo` and the SponsorBlock
+settings draw. Each view asks `GET /api/library` with its `kind`, and its watched, tag and sort
+filters stay on that view, but a search (`q`) shows both kinds on either view, so the top bar's
+"See all" finds everything. Channel and playlist pages, Up next and the search palette show both
+kinds, and `kind` is the API's own filter, honoured with `q` too.
+
 ## Channels and playlists
 
 A channel is the extractor plus the site's channel id, or the channel's name when the site gives no
@@ -105,7 +118,8 @@ not recorded. People also make playlists of their own; `GET /api/playlists` list
 
 ### Hide playlist videos
 
-Library › Videos has a **Hide playlist videos** chip after All, Unwatched and Watched. It is off by
+Library › Videos has a **Hide playlist videos** chip after All, Unwatched and Watched, and Library ›
+Audio the same chip as **Hide playlist audio**: one setting for both views. It is off by
 default, and it is kept on the person's account, so it follows them to every device:
 `GET /api/me/preferences` answers their `Preferences` (`user_preferences`, no row meaning the
 defaults), and `PATCH` changes only the fields it names. While it is on, the page asks for

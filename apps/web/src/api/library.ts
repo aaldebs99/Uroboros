@@ -6,6 +6,7 @@ import {
   LibraryPage,
   type EntryDetailsBody,
   type FormatProfilePatch,
+  type LibraryKind,
   type LibrarySort,
   type NewFormatProfileBody,
 } from "@uroboros/contract";
@@ -47,6 +48,8 @@ export interface LibraryFilters {
   watched?: boolean;
   /** Only videos in one of the caller's playlists, of either kind (true), or in none (false). */
   inPlaylist?: boolean;
+  /** Only the files with a picture (video), or only those with sound alone (audio). */
+  kind?: LibraryKind;
   sort?: LibrarySort;
   /** Entries per page (the server's 60 when omitted). */
   limit?: number;

@@ -75,6 +75,7 @@ describe("app shell", () => {
     expect(names).toEqual([
       "Library",
       "Videos",
+      "Audio",
       "Channels",
       "Playlists",
       "Downloads",
@@ -105,6 +106,18 @@ describe("app shell", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
     expect(within(nav).queryByRole("list", { name: "Library views" })).not.toBeInTheDocument();
+  });
+
+  it("opens the Audio view with the side navigation, marking it current", async () => {
+    await renderAt("/library/audio");
+
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const views = within(nav).getByRole("list", { name: "Library views" });
+    expect(within(views).getByRole("link", { name: "Audio" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(await screen.findByRole("button", { name: "Hide playlist audio" })).toBeInTheDocument();
   });
 
   it("navigating to /subscriptions shows the subscriptions", async () => {

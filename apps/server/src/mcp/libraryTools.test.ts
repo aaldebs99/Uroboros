@@ -34,6 +34,12 @@ beforeAll(async () => {
     media: { channel: "Systems Weekly" },
   });
   await seedEntry(testDb.db, owner, { title: "Sourdough basics", media: { channel: "Bakery" } });
+  // The talk has a picture; the sourdough, like every seeded file, is sound only.
+  await testDb.db
+    .updateTable("renditions")
+    .set({ video_codec: "h264" })
+    .where("id", "=", talk.renditionId)
+    .execute();
   const sub = await testDb.db
     .insertInto("subtitles")
     .values({
@@ -80,6 +86,13 @@ describe("the MCP library tools", () => {
     expect(page.entries.map((e) => e.title)).toEqual(["Ownership in Rust", "Sourdough basics"]);
     const channels = ChannelSummary.array().parse((await structured("list_channels"))?.channels);
     expect(channels.map((c) => c.name).sort()).toEqual(["Bakery", "Systems Weekly"]);
+  });
+
+  it("list the audio alone, or the videos alone", async () => {
+    const audio = LibraryPage.parse(await structured("search_library", { kind: "audio" }));
+    expect(audio.entries.map((e) => e.title)).toEqual(["Sourdough basics"]);
+    const video = LibraryPage.parse(await structured("search_library", { kind: "video" }));
+    expect(video.entries.map((e) => e.title)).toEqual(["Ownership in Rust"]);
   });
 
   it("read one video's details and transcript", async () => {

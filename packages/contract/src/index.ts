@@ -68,6 +68,7 @@ export {
   EntryRef,
   LIBRARY_PAGE_SIZE,
   LibraryItem,
+  LibraryKind,
   LibraryPage,
   LibraryPageEntry,
   LibrarySort,

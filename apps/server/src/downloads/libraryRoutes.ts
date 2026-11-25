@@ -4,6 +4,7 @@ import {
   ApiErrorBody,
   ChannelSummary,
   LIBRARY_PAGE_SIZE,
+  LibraryKind,
   LibraryPage,
   LibrarySort,
 } from "@uroboros/contract";
@@ -78,6 +79,11 @@ const libraryQuery = z.object({
       description:
         "true: only videos in one of the caller's playlists (a YouTube one they have, or their own); false: only videos in none",
     }),
+  kind: LibraryKind.optional().openapi({
+    param: { name: "kind", in: "query" },
+    description:
+      "video: only files with a picture; audio: only files with sound alone, such as an audio-only download",
+  }),
   sort: LibrarySort.optional().openapi({ param: { name: "sort", in: "query" } }),
   cursor: z
     .string()

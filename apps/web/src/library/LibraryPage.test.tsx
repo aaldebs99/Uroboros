@@ -251,3 +251,69 @@ describe("LibraryPage", () => {
     );
   });
 });
+
+describe("LibraryPage's Videos and Audio views", () => {
+  /** A library that records the `kind` each page was asked with. */
+  function serveKinds(entries: unknown[] = [entry]) {
+    const kinds: (string | null)[] = [];
+    const calls = fakeApi({
+      "GET /api/me/preferences": () =>
+        Response.json({ hidePlaylistVideos: false, sponsorBlock: DEFAULT_SPONSORBLOCK }),
+      "PATCH /api/me/preferences": () =>
+        Response.json({ hidePlaylistVideos: true, sponsorBlock: DEFAULT_SPONSORBLOCK }),
+      "GET /api/library": (_init, url) => {
+        kinds.push(url.searchParams.get("kind"));
+        return Response.json({ entries, nextCursor: null });
+      },
+    });
+    return { kinds, calls };
+  }
+
+  it("asks for the videos alone on Videos", async () => {
+    const { kinds } = serveKinds();
+    await renderInRouter(<LibraryPage />);
+    await screen.findByText("Big Buck Bunny");
+    expect(kinds).toEqual(["video"]);
+  });
+
+  it("asks for the audio alone on Audio", async () => {
+    const { kinds } = serveKinds();
+    await renderInRouter(<LibraryPage kind="audio" />);
+    await screen.findByText("Big Buck Bunny");
+    expect(kinds).toEqual(["audio"]);
+  });
+
+  it("searches both on either view", async () => {
+    const { kinds } = serveKinds();
+    await renderInRouter(<LibraryPage kind="audio" filters={{ q: "bunny", tag: "music" }} />);
+    await screen.findByText("Big Buck Bunny");
+    expect(kinds).toEqual([null]);
+  });
+
+  it("calls the chip Hide playlist audio on Audio, and saves the same setting", async () => {
+    const { calls } = serveKinds();
+    await renderInRouter(<LibraryPage kind="audio" />);
+    await screen.findByText("Big Buck Bunny");
+    expect(screen.queryByRole("button", { name: "Hide playlist videos" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Hide playlist audio" }));
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ hidePlaylistVideos: true });
+  });
+
+  it("says when there is no audio yet", async () => {
+    serveKinds([]);
+    await renderInRouter(<LibraryPage kind="audio" />);
+    expect(await screen.findByText("No audio yet.")).toBeInTheDocument();
+    expect(screen.getByText(/audio-only profile/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to Downloads" })).toHaveAttribute(
+      "href",
+      "/downloads",
+    );
+  });
+
+  it("says how to see playlist audio when hiding it leaves none", async () => {
+    serveHiding(true, []);
+    await renderInRouter(<LibraryPage kind="audio" />);
+    expect(await screen.findByText("Nothing outside your playlists.")).toBeInTheDocument();
+    expect(screen.getByText(/Turn off Hide playlist audio/)).toBeInTheDocument();
+  });
+});

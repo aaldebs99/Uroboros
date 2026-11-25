@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { SEARCH_MIN_CHARS } from "@uroboros/contract";
-import { Download, Library, ListVideo, SearchX } from "lucide-react";
+import { SEARCH_MIN_CHARS, type LibraryKind } from "@uroboros/contract";
+import { Download, Library, ListVideo, Music, SearchX } from "lucide-react";
 
 import { errorText } from "@/api/client";
 import type { LibraryFilters } from "@/api/library";
@@ -33,8 +33,34 @@ function without(f: LibraryFilters, key: keyof LibraryFilters): LibraryFilters {
   return rest;
 }
 
+/**
+ * What the grid asks for: the view's kind, except in a search, which finds both on either view, and
+ * nothing in the person's playlists while they hide those.
+ */
+function gridFilters(filters: LibraryFilters, kind: LibraryKind, hide: boolean): LibraryFilters {
+  return {
+    ...filters,
+    ...(filters.q === undefined ? { kind } : {}),
+    ...(hide ? { inPlaylist: false } : {}),
+  };
+}
+
+/** The chip that hides what is in the person's playlists, named for the view. */
+const HIDE_LABEL: Record<LibraryKind, string> = {
+  video: "Hide playlist videos",
+  audio: "Hide playlist audio",
+};
+
 /** What an empty page says: a filter left nothing, hiding playlist videos did, or there's nothing yet. */
-function EmptyLibrary({ narrowed, hiding }: { narrowed: boolean; hiding: boolean }) {
+function EmptyLibrary({
+  kind,
+  narrowed,
+  hiding,
+}: {
+  kind: LibraryKind;
+  narrowed: boolean;
+  hiding: boolean;
+}) {
   if (narrowed) {
     return (
       <EmptyState icon={SearchX} title="Nothing matches.">
@@ -56,14 +82,17 @@ function EmptyLibrary({ narrowed, hiding }: { narrowed: boolean; hiding: boolean
           </Button>
         }
       >
-        Turn off Hide playlist videos to see every video here.
+        {kind === "audio"
+          ? "Turn off Hide playlist audio to see all your audio here."
+          : "Turn off Hide playlist videos to see every video here."}
       </EmptyState>
     );
   }
+  const audio = kind === "audio";
   return (
     <EmptyState
-      icon={Library}
-      title="Nothing here yet."
+      icon={audio ? Music : Library}
+      title={audio ? "No audio yet." : "Nothing here yet."}
       action={
         <Button asChild>
           <Link to="/downloads">
@@ -73,19 +102,24 @@ function EmptyLibrary({ narrowed, hiding }: { narrowed: boolean; hiding: boolean
         </Button>
       }
     >
-      Videos you download show up here.
+      {audio
+        ? "Audio you download with an audio-only profile shows up here."
+        : "Videos you download show up here."}
     </EmptyState>
   );
 }
 
 /**
- * Library: everything the person has downloaded, searchable and filterable (docs/library.md). The
- * account's Hide playlist videos leaves out what is in their playlists, once it is known.
+ * Library › Videos or Library › Audio: what the person has downloaded of that kind, searchable and
+ * filterable (docs/library.md); a search shows both kinds. The account's Hide playlist videos
+ * leaves out what is in their playlists, once it is known.
  */
 export function LibraryPage({
+  kind = "video",
   filters = {},
   onFilters = () => undefined,
 }: {
+  kind?: LibraryKind;
   filters?: LibraryFilters;
   /** The route keeps the filters in the URL. */
   onFilters?: (f: LibraryFilters) => void;
@@ -133,7 +167,7 @@ export function LibraryPage({
               );
             }}
           >
-            Hide playlist videos
+            {HIDE_LABEL[kind]}
           </Chip>
           {filters.q === undefined ? null : (
             <FilterChip
@@ -184,10 +218,10 @@ export function LibraryPage({
         </EmptyState>
       ) : (
         <LibraryGrid
-          filters={hide ? { ...filters, inPlaylist: false } : filters}
+          filters={gridFilters(filters, kind, hide)}
           // A failed read of the preferences counts as off rather than holding the page.
           enabled={!prefs.isPending}
-          empty={<EmptyLibrary narrowed={narrowed} hiding={hide} />}
+          empty={<EmptyLibrary kind={kind} narrowed={narrowed} hiding={hide} />}
         />
       )}
     </section>

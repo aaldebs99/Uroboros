@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 export interface RouteTab {
   to:
     | "/"
+    | "/library/audio"
     | "/library/channels"
     | "/library/playlists"
     | "/shared"

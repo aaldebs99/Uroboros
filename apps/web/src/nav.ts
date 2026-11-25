@@ -49,6 +49,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
 /** The library's views: indented under Library in the side navigation, tabs on phones. */
 export const LIBRARY_VIEWS = [
   { to: "/", label: "Videos" },
+  { to: "/library/audio", label: "Audio" },
   { to: "/library/channels", label: "Channels" },
   { to: "/library/playlists", label: "Playlists" },
 ] as const;
@@ -93,6 +94,7 @@ export function isWatchPage(pathname: string): boolean {
   return (
     parts.length === 2 &&
     parts[0] === "library" &&
+    parts[1] !== "audio" &&
     parts[1] !== "channels" &&
     parts[1] !== "playlists"
   );

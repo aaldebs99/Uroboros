@@ -22,6 +22,13 @@ export const LibrarySort = z
   .openapi("LibrarySort");
 export type LibrarySort = z.infer<typeof LibrarySort>;
 
+/**
+ * Library › Videos or Library › Audio: whether the file has a picture (a video stream; cover art
+ * is not one), or sound alone (docs/library.md "Videos and audio").
+ */
+export const LibraryKind = z.enum(["video", "audio"]).openapi("LibraryKind");
+export type LibraryKind = z.infer<typeof LibraryKind>;
+
 /** Where a search matched that the tile doesn't show already (docs/library.md "Search"). */
 export const SearchMatchSource = z
   .enum(["chapter", "description", "captions"])

@@ -1,4 +1,5 @@
 import { getRouteApi, useNavigate, useRouterState } from "@tanstack/react-router";
+import type { LibraryKind } from "@uroboros/contract";
 
 import type { LibraryFilters } from "@/api/library";
 import { ChannelPage } from "@/library/ChannelPage";
@@ -23,21 +24,32 @@ function filtersFrom(searchStr: string): LibraryFilters {
   };
 }
 
-/** `/`: the library, with its search and filters kept in the URL (the top bar's search sets `q`). */
-export function LibraryRoute() {
+/** A library view at `path`, with its search and filters kept in the URL. */
+function LibraryView({ kind, path }: { kind: LibraryKind; path: "/" | "/library/audio" }) {
   const searchStr = useRouterState({ select: (s) => s.location.searchStr });
   const navigate = useNavigate();
   return (
     <LibraryPage
+      kind={kind}
       filters={filtersFrom(searchStr)}
       onFilters={(f) => {
         const p = new URLSearchParams();
         for (const [k, v] of Object.entries(f)) if (v !== undefined) p.set(k, String(v));
         const query = p.toString();
-        void navigate({ href: query === "" ? "/" : `/?${query}` });
+        void navigate({ href: query === "" ? path : `${path}?${query}` });
       }}
     />
   );
+}
+
+/** `/`: Library › Videos (the top bar's search sets `q`, and a search shows audio too). */
+export function LibraryRoute() {
+  return <LibraryView kind="video" path="/" />;
+}
+
+/** `/library/audio`: Library › Audio, the files with sound alone. */
+export function AudioRoute() {
+  return <LibraryView kind="audio" path="/library/audio" />;
 }
 
 // Each page reads its own route's parameter, never the location: while a navigation away is

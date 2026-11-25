@@ -1566,6 +1566,14 @@
           }
         ]
       },
+      "LibraryKind": {
+        "description": "video: only files with a picture; audio: only files with sound alone, such as an audio-only download",
+        "enum": [
+          "video",
+          "audio"
+        ],
+        "type": "string"
+      },
       "LibraryPage": {
         "properties": {
           "entries": {
@@ -6121,6 +6129,15 @@
                 "false"
               ],
               "type": "string"
+            }
+          },
+          {
+            "description": "video: only files with a picture; audio: only files with sound alone, such as an audio-only download",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LibraryKind"
             }
           },
           {

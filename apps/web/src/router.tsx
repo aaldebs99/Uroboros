@@ -20,7 +20,7 @@ import {
 import { AccountRoute, AdminGroupsRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
 import { GroupRoute } from "./routes/groups";
-import { ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
+import { AudioRoute, ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
 import { RootLayout } from "./routes/root";
 import { NewSubscriptionRoute, SubscriptionRoute } from "./routes/subscriptions";
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
@@ -33,6 +33,7 @@ const rootRoute = createRootRoute({ component: RootLayout });
 
 const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: "/", component: LibraryRoute }),
+  createRoute({ getParentRoute: () => rootRoute, path: "/library/audio", component: AudioRoute }),
   createRoute({
     getParentRoute: () => rootRoute,
     path: "/library/channels",

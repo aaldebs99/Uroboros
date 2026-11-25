@@ -1,6 +1,7 @@
 import {
   LIBRARY_PAGE_SIZE,
   type LibraryEntry,
+  type LibraryKind,
   type LibraryPage,
   type LibrarySort,
 } from "@uroboros/contract";
@@ -30,6 +31,8 @@ export interface LibraryFilters {
   watched?: boolean | undefined;
   /** Only the entries in one of the owner's playlists, of either kind (true), or in none (false). */
   inPlaylist?: boolean | undefined;
+  /** Only the files with a picture (video), or only those without (audio). */
+  kind?: LibraryKind | undefined;
   sort?: LibrarySort | undefined;
   cursor?: string | undefined;
   /** Entries per page; `LIBRARY_PAGE_SIZE` when omitted. */
@@ -170,6 +173,8 @@ function filtered(qb: Base, f: LibraryFilters): Base {
   if (f.watched !== undefined)
     out = out.where(sql<boolean>`coalesce(wp.watched, false) = ${f.watched}`);
   if (f.inPlaylist !== undefined) out = playlistFilter(out, f.inPlaylist);
+  if (f.kind !== undefined)
+    out = out.where("r.video_codec", f.kind === "audio" ? "is" : "is not", null);
   return out;
 }
 
