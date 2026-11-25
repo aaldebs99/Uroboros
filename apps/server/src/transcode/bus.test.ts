@@ -189,8 +189,16 @@ describe("waitForSegment", () => {
 
   it("gives up when the session stops", async () => {
     const sid = await newSession();
-    setTimeout(() => void other.publish({ t: "stop", sid }), 100);
-    expect(await waitForSegment({ ...keys(), bus, sid, n: 1, timeoutMs: 5000 })).toBe(false);
+    // The waiter listens before it asks, so its first want means a stop now reaches it.
+    const off = other.on((m) => {
+      if (m.t === "want" && m.sid === sid) void other.publish({ t: "stop", sid });
+    });
+    const started = Date.now();
+    const ok = await waitForSegment({ ...keys(), bus, sid, n: 1, timeoutMs: 5000 });
+    off();
+    expect(ok).toBe(false);
+    // The stop ended it, not the 5 s timeout, which also answers false.
+    expect(Date.now() - started).toBeLessThan(2500);
   });
 });
 
