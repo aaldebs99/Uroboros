@@ -7,6 +7,7 @@ import { eventually } from "../../test/eventually.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { RunningApi } from "../api/main.ts";
+import { ConfigError, loadConfig } from "../config.ts";
 import { MIGRATE_KEY_NAME } from "../shared/lockKeys.ts";
 import { main, startServer } from "./main.ts";
 
@@ -85,8 +86,19 @@ describe("one server process", () => {
 
 describe("main", () => {
   it("returns 2 when DATABASE_URL is missing", async () => {
+    // Everything else a config needs is there, so the missing DATABASE_URL is the only reason.
+    vi.stubEnv("UROBOROS_STORAGE", "filesystem");
+    vi.stubEnv("UROBOROS_STORAGE_ROOT", "/media");
+    vi.stubEnv("UROBOROS_BOOTSTRAP_USERNAME", "admin");
+    vi.stubEnv("UROBOROS_BOOTSTRAP_PASSWORD", "correct horse battery");
     vi.stubEnv("DATABASE_URL", "");
     try {
+      expect(() =>
+        loadConfig({ ...process.env, DATABASE_URL: "postgres://u:p@h/db" }),
+      ).not.toThrow();
+      expect(() => loadConfig(process.env)).toThrow(
+        new ConfigError("invalid configuration:\nDATABASE_URL: DATABASE_URL is required"),
+      );
       expect(await main()).toBe(2);
     } finally {
       vi.unstubAllEnvs();
