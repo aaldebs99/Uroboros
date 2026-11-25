@@ -313,7 +313,7 @@ export function RequestPanel({ id, onDone }: { id: string; onDone: () => void })
     <div className="grid gap-3 rounded-2xl bg-card p-4 shadow-card">
       <div className="flex items-center gap-3">
         <p className="min-w-0 flex-1 truncate text-base font-bold">
-          {data?.title ?? data?.url ?? "Looking at the link"}
+          {data?.title ?? data?.url ?? (req.isError ? "Preview" : "Looking at the link")}
         </p>
         {data === undefined ? null : <RequestBadge state={data.state} />}
         <Button variant="ghost" size="icon" aria-label="Close" onClick={onDone}>

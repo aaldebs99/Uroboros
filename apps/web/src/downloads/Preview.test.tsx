@@ -98,5 +98,6 @@ describe("a preview's picks", () => {
     expect(
       await screen.findByText("This preview expired. A preview waits a day for a pick."),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Looking at the link")).not.toBeInTheDocument();
   });
 });
