@@ -169,6 +169,19 @@ still uses `window.confirm`. Both share the panel below.
 </div>
 ```
 
+## Stats
+
+Numbers an admin reads at a glance (`admin/AdminStatsPage.tsx`), after the dataviz skill:
+
+- **Stat tiles** in a row (`grid-cols-2 md:grid-cols-4 gap-4`), each a `<dt>`/`<dd>` pair in a
+  `<dl>`: a card (`rounded-2xl bg-card p-4 shadow-card`), the label 14px muted in sentence case,
+  the value 24/700 with proportional figures. No delta or sparkline until there is a history.
+- **Meter lists** for parts of a whole, one hue: each row's name and figures (`bytes · share`,
+  muted, `tabular-nums`) on one line and its bar beneath, largest first. The bar is an 8px
+  `bg-primary` fill on a `bg-primary/15` track, both `rounded-full`, `aria-hidden` (the figures
+  carry the values). A part at zero draws nothing; a share under 1% reads "<1%".
+- A table column can end in the same meter under its figure (By person's Storage).
+
 ## Tables
 
 A gridless table: hairlines between rows, quiet headers, and a hover fill.

@@ -326,6 +326,26 @@ the `.info.json` into `media.chapters`.
 
 ## Stats
 
+Admin › Stats (`GET /api/admin/stats`, admins only; `src/stats/`) shows what the library holds and
+what it takes up:
+
+- **Media files**: every stored file (a rendition: one per video and format), videos and audio
+  apart (no video stream is audio, as Library › Audio counts it), and by container (the file's
+  extension, `unknown` when none was recorded), largest first.
+- **Storage**: everything stored, by kind: media files, thumbnails, `.info.json` files, hover
+  previews, subtitles, copies to save, uploads underway (the parts received) and the playback
+  cache (a running session's segments), with how many files still wait to be measured. Keys in
+  `storage_trash` (deleted within 15 minutes) and the thumbnail sent with an upload still underway
+  are not counted.
+- **By person**: everyone, most storage first, with their library's items (videos and audio
+  apart) and the storage that counts for them. A file is stored once for everyone who has it and
+  counts for whoever's entry for it is oldest (`added_at`; of the entries one fetch made together,
+  whoever queued it first); its media's thumbnail, info file, preview and subtitles count for
+  whoever's entry for that media is. When that person removes it, it passes to the next. A
+  person's copies to save and uploads underway are theirs. So the people's storage, the files in
+  no one's library (the reaper's day of grace, with their media's files) and the playback cache
+  add up to the total.
+
 Every stored file's size is recorded beside its key: `renditions.size_bytes`, the media's
 `thumbnail_bytes`, `info_bytes` and `preview_bytes`, `subtitles.size_bytes`, `exports.size_bytes`,
 `upload_parts.size_bytes` and `playback_segments.size_bytes`. The code that stores a file records

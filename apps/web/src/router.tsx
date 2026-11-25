@@ -18,7 +18,7 @@ import {
   SettingsSponsorBlockPage,
   SettingsTokensPage,
 } from "./routes";
-import { AccountRoute, AdminGroupsRoute, AdminUsersRoute } from "./routes/account";
+import { AccountRoute, AdminGroupsRoute, AdminStatsRoute, AdminUsersRoute } from "./routes/account";
 import { DownloadsRoute } from "./routes/downloads";
 import { GroupRoute } from "./routes/groups";
 import { AudioRoute, ChannelRoute, ItemRoute, LibraryRoute, PlaylistRoute } from "./routes/library";
@@ -136,6 +136,11 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/admin/groups",
     component: AdminGroupsRoute,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/stats",
+    component: AdminStatsRoute,
   }),
 ]);
 

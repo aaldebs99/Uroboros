@@ -22,6 +22,7 @@ import { registerPublicRoutes } from "../sharing/publicRoutes.ts";
 import { openApiConfig, registerSecuritySchemes } from "./openapiDoc.ts";
 import { registerSharingRoutes } from "../sharing/routes.ts";
 import { registerGroupRoutes } from "../groups/routes.ts";
+import { registerStatsRoutes } from "../stats/routes.ts";
 import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
@@ -293,6 +294,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerPlaylistRoutes(app, deps.db);
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);
+  registerStatsRoutes(app, deps.db);
   registerNotificationPrefRoutes(app, deps.db);
   registerPreferenceRoutes(app, deps.db);
   registerNoticeRoutes(app, deps.db);

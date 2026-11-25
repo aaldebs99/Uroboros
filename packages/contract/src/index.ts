@@ -222,3 +222,12 @@ export {
   TranscriptLine,
   TranscriptTrack,
 } from "./mcp.ts";
+export {
+  AdminStats,
+  ContainerStats,
+  MediaFileCounts,
+  PersonStats,
+  STORAGE_KINDS,
+  StorageKind,
+  StorageStats,
+} from "./stats.ts";

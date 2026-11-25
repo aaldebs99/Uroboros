@@ -34,6 +34,53 @@
         ],
         "type": "object"
       },
+      "AdminStats": {
+        "properties": {
+          "containers": {
+            "items": {
+              "$ref": "#/components/schemas/ContainerStats"
+            },
+            "type": "array"
+          },
+          "files": {
+            "$ref": "#/components/schemas/MediaFileCounts"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/PersonStats"
+            },
+            "type": "array"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/StorageStats"
+          },
+          "unclaimed": {
+            "properties": {
+              "bytes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "files": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "files",
+              "bytes"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "files",
+          "containers",
+          "storage",
+          "people",
+          "unclaimed"
+        ],
+        "type": "object"
+      },
       "AdminUser": {
         "properties": {
           "claimsSyncedAt": {
@@ -373,6 +420,27 @@
             "type": "object"
           }
         ]
+      },
+      "ContainerStats": {
+        "properties": {
+          "bytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "container": {
+            "type": "string"
+          },
+          "files": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "container",
+          "files",
+          "bytes"
+        ],
+        "type": "object"
       },
       "DefaultProfileBody": {
         "properties": {
@@ -1813,6 +1881,33 @@
         ],
         "type": "object"
       },
+      "MediaFileCounts": {
+        "properties": {
+          "audio": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "bytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "videos": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "videos",
+          "audio",
+          "bytes"
+        ],
+        "type": "object"
+      },
       "NewApiToken": {
         "properties": {
           "secret": {
@@ -2225,6 +2320,47 @@
         "required": [
           "people",
           "expiresAt"
+        ],
+        "type": "object"
+      },
+      "PersonStats": {
+        "properties": {
+          "audio": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "bytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "username": {
+            "nullable": true,
+            "type": "string"
+          },
+          "videos": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "userId",
+          "displayName",
+          "username",
+          "items",
+          "videos",
+          "audio",
+          "bytes"
         ],
         "type": "object"
       },
@@ -3689,6 +3825,56 @@
         ],
         "type": "object"
       },
+      "StorageKind": {
+        "enum": [
+          "files",
+          "thumbnails",
+          "info",
+          "previews",
+          "subtitles",
+          "exports",
+          "uploads",
+          "playback"
+        ],
+        "type": "string"
+      },
+      "StorageStats": {
+        "properties": {
+          "parts": {
+            "items": {
+              "properties": {
+                "bytes": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "kind": {
+                  "$ref": "#/components/schemas/StorageKind"
+                }
+              },
+              "required": [
+                "kind",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unmeasured": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "parts",
+          "unmeasured"
+        ],
+        "type": "object"
+      },
       "Subscription": {
         "properties": {
           "autoDownload": {
@@ -4317,6 +4503,36 @@
           }
         },
         "summary": "Delete any group (admins)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/stats": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStats"
+                }
+              }
+            },
+            "description": "Stats"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not an admin"
+          }
+        },
+        "summary": "What the library holds and what it takes up, per person (admins)",
         "tags": [
           "admin"
         ]

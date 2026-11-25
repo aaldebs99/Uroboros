@@ -1,4 +1,5 @@
 import {
+  ChartColumn,
   Download,
   Library,
   Rss,
@@ -17,7 +18,8 @@ export type NavItem = {
     | "/shared"
     | "/settings"
     | "/admin/users"
-    | "/admin/groups";
+    | "/admin/groups"
+    | "/admin/stats";
   label: string;
   icon: LucideIcon;
   blurb: string;
@@ -113,5 +115,11 @@ export const ADMIN_ITEMS: readonly NavItem[] = [
     label: "Groups",
     icon: Users,
     blurb: "Every group people made, and who runs it.",
+  },
+  {
+    to: "/admin/stats",
+    label: "Stats",
+    icon: ChartColumn,
+    blurb: "What the library holds, and what it takes up.",
   },
 ];

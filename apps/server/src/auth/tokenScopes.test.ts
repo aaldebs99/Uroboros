@@ -152,6 +152,7 @@ describe("API token scopes", () => {
     const json = { ...bearer(t.secret), "content-type": "application/json" };
     const tries: [string, string, unknown?][] = [
       ["GET", "/api/admin/users"],
+      ["GET", "/api/admin/stats"],
       [
         "POST",
         "/api/admin/users",
