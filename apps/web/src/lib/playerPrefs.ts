@@ -32,3 +32,25 @@ export function storeVolume(pref: VolumePref): void {
     // Private windows and blocked storage: the volume just won't outlive the page.
   }
 }
+
+/** The language of the subtitles the viewer last turned on; absent while they are off (the default). */
+export const SUBTITLES_KEY = "uroboros-player-subtitles";
+
+/** The saved subtitle language, or `null` for off: nothing saved, or storage is unavailable. */
+export function readSubtitleLang(): string | null {
+  try {
+    return localStorage.getItem(SUBTITLES_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Saves the language now showing, or `null` when the viewer turned subtitles off. */
+export function storeSubtitleLang(lang: string | null): void {
+  try {
+    if (lang === null) localStorage.removeItem(SUBTITLES_KEY);
+    else localStorage.setItem(SUBTITLES_KEY, lang);
+  } catch {
+    // As with the volume: the choice just won't outlive the page.
+  }
+}

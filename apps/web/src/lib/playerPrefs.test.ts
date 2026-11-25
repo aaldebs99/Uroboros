@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { readVolume, storeVolume, VOLUME_KEY } from "./playerPrefs";
+import {
+  readSubtitleLang,
+  readVolume,
+  storeSubtitleLang,
+  storeVolume,
+  SUBTITLES_KEY,
+  VOLUME_KEY,
+} from "./playerPrefs";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -33,6 +40,36 @@ describe("player volume preference", () => {
     expect(readVolume()).toBeNull();
     expect(() => {
       storeVolume({ volume: 1, muted: false });
+    }).not.toThrow();
+  });
+});
+
+describe("player subtitle preference", () => {
+  it("is off until a language is saved, and off again once cleared", () => {
+    expect(readSubtitleLang()).toBeNull();
+    storeSubtitleLang("fr");
+    expect(readSubtitleLang()).toBe("fr");
+    storeSubtitleLang(null);
+    expect(readSubtitleLang()).toBeNull();
+    expect(localStorage.getItem(SUBTITLES_KEY)).toBeNull();
+  });
+
+  it("survives a storage that throws", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    });
+    expect(readSubtitleLang()).toBeNull();
+    expect(() => {
+      storeSubtitleLang("fr");
+      storeSubtitleLang(null);
     }).not.toThrow();
   });
 });

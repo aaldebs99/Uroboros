@@ -14,6 +14,7 @@ import { readVolume, storeVolume } from "@/lib/playerPrefs";
 import { PlayerErrorWatch } from "./PlayerErrorWatch";
 import { PlayerHotkeys } from "./PlayerHotkeys";
 import { SponsorSkip } from "./SponsorSkip";
+import { useSubtitlePref } from "./subtitlePref";
 
 export interface PlayerProps {
   /** The file, or with `hls` a playback session's multivariant playlist. */
@@ -91,7 +92,9 @@ function tryPlay(v: HTMLVideoElement): void {
  * Video.js 10 (the Neutral video skin, in the app's accent, with a timeline styled after YouTube's
  * in player.css): keyboard and touch controls (PlayerHotkeys adds 5 s arrows and frame steps), a
  * captions menu for the subtitle tracks, chapters on the timeline, SponsorBlock segments skipped
- * (SponsorSkip), resume, seek, autoplay, and the volume and mute remembered in this browser.
+ * (SponsorSkip), resume, seek, autoplay, and the volume and mute remembered in this browser. Subtitles
+ * stay off until the viewer turns them on; then the same language is remembered in this browser too
+ * (useSubtitlePref).
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
@@ -100,6 +103,7 @@ export function Player(p: PlayerProps) {
   /** The source whose failure was reported: the element and the player's state both see one. */
   const failedFor = useRef<string | null>(null);
   const { onError, src } = p;
+  const { picked, pickedTrack } = useSubtitlePref(video, p.subtitles);
   const report = useCallback(() => {
     if (failedFor.current === src) return;
     failedFor.current = src;
@@ -184,7 +188,7 @@ export function Player(p: PlayerProps) {
                 kind="subtitles"
                 srcLang={s.lang}
                 label={s.name ?? `${s.lang}${s.automatic ? " (auto)" : ""}`}
-                default={i === 0}
+                ref={i === picked ? pickedTrack : undefined}
               />
             ))}
           </Media>
