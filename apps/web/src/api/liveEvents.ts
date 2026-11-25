@@ -25,32 +25,56 @@ function parse(data: unknown): LiveMessage | null {
   return event.success ? { kind: "event", event: event.data } : null;
 }
 
+/** The pause before opening a stream the browser gave up on, doubling to the cap. */
+const FIRST_RETRY_MS = 1000;
+const MAX_RETRY_MS = 30_000;
+
 /**
- * Follows one event stream; a drop after it was open is a gap (the browser reconnects by itself).
- * Returns what closes it.
+ * Follows one event stream; a drop after it was open is a gap. The browser reconnects a dropped
+ * stream by itself, but gives up for good on one it is refused (a 502 while a replica restarts, a
+ * 401): then a new stream opens after a pause that doubles up to 30 s, and its opening is a gap
+ * too, since the fetch that followed the drop most likely failed. Returns what closes it.
  */
 export function openStream(url: string, onMessage: (m: LiveMessage) => void): () => void {
-  const source = new EventSource(url);
-  let open = false;
-  source.onopen = () => {
-    open = true;
+  let source: EventSource;
+  let retryMs = FIRST_RETRY_MS;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  const connect = (reconnecting: boolean) => {
+    const s = new EventSource(url);
+    source = s;
+    let open = false;
+    let gapOnOpen = reconnecting;
+    s.onopen = () => {
+      open = true;
+      retryMs = FIRST_RETRY_MS;
+      if (gapOnOpen) onMessage({ kind: "gap" });
+      gapOnOpen = false;
+    };
+    s.onmessage = (message: MessageEvent<string>) => {
+      let data: unknown;
+      try {
+        data = JSON.parse(message.data);
+      } catch {
+        return;
+      }
+      const event = DownloadEvent.safeParse(data);
+      if (event.success) onMessage({ kind: "event", event: event.data });
+    };
+    s.onerror = () => {
+      if (open) {
+        open = false;
+        onMessage({ kind: "gap" });
+      }
+      if (s.readyState !== EventSource.CLOSED) return;
+      retry = setTimeout(() => {
+        connect(true);
+      }, retryMs);
+      retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
+    };
   };
-  source.onmessage = (message: MessageEvent<string>) => {
-    let data: unknown;
-    try {
-      data = JSON.parse(message.data);
-    } catch {
-      return;
-    }
-    const event = DownloadEvent.safeParse(data);
-    if (event.success) onMessage({ kind: "event", event: event.data });
-  };
-  source.onerror = () => {
-    if (!open) return;
-    open = false;
-    onMessage({ kind: "gap" });
-  };
+  connect(false);
   return () => {
+    clearTimeout(retry);
     source.close();
   };
 }

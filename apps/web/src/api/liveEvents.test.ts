@@ -1,27 +1,40 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { followLiveEvents, type LiveMessage } from "./liveEvents";
+import { followLiveEvents, openStream, type LiveMessage } from "./liveEvents";
 
 /** A stand-in EventSource the test can open, push through and drop. */
 class FakeEventSource {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSED = 2;
   static all: FakeEventSource[] = [];
   onopen: (() => void) | null = null;
   onmessage: ((m: MessageEvent<string>) => void) | null = null;
   onerror: (() => void) | null = null;
+  readyState: number = FakeEventSource.CONNECTING;
   closed = false;
   constructor(readonly url: string) {
     FakeEventSource.all.push(this);
   }
   open() {
+    this.readyState = FakeEventSource.OPEN;
     this.onopen?.();
   }
   push(data: unknown) {
     this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent<string>);
   }
+  /** A drop the browser reconnects by itself. */
   drop() {
+    this.readyState = FakeEventSource.CONNECTING;
+    this.onerror?.();
+  }
+  /** A refused (re)connection: the browser gives the stream up for good. */
+  refuse() {
+    this.readyState = FakeEventSource.CLOSED;
     this.onerror?.();
   }
   close() {
+    this.readyState = FakeEventSource.CLOSED;
     this.closed = true;
   }
 }
@@ -163,5 +176,81 @@ describe("followLiveEvents", () => {
     a.stop();
     b.stop();
     expect(FakeEventSource.all.every((s) => s.closed)).toBe(true);
+  });
+});
+
+describe("openStream", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const follow = () => {
+    const heard: LiveMessage[] = [];
+    const close = openStream("/api/downloads/events", (m) => heard.push(m));
+    return { heard, close, latest: () => FakeEventSource.all.at(-1) };
+  };
+
+  it("opens a new stream after a growing pause when the browser gives one up, and calls it a gap", () => {
+    vi.useFakeTimers();
+    const s = follow();
+    s.latest()?.open();
+    s.latest()?.refuse();
+    expect(s.heard).toEqual([{ kind: "gap" }]);
+    vi.advanceTimersByTime(999);
+    expect(FakeEventSource.all).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(FakeEventSource.all).toHaveLength(2);
+    // Refused again before it opened: nothing more was missed, and the next pause is longer.
+    s.latest()?.refuse();
+    vi.advanceTimersByTime(1999);
+    expect(FakeEventSource.all).toHaveLength(2);
+    vi.advanceTimersByTime(1);
+    expect(FakeEventSource.all).toHaveLength(3);
+    s.latest()?.open();
+    expect(s.heard).toEqual([{ kind: "gap" }, { kind: "gap" }]);
+    // Once open again, the pause starts over.
+    s.latest()?.refuse();
+    vi.advanceTimersByTime(1000);
+    expect(FakeEventSource.all).toHaveLength(4);
+    s.close();
+  });
+
+  it("waits at most 30 s between attempts", () => {
+    vi.useFakeTimers();
+    const s = follow();
+    for (let i = 0; i < 8; i++) {
+      s.latest()?.refuse();
+      vi.advanceTimersByTime(60_000);
+    }
+    const before = FakeEventSource.all.length;
+    s.latest()?.refuse();
+    vi.advanceTimersByTime(29_999);
+    expect(FakeEventSource.all).toHaveLength(before);
+    vi.advanceTimersByTime(1);
+    expect(FakeEventSource.all).toHaveLength(before + 1);
+    s.close();
+  });
+
+  it("leaves a drop the browser reconnects itself to the browser", () => {
+    vi.useFakeTimers();
+    const s = follow();
+    s.latest()?.open();
+    s.latest()?.drop();
+    vi.advanceTimersByTime(60_000);
+    expect(FakeEventSource.all).toHaveLength(1);
+    // The browser's own reconnect is no new gap: the drop already was one.
+    s.latest()?.open();
+    expect(s.heard).toEqual([{ kind: "gap" }]);
+    s.close();
+  });
+
+  it("opens nothing more once closed during a pause", () => {
+    vi.useFakeTimers();
+    const s = follow();
+    s.latest()?.refuse();
+    s.close();
+    vi.advanceTimersByTime(60_000);
+    expect(FakeEventSource.all).toHaveLength(1);
+    expect(FakeEventSource.all[0]?.closed).toBe(true);
   });
 });
