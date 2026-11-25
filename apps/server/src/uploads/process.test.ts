@@ -118,6 +118,7 @@ describe("the upload job", () => {
         "m.uploader",
         "m.uploaded_by",
         "m.thumbnail_key",
+        "m.thumbnail_bytes",
         "r.profile_id",
         "r.profile_revision",
         "r.storage_key",
@@ -156,6 +157,7 @@ describe("the upload job", () => {
     expect(await deps.store.stat(up.storage_key)).toEqual({ size: 10 });
     expect(entry.thumbnail_key).toMatch(/\.jpg$/);
     expect(await deps.store.stat(entry.thumbnail_key ?? "")).toEqual({ size: JPEG.length });
+    expect(entry.thumbnail_bytes).toBe(String(JPEG.length));
     const parts = await t.db
       .selectFrom("upload_parts")
       .select("n")
@@ -183,10 +185,11 @@ describe("the upload job", () => {
     await uploadProcessor(deps).process(job(id));
     const media = await t.db
       .selectFrom("media")
-      .select("thumbnail_key")
+      .select(["thumbnail_key", "thumbnail_bytes"])
       .where("id", "=", (await uploadRow(id)).media_id)
       .executeTakeFirstOrThrow();
     expect(media.thumbnail_key).toBe(sent);
+    expect(Number(media.thumbnail_bytes)).toBeGreaterThan(0);
   });
 
   it("files a video whose frame can't be grabbed without a thumbnail", async () => {

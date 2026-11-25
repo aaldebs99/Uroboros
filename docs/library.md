@@ -323,3 +323,15 @@ the `.info.json` into `media.chapters`.
 - **Reading them again** (after a parser change, say): `UPDATE subtitles SET indexed_at = NULL`,
   and the duty reads every track again, 50 media a minute.
 - Deleting a media deletes its subtitles and their runs (`ON DELETE CASCADE`).
+
+## Stats
+
+Every stored file's size is recorded beside its key: `renditions.size_bytes`, the media's
+`thumbnail_bytes`, `info_bytes` and `preview_bytes`, `subtitles.size_bytes`, `exports.size_bytes`,
+`upload_parts.size_bytes` and `playback_segments.size_bytes`. The code that stores a file records
+the size `MediaStore.put` gives back (a segment's, a replaced thumbnail's: its byte length). A file
+without one (stored before sizes were recorded, or by the release before while both run) is
+measured by the leader with `MediaStore.stat`, up to 500 files a minute (`src/storage/measure.ts`);
+one the store no longer has counts 0 bytes. A size goes with its key: a statement that changes a
+media's or a subtitle's key without giving the new size forgets the old one (a trigger), so the new
+file is measured.

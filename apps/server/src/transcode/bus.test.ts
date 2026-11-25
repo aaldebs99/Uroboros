@@ -103,6 +103,17 @@ describe("the playback bus", () => {
     expect(await isStored(keys(), sid, 3)).toBe(false);
   });
 
+  it("records a stored segment's size, for Admin › Stats", async () => {
+    const sid = await newSession();
+    await markStored(keys(), sid, 0, 1200);
+    const row = await keys()
+      .db.selectFrom("playback_segments")
+      .select("size_bytes")
+      .where("session_id", "=", sid)
+      .executeTakeFirstOrThrow();
+    expect(row.size_bytes).toBe(1200);
+  });
+
   it("keeps a viewer alive for two minutes after their last request", async () => {
     const sid = await newSession();
     expect(await isAlive(keys(), sid)).toBe(false);

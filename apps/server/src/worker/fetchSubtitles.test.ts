@@ -115,19 +115,24 @@ describe("subtitles and chapters", () => {
     await fetchProcessor(await h.deps(scenario), createCancelRegistry())(job(data));
     const media = await testDb.db
       .selectFrom("media")
-      .select(["id", "chapters"])
+      .select(["id", "chapters", "thumbnail_bytes", "info_bytes"])
       .where("video_id", "=", "subs-1")
       .executeTakeFirstOrThrow();
     expect(media.chapters).toEqual([
       { start: 0, end: 10, title: "Intro" },
       { start: 10, end: 30, title: "Main" },
     ]);
+    // The sidecars' sizes are recorded as they are stored (docs/library.md "Stats").
+    expect(media.thumbnail_bytes).toBe(String("jpeg".length));
+    expect(media.info_bytes).toBe(String(Buffer.byteLength(JSON.stringify(info))));
     const subs = await testDb.db
       .selectFrom("subtitles")
       .selectAll()
       .where("media_id", "=", media.id)
       .execute();
     expect(subs).toEqual([expect.objectContaining({ lang: "en", automatic: false })]);
+    // Its size is recorded as it is stored (docs/library.md "Stats").
+    expect(Number(subs[0]?.size_bytes)).toBeGreaterThan(0);
     await expect(readdir(join(h.root, subs[0]?.storage_key ?? "", ".."))).resolves.toContain(
       subs[0]?.storage_key.split("/").at(-1),
     );

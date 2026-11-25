@@ -86,7 +86,7 @@ export async function replaceThumbnail(
       .executeTakeFirstOrThrow();
     await tx
       .updateTable("media")
-      .set({ thumbnail_key: key, updated_at: new Date() })
+      .set({ thumbnail_key: key, thumbnail_bytes: bytes.length, updated_at: new Date() })
       .where("id", "=", entry.media_id)
       .execute();
     if (media.thumbnail_key !== null) {

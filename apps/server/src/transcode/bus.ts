@@ -86,11 +86,19 @@ export async function isAlive(k: SessionKeys, sid: string): Promise<boolean> {
   return row !== undefined;
 }
 
-/** Records segment `n` (the init is -1) as stored; nothing for a session that is gone. */
-export async function markStored(k: SessionKeys, sid: string, n: number): Promise<void> {
+/**
+ * Records segment `n` (the init is -1) as stored, with its size for Admin › Stats; nothing for a
+ * session that is gone.
+ */
+export async function markStored(
+  k: SessionKeys,
+  sid: string,
+  n: number,
+  size: number | null = null,
+): Promise<void> {
   await sql`
-    INSERT INTO playback_segments (session_id, n)
-    SELECT id, ${n}::int FROM playback_sessions WHERE id = ${sid}
+    INSERT INTO playback_segments (session_id, n, size_bytes)
+    SELECT id, ${n}::int, ${size}::int FROM playback_sessions WHERE id = ${sid}
     ON CONFLICT DO NOTHING`.execute(k.db);
 }
 

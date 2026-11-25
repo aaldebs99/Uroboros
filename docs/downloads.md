@@ -224,7 +224,8 @@ another file holds the path, `freeKey` adds the short revision, and then the pro
 `<title> [<profile>].<ext>`; with `UROBOROS_S3_PUBLIC_URL` set it redirects to a URL presigned
 against that endpoint for 15 minutes instead. `GET /api/library/{id}/thumbnail` serves the
 thumbnail. Removing a library entry deletes the row only; the reaper deletes a file once no entry
-has referenced it for a day ([automation.md](automation.md#the-reaper)).
+has referenced it for a day ([automation.md](automation.md#the-reaper)). Every stored file's size
+is recorded beside its key, for Admin › Stats ([library.md](library.md#stats)).
 
 Pasted links and new uploads dispatch before a subscription's backfill (`downloads.priority`), and
 every YouTube download keeps its SponsorBlock segments for each person's player to show or skip by

@@ -277,15 +277,16 @@ async function store(
   const thumbnailKey = (await exists(thumbnail))
     ? sidecarKey(deps.storage, mediaId, names, "thumbnail", "jpg")
     : null;
-  if (thumbnailKey !== null) await put(deps, thumbnailKey, thumbnail, "jpg");
+  const thumbnailBytes =
+    thumbnailKey === null ? null : await put(deps, thumbnailKey, thumbnail, "jpg");
   const infoPath = join(file.path, "..", file.infoJsonPath.split("/").at(-1) ?? "");
   const infoKey = (await exists(infoPath))
     ? sidecarKey(deps.storage, mediaId, names, "info", "json")
     : null;
-  if (infoKey !== null) await put(deps, infoKey, infoPath, "json");
+  const infoBytes = infoKey === null ? null : await put(deps, infoKey, infoPath, "json");
   await upsertMedia(deps.db, { extractor: data.extractor, videoId: data.videoId }, info, {
-    thumbnailKey,
-    infoKey,
+    thumbnail: { key: thumbnailKey, bytes: thumbnailBytes },
+    info: { key: infoKey, bytes: infoBytes },
   });
   await storeSubtitles(deps, mediaId, key, await findSubtitles(file.path, file.info));
   // Asked before the rendition's insert, outside any transaction: SponsorBlock can be slow.

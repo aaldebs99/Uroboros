@@ -248,10 +248,10 @@ async function runFfmpeg(deps: WorkerDeps, args: string[], signal: AbortSignal):
 /** Stores the clip and records it; a media gone meanwhile takes the file back. */
 async function storePreview(deps: WorkerDeps, mediaId: string, output: string): Promise<void> {
   const key = previewKey(mediaId);
-  await deps.store.put(key, output, "video/mp4");
+  const { size } = await deps.store.put(key, output, "video/mp4");
   const done = await deps.db
     .updateTable("media")
-    .set({ preview_key: key, preview_failed_at: null })
+    .set({ preview_key: key, preview_bytes: size, preview_failed_at: null })
     .where("id", "=", mediaId)
     .where("preview_key", "is", null)
     .executeTakeFirst();

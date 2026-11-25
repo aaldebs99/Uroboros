@@ -11,7 +11,7 @@ import type {
   PlaybackSessionsTable,
   RenditionKeyframesTable,
 } from "./playbackSchema.ts";
-import type { CaptionSegmentsTable } from "./captionsSchema.ts";
+import type { CaptionSegmentsTable, SubtitlesTable } from "./captionsSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
 import type { NoticesTable } from "./noticesSchema.ts";
 import type { UserPreferencesTable } from "./preferencesSchema.ts";
@@ -26,6 +26,9 @@ export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts"
 
 /** A `TIMESTAMPTZ`: read as a `Date`, written as a `Date` or an ISO string. */
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
+
+/** A stored file's size, a nullable `BIGINT` (pg reads it as a string); null until measured. */
+export type FileBytes = ColumnType<string | null, number | null | undefined, number | null>;
 
 /** `push_devices`: one browser's Web Push subscription (docs/push.md). */
 export interface PushDevicesTable {
@@ -166,6 +169,10 @@ export interface MediaTable {
   info_key: string | null;
   /** The hover preview clip, once made (docs/library.md "Hover previews"). */
   preview_key: string | null;
+  /** The three files' sizes; null until measured (docs/library.md "Stats"). */
+  thumbnail_bytes: FileBytes;
+  info_bytes: FileBytes;
+  preview_bytes: FileBytes;
   /** When making the preview failed for good. */
   preview_failed_at: Timestamp | null;
   /** Who uploaded it, for an uploaded video (docs/uploads.md). */
@@ -343,19 +350,6 @@ export interface DownloadsTable {
   created_at: Created;
   started_at: Timestamp | null;
   finished_at: Timestamp | null;
-}
-
-/** `subtitles`: one subtitle file of a media. */
-export interface SubtitlesTable {
-  id: Generated<string>;
-  media_id: string;
-  lang: string;
-  name: string | null;
-  automatic: Defaulted<boolean>;
-  storage_key: string;
-  /** When its captions were read for search; null while that waits. */
-  indexed_at: Timestamp | null;
-  index_failures: Defaulted<number>;
 }
 
 /** `sources`: a playlist someone queued from a preview. */

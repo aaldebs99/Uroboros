@@ -67,6 +67,15 @@ const mediaOf = (id: string) =>
     .where("id", "=", id)
     .executeTakeFirstOrThrow();
 
+const previewBytes = async (id: string) =>
+  (
+    await t.db
+      .selectFrom("media")
+      .select("preview_bytes")
+      .where("id", "=", id)
+      .executeTakeFirstOrThrow()
+  ).preview_bytes;
+
 describe("making a hover preview", () => {
   it("encodes the whole video with its sound on the CPU and stores it beside the media", async () => {
     const id = await storedVideo();
@@ -76,6 +85,7 @@ describe("making a hover preview", () => {
     await previewProcessor(deps).process(job(id));
     expect(await mediaOf(id)).toEqual({ preview_key: previewKey(id), preview_failed_at: null });
     expect(await readFile(join(h.root, previewKey(id)), "utf8")).toBe("clip");
+    expect(await previewBytes(id)).toBe(String("clip".length));
     const args = await ffmpegRun.argv();
     expect(args.filter((a) => a === "-i")).toHaveLength(1);
     expect(args).not.toContain("-ss");

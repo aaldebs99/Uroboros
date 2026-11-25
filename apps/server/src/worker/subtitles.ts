@@ -146,14 +146,23 @@ export async function storeSubtitles(
   for (const sub of found) {
     try {
       const key = subtitleKey(deps.storage, mediaId, mediaKey, sub.lang);
-      await deps.store.put(key, sub.path, contentTypeOf("vtt"));
+      const { size } = await deps.store.put(key, sub.path, contentTypeOf("vtt"));
       await deps.db
         .insertInto("subtitles")
-        .values({ media_id: mediaId, lang: sub.lang, automatic: sub.automatic, storage_key: key })
+        .values({
+          media_id: mediaId,
+          lang: sub.lang,
+          automatic: sub.automatic,
+          storage_key: key,
+          size_bytes: size,
+        })
         .onConflict((oc) =>
-          oc
-            .columns(["media_id", "lang", "automatic"])
-            .doUpdateSet({ storage_key: key, indexed_at: null, index_failures: 0 }),
+          oc.columns(["media_id", "lang", "automatic"]).doUpdateSet({
+            storage_key: key,
+            size_bytes: size,
+            indexed_at: null,
+            index_failures: 0,
+          }),
         )
         .execute();
       stored.set(key, sub.path);

@@ -60,7 +60,7 @@ export class SessionWriter {
   async #put(n: number, key: string, bytes: Buffer): Promise<void> {
     await this.#fence();
     await this.#deps.store.putBytes(key, bytes, "video/mp4");
-    await markStored(this.#keys, this.#sid, n);
+    await markStored(this.#keys, this.#sid, n, bytes.length);
     await this.#deps.playbackBus.publish({ t: "ready", sid: this.#sid, n });
   }
 }

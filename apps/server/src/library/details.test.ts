@@ -135,11 +135,12 @@ describe("replacing an upload's thumbnail", () => {
     expect(after.thumbnailUrl).not.toBe(before.thumbnailUrl);
     const now = await t.db
       .selectFrom("media")
-      .select("thumbnail_key")
+      .select(["thumbnail_key", "thumbnail_bytes"])
       .where("id", "=", e.mediaId)
       .executeTakeFirstOrThrow();
     expect(now.thumbnail_key).toMatch(/\.png$/);
     expect(await store.stat(now.thumbnail_key ?? "")).toEqual({ size: PNG.length });
+    expect(now.thumbnail_bytes).toBe(String(PNG.length));
     const trash = await t.db.selectFrom("storage_trash").select("key").execute();
     expect(trash.map((r) => r.key)).toContain(old.thumbnail_key);
     const shown = await app(alice).request(after.thumbnailUrl ?? "");

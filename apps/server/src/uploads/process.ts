@@ -122,6 +122,7 @@ async function fileUpload(deps: WorkerDeps, id: string, signal: AbortSignal): Pr
   if (facts.video_codec === null) throw new NoVideo("the upload has no video stream");
   const frameKey =
     row.thumbnail_key === null ? await frame(deps, row, input, info.duration, signal) : null;
+  const thumbnail = await filedThumbnail(deps, row.thumbnail_key ?? frameKey);
   const filed = await deps.db.transaction().execute(async (tx) => {
     // Under the row's lock: a run that lost its job and finished anyway files nothing twice.
     const up = await tx
@@ -131,7 +132,6 @@ async function fileUpload(deps: WorkerDeps, id: string, signal: AbortSignal): Pr
       .forUpdate()
       .executeTakeFirst();
     if (up?.state !== "processing" || up.user_id === null) return false;
-    const thumbnail = up.thumbnail_key ?? frameKey;
     await tx
       .insertInto("media")
       .values({
@@ -144,7 +144,8 @@ async function fileUpload(deps: WorkerDeps, id: string, signal: AbortSignal): Pr
         uploader: up.creator,
         upload_date: dayOf(up.created_at),
         duration: info.duration,
-        thumbnail_key: thumbnail,
+        thumbnail_key: thumbnail.key,
+        thumbnail_bytes: thumbnail.bytes,
         uploaded_by: up.user_id,
       })
       .execute();
@@ -174,7 +175,12 @@ async function fileUpload(deps: WorkerDeps, id: string, signal: AbortSignal): Pr
     }
     await tx
       .updateTable("uploads")
-      .set({ state: "done", entry_id: entry.id, thumbnail_key: thumbnail, touched_at: sql`now()` })
+      .set({
+        state: "done",
+        entry_id: entry.id,
+        thumbnail_key: thumbnail.key,
+        touched_at: sql`now()`,
+      })
       .where("id", "=", id)
       .execute();
     await tx.deleteFrom("upload_parts").where("upload_id", "=", id).execute();
@@ -182,6 +188,19 @@ async function fileUpload(deps: WorkerDeps, id: string, signal: AbortSignal): Pr
     return true;
   });
   if (!filed && frameKey !== null) await deps.store.delete(frameKey);
+}
+
+/**
+ * The thumbnail an upload is filed with, the one its person sent (it can't change once the parts
+ * are in) or the frame taken, and its size (docs/library.md "Stats"; the leader measures it when
+ * the store can't say).
+ */
+async function filedThumbnail(
+  deps: WorkerDeps,
+  key: string | null,
+): Promise<{ key: string | null; bytes: number | null }> {
+  if (key === null) return { key, bytes: null };
+  return { key, bytes: (await deps.store.stat(key))?.size ?? null };
 }
 
 /** A frame of the video as its thumbnail; none (logged) when ffmpeg can't take one. */

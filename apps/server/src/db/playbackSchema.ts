@@ -45,4 +45,6 @@ export interface PlaybackLiveTable {
 export interface PlaybackSegmentsTable {
   session_id: string;
   n: number;
+  /** The segment's size; null for one the release before stored (docs/library.md "Stats"). */
+  size_bytes: ColumnType<number | null, number | null | undefined, number | null>;
 }
