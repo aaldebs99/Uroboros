@@ -30,9 +30,20 @@ function useLoadMore(onVisible: () => void, enabled: boolean) {
   return ref;
 }
 
-/** The library's tiles for `filters`, paged; `empty` shows when nothing matches. */
-export function LibraryGrid({ filters, empty }: { filters: LibraryFilters; empty: ReactNode }) {
-  const pages = useLibraryPages(filters);
+/**
+ * The library's tiles for `filters`, paged; `empty` shows when nothing matches. Until `enabled`,
+ * it asks for nothing and shows its placeholders.
+ */
+export function LibraryGrid({
+  filters,
+  empty,
+  enabled = true,
+}: {
+  filters: LibraryFilters;
+  empty: ReactNode;
+  enabled?: boolean;
+}) {
+  const pages = useLibraryPages(filters, enabled);
   const client = useQueryClient();
   const remove = useRemoveEntry();
   const confirm = useConfirm();

@@ -45,6 +45,8 @@ export interface LibraryFilters {
   playlist?: string;
   tag?: string;
   watched?: boolean;
+  /** Only videos in one of the caller's playlists, of either kind (true), or in none (false). */
+  inPlaylist?: boolean;
   sort?: LibrarySort;
   /** Entries per page (the server's 60 when omitted). */
   limit?: number;

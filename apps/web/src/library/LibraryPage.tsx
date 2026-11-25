@@ -1,12 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { SEARCH_MIN_CHARS } from "@uroboros/contract";
-import { Download, Library, SearchX } from "lucide-react";
+import { Download, Library, ListVideo, SearchX } from "lucide-react";
 
+import { errorText } from "@/api/client";
 import type { LibraryFilters } from "@/api/library";
+import { usePreferences, useUpdatePreferences } from "@/api/preferences";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
+import { notify } from "@/components/ui/sonner";
 
 import { Chip, ChipRow, FilterChip } from "./Chips";
 import { LibraryGrid } from "./LibraryGrid";
@@ -30,7 +33,55 @@ function without(f: LibraryFilters, key: keyof LibraryFilters): LibraryFilters {
   return rest;
 }
 
-/** Library: everything the person has downloaded, searchable and filterable (docs/library.md). */
+/** What an empty page says: a filter left nothing, hiding playlist videos did, or there's nothing yet. */
+function EmptyLibrary({ narrowed, hiding }: { narrowed: boolean; hiding: boolean }) {
+  if (narrowed) {
+    return (
+      <EmptyState icon={SearchX} title="Nothing matches.">
+        Try other words, or drop a filter.
+      </EmptyState>
+    );
+  }
+  if (hiding) {
+    return (
+      <EmptyState
+        icon={ListVideo}
+        title="Nothing outside your playlists."
+        action={
+          <Button asChild>
+            <Link to="/library/playlists">
+              <ListVideo aria-hidden />
+              Go to Playlists
+            </Link>
+          </Button>
+        }
+      >
+        Turn off Hide playlist videos to see every video here.
+      </EmptyState>
+    );
+  }
+  return (
+    <EmptyState
+      icon={Library}
+      title="Nothing here yet."
+      action={
+        <Button asChild>
+          <Link to="/downloads">
+            <Download aria-hidden />
+            Go to Downloads
+          </Link>
+        </Button>
+      }
+    >
+      Videos you download show up here.
+    </EmptyState>
+  );
+}
+
+/**
+ * Library: everything the person has downloaded, searchable and filterable (docs/library.md). The
+ * account's Hide playlist videos leaves out what is in their playlists, once it is known.
+ */
 export function LibraryPage({
   filters = {},
   onFilters = () => undefined,
@@ -39,6 +90,9 @@ export function LibraryPage({
   /** The route keeps the filters in the URL. */
   onFilters?: (f: LibraryFilters) => void;
 }) {
+  const prefs = usePreferences();
+  const update = useUpdatePreferences();
+  const hide = prefs.data?.hidePlaylistVideos ?? false;
   const narrowed =
     filters.q !== undefined || filters.tag !== undefined || filters.watched !== undefined;
   // The server searches only from 3 characters (docs/library.md "Search"): fewer is not sent.
@@ -66,6 +120,21 @@ export function LibraryPage({
               {w.label}
             </Chip>
           ))}
+          <Chip
+            pressed={hide}
+            onClick={() => {
+              update.mutate(
+                { hidePlaylistVideos: !hide },
+                {
+                  onError: (err) => {
+                    notify.error(errorText(err));
+                  },
+                },
+              );
+            }}
+          >
+            Hide playlist videos
+          </Chip>
           {filters.q === undefined ? null : (
             <FilterChip
               label={`“${filters.q}”`}
@@ -115,29 +184,10 @@ export function LibraryPage({
         </EmptyState>
       ) : (
         <LibraryGrid
-          filters={filters}
-          empty={
-            narrowed ? (
-              <EmptyState icon={SearchX} title="Nothing matches.">
-                Try other words, or drop a filter.
-              </EmptyState>
-            ) : (
-              <EmptyState
-                icon={Library}
-                title="Nothing here yet."
-                action={
-                  <Button asChild>
-                    <Link to="/downloads">
-                      <Download aria-hidden />
-                      Go to Downloads
-                    </Link>
-                  </Button>
-                }
-              >
-                Videos you download show up here.
-              </EmptyState>
-            )
-          }
+          filters={hide ? { ...filters, inPlaylist: false } : filters}
+          // A failed read of the preferences counts as off rather than holding the page.
+          enabled={!prefs.isPending}
+          empty={<EmptyLibrary narrowed={narrowed} hiding={hide} />}
         />
       )}
     </section>

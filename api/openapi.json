@@ -2444,6 +2444,25 @@
         ],
         "type": "object"
       },
+      "Preferences": {
+        "properties": {
+          "hidePlaylistVideos": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "hidePlaylistVideos"
+        ],
+        "type": "object"
+      },
+      "PreferencesPatch": {
+        "properties": {
+          "hidePlaylistVideos": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "PreviewEntry": {
         "properties": {
           "duration": {
@@ -6048,6 +6067,20 @@
             }
           },
           {
+            "description": "true: only videos in one of the caller's playlists (a YouTube one they have, or their own); false: only videos in none",
+            "in": "query",
+            "name": "inPlaylist",
+            "required": false,
+            "schema": {
+              "description": "true: only videos in one of the caller's playlists (a YouTube one they have, or their own); false: only videos in none",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "in": "query",
             "name": "sort",
             "required": false,
@@ -7459,6 +7492,54 @@
         "summary": "Change the caller's password (local accounts); signs out the other sessions",
         "tags": [
           "account"
+        ]
+      }
+    },
+    "/api/me/preferences": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "The caller's preferences, every one"
+          }
+        },
+        "summary": "How the caller likes the app (the defaults until they choose)",
+        "tags": [
+          "library"
+        ]
+      },
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "The caller's preferences, every one"
+          }
+        },
+        "summary": "Change some of the caller's preferences; the others stay",
+        "tags": [
+          "library"
         ]
       }
     },

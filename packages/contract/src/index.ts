@@ -159,6 +159,7 @@ export {
 } from "./uploads.ts";
 export { Export, ExportState } from "./exports.ts";
 export { MarkNoticesReadBody, Notice, NoticeKind, NoticeList } from "./notices.ts";
+export { Preferences, PreferencesPatch } from "./preferences.ts";
 export { PreviewWork } from "./previews.ts";
 export {
   AdminGroup,

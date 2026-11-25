@@ -70,6 +70,14 @@ const libraryQuery = z.object({
     .enum(["true", "false"])
     .optional()
     .openapi({ param: { name: "watched", in: "query" } }),
+  inPlaylist: z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({
+      param: { name: "inPlaylist", in: "query" },
+      description:
+        "true: only videos in one of the caller's playlists (a YouTube one they have, or their own); false: only videos in none",
+    }),
   sort: LibrarySort.optional().openapi({ param: { name: "sort", in: "query" } }),
   cursor: z
     .string()
@@ -223,10 +231,11 @@ export function registerLibraryRoutes(
 ): void {
   // Literal paths first, so they are never taken for an entry id.
   app.openapi(listRoute, async (c) => {
-    const { watched, ...rest } = c.req.valid("query");
+    const { watched, inPlaylist, ...rest } = c.req.valid("query");
     const page = await listLibraryPage(db, currentPrincipal(c).userId, {
       ...rest,
       ...(watched === undefined ? {} : { watched: watched === "true" }),
+      ...(inPlaylist === undefined ? {} : { inPlaylist: inPlaylist === "true" }),
     });
     return c.json(page, 200);
   });

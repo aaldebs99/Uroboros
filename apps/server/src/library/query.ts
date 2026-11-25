@@ -28,6 +28,8 @@ export interface LibraryFilters {
   entry?: string | undefined;
   tag?: string | undefined;
   watched?: boolean | undefined;
+  /** Only the entries in one of the owner's playlists, of either kind (true), or in none (false). */
+  inPlaylist?: boolean | undefined;
   sort?: LibrarySort | undefined;
   cursor?: string | undefined;
   /** Entries per page; `LIBRARY_PAGE_SIZE` when omitted. */
@@ -121,6 +123,34 @@ function linkFilter(qb: Base, link: string): Base {
     : qb.where("m.webpage_url", "in", match.urls);
 }
 
+/**
+ * The entries in one of the owner's playlists (`listed`), or in none: one they made
+ * (`playlist_items`), or a YouTube one they have (`user_sources`), which lists videos by extractor
+ * and id. Both lookups are on an index: `playlist_items_entry_idx` and `source_items`' key.
+ */
+function playlistFilter(qb: Base, listed: boolean): Base {
+  return qb.where((eb) => {
+    const inAny = eb.or([
+      eb.exists(
+        eb
+          .selectFrom("playlist_items as pi")
+          .select("pi.entry_id")
+          .whereRef("pi.entry_id", "=", "e.id"),
+      ),
+      eb.exists(
+        eb
+          .selectFrom("user_sources as us")
+          .innerJoin("source_items as si", "si.source_id", "us.source_id")
+          .select("si.video_id")
+          .whereRef("us.user_id", "=", "e.user_id")
+          .whereRef("si.extractor", "=", "m.extractor")
+          .whereRef("si.video_id", "=", "m.video_id"),
+      ),
+    ]);
+    return listed ? inAny : eb.not(inAny);
+  });
+}
+
 function filtered(qb: Base, f: LibraryFilters): Base {
   let out = qb;
   if (f.url !== undefined) out = linkFilter(out, f.url);
@@ -139,6 +169,7 @@ function filtered(qb: Base, f: LibraryFilters): Base {
   }
   if (f.watched !== undefined)
     out = out.where(sql<boolean>`coalesce(wp.watched, false) = ${f.watched}`);
+  if (f.inPlaylist !== undefined) out = playlistFilter(out, f.inPlaylist);
   return out;
 }
 

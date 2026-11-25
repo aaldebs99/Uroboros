@@ -14,6 +14,7 @@ import type {
 import type { CaptionSegmentsTable } from "./captionsSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
 import type { NoticesTable } from "./noticesSchema.ts";
+import type { UserPreferencesTable } from "./preferencesSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
 import type { NotificationPrefsTable, SharePeopleTable, SharesTable } from "./sharingSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
@@ -459,6 +460,7 @@ export interface Database {
   groups: GroupsTable;
   group_members: GroupMembersTable;
   notification_prefs: NotificationPrefsTable;
+  user_preferences: UserPreferencesTable;
   jobs: JobsTable;
   job_limits: JobLimitsTable;
   download_progress: DownloadProgressTable;

@@ -729,6 +729,14 @@ CREATE TABLE notification_prefs (
   groups BOOLEAN NOT NULL DEFAULT true
 );
 
+-- How a person likes the app (GET /api/me/preferences), on their account so it follows them to
+-- every device; no row means the defaults.
+CREATE TABLE user_preferences (
+  user_id UUID PRIMARY KEY REFERENCES users ON DELETE CASCADE,
+  -- Library › Videos leaves out the videos in any of their playlists (docs/library.md).
+  hide_playlist_videos BOOLEAN NOT NULL DEFAULT false
+);
+
 -- A video's keyframe times in seconds from the file's start, sorted: where a playback session that
 -- copies the video (a remux) can cut segments (docs/transcoding.md). Written by the fetch consumer
 -- after a download, or by the first session that needs it.

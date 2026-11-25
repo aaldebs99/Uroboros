@@ -18,6 +18,8 @@ public links in [sharing.md](sharing.md).
 - `channel` (a channel key), `tag`, `watched` (`true`/`false`), `source` (a YouTube playlist the
   caller has) and `playlist` (one of the caller's manual playlists); another person's playlist is
   404, and `source` with `playlist` is 400.
+- `inPlaylist`: `true` keeps only the videos in one of the caller's playlists, of either kind, and
+  `false` only those in none (see [Hide playlist videos](#hide-playlist-videos)).
 - `sort`: `added` (newest first; the default), `uploaded`, `title`, `duration`, `relevance` (best
   match, the default with `q`, and only with it) or `position` (playlist order; the default with
   `source` or `playlist`, and only with one). Another sort with `q` orders the matches.
@@ -100,6 +102,18 @@ in order (`source_items`, joined to media by extractor and video id, since an en
 row until it is fetched). A YouTube playlist shows only to the people who have it; channel tabs are
 not recorded. People also make playlists of their own; `GET /api/playlists` lists both kinds
 ([sharing.md](sharing.md)).
+
+### Hide playlist videos
+
+Library › Videos has a **Hide playlist videos** chip after All, Unwatched and Watched. It is off by
+default, and it is kept on the person's account, so it follows them to every device:
+`GET /api/me/preferences` answers their `Preferences` (`user_preferences`, no row meaning the
+defaults), and `PATCH` changes only the fields it names. While it is on, the page asks for
+`inPlaylist=false`, its searches and tag filters too, and an empty page says "Nothing outside your
+playlists." with a way to Playlists. A video counts as a playlist video when it is in one of the
+person's own playlists (`playlist_items`) or in a YouTube playlist they have (`user_sources` with
+`source_items`, by extractor and video id); another person's playlist never hides it. Channel and
+playlist pages, the search palette and API callers that don't ask for `inPlaylist` are unaffected.
 
 ## The item page
 

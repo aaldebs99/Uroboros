@@ -1,7 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { Toaster } from "@/components/ui/sonner";
 import { fakeApi } from "@/test/fakeApi";
 import { renderInRouter } from "@/test/render";
 
@@ -31,7 +33,26 @@ const entry = {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  // Sonner replays toasts still showing to the next test's Toaster.
+  toast.dismiss();
 });
+
+/** The account's preferences and a library that records the `inPlaylist` each page was asked with. */
+function serveHiding(hide: boolean, entries: unknown[] = [entry]) {
+  const asked: (string | null)[] = [];
+  const calls = fakeApi({
+    "GET /api/me/preferences": () => Response.json({ hidePlaylistVideos: hide }),
+    // The only change these tests make is turning it on.
+    "PATCH /api/me/preferences": () => Response.json({ hidePlaylistVideos: true }),
+    "GET /api/library": (_init, url) => {
+      asked.push(url.searchParams.get("inPlaylist"));
+      return Response.json({ entries, nextCursor: null });
+    },
+  });
+  return { asked, calls };
+}
+
+const hideChip = () => screen.getByRole("button", { name: "Hide playlist videos" });
 
 describe("LibraryPage", () => {
   it("leaves the profile out of an upload's meta line", async () => {
@@ -163,6 +184,57 @@ describe("LibraryPage", () => {
     expect(await screen.findByText("Type at least 3 characters.")).toBeInTheDocument();
     expect(screen.getByText(/finds words in titles, channels, chapters/)).toBeInTheDocument();
     expect(calls.filter((c) => c.path === "/api/library")).toEqual([]);
+  });
+
+  it("leaves out playlist videos from the first page while the account says so", async () => {
+    const { asked } = serveHiding(true);
+    await renderInRouter(<LibraryPage />);
+    expect(await screen.findByText("Big Buck Bunny")).toBeInTheDocument();
+    expect(hideChip()).toHaveAttribute("aria-pressed", "true");
+    expect(asked).toEqual(["false"]);
+  });
+
+  it("saves the choice to the account when the chip is pressed", async () => {
+    const { asked, calls } = serveHiding(false);
+    await renderInRouter(<LibraryPage />);
+    await screen.findByText("Big Buck Bunny");
+    expect(asked).toEqual([null]);
+    await userEvent.click(hideChip());
+    expect(hideChip()).toHaveAttribute("aria-pressed", "true");
+    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ hidePlaylistVideos: true });
+    await waitFor(() => {
+      expect(asked.at(-1)).toBe("false");
+    });
+  });
+
+  it("puts the chip back and says why when the account refuses the change", async () => {
+    const refuse = fakeApi({
+      "GET /api/me/preferences": () => Response.json({ hidePlaylistVideos: false }),
+      "PATCH /api/me/preferences": () =>
+        Response.json({ code: "unavailable", message: "starting" }, { status: 503 }),
+      "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }),
+    });
+    await renderInRouter(
+      <>
+        <Toaster />
+        <LibraryPage />
+      </>,
+    );
+    await screen.findByText("Big Buck Bunny");
+    await userEvent.click(hideChip());
+    expect(await screen.findByText(/server is not ready/)).toBeInTheDocument();
+    expect(hideChip()).toHaveAttribute("aria-pressed", "false");
+    expect(refuse.some((c) => c.method === "PATCH")).toBe(true);
+  });
+
+  it("points at Playlists when hiding their videos leaves none", async () => {
+    serveHiding(true, []);
+    await renderInRouter(<LibraryPage />);
+    expect(await screen.findByText("Nothing outside your playlists.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to Playlists" })).toHaveAttribute(
+      "href",
+      "/library/playlists",
+    );
   });
 
   it("points an empty library at Downloads", async () => {

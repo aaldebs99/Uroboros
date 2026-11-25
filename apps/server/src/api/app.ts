@@ -15,6 +15,7 @@ import { registerProfileRoutes } from "../downloads/profileRoutes.ts";
 import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
 import { registerItemRoutes } from "../library/itemRoutes.ts";
+import { registerPreferenceRoutes } from "../library/preferences.ts";
 import { registerPlaylistRoutes } from "../playlists/routes.ts";
 import { linkPreviews } from "../sharing/previews.ts";
 import { registerPublicRoutes } from "../sharing/publicRoutes.ts";
@@ -293,6 +294,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerNotificationPrefRoutes(app, deps.db);
+  registerPreferenceRoutes(app, deps.db);
   registerNoticeRoutes(app, deps.db);
   registerPreviewRoutes(app, deps.db, deps.generatePreviews);
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
