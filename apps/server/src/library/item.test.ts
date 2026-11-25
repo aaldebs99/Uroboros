@@ -255,6 +255,63 @@ describe("library item", () => {
   });
 });
 
+describe("an item's SponsorBlock segments (docs/automation.md#sponsorblock)", () => {
+  const prefs = (s: SignedIn, video: { show: string[]; skip: string[] }) =>
+    app(s).request("/api/me/preferences", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sponsorBlock: { video, audio: { show: [], skip: [] } },
+      }),
+    });
+
+  beforeAll(async () => {
+    await testDb.db
+      .updateTable("renditions")
+      .set({
+        skip_segments: JSON.stringify([
+          { start: 10, end: 20, category: "sponsor" },
+          { start: 30, end: 40, category: "intro" },
+        ]),
+      })
+      .where("storage_key", "=", "v.mp4")
+      .execute();
+    const share = await testDb.db
+      .insertInto("shares")
+      .values({ owner_id: alice.userId, entry_id: entryId, mode: "people" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await testDb.db
+      .insertInto("share_people")
+      .values({ share_id: share.id, user_id: bob.userId })
+      .execute();
+  });
+
+  it("applies the defaults when nobody has chosen", async () => {
+    expect((await item(alice)).sponsorSegments).toEqual([
+      { start: 10, end: 20, category: "sponsor", show: true, skip: true },
+    ]);
+    expect((await item(bob)).sponsorSegments).toEqual([
+      { start: 10, end: 20, category: "sponsor", show: true, skip: true },
+    ]);
+  });
+
+  it("serves the caller's own setting", async () => {
+    expect((await prefs(alice, { show: ["intro"], skip: [] })).status).toBe(200);
+    expect((await item(alice)).sponsorSegments).toEqual([
+      { start: 30, end: 40, category: "intro", show: true, skip: false },
+    ]);
+  });
+
+  it("serves a shared entry by the viewer's setting, not the owner's", async () => {
+    expect((await prefs(bob, { show: [], skip: ["sponsor", "intro"] })).status).toBe(200);
+    expect((await item(bob)).sponsorSegments).toEqual([
+      { start: 10, end: 20, category: "sponsor", show: false, skip: true },
+      { start: 30, end: 40, category: "intro", show: false, skip: true },
+    ]);
+  });
+});
+
 describe("content security policy", () => {
   it("lets the player load media from the S3 public URL when one is set", async () => {
     const res = await createApp(

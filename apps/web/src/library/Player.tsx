@@ -1,7 +1,7 @@
 import "@videojs/react/video/neutral-skin.css";
 import "./player.css";
 
-import type { Chapter, SkipSegment, SubtitleTrack } from "@uroboros/contract";
+import type { Chapter, SponsorSegment, SubtitleTrack } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
 import { HlsVideo } from "@videojs/react/media/hls-video";
 import { NativeHlsVideo } from "@videojs/react/media/native-hls-video";
@@ -38,7 +38,7 @@ export interface PlayerProps {
   /** Drawn on the timeline; the page also lists them. */
   chapters: Chapter[];
   /** SponsorBlock segments: drawn on the timeline and jumped over as playback reaches them. */
-  skipSegments?: readonly SkipSegment[];
+  sponsorSegments?: readonly SponsorSegment[];
   subtitles: SubtitleTrack[];
   onTime: (position: number, duration: number) => void;
   onPause: (position: number, duration: number) => void;
@@ -156,8 +156,8 @@ export function Player(p: PlayerProps) {
     <VideoPlayer>
       <SettingsMenuSlot.Provider value={p.settings ?? null}>
         {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
-        {p.skipSegments === undefined || p.skipSegments.length === 0 ? null : (
-          <SponsorSkip video={video} segments={p.skipSegments} />
+        {p.sponsorSegments === undefined || p.sponsorSegments.length === 0 ? null : (
+          <SponsorSkip video={video} segments={p.sponsorSegments} />
         )}
         {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
           navigation drawer (components/useDrawerDrag.ts). */}

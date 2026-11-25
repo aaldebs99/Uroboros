@@ -1,4 +1,5 @@
-import type { Chapter, SkipSegment } from "@uroboros/contract";
+import type { Chapter } from "@uroboros/contract";
+import type { StoredSegment } from "../library/sponsorSegments.ts";
 
 /**
  * The arithmetic of a copy without SponsorBlock segments (docs/transcoding.md): which spans go,
@@ -18,7 +19,7 @@ const MIN_KEPT = 0.25;
 const round = (t: number) => Math.round(t * 1000) / 1000;
 
 /** The spans to cut: overlapping and touching segments joined, clipped to the file, in order. */
-export function mergeCuts(segments: readonly SkipSegment[], duration: number | null): Span[] {
+export function mergeCuts(segments: readonly StoredSegment[], duration: number | null): Span[] {
   const end = duration ?? Number.POSITIVE_INFINITY;
   const sorted = segments
     .map((s) => ({ start: Math.max(0, s.start), end: Math.min(end, s.end) }))

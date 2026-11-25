@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { LibraryEntry, SkipSegment } from "./downloads.ts";
+import { LibraryEntry, SponsorSegment } from "./downloads.ts";
 import { PlaybackFacts } from "./playback.ts";
 
 export const MAX_TAGS = 20;
@@ -78,13 +78,13 @@ export type SubtitleTrack = z.infer<typeof SubtitleTrack>;
 export const LibraryItem = LibraryEntry.extend({
   description: z.string().nullable(),
   chapters: z.array(Chapter),
-  /** The SponsorBlock segments the player skips (a video keeps them; an audio file had them cut). */
-  skipSegments: z.array(SkipSegment),
+  /** The file's SponsorBlock segments the caller shows or skips (Settings › SponsorBlock). */
+  sponsorSegments: z.array(SponsorSegment),
   /**
-   * The caller's own downloaded YouTube video, whose profile skips SponsorBlock categories: they may
-   * fetch its segments again (`POST /api/library/{id}/skip-segments/refetch`).
+   * The caller's own downloaded YouTube video: they may fetch its SponsorBlock segments again
+   * (`POST /api/library/{id}/skip-segments/refetch`).
    */
-  skipSegmentsRefetchable: z.boolean(),
+  sponsorSegmentsRefetchable: z.boolean(),
   subtitles: z.array(SubtitleTrack),
   /** Inline, range-capable; may redirect to a presigned URL. */
   streamUrl: z.string(),

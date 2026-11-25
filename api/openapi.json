@@ -1488,15 +1488,6 @@
                 "nullable": true,
                 "type": "string"
               },
-              "skipSegments": {
-                "items": {
-                  "$ref": "#/components/schemas/SkipSegment"
-                },
-                "type": "array"
-              },
-              "skipSegmentsRefetchable": {
-                "type": "boolean"
-              },
               "sources": {
                 "items": {
                   "properties": {
@@ -1516,6 +1507,15 @@
                   "type": "object"
                 },
                 "type": "array"
+              },
+              "sponsorSegments": {
+                "items": {
+                  "$ref": "#/components/schemas/SponsorSegment"
+                },
+                "type": "array"
+              },
+              "sponsorSegmentsRefetchable": {
+                "type": "boolean"
               },
               "streamUrl": {
                 "type": "string"
@@ -1546,8 +1546,8 @@
             "required": [
               "description",
               "chapters",
-              "skipSegments",
-              "skipSegmentsRefetchable",
+              "sponsorSegments",
+              "sponsorSegmentsRefetchable",
               "subtitles",
               "streamUrl",
               "webpageUrl",
@@ -2646,9 +2646,9 @@
                 },
                 "type": "array"
               },
-              "skipSegments": {
+              "sponsorSegments": {
                 "items": {
-                  "$ref": "#/components/schemas/SkipSegment"
+                  "$ref": "#/components/schemas/SponsorSegment"
                 },
                 "type": "array"
               },
@@ -2677,7 +2677,7 @@
             "required": [
               "description",
               "chapters",
-              "skipSegments",
+              "sponsorSegments",
               "subtitles",
               "streamUrl",
               "fileUrl",
@@ -3520,25 +3520,6 @@
         ],
         "type": "object"
       },
-      "SkipSegment": {
-        "properties": {
-          "category": {
-            "$ref": "#/components/schemas/SponsorBlockCategory"
-          },
-          "end": {
-            "type": "number"
-          },
-          "start": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "start",
-          "end",
-          "category"
-        ],
-        "type": "object"
-      },
       "SponsorBlockCategory": {
         "enum": [
           "sponsor",
@@ -3587,6 +3568,33 @@
         "required": [
           "video",
           "audio"
+        ],
+        "type": "object"
+      },
+      "SponsorSegment": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/SponsorBlockCategory"
+          },
+          "end": {
+            "type": "number"
+          },
+          "show": {
+            "type": "boolean"
+          },
+          "skip": {
+            "type": "boolean"
+          },
+          "start": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "category",
+          "show",
+          "skip"
         ],
         "type": "object"
       },

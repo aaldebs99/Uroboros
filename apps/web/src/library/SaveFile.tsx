@@ -10,17 +10,19 @@ import { notify } from "@/components/ui/sonner";
 import { Tooltip } from "@/components/ui/tooltip";
 
 /**
- * Save, an icon button named in its tooltip: the stored file as it is, or, on a video that keeps
- * SponsorBlock segments, a menu that also offers a copy without them (re-encoded by the server;
+ * Save, an icon button named in its tooltip: the stored file as it is, or, on a file with
+ * SponsorBlock segments the person skips, a menu that also offers a copy without them (re-encoded by the server;
  * docs/transcoding.md), which appears under Downloads › Copies to save. Once that copy is made, it
  * saves straight away, while the video's segments stay as they were cut.
  */
-export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "skipSegments"> }) {
+export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "sponsorSegments"> }) {
   const start = useStartExport();
-  const copies = useExports(item.skipSegments.length > 0);
+  // A copy cuts what the person skips; shown-only segments stay in it.
+  const cuts = item.sponsorSegments.some((s) => s.skip);
+  const copies = useExports(cuts);
   const navigate = useNavigate();
   const fileUrl = `/api/library/${item.id}/file`;
-  if (item.skipSegments.length === 0) {
+  if (!cuts) {
     return (
       <Tooltip label="Save">
         <Button variant="icon" size="icon" asChild>

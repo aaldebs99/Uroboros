@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { SkipSegment } from "./downloads.ts";
+import { SponsorSegment } from "./downloads.ts";
 import { Chapter, SubtitleTrack } from "./library.ts";
 import { PlaybackFacts } from "./playback.ts";
 
@@ -155,8 +155,8 @@ export type PublicShare = z.infer<typeof PublicShare>;
 export const PublicItem = PublicListItem.extend({
   description: z.string().nullable(),
   chapters: z.array(Chapter),
-  /** The SponsorBlock segments the player skips. */
-  skipSegments: z.array(SkipSegment),
+  /** The file's SponsorBlock segments its player shows or skips, by the link owner's setting. */
+  sponsorSegments: z.array(SponsorSegment),
   subtitles: z.array(SubtitleTrack),
   streamUrl: z.string(),
   /** Present only when the link allows downloads. */

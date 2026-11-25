@@ -1,13 +1,14 @@
-import type { SkipSegment } from "@uroboros/contract";
+import type { SponsorSegment } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
 import { useEffect, useMemo, type RefObject } from "react";
 
-import { skippedTitle, skipSpans, spanReached } from "./sponsorSkip";
+import { bandTitle, shownSpans, skipSpans, spanReached } from "./sponsorSkip";
 
 /**
- * The SponsorBlock segments a video keeps (a video profile marks them rather than cutting them,
- * docs/automation.md#sponsorblock): drawn as bands on the timeline (a metadata track labelled
- * "skip", which the patched skin's time slider draws), and jumped over without a word when playback
+ * The file's SponsorBlock segments as the person's setting has them (Settings › SponsorBlock,
+ * docs/automation.md#sponsorblock): the shown ones drawn as bands on the timeline (a metadata track
+ * labelled "skip", which the patched skin's time slider draws; a cue id of `skip:` or `show:` says
+ * whether playback jumps the band), and the skipped ones jumped over without a word when playback
  * runs into one. A segment the viewer seeks into plays out, so seeking back to one's start watches
  * it: only playing up to a segment's start skips it.
  */
@@ -16,17 +17,23 @@ export function SponsorSkip({
   segments,
 }: {
   video: RefObject<HTMLVideoElement | null>;
-  segments: readonly SkipSegment[];
+  segments: readonly SponsorSegment[];
 }) {
   const spans = useMemo(() => skipSpans(segments), [segments]);
+  const bands = useMemo(() => shownSpans(segments), [segments]);
   // Stable across renders: a new track object each render would re-add the track in a loop.
   const track = useMemo(
     () => ({
       kind: "metadata" as const,
       label: "skip",
-      cues: spans.map((s) => ({ startTime: s.start, endTime: s.end, text: skippedTitle(s) })),
+      cues: bands.map((b, i) => ({
+        id: `${b.skipped ? "skip" : "show"}:${String(i)}`,
+        startTime: b.start,
+        endTime: b.end,
+        text: bandTitle(b),
+      })),
     }),
-    [spans],
+    [bands],
   );
   useCreateTextTrack(track);
   useEffect(() => {

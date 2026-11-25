@@ -64,7 +64,7 @@ describe("refetching an entry's SponsorBlock segments", () => {
     expect((await refetch(friend, e.entryId)).status).toBe(404);
     await shareWith(owner, friend, e.entryId);
     expect((await refetch(friend, e.entryId)).status).toBe(404);
-    expect((await item(friend, e.entryId)).skipSegmentsRefetchable).toBe(false);
+    expect((await item(friend, e.entryId)).sponsorSegmentsRefetchable).toBe(false);
   });
 
   it("is 409 for a video with no segments to fetch, and the item says so", async () => {
@@ -85,7 +85,7 @@ describe("refetching an entry's SponsorBlock segments", () => {
       const res = await refetch(me, e.entryId);
       expect(res.status, e.entryId).toBe(409);
       expect(((await res.json()) as { code: string }).code).toBe("conflict");
-      expect((await item(me, e.entryId)).skipSegmentsRefetchable).toBe(false);
+      expect((await item(me, e.entryId)).sponsorSegmentsRefetchable).toBe(false);
     }
     const ids = new Set(cases.map((e) => skipsJobKey(e.entryId)));
     expect((await skipsJobs()).filter((j) => ids.has(j.key ?? ""))).toEqual([]);
@@ -94,7 +94,7 @@ describe("refetching an entry's SponsorBlock segments", () => {
   it("is offered on the owner's own downloaded YouTube video", async () => {
     const me = await user();
     const e = await seedDownloadedEntry(t.db, me.userId);
-    expect((await item(me, e.entryId)).skipSegmentsRefetchable).toBe(true);
+    expect((await item(me, e.entryId)).sponsorSegmentsRefetchable).toBe(true);
   });
 
   it("finds the file's latest download by index, not by reading the whole download history", async () => {

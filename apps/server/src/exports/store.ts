@@ -1,10 +1,11 @@
-import { SkipSegment, type Export } from "@uroboros/contract";
+import type { Export } from "@uroboros/contract";
 import { sql, type Kysely, type Selectable } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
 import type { ExportsTable } from "../db/exportsSchema.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { ApiError } from "../api/errors.ts";
+import { StoredSegments } from "../library/sponsorSegments.ts";
 import { visibleEntry } from "../sharing/access.ts";
 import { cutSeconds, keptRanges, mergeCuts, type Span } from "./cuts.ts";
 
@@ -19,7 +20,6 @@ export const exportKey = (id: string): string => `.exports/${id}.mp4`;
 /** One job per copy: a second ask while one is live adds none. */
 export const exportJobKey = (id: string): string => `export:${id}`;
 
-const SkipSegments = z.array(SkipSegment);
 const Spans = z.array(z.object({ start: z.number(), end: z.number() }));
 
 type ExportRow = Selectable<ExportsTable>;
@@ -34,7 +34,7 @@ const iso = (d: Date) => d.toISOString();
 
 /** Whether a copy's cuts are those the file's segments make now (a refetch can change them). */
 function isCurrent(spans: readonly Span[], row: Described): boolean {
-  const segments = SkipSegments.safeParse(row.skip_segments);
+  const segments = StoredSegments.safeParse(row.skip_segments);
   const now = mergeCuts(segments.success ? segments.data : [], row.duration);
   return (
     now.length === spans.length &&
@@ -122,7 +122,7 @@ export async function createExport(
     ])
     .where("r.id", "=", entry.rendition_id)
     .executeTakeFirstOrThrow();
-  const segments = SkipSegments.safeParse(r.skip_segments);
+  const segments = StoredSegments.safeParse(r.skip_segments);
   const cuts = mergeCuts(segments.success ? segments.data : [], r.duration);
   if (cuts.length === 0) throw new ApiError("bad_request", "this video has no segments to cut");
   if (keptRanges(cuts).every((k) => k.end !== null && k.end <= k.start)) {

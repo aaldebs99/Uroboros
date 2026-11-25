@@ -1,6 +1,5 @@
 import {
   Chapter,
-  SkipSegment,
   type PublicItem,
   type PublicListItem,
   type PublicShare,
@@ -9,7 +8,9 @@ import type { Kysely } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { sponsorBlockOf } from "../library/preferences.ts";
 import { dashed } from "../library/query.ts";
+import { sponsorSegmentsFor } from "../library/sponsorSegments.ts";
 import { playlistEntryIds } from "../playlists/listing.ts";
 import { linkShare, visibleEntry, type LiveShare, type VisibleEntry } from "./access.ts";
 import { describeTarget } from "./targets.ts";
@@ -100,13 +101,15 @@ export async function publicShare(db: Db, code: string): Promise<PublicShare> {
 }
 
 const Chapters = z.array(Chapter);
-const SkipSegments = z.array(SkipSegment);
 
-/** One video of a link with its player's needs, every URL under the link. */
+/**
+ * One video of a link with its player's needs, every URL under the link. Its SponsorBlock segments
+ * go by the link owner's setting: whoever opens it, signed in or not, sees it as its owner set it.
+ */
 export async function publicItem(db: Db, code: string, entryId: string): Promise<PublicItem> {
   const e = await linkEntry(db, code, entryId);
   const base = itemBase(code, entryId);
-  const [extra, subs] = await Promise.all([
+  const [extra, subs, sponsorBlock] = await Promise.all([
     db
       .selectFrom("media as m")
       .innerJoin("renditions as r", "r.media_id", "m.id")
@@ -132,9 +135,9 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
       .orderBy("automatic")
       .orderBy("lang")
       .execute(),
+    sponsorBlockOf(db, e.user_id),
   ]);
   const chapters = Chapters.safeParse(extra.chapters);
-  const skips = SkipSegments.safeParse(extra.skip_segments);
   return {
     id: entryId,
     title: e.title ?? e.video_id,
@@ -144,7 +147,11 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
     thumbnailUrl: thumbnailUrl(`${base}/thumbnail`, e.thumbnail_key),
     description: extra.description,
     chapters: chapters.success ? chapters.data : [],
-    skipSegments: skips.success ? skips.data : [],
+    sponsorSegments: sponsorSegmentsFor(
+      extra.skip_segments,
+      sponsorBlock,
+      extra.video_codec === null,
+    ),
     subtitles: subs.map((s) => ({ ...s, url: `${base}/subtitles/${s.id}` })),
     streamUrl: `${base}/stream`,
     fileUrl: e.allow_download ? `${base}/file` : null,

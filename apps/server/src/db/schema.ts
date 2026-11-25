@@ -194,7 +194,7 @@ export interface RenditionsTable {
   /** RFC 6381 codec strings (docs/transcoding.md). */
   video_codecs: string | null;
   audio_codecs: string | null;
-  /** JSONB: the SponsorBlock segments the player skips (`SkipSegment[]`); `[]` for an audio file. */
+  /** JSONB: every category's SponsorBlock segments (`StoredSegment[]`, library/sponsorSegments.ts). */
   skip_segments: ColumnType<unknown, string | undefined, string>;
   orphaned_at: Timestamp | null;
   created_at: Created;

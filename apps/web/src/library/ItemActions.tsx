@@ -184,7 +184,7 @@ function AddToMine({ item }: { item: LibraryItem }) {
  */
 function RefetchSkipsButton({ item }: { item: LibraryItem }) {
   const [busy, setBusy] = useState(false);
-  if (!item.skipSegmentsRefetchable) return null;
+  if (!item.sponsorSegmentsRefetchable) return null;
   return (
     <IconAction
       label="Refetch SponsorBlock segments"

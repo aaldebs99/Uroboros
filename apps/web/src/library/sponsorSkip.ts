@@ -1,4 +1,4 @@
-import type { SkipSegment, SponsorBlockCategory } from "@uroboros/contract";
+import type { SponsorBlockCategory, SponsorSegment } from "@uroboros/contract";
 
 /** Segments this close together are one jump: SponsorBlock's overlap and back-to-back entries. */
 const JOIN_GAP = 0.5;
@@ -18,7 +18,7 @@ export interface SkipSpan {
 }
 
 /** Joins overlapping and touching segments (within half a second) into spans, in order. */
-export function skipSpans(segments: readonly SkipSegment[]): SkipSpan[] {
+function joined(segments: readonly SponsorSegment[]): SkipSpan[] {
   const sorted = [...segments].sort((a, b) => a.start - b.start || a.end - b.end);
   const spans: SkipSpan[] = [];
   for (const s of sorted) {
@@ -31,6 +31,28 @@ export function skipSpans(segments: readonly SkipSegment[]): SkipSpan[] {
     }
   }
   return spans;
+}
+
+/** What playback jumps over: the skip segments, joined into spans. */
+export function skipSpans(segments: readonly SponsorSegment[]): SkipSpan[] {
+  return joined(segments.filter((s) => s.skip));
+}
+
+/** One band on the timeline: shown segments joined, and whether playback jumps it. */
+export interface ShownSpan extends SkipSpan {
+  skipped: boolean;
+}
+
+/**
+ * The bands the timeline draws: the shown segments, joined as `skipSpans` joins them, a band that
+ * playback jumps never joined with one it plays through, so each reads as what it is.
+ */
+export function shownSpans(segments: readonly SponsorSegment[]): ShownSpan[] {
+  const shown = segments.filter((s) => s.show);
+  return [
+    ...joined(shown.filter((s) => s.skip)).map((s) => ({ ...s, skipped: true })),
+    ...joined(shown.filter((s) => !s.skip)).map((s) => ({ ...s, skipped: false })),
+  ].sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
 /**
@@ -59,12 +81,15 @@ const LABELS: Record<SponsorBlockCategory, string> = {
   music_offtopic: "non-music section",
 };
 
-/** A span's cue on the timeline: "Skipped sponsor", "Skipped sponsor and self-promotion". */
-export function skippedTitle(span: SkipSpan): string {
+/**
+ * A band's cue on the timeline: "Skipped sponsor", "Skipped sponsor and self-promotion" for what
+ * playback jumps; "Sponsor", "Intro and outro" for what it only shows.
+ */
+export function bandTitle(span: ShownSpan): string {
   const names = span.categories.map((c) => LABELS[c]);
   const listed =
     names.length <= 2
       ? names.join(" and ")
       : `${names.slice(0, -1).join(", ")} and ${names.at(-1) ?? ""}`;
-  return `Skipped ${listed}`;
+  return span.skipped ? `Skipped ${listed}` : listed.charAt(0).toUpperCase() + listed.slice(1);
 }

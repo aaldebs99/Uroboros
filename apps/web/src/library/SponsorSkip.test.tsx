@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { SponsorSegment } from "@uroboros/contract";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -30,7 +31,14 @@ afterEach(() => {
   for (const r of restore) r();
 });
 
-function renderPlayer() {
+const DEFAULT_SEGMENTS: SponsorSegment[] = [
+  { start: 77.694, end: 88.43, category: "selfpromo", show: true, skip: true },
+  { start: 49.04, end: 69, category: "sponsor", show: true, skip: true },
+  { start: 77.75, end: 88.45, category: "sponsor", show: true, skip: true },
+  { start: 990, end: 1008, category: "sponsor", show: true, skip: true },
+];
+
+function renderPlayer(segments: SponsorSegment[] = DEFAULT_SEGMENTS) {
   const { container } = render(
     <>
       <Player
@@ -40,12 +48,7 @@ function renderPlayer() {
         autoPlay={false}
         seek={null}
         chapters={[]}
-        skipSegments={[
-          { start: 77.694, end: 88.43, category: "selfpromo" },
-          { start: 49.04, end: 69, category: "sponsor" },
-          { start: 77.75, end: 88.45, category: "sponsor" },
-          { start: 990, end: 1008, category: "sponsor" },
-        ]}
+        sponsorSegments={segments}
         subtitles={[]}
         onTime={noop}
         onPause={noop}
@@ -123,5 +126,23 @@ describe("SponsorSkip", () => {
     seekTo(989.5);
     playTo(990.2);
     expect(video.currentTime).toBe(1008);
+  });
+
+  it("does not jump over a segment that is shown but not skipped", () => {
+    const { video, playTo, seekTo } = renderPlayer([
+      { start: 49.04, end: 69, category: "intro", show: true, skip: false },
+    ]);
+    seekTo(48.5);
+    playTo(49.2);
+    expect(video.currentTime).toBe(49.2);
+  });
+
+  it("jumps over a segment that is skipped but not shown", () => {
+    const { video, playTo, seekTo } = renderPlayer([
+      { start: 49.04, end: 69, category: "filler", show: false, skip: true },
+    ]);
+    seekTo(48.5);
+    playTo(49.2);
+    expect(video.currentTime).toBe(69);
   });
 });

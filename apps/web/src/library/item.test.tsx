@@ -236,7 +236,8 @@ describe("ItemPage Keep", () => {
 
   it("fetches the video's SponsorBlock segments again when asked", async () => {
     const calls = fakeApi({
-      [`GET /api/library/${ID}`]: () => Response.json({ ...item, skipSegmentsRefetchable: true }),
+      [`GET /api/library/${ID}`]: () =>
+        Response.json({ ...item, sponsorSegmentsRefetchable: true }),
       [`POST /api/library/${ID}/skip-segments/refetch`]: () => new Response(null, { status: 202 }),
     });
     await renderInRouter(

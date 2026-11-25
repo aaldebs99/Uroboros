@@ -57,7 +57,7 @@ export {
   RequestState,
   SelectionBody,
   SPONSORBLOCK_CATEGORIES,
-  SkipSegment,
+  SponsorSegment,
   SponsorBlockCategory,
   WatchProgress,
   YOUTUBE_SEARCH_RESULTS,

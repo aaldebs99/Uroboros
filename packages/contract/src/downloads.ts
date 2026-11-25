@@ -57,13 +57,20 @@ export type SponsorBlockCategory = z.infer<typeof SponsorBlockCategory>;
 const Categories = z.array(SponsorBlockCategory).max(SPONSORBLOCK_CATEGORIES.length * 2);
 
 /**
- * A SponsorBlock segment the player skips, in seconds on the file's own timeline: a video profile
- * keeps its segments in the file (marked as chapters) rather than cutting them.
+ * A SponsorBlock segment as one person's setting has it (docs/automation.md#sponsorblock), in
+ * seconds on the file's own timeline: drawn on the player's timeline (`show`), jumped over
+ * (`skip`), or both. Files keep every segment; nothing is cut from them.
  */
-export const SkipSegment = z
-  .object({ start: z.number(), end: z.number(), category: SponsorBlockCategory })
-  .openapi("SkipSegment");
-export type SkipSegment = z.infer<typeof SkipSegment>;
+export const SponsorSegment = z
+  .object({
+    start: z.number(),
+    end: z.number(),
+    category: SponsorBlockCategory,
+    show: z.boolean(),
+    skip: z.boolean(),
+  })
+  .openapi("SponsorSegment");
+export type SponsorSegment = z.infer<typeof SponsorSegment>;
 
 /**
  * A yt-dlp preset: a built-in the caller kept, or one of their own; nobody sees another person's.

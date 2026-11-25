@@ -164,20 +164,39 @@ describe("public links", () => {
     );
     expect(item.playbackUrl).toBe(`/api/public/s/${code}/items/${film.entryId}/playback`);
     expect(item).toMatchObject({ videoCodecs: null, width: null, qualities: [] });
-    expect(item.skipSegments).toEqual([]);
+    expect(item.sponsorSegments).toEqual([]);
   });
 
-  it("a public item carries the SponsorBlock segments its player skips", async () => {
-    const segments = [{ start: 49.04, end: 69, category: "sponsor" }];
+  it("a public item plays by its owner's SponsorBlock setting, defaults until they choose", async () => {
+    const segments = [
+      { start: 49.04, end: 69, category: "sponsor" },
+      { start: 80, end: 90, category: "outro" },
+    ];
     await t.db
       .updateTable("renditions")
       .set({ skip_segments: JSON.stringify(segments) })
       .where("id", "=", film.renditionId)
       .execute();
     const code = await link({ entry_id: film.entryId });
-    const item = PublicItem.parse(
-      await (await anon(`/api/public/s/${code}/items/${film.entryId}`)).json(),
-    );
-    expect(item.skipSegments).toEqual(segments);
+    const read = async () =>
+      PublicItem.parse(await (await anon(`/api/public/s/${code}/items/${film.entryId}`)).json())
+        .sponsorSegments;
+    expect(await read()).toEqual([
+      { start: 49.04, end: 69, category: "sponsor", show: true, skip: true },
+    ]);
+    // The film has no video stream, so the owner's audio choice applies.
+    await t.db
+      .insertInto("user_preferences")
+      .values({
+        user_id: alice.userId,
+        sponsorblock_audio_show: ["outro"],
+        sponsorblock_audio_skip: [],
+        sponsorblock_video_show: ["sponsor"],
+        sponsorblock_video_skip: ["sponsor"],
+      })
+      .execute();
+    expect(await read()).toEqual([
+      { start: 80, end: 90, category: "outro", show: true, skip: false },
+    ]);
   });
 });

@@ -31,7 +31,22 @@ afterEach(() => {
 
 describe("SaveFile", () => {
   it("is the file itself on a video with no segments", async () => {
-    await renderInRouter(<SaveFile item={{ id: ID, skipSegments: [] }} />);
+    await renderInRouter(<SaveFile item={{ id: ID, sponsorSegments: [] }} />);
+    expect(screen.getByRole("link", { name: "Save" })).toHaveAttribute(
+      "href",
+      `/api/library/${ID}/file`,
+    );
+  });
+
+  it("is the file itself when the person only shows the segments, skipping none", async () => {
+    await renderInRouter(
+      <SaveFile
+        item={{
+          id: ID,
+          sponsorSegments: [{ start: 49, end: 69, category: "intro", show: true, skip: false }],
+        }}
+      />,
+    );
     expect(screen.getByRole("link", { name: "Save" })).toHaveAttribute(
       "href",
       `/api/library/${ID}/file`,
@@ -45,7 +60,12 @@ describe("SaveFile", () => {
     });
     await renderInRouter(
       <>
-        <SaveFile item={{ id: ID, skipSegments: [{ start: 49, end: 69, category: "sponsor" }] }} />
+        <SaveFile
+          item={{
+            id: ID,
+            sponsorSegments: [{ start: 49, end: 69, category: "sponsor", show: true, skip: true }],
+          }}
+        />
         <Toaster />
       </>,
     );
@@ -74,7 +94,12 @@ describe("SaveFile", () => {
     };
     const calls = fakeApi({ "GET /api/exports": () => Response.json([done]) });
     await renderInRouter(
-      <SaveFile item={{ id: ID, skipSegments: [{ start: 49, end: 69, category: "sponsor" }] }} />,
+      <SaveFile
+        item={{
+          id: ID,
+          sponsorSegments: [{ start: 49, end: 69, category: "sponsor", show: true, skip: true }],
+        }}
+      />,
     );
     await waitFor(() => {
       expect(calls.some((c) => c.path === "/api/exports")).toBe(true);
@@ -104,7 +129,12 @@ describe("SaveFile", () => {
       "GET /api/exports": () => Response.json([stale]),
     });
     await renderInRouter(
-      <SaveFile item={{ id: ID, skipSegments: [{ start: 49, end: 69, category: "sponsor" }] }} />,
+      <SaveFile
+        item={{
+          id: ID,
+          sponsorSegments: [{ start: 49, end: 69, category: "sponsor", show: true, skip: true }],
+        }}
+      />,
     );
     await waitFor(() => {
       expect(calls.some((c) => c.path === "/api/exports")).toBe(true);

@@ -264,8 +264,9 @@ CREATE TABLE renditions (
   -- can ask the browser about the file itself.
   video_codecs TEXT,
   audio_codecs TEXT,
-  -- The SponsorBlock segments ({start, end, category}, on the file's own timeline) the player skips.
-  -- A video keeps them in the file (marked as chapters); an audio file had them cut, so it has none.
+  -- Every category's SponsorBlock segments ({start, end, category}, on the file's own timeline),
+  -- the same for everyone; each person's setting picks what their player shows and skips
+  -- (docs/automation.md#sponsorblock).
   skip_segments JSONB NOT NULL DEFAULT '[]',
   -- Set by the reaper when no entry references it; cleared when one does again.
   orphaned_at TIMESTAMPTZ,
