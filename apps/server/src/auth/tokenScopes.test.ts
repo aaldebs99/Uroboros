@@ -121,6 +121,56 @@ describe("API token scopes", () => {
     expect(del.status).toBe(403);
   });
 
+  it("keep a read-only token from PUT and PATCH too", async () => {
+    const u = await person();
+    const t = await made(u, { name: "look only 2", readOnly: true });
+    for (const method of ["PUT", "PATCH"]) {
+      const res = await app.request("/api/me/preferences", {
+        method,
+        headers: { ...bearer(t.secret), "content-type": "application/json" },
+        body: JSON.stringify({ hidePlaylistVideos: true }),
+      });
+      expect([method, res.status]).toEqual([method, 403]);
+    }
+  });
+
+  it("refuse even an admin's full token on every route a token must never reach", async () => {
+    const admin = await signedIn(testDb.db, {
+      username: `scopeadmin${String(++n)}`,
+      role: "admin",
+    });
+    const t = await made(admin, { name: "everything" });
+    // The token works: the refusals below are the routes'.
+    expect((await app.request("/api/me", { headers: bearer(t.secret) })).status).toBe(200);
+    const json = { ...bearer(t.secret), "content-type": "application/json" };
+    const tries: [string, string, unknown?][] = [
+      ["GET", "/api/admin/users"],
+      [
+        "POST",
+        "/api/admin/users",
+        { username: "x", displayName: "x", role: "admin", password: "correct horse battery" },
+      ],
+      ["GET", "/api/me/tokens"],
+      ["POST", "/api/me/tokens", { name: "successor" }],
+      ["DELETE", `/api/me/tokens/${t.token.id}`],
+      ["POST", "/api/me/password", { currentPassword: "a", newPassword: "correct horse battery" }],
+      ["GET", "/api/me/sessions"],
+      ["GET", "/api/me/push"],
+      ["GET", "/api/me/site-logins"],
+    ];
+    for (const [method, path, body] of tries) {
+      const res = await app.request(path, {
+        method,
+        headers: json,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      expect([method, path, res.status]).toEqual([method, path, 403]);
+    }
+    // Nothing was made or taken away.
+    const list = TokenList.parse(await (await asUser(app, admin).request("/api/me/tokens")).json());
+    expect(list.tokens.map((x) => x.name)).toEqual(["everything"]);
+  });
+
   it("never take a browser session on the MCP endpoint, and ask for a bearer token", async () => {
     const u = await person();
     const res = await asUser(app, u).request("/api/mcp", { method: "POST" });

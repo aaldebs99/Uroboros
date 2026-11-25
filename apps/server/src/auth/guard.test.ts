@@ -78,6 +78,26 @@ describe("the API guard", () => {
     expect(ok.status).toBe(200);
   });
 
+  it("needs the CSRF cookie to match too, not only the header", async () => {
+    const s = await signedIn(testDb.db, { username: "bob2" });
+    // The right header, but no echo of it in the cookie (a page that can set headers but not
+    // read the csrf cookie), or a different one.
+    const noCookie = await req("/api/test/write", {
+      method: "POST",
+      headers: { cookie: `uroboros_session=${s.token}`, "x-uroboros-csrf": s.csrf },
+    });
+    expect(noCookie.status).toBe(403);
+    const other = await req("/api/test/write", {
+      method: "POST",
+      headers: {
+        cookie: `uroboros_session=${s.token}; uroboros_csrf=${"0".repeat(s.csrf.length)}`,
+        "x-uroboros-csrf": s.csrf,
+      },
+    });
+    expect(other.status).toBe(403);
+    expect(await other.json()).toMatchObject({ message: "missing or wrong CSRF token" });
+  });
+
   it("lets a bearer token write without CSRF", async () => {
     const s = await signedIn(testDb.db, { username: "carol" });
     const secret = newSecret();
