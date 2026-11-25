@@ -120,7 +120,6 @@ async function showGroup(role: "manager" | "member", extra: Parameters<typeof fa
 
 function renderApp(path: string, routes: Parameters<typeof fakeApi>[0]) {
   const calls = fakeApi({
-    "GET /api/ready": () => Response.json({ status: "ok", failing: [] }),
     "GET /api/info": () =>
       Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
     "GET /api/me": () => Response.json(me),
@@ -202,7 +201,6 @@ describe("Settings › Groups", () => {
 
   it("makes a group by name and opens its page", async () => {
     const calls = fakeApi({
-      "GET /api/ready": () => Response.json({ status: "ok", failing: [] }),
       "GET /api/info": () =>
         Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
       "GET /api/me": () => Response.json(me),
@@ -351,7 +349,6 @@ describe("a group's page", () => {
 describe("leaving or deleting a group", () => {
   function showInApp(role: "manager" | "member") {
     const calls = fakeApi({
-      "GET /api/ready": () => Response.json({ status: "ok", failing: [] }),
       "GET /api/info": () =>
         Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
       "GET /api/me": () => Response.json(me),

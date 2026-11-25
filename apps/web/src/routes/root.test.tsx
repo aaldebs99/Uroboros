@@ -38,7 +38,6 @@ async function renderAt(
 
 beforeEach(() => {
   stubApi({
-    "/api/ready": () => Response.json({ status: "ok", failing: [] }),
     "/api/info": () => Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
     "/api/me": () =>
       Response.json({
@@ -171,12 +170,6 @@ describe("app shell", () => {
     await waitFor(() => {
       expect(router.state.location.searchStr).toBe("");
     });
-  });
-
-  it("keeps the health status out of the top bar", async () => {
-    await renderAt("/");
-
-    expect(screen.queryByText("Healthy")).not.toBeInTheDocument();
   });
 
   it("shows the Notifications section in Settings", async () => {

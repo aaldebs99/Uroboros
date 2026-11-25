@@ -13,7 +13,6 @@ import {
   deleteJson,
   errorText,
   getJson,
-  getReadiness,
   postJson,
   setUnauthorizedHandler,
 } from "./client";
@@ -193,22 +192,6 @@ describe("errorText", () => {
     expect(
       errorText(new ApiError(422, "x", { code: "unprocessable", message: "turn one off first" })),
     ).toBe("turn one off first");
-  });
-});
-
-describe("getReadiness", () => {
-  it("reads the report on 200 and on 503 starting", async () => {
-    respondWith(Response.json({ status: "degraded", failing: ["database"] }));
-    await expect(getReadiness()).resolves.toEqual({ status: "degraded", failing: ["database"] });
-    respondWith(Response.json({ status: "starting", failing: [] }, { status: 503 }));
-    await expect(getReadiness()).resolves.toEqual({ status: "starting", failing: [] });
-  });
-
-  it("throws ApiError on any other failure", async () => {
-    respondWith(Response.json({ code: "internal", message: "x" }, { status: 500 }));
-    const error: unknown = await getReadiness().catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(ApiError);
-    expect((error as ApiError).code).toBe("internal");
   });
 });
 

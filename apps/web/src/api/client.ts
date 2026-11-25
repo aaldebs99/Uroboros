@@ -1,4 +1,4 @@
-import { ApiErrorCode, Info, Readiness } from "@uroboros/contract";
+import { ApiErrorCode, Info } from "@uroboros/contract";
 import type { ApiErrorBody } from "@uroboros/contract";
 import { useQuery } from "@tanstack/react-query";
 import type { z } from "zod";
@@ -110,16 +110,6 @@ async function send(method: string, path: string, init?: RequestInit): Promise<R
   const res = await request(method, path, init);
   if (!res.ok) throw await failureOf(method, path, res);
   return res;
-}
-
-/**
- * `GET /api/ready`. A replica still starting answers 503 with a `starting` report, so the body is
- * read on 503 as on 200; anything else that is not a 2xx throws an `ApiError`.
- */
-export async function getReadiness(init?: RequestInit): Promise<Readiness> {
-  const res = await request("GET", "/api/ready", init);
-  if (!res.ok && res.status !== 503) throw await failureOf("GET", "/api/ready", res);
-  return parseBody(res, "GET /api/ready", Readiness);
 }
 
 /**
@@ -292,7 +282,6 @@ export function errorText(error: unknown): string {
 
 export const queryKeys = {
   info: ["api", "info"] as const,
-  readiness: ["api", "ready"] as const,
   myPush: ["api", "me", "push"] as const,
   me: ["api", "me"] as const,
   authMethods: ["api", "auth", "methods"] as const,
@@ -302,13 +291,5 @@ export function useInfo() {
   return useQuery({
     queryKey: queryKeys.info,
     queryFn: ({ signal }) => getJson("/api/info", Info, { signal }),
-  });
-}
-
-export function useReadiness() {
-  return useQuery({
-    queryKey: queryKeys.readiness,
-    queryFn: ({ signal }) => getReadiness({ signal }),
-    refetchInterval: 15_000,
   });
 }

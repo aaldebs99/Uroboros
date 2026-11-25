@@ -30,7 +30,6 @@ const request = (over: Record<string, unknown>) => ({
 });
 
 const shell: Record<string, Handler> = {
-  "GET /api/ready": () => Response.json({ status: "ok", failing: [] }),
   "GET /api/info": () => Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
   "GET /api/me": () =>
     Response.json({
