@@ -1,24 +1,34 @@
 import { connect, createServer } from "node:net";
 import type { AddressInfo, Server, Socket } from "node:net";
 
-/** A port nothing listens on yet: bound, read, and released again. */
-export async function freePort(): Promise<number> {
-  const probe = createServer();
-  await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
-  const { port } = probe.address() as AddressInfo;
-  await new Promise<void>((resolve) => {
-    probe.close(() => {
-      resolve();
-    });
-  });
-  return port;
+/** A port of its own in front of a server, closed until `open()`; see `gate`. */
+export interface Gate {
+  readonly port: number;
+  /** How many connections it has turned away so far. */
+  readonly refused: number;
+  /** From now on, forward connections to the upstream. */
+  open(): void;
+  close(): Promise<void>;
 }
 
-/** Forwards `port` on 127.0.0.1 to `upstream`'s host and port, from now on. */
-export async function forward(port: number, upstream: string): Promise<{ close(): Promise<void> }> {
+/**
+ * A TCP gate on 127.0.0.1 in front of `upstream`'s host and port. It turns every connection away
+ * with a reset (the client sees ECONNRESET) until opened, then forwards. It listens on a port of
+ * its own from the start, so nothing else can take that port in between, as another worker's
+ * `listen(0)` could take a port that was bound, read and released.
+ */
+export async function gate(upstream: string): Promise<Gate> {
   const target = new URL(upstream);
   const sockets = new Set<Socket>();
+  let opened = false;
+  let refused = 0;
   const server: Server = createServer((client) => {
+    client.on("error", () => undefined);
+    if (!opened) {
+      refused += 1;
+      client.resetAndDestroy();
+      return;
+    }
     const peer = connect(Number(target.port), target.hostname);
     for (const s of [client, peer]) {
       sockets.add(s);
@@ -27,8 +37,16 @@ export async function forward(port: number, upstream: string): Promise<{ close()
     }
     client.pipe(peer).pipe(client);
   });
-  await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
   return {
+    port,
+    get refused() {
+      return refused;
+    },
+    open() {
+      opened = true;
+    },
     async close() {
       for (const s of sockets) s.destroy();
       await new Promise<void>((resolve) => {
