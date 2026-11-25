@@ -152,7 +152,7 @@
 /*
  * Native selects (the `Select` and `SelectField` components, `data-slot`): the open list in the
  * design system's menu style where the browser lets CSS draw it (customizable select,
- * `appearance: base-select`), and the theme's colours on the OS list elsewhere. The element stays
+ * `appearance: base-select`), and the theme's colors on the OS list elsewhere. The element stays
  * a real <select>, so its keyboard behaviour and form semantics are the browser's own.
  */
 select[data-slot] option {
@@ -180,7 +180,7 @@ select[data-slot] option {
     margin-block: 0.375rem;
     padding-block: 0.5rem;
     min-width: anchor-size(width);
-    /* A hairline too: the list often opens over a dialog of the same colour. */
+    /* A hairline too: the list often opens over a dialog of the same color. */
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     background-color: var(--popover);
@@ -263,7 +263,7 @@ select[data-slot] option {
  * curve (a quick start, a soft settle); under a finger, inline styles place it and nothing eases.
  */
 @layer components {
-  /* A hover preview's captions (docs/library.md "Hover previews"): sized for a tile, in the overlay's colours. */
+  /* A hover preview's captions (docs/library.md "Hover previews"): sized for a tile, in the overlay's colors. */
   video[data-preview-video]::cue {
     font-size: 0.8125rem;
     line-height: 1.25;

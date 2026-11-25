@@ -36,7 +36,7 @@ const json = {
 };
 
 describe("ffprobe for playback sessions", () => {
-  it("reads levels, codec strings, colour, cover art and the start time", async () => {
+  it("reads levels, codec strings, color, cover art and the start time", async () => {
     const run = await FakeRun.create({ steps: [{ stdout: JSON.stringify(json) }] });
     runs.push(run);
     const info = await ffprobe("/m/a.mkv", run.options);

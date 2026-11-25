@@ -122,7 +122,7 @@ const postprocessorArgs = (): string[] =>
   ]);
 
 /**
- * The arguments every run starts with: no user config, no update check, no colour codes, and the
+ * The arguments every run starts with: no user config, no update check, no color codes, and the
  * post-processors' inputs pinned.
  */
 export function baseArgs(files: RunFiles): string[] {

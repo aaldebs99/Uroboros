@@ -15,7 +15,7 @@ import { notify } from "@/components/ui/sonner";
 
 import { SPONSORBLOCK_LABELS } from "./sponsorBlockLabels";
 
-/** A colour picker sends a change at every step of a drag; the last one is saved after this. */
+/** A color picker sends a change at every step of a drag; the last one is saved after this. */
 const SAVE_AFTER_MS = 400;
 
 const LABELS: Record<SponsorBlockColorKey, string> = {
@@ -30,7 +30,7 @@ const same = (a: SponsorBlockColors, b: SponsorBlockColors) =>
   SPONSORBLOCK_COLOR_KEYS.every((k) => a[k] === b[k]);
 
 /**
- * The colours part of Settings › SponsorBlock (docs/automation.md#sponsorblock): a native colour
+ * The colors part of Settings › SponsorBlock (docs/automation.md#sponsorblock): a native color
  * picker for each category's bands and for the highlight's mark, videos and audio alike, and a way
  * back to SponsorBlock's own. A change shows at once and is saved once the picking stops (or the
  * page is left).
@@ -73,7 +73,7 @@ export function SegmentColors({ current }: { current: SponsorBlockColors | undef
     if (w === null) return;
     waiting.current = null;
     saveRef.current(w.colors);
-    // The save shows the colours at once (useUpdatePreferences), so the draft can go.
+    // The save shows the colors at once (useUpdatePreferences), so the draft can go.
     setDraft(null);
   };
   const pick = (key: SponsorBlockColorKey, value: string) => {
@@ -89,10 +89,10 @@ export function SegmentColors({ current }: { current: SponsorBlockColors | undef
     saveRef.current(DEFAULT_SPONSORBLOCK_COLORS);
   };
   return (
-    <section aria-label="Colours" className="grid gap-1">
-      <h3 className="text-sm font-bold">Colours</h3>
+    <section aria-label="Colors" className="grid gap-1">
+      <h3 className="text-sm font-bold">Colors</h3>
       <p className="text-xs text-muted-foreground">
-        The colours of the bands and the highlight on the timeline, videos and audio alike.
+        The colors of the bands and the highlight on the timeline, videos and audio alike.
       </p>
       <div className="mt-2">
         {SPONSORBLOCK_COLOR_KEYS.map((key) => (
@@ -104,7 +104,7 @@ export function SegmentColors({ current }: { current: SponsorBlockColors | undef
             <span className="flex items-center gap-3">
               <input
                 type="color"
-                aria-label={`${LABELS[key]} colour`}
+                aria-label={`${LABELS[key]} color`}
                 value={shown[key]}
                 disabled={current === undefined}
                 onChange={(e) => {
@@ -119,7 +119,7 @@ export function SegmentColors({ current }: { current: SponsorBlockColors | undef
       </div>
       {same(shown, DEFAULT_SPONSORBLOCK_COLORS) ? null : (
         <Button variant="quiet" size="compact" className="mt-2 w-fit" onClick={reset}>
-          <RotateCcw aria-hidden /> Use SponsorBlock&apos;s colours
+          <RotateCcw aria-hidden /> Use SponsorBlock&apos;s colors
         </Button>
       )}
     </section>

@@ -2,7 +2,7 @@
 
 ## Palette
 
-The colours come from the logo: navy (`#0b1d33`, `#050e1c`, `#143a66`), electric blue
+The colors come from the logo: navy (`#0b1d33`, `#050e1c`, `#143a66`), electric blue
 (`#3b82f6`, `#60a5fa`) and ice (`#cfe8ff`, `#f0f8ff`). They live as oklch custom properties in
 `apps/web/src/index.css` (`:root` for light, `.dark` for dark), under shadcn's token names so the
 utility classes keep their meaning. The hex values below are the source; convert them to oklch
@@ -32,7 +32,7 @@ when writing `index.css`.
   light, `#15305c` in dark.
 - `--overlay` and `--scrim` stay the same in both themes because they sit on images or over the
   page. The watched bar's track is white at 35% on the image.
-- The `--sidebar-*` tokens are retired: the side navigation is the canvas colour.
+- The `--sidebar-*` tokens are retired: the side navigation is the canvas color.
 - The brand tile `/uroboros-tile.svg` is the only navy element in light mode.
 - Accent blue marks actions, links, selection and focus. It never means success, warning or
   failure.

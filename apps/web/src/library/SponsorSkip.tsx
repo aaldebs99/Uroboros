@@ -8,7 +8,7 @@ import { skipSpans, spanReached, timelineCues } from "./sponsorSkip";
  * The file's SponsorBlock segments as the person's setting has them (Settings › SponsorBlock,
  * docs/automation.md#sponsorblock), and its highlight: the shown segments drawn as bands on the
  * timeline and the highlight as a mark (a metadata track labelled "skip", which the patched skin's
- * time slider draws, each in its category's colour; `timelineCues`), and the skipped segments
+ * time slider draws, each in its category's color; `timelineCues`), and the skipped segments
  * jumped over without a word when playback runs into one. A segment the viewer seeks into plays
  * out, so seeking back to one's start watches it: only playing up to a segment's start skips it.
  */

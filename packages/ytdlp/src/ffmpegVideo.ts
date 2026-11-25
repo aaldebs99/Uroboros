@@ -60,7 +60,7 @@ export function videoFilter(e: EncodeSettings): string {
     case "vaapi-sw":
       return `${cpuScale},${e.hdr ? tonemap("nv12") : "format=nv12"},hwupload`;
     case "nvenc":
-      // scale_cuda drops the colour properties tonemap_cuda needs, so they are set again first.
+      // scale_cuda drops the color properties tonemap_cuda needs, so they are set again first.
       return e.hdr
         ? `setparams=color_primaries=bt2020:color_trc=${e.hdr}:colorspace=bt2020nc,` +
             `scale_cuda=w=${String(w)}:h=${String(h)},tonemap_cuda=${TONEMAP}:format=yuv420p`
@@ -75,11 +75,11 @@ export function videoFilter(e: EncodeSettings): string {
 
 /**
  * Tone-mapped output is BT.709, and says so: the GPU filters keep the source's BT.2020 tags (or
- * drop them), and a browser decoding with BT.2020's matrix would shift every colour.
+ * drop them), and a browser decoding with BT.2020's matrix would shift every color.
  */
 const BT709 = ["-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709"];
 
-/** The encoder, its rate control (the rung's cap, the level the playlist names) and colour tags. */
+/** The encoder, its rate control (the rung's cap, the level the playlist names) and color tags. */
 export function videoEncoderArgs(e: EncodeSettings): string[] {
   return [...encoder(e), ...(e.hdr === null ? [] : BT709)];
 }

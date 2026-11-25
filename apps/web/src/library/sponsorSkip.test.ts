@@ -41,7 +41,7 @@ describe("skipSpans", () => {
 });
 
 describe("shownSpans", () => {
-  it("bands show segments, one category each so each has its colour, marking the ones playback skips", () => {
+  it("bands show segments, one category each so each has its color, marking the ones playback skips", () => {
     expect(
       shownSpans([
         both(10, 20, "sponsor"),

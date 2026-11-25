@@ -5,10 +5,10 @@ description: Use when building, changing or reviewing anything in Uroboros's web
 
 # Uroboros design system
 
-Uroboros is a **media library drawn in the Uroboros logo's colours** (navy, electric blue and
+Uroboros is a **media library drawn in the Uroboros logo's colors** (navy, electric blue and
 ice): bare 16:9 thumbnails with the details beneath, pill-shaped chips and search, flat
-page-coloured navigation, quiet menus, and bottom tabs on phones. The user picked every
-primitive from four rendered options in a mockup workshop on 2026-11-22. Colour, focus and
+page-colored navigation, quiet menus, and bottom tabs on phones. The user picked every
+primitive from four rendered options in a mockup workshop on 2026-11-22. Color, focus and
 elevation are today's look refined, at a **roomy** density: Roboto 14px, 44px controls. Both light and dark themes stay.
 
 ## Target, not today
@@ -22,13 +22,13 @@ skill, this skill wins. The existing files are listed in each reference.
 
 ## Rules for every change
 
-1. **Colours come from tokens.** Use the target token classes in
+1. **Colors come from tokens.** Use the target token classes in
    [foundations](references/foundations.md): `bg-background`, `bg-card`, `bg-raised`,
    `bg-primary`, `bg-accent` (soft blue), `text-muted-foreground`, `text-destructive`,
    `text-success`, `text-warning`, `shadow-card`, `shadow-menu` and `bg-overlay`. Never use a hex
-   value or a raw Tailwind colour (`red-600`, `bg-black/75`). Tokens switch with the theme, so
-   don't add `dark:` colour pairs. The one exception is data: SponsorBlock's marks on the player's
-   timeline wear the colours the viewer picked ([media](references/media-and-library.md#player)).
+   value or a raw Tailwind color (`red-600`, `bg-black/75`). Tokens switch with the theme, so
+   don't add `dark:` color pairs. The one exception is data: SponsorBlock's marks on the player's
+   timeline wear the colors the viewer picked ([media](references/media-and-library.md#player)).
 2. **Blue is the accent, never a state.** Success is `success`, warnings are `warning` and
    failures are `destructive`. Every contract state has a tone in
    [feedback](references/feedback-and-containers.md#status-badges). Branch on contract enums
@@ -76,14 +76,14 @@ skill, this skill wins. The existing files are listed in each reference.
 
 ## Where each primitive is
 
-| Primitive                                                                                                | Pick                                                                                                                                          | Reference                                                        |
-| -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Palette, tokens, type, density, corners, focus, elevation                                                | Today's blues refined; Roboto 14/20; 44px; 10px controls, 16px cards; soft ring                                                               | [foundations](references/foundations.md)                         |
-| Buttons, icon buttons, links, text fields, selects, menus, checkboxes, radios, switches, search          | Glowing primary, tonal delete; underline-on-hover links, label-inside fields, pill search                                                     | [actions-and-forms](references/actions-and-forms.md)             |
-| Top bar, side navigation, Add menu and its dialogs, account menu, chips and tabs, page header, back link | Page-coloured bar and side navigation, an Add menu (Download, Upload), inverted chips; header with action right; "← List" above a detail page | [shell-and-navigation](references/shell-and-navigation.md)       |
-| Video tile, list row, channel header, playlist tile, progress, queue row, preview picker                 | Bare thumbnail tiles, stacked playlist tiles, checkbox picker; thick glowing progress bar                                                     | [media-and-library](references/media-and-library.md)             |
-| Toasts, status badges, notices, empty states, loading, settings sections, dialogs, tables                | Corner toast with timer line; outlined badges; circled-glyph empty state; flat settings rows, text-button dialogs, gridless tables            | [feedback-and-containers](references/feedback-and-containers.md) |
-| Phone shell, library feed, ⋮ sheet, download dialog                                                      | Bottom tabs with a centred +, edge-to-edge feed, bottom sheet                                                                                 | [phone](references/phone.md)                                     |
+| Primitive                                                                                                | Pick                                                                                                                                         | Reference                                                        |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Palette, tokens, type, density, corners, focus, elevation                                                | Today's blues refined; Roboto 14/20; 44px; 10px controls, 16px cards; soft ring                                                              | [foundations](references/foundations.md)                         |
+| Buttons, icon buttons, links, text fields, selects, menus, checkboxes, radios, switches, search          | Glowing primary, tonal delete; underline-on-hover links, label-inside fields, pill search                                                    | [actions-and-forms](references/actions-and-forms.md)             |
+| Top bar, side navigation, Add menu and its dialogs, account menu, chips and tabs, page header, back link | Page-colored bar and side navigation, an Add menu (Download, Upload), inverted chips; header with action right; "← List" above a detail page | [shell-and-navigation](references/shell-and-navigation.md)       |
+| Video tile, list row, channel header, playlist tile, progress, queue row, preview picker                 | Bare thumbnail tiles, stacked playlist tiles, checkbox picker; thick glowing progress bar                                                    | [media-and-library](references/media-and-library.md)             |
+| Toasts, status badges, notices, empty states, loading, settings sections, dialogs, tables                | Corner toast with timer line; outlined badges; circled-glyph empty state; flat settings rows, text-button dialogs, gridless tables           | [feedback-and-containers](references/feedback-and-containers.md) |
+| Phone shell, library feed, ⋮ sheet, download dialog                                                      | Bottom tabs with a centred +, edge-to-edge feed, bottom sheet                                                                                | [phone](references/phone.md)                                     |
 
 Read the reference for the family you are touching before you write classes.
 
@@ -97,19 +97,19 @@ sheets, `rounded-[0.25rem]` (4) duration badges, and `rounded-full` pills. Write
 
 ## Common mistakes
 
-| Mistake                                                         | Instead                                                                       |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `variant="destructive"` solid red, or an outlined Cancel        | Tonal destructive; in dialogs, text-only pill actions                         |
-| A filled or dotted status badge (`bg-warning`, a coloured dot)  | An outlined pill with tone text                                               |
-| A video in a bordered card with the title in a padded body      | A bare tile: thumbnail, then avatar, two-line title, meta, ⋮                  |
-| A dashed box for an empty list                                  | `EmptyState`: a 96px circle with a glyph, a title, a line, one action         |
-| A section title ("Library", "Downloads") atop a page            | `PageHeader` keeps it for screen readers; the navigation says where you are   |
-| A label above an input                                          | The outlined field with the label inside the box                              |
-| Geist or Bricolage, body text at 16px, `font-display`           | Roboto 14/20 body; titles are Roboto 700                                      |
-| A 6px flat `bg-primary` progress bar                            | An 8px pill bar with an accent gradient and glow, plus `role="progressbar"`   |
-| `bg-black/75` on a duration badge                               | `bg-overlay text-overlay-foreground`                                          |
-| A navy sidebar (`bg-sidebar`)                                   | Side navigation on the canvas colour, with the current row filled `bg-raised` |
-| A Pause button or a subscriber count                            | Only when the feature exists                                                  |
-| A pixel size (`w-[168px]`, `rounded-[12px]`, `text-[13px]`)     | A spacing step or rem: `w-42`, `rounded-[0.75rem]`, `text-[0.8125rem]`        |
-| A page centred in `mx-auto max-w-4xl` with empty bands beside   | The page at full width; a form or settings column capped and left-aligned     |
-| A detail page with no way back, or back only once it has loaded | `BackLink` to its list above the title, in every state of the page            |
+| Mistake                                                         | Instead                                                                      |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `variant="destructive"` solid red, or an outlined Cancel        | Tonal destructive; in dialogs, text-only pill actions                        |
+| A filled or dotted status badge (`bg-warning`, a colored dot)   | An outlined pill with tone text                                              |
+| A video in a bordered card with the title in a padded body      | A bare tile: thumbnail, then avatar, two-line title, meta, ⋮                 |
+| A dashed box for an empty list                                  | `EmptyState`: a 96px circle with a glyph, a title, a line, one action        |
+| A section title ("Library", "Downloads") atop a page            | `PageHeader` keeps it for screen readers; the navigation says where you are  |
+| A label above an input                                          | The outlined field with the label inside the box                             |
+| Geist or Bricolage, body text at 16px, `font-display`           | Roboto 14/20 body; titles are Roboto 700                                     |
+| A 6px flat `bg-primary` progress bar                            | An 8px pill bar with an accent gradient and glow, plus `role="progressbar"`  |
+| `bg-black/75` on a duration badge                               | `bg-overlay text-overlay-foreground`                                         |
+| A navy sidebar (`bg-sidebar`)                                   | Side navigation on the canvas color, with the current row filled `bg-raised` |
+| A Pause button or a subscriber count                            | Only when the feature exists                                                 |
+| A pixel size (`w-[168px]`, `rounded-[12px]`, `text-[13px]`)     | A spacing step or rem: `w-42`, `rounded-[0.75rem]`, `text-[0.8125rem]`       |
+| A page centred in `mx-auto max-w-4xl` with empty bands beside   | The page at full width; a form or settings column capped and left-aligned    |
+| A detail page with no way back, or back only once it has loaded | `BackLink` to its list above the title, in every state of the page           |

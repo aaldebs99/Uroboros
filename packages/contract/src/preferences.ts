@@ -40,19 +40,19 @@ export const DEFAULT_SPONSORBLOCK: SponsorBlockSettings = frozen({
   audio: { show: USUAL, skip: USUAL },
 });
 
-/** What a colour is chosen for: each segment category, and the highlight (`poi_highlight`). */
+/** What a color is chosen for: each segment category, and the highlight (`poi_highlight`). */
 export const SPONSORBLOCK_COLOR_KEYS = [...SPONSORBLOCK_CATEGORIES, "poi_highlight"] as const;
 export type SponsorBlockColorKey = (typeof SPONSORBLOCK_COLOR_KEYS)[number];
 
-/** A colour as `#rrggbb`, kept lower-case. */
+/** A color as `#rrggbb`, kept lower-case. */
 const HexColor = z
   .string()
-  .regex(/^#[0-9a-fA-F]{6}$/, "a colour is #rrggbb")
+  .regex(/^#[0-9a-fA-F]{6}$/, "a color is #rrggbb")
   .transform((c) => c.toLowerCase())
   .openapi({ example: "#00d400" });
 
 /**
- * The colours a person's player draws SponsorBlock's segments and highlight in on the timeline
+ * The colors a person's player draws SponsorBlock's segments and highlight in on the timeline
  * (Settings › SponsorBlock), one per category and one for the highlight, videos and audio alike.
  */
 export const SponsorBlockColors = z
@@ -65,7 +65,7 @@ export const SponsorBlockColors = z
   .openapi("SponsorBlockColors");
 export type SponsorBlockColors = z.output<typeof SponsorBlockColors>;
 
-/** The SponsorBlock browser extension's own colours, which a person starts with. */
+/** The SponsorBlock browser extension's own colors, which a person starts with. */
 export const DEFAULT_SPONSORBLOCK_COLORS: SponsorBlockColors = frozen({
   sponsor: "#00d400",
   intro: "#00ffff",
@@ -89,7 +89,7 @@ export const Preferences = z
     hidePlaylistVideos: z.boolean(),
     /** Which SponsorBlock segments their player shows and skips. */
     sponsorBlock: SponsorBlockSettings,
-    /** The colours their player draws SponsorBlock's segments and highlight in. */
+    /** The colors their player draws SponsorBlock's segments and highlight in. */
     sponsorBlockColors: SponsorBlockColors,
   })
   .openapi("Preferences");

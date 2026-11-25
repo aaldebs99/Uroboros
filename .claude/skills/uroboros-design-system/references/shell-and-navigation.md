@@ -7,7 +7,7 @@ and `components/ThemeToggle.tsx`. The target below replaces their look; the beha
 
 ## Top bar (md and up)
 
-A bar in the page colour (`bg-background`), 56px tall, with no border or shadow, holding from left
+A bar in the page color (`bg-background`), 56px tall, with no border or shadow, holding from left
 to right:
 
 1. A ghost icon button with `Menu`, which toggles the side navigation between full and mini (on a
@@ -28,7 +28,7 @@ There's no separate theme button: the theme lives in the account menu.
 
 ## Side navigation
 
-A list of sections in the page colour, below the top bar, not a separate coloured panel:
+A list of sections in the page color, below the top bar, not a separate colored panel:
 
 - It is 240px wide on `bg-background`, not a separate navy panel.
 - Rows are `h-10 rounded-[10px] px-3 gap-6`, with a 20px icon and a 14px label.

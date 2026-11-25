@@ -33,7 +33,7 @@ const SECTIONS: Partial<Record<NavItem["to"], Section>> = {
 };
 
 /**
- * The side navigation below the top bar, on the page colour. Full (15rem rows, with the library's
+ * The side navigation below the top bar, on the page color. Full (15rem rows, with the library's
  * views indented under Library, Shared's under Shared and Settings' under Settings) or mini (a 4.5rem rail with the label
  * under the icon), switched by the top bar's menu button.
  */

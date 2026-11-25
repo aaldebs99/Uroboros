@@ -7,7 +7,7 @@ const NEAR = 1;
 /**
  * Jump to highlight (docs/automation.md#sponsorblock): while playback is short of the video's
  * SponsorBlock highlight, a pill in the player's top corner that goes there and plays. It shows and
- * hides with the controls (player.css), and its icon wears the highlight's colour.
+ * hides with the controls (player.css), and its icon wears the highlight's color.
  */
 export function HighlightJump({
   video,

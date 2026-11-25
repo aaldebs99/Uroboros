@@ -6,7 +6,7 @@
  *
  * A plain object rather than the generator's `defineConfig`, because nothing from that package
  * resolves from here under dlx. The background of the maskable and Apple icons is the shell's
- * dark sidebar (`--sidebar` in `.dark`, oklch(0.12 0.03 257)), the manifest's theme colour.
+ * dark sidebar (`--sidebar` in `.dark`, oklch(0.12 0.03 257)), the manifest's theme color.
  */
 export default {
   headLinkOptions: { preset: "2023" },

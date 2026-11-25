@@ -115,12 +115,12 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
 - SponsorBlock's marks lie over the timeline (`SponsorSkip.tsx`, `player.css`): each shown
   category's bands as thick as the bar, strong (85%) where playback jumps them and faint (40%)
   where it only shows them, and the highlight a 4px full-strength mark. They are the one place a
-  colour comes from data rather than a token: the viewer's own (Settings › SponsorBlock), the
+  color comes from data rather than a token: the viewer's own (Settings › SponsorBlock), the
   SponsorBlock extension's until they choose (`DEFAULT_SPONSORBLOCK_COLORS` in the contract), set
   on the skin as `--uro-sb-<category>`.
 - **Jump to highlight** (`HighlightJump.tsx`): while playback is short of the highlight, a
   `bg-overlay` pill in the player's top-right corner, 44px tall (36px from `md`), a `Sparkles`
-  icon in the highlight's colour beside the label. It comes and goes with the controls and keeps
+  icon in the highlight's color beside the label. It comes and goes with the controls and keeps
   the skin's gestures off its press.
 - Under the timeline, play, volume and the time sit at the left; captions, settings, cast,
   picture-in-picture and fullscreen sit at the right.

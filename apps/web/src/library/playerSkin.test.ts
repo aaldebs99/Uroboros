@@ -105,7 +105,7 @@ describe("patches/@videojs__react.patch", () => {
       expect(slider).toContain('const uroSkipFilter = { label: "skip" };');
       expect(slider).toMatch(/className: "uro-skip-markers",\s*filter: uroSkipFilter,/);
       // A band playback jumps (cue id "skip:…") is marked; a shown-only one ("show:…") and the
-      // highlight ("point:…") aren't. The id's second part, the category, picks the colour.
+      // highlight ("point:…") aren't. The id's second part, the category, picks the color.
       expect(slider).toContain('"data-skips": marker.cue.id.startsWith("skip:") ? "" : void 0');
       expect(slider).toContain('"data-category": marker.cue.id.split(":")[1]');
       expect(slider).toMatch(/children: \[\s*t4,\s*uroSkipMarkers,\s*t5,\s*t11\s*\]/);

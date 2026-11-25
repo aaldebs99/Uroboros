@@ -130,23 +130,21 @@ describe("Settings › SponsorBlock", () => {
     });
   });
 
-  it("shows each category's colour and the highlight's, SponsorBlock's until changed", async () => {
+  it("shows each category's color and the highlight's, SponsorBlock's until changed", async () => {
     fakeApi({ "GET /api/me/preferences": () => Response.json(prefs) });
     renderWithQuery(<SponsorBlockSettings />);
-    const section = await screen.findByRole("region", { name: "Colours" });
+    const section = await screen.findByRole("region", { name: "Colors" });
     await waitFor(() => {
-      expect(within(section).getByLabelText("Sponsor colour")).toHaveValue("#00d400");
+      expect(within(section).getByLabelText("Sponsor color")).toHaveValue("#00d400");
     });
-    expect(within(section).getByLabelText("Hook or greeting colour")).toHaveValue("#395699");
-    expect(within(section).getByLabelText("Highlight colour")).toHaveValue("#ff1684");
+    expect(within(section).getByLabelText("Hook or greeting color")).toHaveValue("#395699");
+    expect(within(section).getByLabelText("Highlight color")).toHaveValue("#ff1684");
     // Ten in all: nine categories and the highlight. Nothing to reset yet.
     expect(section.querySelectorAll('input[type="color"]')).toHaveLength(10);
-    expect(
-      within(section).queryByRole("button", { name: "Use SponsorBlock's colours" }),
-    ).toBeNull();
+    expect(within(section).queryByRole("button", { name: "Use SponsorBlock's colors" })).toBeNull();
   });
 
-  it("saves a colour once the picking stops, not at every step", async () => {
+  it("saves a color once the picking stops, not at every step", async () => {
     const calls = fakeApi({
       "GET /api/me/preferences": () => Response.json(prefs),
       "PATCH /api/me/preferences": (init) => {
@@ -155,7 +153,7 @@ describe("Settings › SponsorBlock", () => {
       },
     });
     renderWithQuery(<SponsorBlockSettings />);
-    const sponsor = await screen.findByLabelText("Sponsor colour");
+    const sponsor = await screen.findByLabelText("Sponsor color");
     await waitFor(() => {
       expect(sponsor).toBeEnabled();
     });
@@ -169,18 +167,18 @@ describe("Settings › SponsorBlock", () => {
     expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
       sponsorBlockColors: { ...DEFAULT_SPONSORBLOCK_COLORS, sponsor: "#ff0000" },
     });
-    expect(screen.getByLabelText("Sponsor colour")).toHaveValue("#ff0000");
+    expect(screen.getByLabelText("Sponsor color")).toHaveValue("#ff0000");
   });
 
-  it("puts every colour back to SponsorBlock's", async () => {
+  it("puts every color back to SponsorBlock's", async () => {
     const changed = { ...DEFAULT_SPONSORBLOCK_COLORS, sponsor: "#123456" };
     const calls = fakeApi({
       "GET /api/me/preferences": () => Response.json({ ...prefs, sponsorBlockColors: changed }),
       "PATCH /api/me/preferences": () => Response.json(prefs),
     });
     renderWithQuery(<SponsorBlockSettings />);
-    const reset = await screen.findByRole("button", { name: "Use SponsorBlock's colours" });
-    expect(screen.getByLabelText("Sponsor colour")).toHaveValue("#123456");
+    const reset = await screen.findByRole("button", { name: "Use SponsorBlock's colors" });
+    expect(screen.getByLabelText("Sponsor color")).toHaveValue("#123456");
     await userEvent.click(reset);
     await waitFor(() => {
       expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
@@ -188,8 +186,8 @@ describe("Settings › SponsorBlock", () => {
       });
     });
     await waitFor(() => {
-      expect(screen.getByLabelText("Sponsor colour")).toHaveValue("#00d400");
+      expect(screen.getByLabelText("Sponsor color")).toHaveValue("#00d400");
     });
-    expect(screen.queryByRole("button", { name: "Use SponsorBlock's colours" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Use SponsorBlock's colors" })).toBeNull();
   });
 });

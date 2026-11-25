@@ -13,7 +13,7 @@ export function usePreferences() {
   });
 }
 
-/** The caller's SponsorBlock colours for their player; undefined (SponsorBlock's own) until loaded. */
+/** The caller's SponsorBlock colors for their player; undefined (SponsorBlock's own) until loaded. */
 export function useSponsorColors(): SponsorBlockColors | undefined {
   return usePreferences().data?.sponsorBlockColors;
 }

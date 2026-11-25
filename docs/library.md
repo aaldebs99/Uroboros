@@ -135,9 +135,9 @@ Settings › SponsorBlock keeps the person's SponsorBlock choices in the same `P
 (`sponsorBlock`): for videos and for audio files apart, which categories their player shows as
 bands and which it skips. Each switch patches `sponsorBlock` alone and fetches open items again,
 since the server resolves an item's segments by it ([automation.md](automation.md#sponsorblock)).
-Under the switches, a colour picker per category and one for the highlight
+Under the switches, a color picker per category and one for the highlight
 (`sponsorBlockColors`, SponsorBlock's own until changed) saves once the picking stops; the player
-reads the colours straight from the preferences, so nothing is fetched again.
+reads the colors straight from the preferences, so nothing is fetched again.
 
 ## The item page
 
@@ -156,7 +156,7 @@ the controls and captions draw over it (`AudioArtwork.tsx`). The item's
 the timeline (strong where playback jumps them, faint where it only shows them), and playback jumps
 over a skipped one when it runs into it, without a toast; a segment the viewer seeks into plays out
 (`SponsorSkip.tsx`, [automation.md](automation.md#sponsorblock)), each category in the viewer's
-colour. The file's SponsorBlock highlight (`sponsorHighlight`) is a mark on the timeline, and a
+color. The file's SponsorBlock highlight (`sponsorHighlight`) is a mark on the timeline, and a
 Jump to highlight pill in the player's corner goes there while playback is short of it
 (`HighlightJump.tsx`). The owner can fetch a file's
 segments again from the page (Refetch SponsorBlock segments,

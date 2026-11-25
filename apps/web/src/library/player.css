@@ -115,7 +115,7 @@
 
 /*
  * SponsorBlock segments the person shows (SponsorSkip): bands over the bar, as thick as it is, each
- * in its category's colour (the person's, Settings › SponsorBlock: Player sets --uro-sb-<category>
+ * in its category's color (the person's, Settings › SponsorBlock: Player sets --uro-sb-<category>
  * on the skin), strong where playback jumps them ([data-skips]) and faint where it plays through;
  * the highlight is a full-strength mark. The markers come from patches/@videojs__react.patch, hence
  * their own class names.

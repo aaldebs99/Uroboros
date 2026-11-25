@@ -34,7 +34,7 @@ function sponsorBlockFrom(row: SponsorBlockRow | undefined): SponsorBlockSetting
 }
 
 /**
- * The colours a person keeps: SponsorBlock's, with each stored one that is still a colour for a
+ * The colors a person keeps: SponsorBlock's, with each stored one that is still a color for a
  * key the app knows in its place.
  */
 function colorsFrom(stored: unknown): SponsorBlockColors {
@@ -48,7 +48,7 @@ function colorsFrom(stored: unknown): SponsorBlockColors {
   return colors;
 }
 
-/** The colours that differ from SponsorBlock's, as stored: SponsorBlock's own keep nothing. */
+/** The colors that differ from SponsorBlock's, as stored: SponsorBlock's own keep nothing. */
 function changedColors(colors: SponsorBlockColors): Partial<SponsorBlockColors> {
   return Object.fromEntries(
     SPONSORBLOCK_COLOR_KEYS.filter((k) => colors[k] !== DEFAULT_SPONSORBLOCK_COLORS[k]).map((k) => [

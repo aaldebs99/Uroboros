@@ -33,7 +33,7 @@ async function read(s: SignedIn): Promise<Preferences> {
 /** The defaults' categories: those the default format profile used to skip. */
 const D = ["interaction", "selfpromo", "sponsor"];
 const SB_DEFAULT = { video: { show: D, skip: D }, audio: { show: D, skip: D } };
-/** The SponsorBlock extension's own colours. */
+/** The SponsorBlock extension's own colors. */
 const COLORS = {
   sponsor: "#00d400",
   intro: "#00ffff",
@@ -134,7 +134,7 @@ describe("a person's SponsorBlock choices (docs/automation.md#sponsorblock)", ()
   });
 });
 
-describe("a person's SponsorBlock colours (docs/automation.md#sponsorblock)", () => {
+describe("a person's SponsorBlock colors (docs/automation.md#sponsorblock)", () => {
   const stored = async (s: SignedIn) =>
     (
       await t.db
@@ -165,7 +165,7 @@ describe("a person's SponsorBlock colours (docs/automation.md#sponsorblock)", ()
     expect((await read(erin)).sponsorBlockColors).toEqual(COLORS);
   });
 
-  it("refuse a colour that isn't #rrggbb, and a missing one (400)", async () => {
+  it("refuse a color that isn't #rrggbb, and a missing one (400)", async () => {
     for (const bad of ["red", "#ff00", "#gg0000", "ff0000"]) {
       expect((await patch(alice, { sponsorBlockColors: { ...COLORS, sponsor: bad } })).status).toBe(
         400,
@@ -175,7 +175,7 @@ describe("a person's SponsorBlock colours (docs/automation.md#sponsorblock)", ()
     expect((await patch(alice, { sponsorBlockColors: missing })).status).toBe(400);
   });
 
-  it("read a stored colour they can't use as SponsorBlock's", async () => {
+  it("read a stored color they can't use as SponsorBlock's", async () => {
     const frank = await signedIn(t.db, { username: "pffrank" });
     await t.db
       .insertInto("user_preferences")

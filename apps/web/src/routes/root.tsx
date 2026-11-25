@@ -46,7 +46,7 @@ export function RootLayout() {
 }
 
 /**
- * The app shell, on the page colour throughout. From `md` up: a 3.5rem top bar (menu, brand,
+ * The app shell, on the page color throughout. From `md` up: a 3.5rem top bar (menu, brand,
  * search, "+ Add", the bell, avatar) over the side navigation, full or mini; a watch page gives
  * the navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar
  * (menu, brand, search, "+", the bell, avatar), the navigation as a drawer that the menu opens or a

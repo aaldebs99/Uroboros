@@ -9,6 +9,6 @@ export interface UserPreferencesTable {
   sponsorblock_video_skip: Generated<string[]>;
   sponsorblock_audio_show: Generated<string[]>;
   sponsorblock_audio_skip: Generated<string[]>;
-  /** JSONB: the SponsorBlock colours changed from the extension's (key → `#rrggbb`). */
+  /** JSONB: the SponsorBlock colors changed from the extension's (key → `#rrggbb`). */
   sponsorblock_colors: ColumnType<unknown, string | undefined, string>;
 }

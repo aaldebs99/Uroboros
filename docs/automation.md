@@ -162,7 +162,7 @@ SponsorBlock (`user_preferences`, `GET`/`PATCH /api/me/preferences`): for videos
 files apart, which categories (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`, `hook`,
 `filler`, `interaction`, `music_offtopic`) it shows as bands on the timeline and which it skips,
 either without the other. Until they choose, both show and skip `sponsor`, `selfpromo` and
-`interaction`. The same page picks the colour their player draws each category's bands and the
+`interaction`. The same page picks the color their player draws each category's bands and the
 highlight in, videos and audio alike (`sponsorBlockColors`; `user_preferences.sponsorblock_colors`
 keeps only the ones changed). Until they choose they are the SponsorBlock extension's own
 (`DEFAULT_SPONSORBLOCK_COLORS` in the contract): sponsor `#00d400`, intro `#00ffff`, outro
@@ -198,7 +198,7 @@ those. Format profiles carry no categories, and no file is marked or cut for any
   is dropped unless the lengths are within a second, and one at or past the file's end is dropped.
   When SponsorBlock has several, the most-voted wins. Every route hands it out as
   `sponsorHighlight`, whatever the person's setting. The player marks it on the timeline in its
-  colour and, while playback is short of it, offers Jump to highlight in its top corner, coming
+  color and, while playback is short of it, offers Jump to highlight in its top corner, coming
   and going with the controls (`apps/web/src/library/HighlightJump.tsx`).
 - **Files cut by their own profile keep none.** A profile whose extra arguments cut or trim the file
   (`--sponsorblock-remove`, `--remove-chapters`, `--download-sections`) moves its timeline, so

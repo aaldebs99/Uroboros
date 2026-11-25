@@ -79,7 +79,7 @@ function ChoiceSwitch({
 /**
  * Settings › SponsorBlock (docs/automation.md#sponsorblock): for videos and for audio files apart,
  * which categories' segments the player shows on the timeline (Show) and which it jumps over
- * (Skip), either without the other, then the colours they and the highlight are drawn in
+ * (Skip), either without the other, then the colors they and the highlight are drawn in
  * (SegmentColors). Each switch saves at once.
  */
 export function SponsorBlockSettings() {

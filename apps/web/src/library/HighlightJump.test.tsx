@@ -67,7 +67,7 @@ describe("Jump to highlight (docs/automation.md#sponsorblock)", () => {
   });
 });
 
-describe("the timeline's SponsorBlock colours", () => {
+describe("the timeline's SponsorBlock colors", () => {
   const skin = (container: HTMLElement) => container.querySelector(".uro-player") as HTMLElement;
 
   it("are SponsorBlock's own until the person picks theirs", () => {

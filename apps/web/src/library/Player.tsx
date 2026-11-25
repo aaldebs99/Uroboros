@@ -50,7 +50,7 @@ export interface PlayerProps {
   sponsorSegments?: readonly SponsorSegment[];
   /** SponsorBlock's highlight, in seconds: marked on the timeline, with a Jump to highlight. */
   sponsorHighlight?: number | null;
-  /** The colours the timeline draws SponsorBlock's segments and highlight in; SponsorBlock's own by default. */
+  /** The colors the timeline draws SponsorBlock's segments and highlight in; SponsorBlock's own by default. */
   sponsorColors?: SponsorBlockColors | undefined;
   subtitles: SubtitleTrack[];
   onTime: (position: number, duration: number) => void;
@@ -85,7 +85,7 @@ const brand = {
 /** Stable: a new empty list each render would re-add SponsorSkip's track in a loop. */
 const NO_SEGMENTS: readonly SponsorSegment[] = [];
 
-/** The SponsorBlock colours as the variables player.css paints the timeline's marks with. */
+/** The SponsorBlock colors as the variables player.css paints the timeline's marks with. */
 function colorVariables(colors: SponsorBlockColors): CSSProperties {
   return Object.fromEntries(SPONSORBLOCK_COLOR_KEYS.map((k) => [`--uro-sb-${k}`, colors[k]]));
 }

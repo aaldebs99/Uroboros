@@ -48,7 +48,7 @@ export interface ShownSpan {
 
 /**
  * The bands the timeline draws: the shown segments, joined as `skipSpans` joins them but only
- * within one category (so each band has its category's colour) and never a band playback jumps
+ * within one category (so each band has its category's color) and never a band playback jumps
  * with one it plays through, so each reads as what it is. Bands of two categories may overlap.
  */
 export function shownSpans(segments: readonly SponsorSegment[]): ShownSpan[] {
@@ -111,7 +111,7 @@ const POINT = 1;
  * The cues of the timeline's SponsorBlock track (a metadata track labelled "skip", drawn by
  * patches/@videojs__react.patch): each id is `<kind>:<category>:<n>`, the kind `skip` for a band
  * playback jumps, `show` for one it plays through and `point` for the highlight; the markers take
- * their colour from the category.
+ * their color from the category.
  */
 export function timelineCues(
   segments: readonly SponsorSegment[],

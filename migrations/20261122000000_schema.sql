@@ -758,7 +758,7 @@ CREATE TABLE user_preferences (
     CHECK (sponsorblock_audio_show <@ ARRAY['sponsor','intro','outro','selfpromo','preview','hook','filler','interaction','music_offtopic']),
   sponsorblock_audio_skip TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
     CHECK (sponsorblock_audio_skip <@ ARRAY['sponsor','intro','outro','selfpromo','preview','hook','filler','interaction','music_offtopic']),
-  -- The colours their player draws SponsorBlock's segments and highlight in (category or
+  -- The colors their player draws SponsorBlock's segments and highlight in (category or
   -- poi_highlight → #rrggbb), only those changed from the SponsorBlock extension's.
   sponsorblock_colors JSONB NOT NULL DEFAULT '{}'
 );

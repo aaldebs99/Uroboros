@@ -93,7 +93,7 @@ An outlined box, 56px tall, with the label inside it at the top left and the val
   `SelectField`), which `index.css` uses to draw the open list as a [menu](#menus) where the browser
   allows (`appearance: base-select`: `bg-popover`, a hairline, `rounded-[12px]`, `shadow-menu`,
   rows `px-4 py-2.5`, the chosen one `bg-accent text-primary` with its check), and to give the
-  OS list the theme's colours elsewhere. Never a bare `<select>`.
+  OS list the theme's colors elsewhere. Never a bare `<select>`.
 - The compact variant is `h-9 text-[13px]`.
 - **A list too long to scroll** (the ~90 login sites) is a searchable `ComboboxField`
   (`components/ui/combobox-field.tsx`) instead: the outlined field's box with an input

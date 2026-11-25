@@ -11,7 +11,7 @@ taken from Djinn's (`docs/design/push.md` there), ported in behaviour rather tha
 
 `apps/web/public/manifest.webmanifest` is static and linked from `index.html`, so the dev server
 serves the same manifest as a build (iOS reads it when the icon is added to the Home Screen). Its
-`id`, `start_url` and `scope` are `/`, it opens `standalone`, and its theme and background colour
+`id`, `start_url` and `scope` are `/`, it opens `standalone`, and its theme and background color
 is the shell's dark sidebar token (`#010611`, the `.dark` `--sidebar` in `index.css`), also in the
 `theme-color` meta.
 
@@ -19,7 +19,7 @@ The icons are generated from `assets/logos/uroboros-transparent.svg`, the one so
 `mise run icons` copies it to `apps/web/public/uroboros.svg` (the favicon) and runs a pinned
 `@vite-pwa/assets-generator` through `pnpm dlx`, configured by `apps/web/pwa-assets.config.ts`:
 transparent 64, 192 and 512 px icons, a 48 px `favicon.ico`, and a maskable 512 px and an Apple
-180 px icon on the theme colour. The generator is not a dependency because it pulls in sharp, a
+180 px icon on the theme color. The generator is not a dependency because it pulls in sharp, a
 native module, for files that change only when the logo does. The output is committed; run the
 task again after changing the logo.
 
