@@ -1,8 +1,8 @@
-import type { Scenario } from "@uroboros/ytdlp/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { testBus } from "../../test/bus.ts";
 import { seedDownloadedEntry } from "../../test/library.ts";
+import { fakeSponsorBlock } from "../../test/sponsorBlock.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { PgBus } from "../db/notifications.ts";
@@ -33,22 +33,6 @@ afterAll(async () => {
 
 const user = (): Promise<SignedIn> => signedIn(testDb.db, { username: `rs${String(++n)}` });
 
-/** yt-dlp's probe of the video with SponsorBlock asked: these segments, or no key at all. */
-const probed = (sponsorblock_chapters?: unknown[]): Scenario => ({
-  steps: [
-    {
-      stdout: JSON.stringify({
-        id: "x",
-        extractor: "youtube",
-        extractor_key: "Youtube",
-        title: "A video",
-        duration: 1008,
-        ...(sponsorblock_chapters === undefined ? {} : { sponsorblock_chapters }),
-      }),
-    },
-  ],
-});
-
 const segmentsOf = async (renditionId: string) =>
   (
     await testDb.db
@@ -68,26 +52,42 @@ async function withOldSegments(renditionId: string) {
     .execute();
 }
 
-describe("refetching a video's SponsorBlock segments", () => {
-  it("replaces the file's segments with SponsorBlock's, by the profile's categories", async () => {
+/** Deps whose yt-dlp must never run, asking `sponsorBlock` instead. */
+const depsWith = async (sponsorBlock: ReturnType<typeof fakeSponsorBlock>) => ({
+  ...(await h.deps({ steps: [] })),
+  sponsorBlock,
+});
+
+let vid = 0;
+const videoId = () => `rsvid${String(++vid)}`;
+
+describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsorblock)", () => {
+  it("puts SponsorBlock's segments on the file and tells the asker how many they see", async () => {
     const u = await user();
-    const e = await seedDownloadedEntry(testDb.db, u.userId, {
-      args: { sponsorblockRemove: ["sponsor"] },
+    const id = videoId();
+    const e = await seedDownloadedEntry(testDb.db, u.userId, { videoId: id });
+    // The seeded file has no video stream, so the asker's audio choice counts.
+    await testDb.db
+      .insertInto("user_preferences")
+      .values({
+        user_id: u.userId,
+        sponsorblock_audio_show: ["sponsor"],
+        sponsorblock_audio_skip: ["sponsor"],
+      })
+      .execute();
+    const found = [
+      { start: 0, end: 9, category: "intro" as const },
+      { start: 49.04, end: 69, category: "sponsor" as const },
+    ];
+    const sb = fakeSponsorBlock({ [id]: found });
+    await refetchSkipsProcessor(await depsWith(sb))({
+      data: { entryId: e.entryId, userId: u.userId },
     });
-    const deps = await h.deps(
-      probed([
-        { start_time: 49.04, end_time: 69, category: "sponsor", type: "skip" },
-        { start_time: 77.694, end_time: 88.43, category: "selfpromo", type: "skip" },
-        { start_time: 120, end_time: 120, category: "poi_highlight", type: "poi" },
-      ]),
-    );
-    await refetchSkipsProcessor(deps)({ data: { entryId: e.entryId, userId: u.userId } });
-    expect(await segmentsOf(e.renditionId)).toEqual([
-      { start: 49.04, end: 69, category: "sponsor" },
-    ]);
-    const argv = await h.lastArgv();
-    expect(argv).toContain("--sponsorblock-mark=sponsor");
-    expect(argv).toContain(e.url);
+    expect(sb.asked).toEqual([id]);
+    // Every category is stored; the asker's setting only decides what they hear about.
+    expect(await segmentsOf(e.renditionId)).toEqual(found);
+    // yt-dlp never ran: the lookup is the server's own.
+    await expect(h.lastArgv()).rejects.toThrow();
     await expect
       .poll(() => heard)
       .toContainEqual({
@@ -101,9 +101,9 @@ describe("refetching a video's SponsorBlock segments", () => {
 
   it("finds none when SponsorBlock has none, and says so", async () => {
     const u = await user();
-    const e = await seedDownloadedEntry(testDb.db, u.userId);
+    const e = await seedDownloadedEntry(testDb.db, u.userId, { videoId: videoId() });
     await withOldSegments(e.renditionId);
-    await refetchSkipsProcessor(await h.deps(probed([])))({
+    await refetchSkipsProcessor(await depsWith(fakeSponsorBlock()))({
       data: { entryId: e.entryId, userId: u.userId },
     });
     expect(await segmentsOf(e.renditionId)).toEqual([]);
@@ -118,34 +118,13 @@ describe("refetching a video's SponsorBlock segments", () => {
       });
   });
 
-  it("keeps the old segments when yt-dlp fails, and says why", async () => {
+  it("keeps the old segments when SponsorBlock fails, and says why", async () => {
     const u = await user();
-    const e = await seedDownloadedEntry(testDb.db, u.userId);
+    const id = videoId();
+    const e = await seedDownloadedEntry(testDb.db, u.userId, { videoId: id });
     await withOldSegments(e.renditionId);
-    const failing: Scenario = {
-      steps: [{ stderr: "ERROR: Unable to communicate with SponsorBlock API: HTTP Error 503\n" }],
-      exitCode: 1,
-    };
-    await refetchSkipsProcessor(await h.deps(failing))({
-      data: { entryId: e.entryId, userId: u.userId },
-    });
-    expect(await segmentsOf(e.renditionId)).toEqual(OLD);
-    await expect
-      .poll(() => heard)
-      .toContainEqual(
-        expect.objectContaining({ kind: "skips", entryId: e.entryId, found: null }) as unknown,
-      );
-    const failed = heard.find((x) => (x as { entryId: string }).entryId === e.entryId) as {
-      error: string | null;
-    };
-    expect(failed.error).not.toBeNull();
-  });
-
-  it("keeps the old segments when yt-dlp never asked SponsorBlock", async () => {
-    const u = await user();
-    const e = await seedDownloadedEntry(testDb.db, u.userId);
-    await withOldSegments(e.renditionId);
-    await refetchSkipsProcessor(await h.deps(probed()))({
+    const sb = fakeSponsorBlock({ [id]: new Error("SponsorBlock answered 503") });
+    await refetchSkipsProcessor(await depsWith(sb))({
       data: { entryId: e.entryId, userId: u.userId },
     });
     expect(await segmentsOf(e.renditionId)).toEqual(OLD);
@@ -156,19 +135,21 @@ describe("refetching a video's SponsorBlock segments", () => {
         userId: u.userId,
         entryId: e.entryId,
         found: null,
-        error: "SponsorBlock was not asked about this video",
+        error: "SponsorBlock answered 503",
       });
   });
 
   it("does nothing for an entry that is gone, or someone else's", async () => {
     const [u, other] = [await user(), await user()];
-    const e = await seedDownloadedEntry(testDb.db, u.userId);
+    const e = await seedDownloadedEntry(testDb.db, u.userId, { videoId: videoId() });
     await withOldSegments(e.renditionId);
-    const deps = await h.deps(probed([]));
+    const sb = fakeSponsorBlock();
+    const deps = await depsWith(sb);
     await refetchSkipsProcessor(deps)({ data: { entryId: e.entryId, userId: other.userId } });
     await testDb.db.deleteFrom("library_entries").where("id", "=", e.entryId).execute();
     await refetchSkipsProcessor(deps)({ data: { entryId: e.entryId, userId: u.userId } });
     expect(await segmentsOf(e.renditionId)).toEqual(OLD);
+    expect(sb.asked).toEqual([]);
     expect(heard.some((x) => (x as { entryId: string }).entryId === e.entryId)).toBe(false);
   });
 });

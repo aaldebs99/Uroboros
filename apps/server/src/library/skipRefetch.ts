@@ -2,7 +2,7 @@ import type { Kysely } from "kysely";
 import { ApiError } from "../api/errors.ts";
 import type { Database } from "../db/schema.ts";
 import { ownEntry } from "../downloads/library.ts";
-import type { ProfileArgs } from "../downloads/profiles.ts";
+import { shiftsTimeline, type ProfileArgs } from "../downloads/profiles.ts";
 import type { DownloadQueues } from "../downloads/queues.ts";
 
 /**
@@ -13,10 +13,9 @@ import type { DownloadQueues } from "../downloads/queues.ts";
 /** One refetch per entry at a time: a second ask while one is live adds none. */
 export const skipsJobKey = (entryId: string): string => `skips:${entryId}`;
 
-/** What a refetch asks yt-dlp with: the profile arguments the file was made with, and its link. */
+/** What a refetch asks SponsorBlock about: the YouTube video the file is of. */
 export interface RefetchSource {
-  args: ProfileArgs;
-  url: string;
+  videoId: string;
 }
 
 /**
@@ -30,16 +29,16 @@ export function latestDownload(db: Kysely<Database>, renditionId: string) {
     .innerJoin("downloads as d", "d.rendition_id", "r.id")
     .where("r.id", "=", renditionId)
     .where("m.extractor", "=", "youtube")
-    .select(["d.args", "d.url"])
+    .select(["d.args", "m.video_id"])
     .orderBy("d.created_at", "desc")
     .limit(1);
 }
 
 /**
- * Where a file's segments can be fetched again: from the latest download that made it (every
- * download of one file shares its profile revision, so its arguments). Null for a file no download
- * made (an upload), a site SponsorBlock doesn't cover (it has YouTube's alone), an audio file (its
- * segments were cut out), or a profile that skips no category.
+ * Whether a file's segments can be fetched again, and of which video: a YouTube file a download
+ * made (every download of one file shares its profile revision, so its arguments). Null for a file
+ * no download made (an upload), a site SponsorBlock doesn't cover (it has YouTube's alone), or one
+ * whose extra arguments cut or trimmed it, so SponsorBlock's times no longer fit it.
  */
 export async function refetchSource(
   db: Kysely<Database>,
@@ -48,8 +47,8 @@ export async function refetchSource(
   const row = await latestDownload(db, renditionId).executeTakeFirst();
   if (row === undefined) return null;
   const args = row.args as ProfileArgs;
-  if (args.audioOnly || (args.sponsorblockRemove ?? []).length === 0) return null;
-  return { args, url: row.url };
+  if (shiftsTimeline(args.extraArgs)) return null;
+  return { videoId: row.video_id };
 }
 
 /**

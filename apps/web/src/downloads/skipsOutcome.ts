@@ -3,8 +3,8 @@ import type { DownloadEvent } from "@uroboros/contract";
 type Skips = Extract<DownloadEvent, { type: "skips" }>;
 
 /**
- * The toast for how a SponsorBlock refetch went (docs/automation.md#sponsorblock): the segments
- * the player now skips, none yet, or why it failed.
+ * The toast for how a SponsorBlock refetch went (docs/automation.md#sponsorblock): how many
+ * segments the person's setting shows or skips now, none yet, or why it failed.
  */
 export function skipsOutcome(e: Pick<Skips, "found" | "error">): {
   tone: "success" | "info" | "error";
@@ -19,7 +19,7 @@ export function skipsOutcome(e: Pick<Skips, "found" | "error">): {
     };
   }
   if (e.found === 0)
-    return { tone: "info", title: "SponsorBlock has no segments for this video yet" };
+    return { tone: "info", title: "No SponsorBlock segments you show or skip, yet" };
   const noun = e.found === 1 ? "segment" : "segments";
-  return { tone: "success", title: `Found ${String(e.found)} SponsorBlock ${noun} to skip` };
+  return { tone: "success", title: `Found ${String(e.found)} SponsorBlock ${noun}` };
 }

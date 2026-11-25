@@ -1,36 +1,27 @@
-import { probe, YtDlpError } from "@uroboros/ytdlp";
-import { toDownloadError } from "../downloads/errors.ts";
 import { publishDownloadEvent } from "../downloads/events.ts";
 import type { SkipsJob } from "../downloads/queues.ts";
+import { sponsorBlockOf } from "../library/preferences.ts";
 import { refetchSource } from "../library/skipRefetch.ts";
+import { sponsorSegmentsFor } from "../library/sponsorSegments.ts";
+import { SponsorBlockError } from "../sponsorblock/client.ts";
 import type { WorkerDeps } from "./deps.ts";
-import { withLoginsOf } from "./logins.ts";
-import { ytdlpOptions } from "./probe.ts";
-import { skipSegmentsFor } from "./skipSegments.ts";
-
-/** Why a refetch failed, for its person: yt-dlp's own last error line when it has no kind for it. */
-function failureText(err: unknown): string {
-  if (err instanceof YtDlpError && err.kind === "unknown") {
-    const line = [...err.stderrTail].reverse().find((l) => l.startsWith("ERROR: "));
-    if (line !== undefined) return line.slice("ERROR: ".length).slice(0, 300);
-  }
-  return toDownloadError(err).message;
-}
 
 /**
- * The probe queue's `skips` jobs (docs/automation.md#sponsorblock): asks yt-dlp for a video's
- * SponsorBlock segments again, with the categories its file was made with, and puts what the player
- * skips on the file, for everyone whose entry it is. A failure keeps the segments it had. Either
- * way the person who asked hears how it went (a `skips` event); an entry that is gone hears nothing.
+ * The probe queue's `skips` jobs (docs/automation.md#sponsorblock): asks SponsorBlock for a video's
+ * segments again, every category's, and puts them on the file, for everyone whose entry it is. A
+ * failure keeps the segments it had. Either way the person who asked hears how it went (a `skips`
+ * event, counting the segments their own setting shows or skips); an entry that is gone hears
+ * nothing.
  */
 export function refetchSkipsProcessor(deps: WorkerDeps) {
   return async (job: { data: SkipsJob }): Promise<void> => {
     const { entryId, userId } = job.data;
     const entry = await deps.db
-      .selectFrom("library_entries")
-      .select("rendition_id")
-      .where("id", "=", entryId)
-      .where("user_id", "=", userId)
+      .selectFrom("library_entries as e")
+      .innerJoin("renditions as r", "r.id", "e.rendition_id")
+      .select(["e.rendition_id", "r.video_codec"])
+      .where("e.id", "=", entryId)
+      .where("e.user_id", "=", userId)
       .executeTakeFirst();
     if (entry === undefined) return;
     const outcome = async (found: number | null, error: string | null) =>
@@ -40,27 +31,21 @@ export function refetchSkipsProcessor(deps: WorkerDeps) {
       await outcome(null, "this video has no SponsorBlock segments to fetch");
       return;
     }
-    const categories = [...(source.args.sponsorblockRemove ?? [])].sort().join(",");
     try {
-      const info = await probe(source.url, {
-        ...ytdlpOptions(await withLoginsOf(deps, userId)),
-        flat: false,
-        extraArgs: [`--sponsorblock-mark=${categories}`],
-      });
-      if (info.kind !== "video" || info.sponsorSegments === null) {
-        await outcome(null, "SponsorBlock was not asked about this video");
-        return;
-      }
-      const segments = skipSegmentsFor(source.args, info.sponsorSegments);
+      const segments = await deps.sponsorBlock.segments(source.videoId);
       await deps.db
         .updateTable("renditions")
         .set({ skip_segments: JSON.stringify(segments) })
         .where("id", "=", entry.rendition_id)
         .execute();
-      await outcome(segments.length, null);
+      const settings = await sponsorBlockOf(deps.db, userId);
+      await outcome(
+        sponsorSegmentsFor(segments, settings, entry.video_codec === null).length,
+        null,
+      );
     } catch (err) {
       deps.logger.warn({ err, entryId }, "refetching SponsorBlock segments failed");
-      await outcome(null, failureText(err));
+      await outcome(null, err instanceof SponsorBlockError ? err.message : "the refetch failed");
     }
   };
 }

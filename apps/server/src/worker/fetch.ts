@@ -15,7 +15,7 @@ import { renditionFacts } from "../transcode/facts.ts";
 import { indexKeyframes } from "../transcode/keyframes.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { upsertMedia } from "./media.ts";
-import { skipSegmentsFor } from "./skipSegments.ts";
+import { lookUpSegments } from "./fetchSegments.ts";
 import { createProgressPublisher } from "./progress.ts";
 import { afterAnswered, runWithSubtitles, waitForSite, waitIfLimited } from "./fetchWait.ts";
 import { findSubtitles, storeSubtitles } from "./subtitles.ts";
@@ -288,6 +288,8 @@ async function store(
     infoKey,
   });
   await storeSubtitles(deps, mediaId, key, await findSubtitles(file.path, file.info));
+  // Asked before the rendition's insert, outside any transaction: SponsorBlock can be slow.
+  const segments = await lookUpSegments(deps, data, data.args);
   const facts = renditionFacts(probed);
   await deps.db
     .insertInto("renditions")
@@ -299,7 +301,7 @@ async function store(
       size_bytes: size,
       container: ext,
       ...facts,
-      skip_segments: JSON.stringify(skipSegmentsFor(data.args, info.sponsorSegments ?? [])),
+      skip_segments: JSON.stringify(segments),
     })
     .onConflict((oc) => oc.columns(["media_id", "profile_id", "profile_revision"]).doNothing())
     .execute();

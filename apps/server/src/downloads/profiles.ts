@@ -50,6 +50,17 @@ function sponsorBlockArgs(args: ProfileArgs): string[] {
   return [`--sponsorblock-${verb}=${categories.join(",")}`];
 }
 
+/** Extra arguments that cut a file or trim it, so its times are no longer the video's. */
+const TIMELINE_MOVERS = ["--sponsorblock-remove", "--remove-chapters", "--download-sections"];
+
+/**
+ * Whether a profile's extra arguments move the file's timeline (docs/automation.md#sponsorblock):
+ * SponsorBlock's times would point at the wrong moments in it, so such a file keeps no segments.
+ */
+export function shiftsTimeline(extraArgs: readonly string[]): boolean {
+  return extraArgs.some((a) => TIMELINE_MOVERS.some((f) => a === f || a.startsWith(`${f}=`)));
+}
+
 /** The yt-dlp format selector and extra arguments a profile runs with. */
 export function ytdlpArgsFor(args: ProfileArgs): { format: string; extraArgs: string[] } {
   const shape =

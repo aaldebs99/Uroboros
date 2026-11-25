@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
-import { profileRevision, ytdlpArgsFor } from "./profiles.ts";
+import { profileRevision, shiftsTimeline, ytdlpArgsFor } from "./profiles.ts";
 
 const logger = pino({ level: "silent" });
 let testDb: TestDb;
@@ -139,6 +139,21 @@ describe("format profiles", () => {
     const other = FormatProfile.parse(await (await create()).json());
     expect((await patch(other.id, { name: "Mine" })).status).toBe(409);
     expect((await patch(other.id, { name: "Audio only (Opus)" })).status).toBe(409);
+  });
+});
+
+describe("shiftsTimeline", () => {
+  it("sees --sponsorblock-remove, --remove-chapters and --download-sections, joined or spaced", () => {
+    expect(shiftsTimeline(["--sponsorblock-remove=sponsor"])).toBe(true);
+    expect(shiftsTimeline(["--sponsorblock-remove", "all"])).toBe(true);
+    expect(shiftsTimeline(["--remove-chapters", "Intro"])).toBe(true);
+    expect(shiftsTimeline(["--embed-metadata", "--download-sections=*10-20"])).toBe(true);
+  });
+
+  it("leaves arguments that keep the file's times alone", () => {
+    expect(shiftsTimeline([])).toBe(false);
+    expect(shiftsTimeline(["--embed-chapters", "--sponsorblock-mark=all"])).toBe(false);
+    expect(shiftsTimeline(["--sponsorblock-remove-later"])).toBe(false);
   });
 });
 

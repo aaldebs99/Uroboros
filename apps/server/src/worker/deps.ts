@@ -1,5 +1,6 @@
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import type { PushService } from "../push/service.ts";
+import type { SponsorBlockClient } from "../sponsorblock/client.ts";
 import type { OpenedLogin } from "../siteLogins/forJobs.ts";
 import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
@@ -47,6 +48,8 @@ export interface WorkerDeps extends DownloadContext {
   transcoder: Transcoder;
   /** Whether new videos get hover preview clips (`UROBOROS_GENERATE_PREVIEWS`; docs/library.md). */
   generatePreviews: boolean;
+  /** SponsorBlock's API, asked for YouTube videos' segments (docs/automation.md#sponsorblock). */
+  sponsorBlock: SponsorBlockClient;
 }
 
 export interface Transcoder {

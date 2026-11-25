@@ -74,10 +74,13 @@ describe("refetching an entry's SponsorBlock segments", () => {
       await seedProfileless(t.db, me.userId, { uploadedBy: me.userId }),
       // No download row either (a file the download history no longer names).
       await seedEntry(t.db, me.userId),
+      // Its extra arguments cut the file: SponsorBlock's times no longer fit it.
       await seedDownloadedEntry(t.db, me.userId, {
-        args: { audioOnly: true, audioFormat: "opus" },
+        args: { extraArgs: ["--sponsorblock-remove=sponsor"] },
       }),
-      await seedDownloadedEntry(t.db, me.userId, { args: { sponsorblockRemove: [] } }),
+      await seedDownloadedEntry(t.db, me.userId, {
+        args: { extraArgs: ["--download-sections", "*0-60"] },
+      }),
       // SponsorBlock covers YouTube alone.
       await seedDownloadedEntry(t.db, me.userId, { extractor: "vimeo" }),
     ];
@@ -95,6 +98,15 @@ describe("refetching an entry's SponsorBlock segments", () => {
     const me = await user();
     const e = await seedDownloadedEntry(t.db, me.userId);
     expect((await item(me, e.entryId)).sponsorSegmentsRefetchable).toBe(true);
+  });
+
+  it("is offered on an audio download too, and on one whose profile skipped nothing", async () => {
+    const me = await user();
+    for (const args of [{ audioOnly: true, audioFormat: "opus" }, { sponsorblockRemove: [] }]) {
+      const e = await seedDownloadedEntry(t.db, me.userId, { args });
+      expect((await refetch(me, e.entryId)).status).toBe(202);
+      expect((await item(me, e.entryId)).sponsorSegmentsRefetchable).toBe(true);
+    }
   });
 
   it("finds the file's latest download by index, not by reading the whole download history", async () => {

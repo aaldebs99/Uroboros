@@ -4,6 +4,7 @@ import type { Config } from "../config.ts";
 import type { Database } from "../db/schema.ts";
 import type { DownloadQueues } from "../downloads/queues.ts";
 import type { PushService } from "../push/service.ts";
+import { SPONSORBLOCK_API, sponsorBlockClient } from "../sponsorblock/client.ts";
 import type { MediaStore } from "../storage/index.ts";
 import type { PlaybackBus } from "../transcode/bus.ts";
 import { transcoderPaths } from "../transcode/binaries.ts";
@@ -47,6 +48,7 @@ export function workerDeps(shared: SharedResources, config: Config, logger: Logg
     playbackBus: shared.playbackBus,
     transcoder: transcoderFor(config),
     generatePreviews: config.worker.generatePreviews,
+    sponsorBlock: sponsorBlockClient({ baseUrl: SPONSORBLOCK_API }),
   };
 }
 

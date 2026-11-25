@@ -3,21 +3,21 @@ import { describe, expect, it } from "vitest";
 import { skipsOutcome } from "./skipsOutcome";
 
 describe("skipsOutcome", () => {
-  it("says how many segments the player now skips", () => {
+  it("says how many segments the person's setting shows or skips now", () => {
     expect(skipsOutcome({ found: 1, error: null })).toEqual({
       tone: "success",
-      title: "Found 1 SponsorBlock segment to skip",
+      title: "Found 1 SponsorBlock segment",
     });
     expect(skipsOutcome({ found: 3, error: null })).toEqual({
       tone: "success",
-      title: "Found 3 SponsorBlock segments to skip",
+      title: "Found 3 SponsorBlock segments",
     });
   });
 
-  it("says when SponsorBlock has none yet", () => {
+  it("says when there are none of the kinds they show or skip yet", () => {
     expect(skipsOutcome({ found: 0, error: null })).toEqual({
       tone: "info",
-      title: "SponsorBlock has no segments for this video yet",
+      title: "No SponsorBlock segments you show or skip, yet",
     });
   });
 

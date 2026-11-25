@@ -74,6 +74,6 @@ describe("LiveEventsProvider", () => {
     // A copy cut from the old segments is no longer current: Save must not hand it out.
     expect(client.getQueryState(exportsKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(itemKey(ENTRY))?.isInvalidated).toBe(true);
-    expect(await screen.findByText("Found 3 SponsorBlock segments to skip")).toBeInTheDocument();
+    expect(await screen.findByText("Found 3 SponsorBlock segments")).toBeInTheDocument();
   });
 });

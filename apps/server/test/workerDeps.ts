@@ -13,6 +13,7 @@ import { busFor } from "./bus.ts";
 import { pino } from "pino";
 import type { WorkerDeps } from "../src/worker/deps.ts";
 import { downloadHarness } from "./downloads.ts";
+import { fakeSponsorBlock } from "./sponsorBlock.ts";
 
 /** What the fake ffprobe prints for a keyframe probe: keyframes at 0 and 2 s. */
 export const KEYFRAME_PACKETS = "0.000000,K__\n1.000000,___\n2.000000,K__\n";
@@ -77,6 +78,8 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
           memo: new PipelineMemo(),
         },
         generatePreviews: true,
+        // No test reaches SponsorBlock: every video has no segments unless a test says otherwise.
+        sponsorBlock: fakeSponsorBlock(),
       };
     },
     playbackBus,
