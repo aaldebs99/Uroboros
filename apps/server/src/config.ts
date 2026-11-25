@@ -201,7 +201,7 @@ const workerEnvSchema = z.object({
       .string()
       .regex(/^(0|[1-9]\d*)$/, "UROBOROS_TRANSCODE_CONCURRENCY must be 0 or a positive integer")
       .transform(Number)
-      .prefault("2"),
+      .prefault("10"),
   ),
   UROBOROS_TRANSCODE_HWACCEL: unsetIfEmpty(
     z

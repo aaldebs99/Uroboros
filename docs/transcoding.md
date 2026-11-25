@@ -195,7 +195,7 @@ Safari's native HLS, and VA-API on Intel, are built to spec but untested.
 
 | Variable                          | Default               | Meaning                                                  |
 | --------------------------------- | --------------------- | -------------------------------------------------------- |
-| `UROBOROS_TRANSCODE_CONCURRENCY`  | `2`                   | Sessions this replica runs at once; `0` runs none here   |
+| `UROBOROS_TRANSCODE_CONCURRENCY`  | `10`                  | Sessions this replica runs at once; `0` runs none here   |
 | `UROBOROS_TRANSCODE_HWACCEL`      | `none`                | This replica's GPU: `none` (the CPU), `nvenc` or `vaapi` |
 | `UROBOROS_TRANSCODE_VAAPI_DEVICE` | `/dev/dri/renderD128` | The VA-API render node                                   |
 

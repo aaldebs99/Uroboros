@@ -250,9 +250,9 @@ describe("loadConfig job consumers", () => {
 });
 
 describe("loadConfig transcoding", () => {
-  it("defaults to two sessions at a time on the CPU", () => {
+  it("defaults to ten sessions at a time on the CPU", () => {
     expect(loadConfig(base).worker.transcode).toEqual({
-      concurrency: 2,
+      concurrency: 10,
       hwaccel: "none",
       vaapiDevice: "/dev/dri/renderD128",
     });
