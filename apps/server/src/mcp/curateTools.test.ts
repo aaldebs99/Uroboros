@@ -103,4 +103,70 @@ describe("the MCP curating tools", () => {
     });
     expect(add.isError).toBe(true);
   });
+
+  it("let a share's recipient mark it watched, but never change its tags or Keep", async () => {
+    const sharer = await insertUser(testDb.db, { username: "mcpcurate3" });
+    const shared = await seedEntry(testDb.db, sharer, { title: "Shared" });
+    await testDb.db
+      .insertInto("entry_tags")
+      .values({ entry_id: shared.entryId, tag: "theirs" })
+      .execute();
+    const share = await testDb.db
+      .insertInto("shares")
+      .values({ owner_id: sharer, entry_id: shared.entryId, mode: "people" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await testDb.db
+      .insertInto("share_people")
+      .values({ share_id: share.id, user_id: owner })
+      .execute();
+
+    const watched = LibraryItem.parse(
+      await ok("update_entry", { entryId: shared.entryId, watched: true }),
+    );
+    expect(watched.progress?.watched).toBe(true);
+    for (const change of [{ tags: ["mine"] }, { kept: true }, { tags: [], watched: false }]) {
+      const r = await callTool(app, secret, "update_entry", { entryId: shared.entryId, ...change });
+      expect([change, r.isError]).toEqual([change, true]);
+    }
+    const tags = await testDb.db
+      .selectFrom("entry_tags")
+      .select("tag")
+      .where("entry_id", "=", shared.entryId)
+      .execute();
+    expect(tags.map((t) => t.tag)).toEqual(["theirs"]);
+    const row = await testDb.db
+      .selectFrom("library_entries")
+      .select("kept")
+      .where("id", "=", shared.entryId)
+      .executeTakeFirstOrThrow();
+    expect(row.kept).toBe(false);
+  });
+
+  it("never add to or take from someone else's playlist", async () => {
+    const stranger = await insertUser(testDb.db, { username: "mcpcurate4" });
+    const theirs = await seedEntry(testDb.db, stranger, { title: "Their list's" });
+    const list = await testDb.db
+      .insertInto("playlists")
+      .values({ user_id: stranger, name: "Theirs" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await testDb.db
+      .insertInto("playlist_items")
+      .values({ playlist_id: list.id, user_id: stranger, entry_id: theirs.entryId, position: 0 })
+      .execute();
+    const add = await callTool(app, secret, "add_to_playlist", {
+      playlistId: list.id,
+      entryIds: [a.entryId],
+    });
+    expect(add.isError).toBe(true);
+    const take = await callTool(app, secret, "remove_from_playlist", {
+      playlistId: list.id,
+      entryId: theirs.entryId,
+    });
+    expect(take.isError).toBe(true);
+    expect(await playlistEntryIds(testDb.db, stranger, { kind: "manual", id: list.id })).toEqual([
+      theirs.entryId,
+    ]);
+  });
 });
