@@ -186,9 +186,7 @@ their line stays as the file has it.
 
 **Seeking.** The scrub bar is a band along the tile's bottom with the bar raised inside it, so a
 pointer a little low still counts; a press seeks there, and a drag follows the pointer, even past
-the tile's edge, without opening the video. The wheel steps a second at a time while the preview
-plays, down forward and up back (a trackpad steps once per 100px of travel), instead of scrolling
-the page; before it plays, the wheel scrolls as ever.
+the tile's edge, without opening the video.
 
 The preview is never the player: it reports no watch progress, however far it plays or seeks.
 While it plays, the scrub bar takes the watched bar's place. Grid tiles have it (the library,

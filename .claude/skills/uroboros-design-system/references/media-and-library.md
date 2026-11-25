@@ -72,7 +72,7 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   `aria-pressed`, and a scrub bar that takes the watched bar's place while it plays: a 2rem band
   along the bottom with the bar raised inside it (`px-3 pb-2.5`; the watched bar's 4px track,
   6px with a 12px `bg-primary` knob while hovered or dragged, played in `bg-primary`), pressed to
-  seek and dragged to scrub. The wheel steps a second at a time. A press on a control never opens
+  seek and dragged to scrub. A press on a control never opens
   the video. It stops at the end, when the mouse leaves, another tile starts
   one, the tile scrolls away or a touch lands elsewhere. One plays at a time. It is never the
   player, so it reports no progress. The rows (suggestions, Up next, the playlist editor, the

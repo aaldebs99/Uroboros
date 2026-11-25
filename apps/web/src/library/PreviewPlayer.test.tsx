@@ -184,29 +184,6 @@ describe("a tile's preview player", () => {
     expect(document.querySelector("[data-preview]")).not.toBeNull();
   });
 
-  it("steps a second per wheel notch, back or forward, instead of scrolling the page", async () => {
-    const { v, surface } = await playing100();
-    v.currentTime = 10;
-    expect(fireEvent.wheel(surface, { deltaY: 100 })).toBe(false);
-    expect(v.currentTime).toBe(11);
-    fireEvent.wheel(surface, { deltaY: -100 });
-    expect(v.currentTime).toBe(10);
-    // Firefox counts lines.
-    fireEvent.wheel(surface, { deltaY: 3, deltaMode: 1 });
-    expect(v.currentTime).toBe(11);
-    // A trackpad's small nudges add up to a step.
-    fireEvent.wheel(surface, { deltaY: 40 });
-    expect(v.currentTime).toBe(11);
-    fireEvent.wheel(surface, { deltaY: 60 });
-    expect(v.currentTime).toBe(12);
-  });
-
-  it("leaves the wheel to scroll the page until the preview plays", () => {
-    serve({ previewUrl: STORED });
-    const { surface } = tile();
-    expect(fireEvent.wheel(surface, { deltaY: 100 })).toBe(true);
-  });
-
   it("never reports watch progress or touches the player's volume", async () => {
     serve({ previewUrl: STORED });
     const t = tile();
