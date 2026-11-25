@@ -3,8 +3,10 @@ import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { testBus } from "../../test/bus.ts";
 import { downloadHarness, post, seededDefault } from "../../test/downloads.ts";
 import { eventually } from "../../test/eventually.ts";
+import { withAdmin } from "../../test/pgAdmin.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { claim } from "../jobs/store.ts";
+import { lockKey } from "../shared/lockKeys.ts";
 import { dispatchFor, queueDownload } from "./dispatch.ts";
 import { fetchKey } from "./fetchKey.ts";
 import type { FetchJob } from "./queues.ts";
@@ -75,7 +77,7 @@ describe("per-user dispatch", () => {
     expect((await dispatched(u.userId)).map((d) => d.id)).toEqual([pasted]);
   });
 
-  it("never over-dispatches when two settle at once", async () => {
+  it("never over-dispatches when called three times at once", async () => {
     const u = await user();
     for (let i = 0; i < 8; i++) await queue(u.userId, `race-${String(i)}`);
     await Promise.all([
@@ -83,6 +85,35 @@ describe("per-user dispatch", () => {
       dispatchFor(h.ctx, u.userId),
       dispatchFor(h.ctx, u.userId),
     ]);
+    expect(await dispatched(u.userId)).toHaveLength(3);
+  });
+
+  it("waits for the person's other dispatch to commit before counting, so two settling at once never over-dispatch", async () => {
+    // Three calls at once rarely interleave badly: they count and pick the same rows together. The
+    // harm needs one to commit between another's count and its pick, so this shows the guard
+    // instead: while another session holds the person's dispatch lock, nothing is counted.
+    const u = await user();
+    for (let i = 0; i < 4; i++) await queue(u.userId, `held-${String(i)}`);
+    const key = lockKey("DOWN", u.userId).toString();
+    await withAdmin(testDb.url, async (holder) => {
+      await holder.query("BEGIN");
+      await holder.query("SELECT pg_advisory_xact_lock($1::bigint)", [key]);
+      const running = dispatchFor(h.ctx, u.userId);
+      running.catch(() => undefined);
+      await eventually(async () => {
+        const r = await holder.query<{ n: string }>(
+          `SELECT count(*)::text AS n FROM pg_locks
+           WHERE locktype = 'advisory' AND NOT granted
+             AND classid::bigint = ($1::bigint >> 32) AND objid::bigint = ($1::bigint & 4294967295)
+             AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`,
+          [key],
+        );
+        expect(r.rows[0]?.n).toBe("1");
+      });
+      expect(await dispatched(u.userId)).toHaveLength(0);
+      await holder.query("COMMIT");
+      expect(await running).toBe(3);
+    });
     expect(await dispatched(u.userId)).toHaveLength(3);
   });
 
