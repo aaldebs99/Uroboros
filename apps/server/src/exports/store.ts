@@ -9,6 +9,7 @@ import { sponsorBlockOf } from "../library/preferences.ts";
 import { skippedSegments } from "../library/sponsorSegments.ts";
 import { visibleEntry } from "../sharing/access.ts";
 import { cutSeconds, mergeCuts, type Span } from "./cuts.ts";
+import { exportFormatFor } from "./formats.ts";
 
 /**
  * Copies to save (docs/transcoding.md "Saving without SponsorBlock segments"): a person asks for a
@@ -16,8 +17,12 @@ import { cutSeconds, mergeCuts, type Span } from "./cuts.ts";
  * until they remove it (or the entry, its file or their account goes).
  */
 
-/** Where a copy is stored; the trash trigger deletes it with its row. */
-export const exportKey = (id: string): string => `.exports/${id}.mp4`;
+/**
+ * Where a copy is stored, by its format (extension; a video's is mp4); the trash trigger deletes it
+ * with its row.
+ */
+export const exportKey = (id: string, format = "mp4"): string => `.exports/${id}.${format}`;
+
 /** One job per copy: a second ask while one is live adds none. */
 export const exportJobKey = (id: string): string => `export:${id}`;
 
@@ -143,10 +148,15 @@ export async function createExport(
     .select([
       "r.skip_segments",
       "r.video_codec",
+      "r.container",
       sql<number | null>`coalesce(r.duration, m.duration)`.as("duration"),
     ])
     .where("r.id", "=", entry.rendition_id)
     .executeTakeFirstOrThrow();
+  const format = exportFormatFor(r);
+  if (format === null) {
+    throw new ApiError("bad_request", `a copy can't be made of a ${r.container ?? "this"} file`);
+  }
   const settings = await sponsorBlockOf(ctx.db, userId);
   const cuts = cutsFor(r, settings);
   if (cuts.length === 0)
@@ -176,6 +186,7 @@ export async function createExport(
                 entry_id: entryId,
                 rendition_id: entry.rendition_id,
                 cuts: json,
+                format,
               })
               .returning("id")
               .executeTakeFirstOrThrow()

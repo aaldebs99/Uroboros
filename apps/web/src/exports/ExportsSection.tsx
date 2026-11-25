@@ -89,7 +89,7 @@ function ExportRow({ copy }: { copy: Export }) {
 }
 
 /**
- * The Downloads page's copies to save: videos being re-encoded without their SponsorBlock segments,
+ * The Downloads page's copies to save: files being re-encoded without their SponsorBlock segments,
  * and the finished ones, kept to save from here until removed (docs/transcoding.md).
  */
 export function ExportsSection() {

@@ -4,6 +4,7 @@ import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { serve } from "../downloads/libraryRoutes.ts";
+import { contentTypeOf } from "../storage/contentType.ts";
 import { sanitizeSegment, type MediaStore } from "../storage/index.ts";
 import { createExport, listExports, ownExport, removeExport } from "./store.ts";
 
@@ -50,8 +51,10 @@ const fileRoute = createRoute({
   request: { params: idParams },
   responses: {
     200: {
-      description: "The copy",
-      content: { "video/mp4": { schema: z.string().openapi({ format: "binary" }) } },
+      description: "The copy: an MP4 of a video, or an audio file in its own container",
+      content: {
+        "application/octet-stream": { schema: z.string().openapi({ format: "binary" }) },
+      },
     },
     206: { description: "A byte range of it" },
     302: { description: "A presigned URL (S3 with a public URL set)" },
@@ -87,10 +90,10 @@ export function registerExportRoutes(app: OpenAPIHono, ctx: ExportContext | unde
     if (row.state !== "done" || row.storage_key === null) {
       throw new ApiError("not_found", "the copy is not ready");
     }
-    const filename = `${sanitizeSegment(row.title ?? row.video_id)} (no sponsors).mp4`;
+    const filename = `${sanitizeSegment(row.title ?? row.video_id)} (no sponsors).${row.format}`;
     const url = await store.downloadUrl(row.storage_key, filename);
     if (url !== null) return c.redirect(url, 302);
-    return serve(c, store, row.storage_key, "video/mp4", filename);
+    return serve(c, store, row.storage_key, contentTypeOf(row.format), filename);
   });
   app.openapi(removeRoute, async (c) => {
     await removeExport(need().db, currentPrincipal(c).userId, c.req.valid("param").id);

@@ -2,6 +2,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Chapter } from "@uroboros/contract";
 import {
+  audioExportArgs,
   chaptersMetadata,
   exportArgs,
   ffprobe,
@@ -17,12 +18,14 @@ import { z } from "zod";
 import type { ExportJob } from "../downloads/queues.ts";
 import { cutSeconds, keptRanges, remapChapters } from "../exports/cuts.ts";
 import { exportKey } from "../exports/store.ts";
+import { contentTypeOf } from "../storage/contentType.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import type { Processor } from "../jobs/queues.ts";
 import { sendNotice } from "../notices/send.ts";
 import { choosePipeline, encoderOf, pipelinesFor, sourceKey } from "../transcode/hwaccel.ts";
 import { h264Level, outputSize, rungFor } from "../transcode/ladder.ts";
 import type { WorkerDeps } from "./deps.ts";
+import { audioPlanFor } from "./exportAudio.ts";
 import { readInput } from "./sessionSource.ts";
 
 /**
@@ -125,6 +128,7 @@ async function loadCopy(deps: WorkerDeps, id: string) {
       "x.user_id",
       "x.state",
       "x.cuts",
+      "x.format",
       "r.storage_key",
       "m.title",
       "m.video_id",
@@ -171,8 +175,8 @@ async function makeCopy(deps: WorkerDeps, id: string, dir: string, signal: Abort
     throw new UnrecoverableError("the video's file can't be read", { cause: err });
   });
   const info = await ffprobe(input, { binary: t.ffprobe.binary, ...env(t.ffprobe.env), signal });
+  // A music file's cover art (an attached picture) is no video: such a file is copied as audio.
   const video = info.streams.find((s) => s.type === "video" && !s.attachedPic);
-  if (video === undefined) throw new UnrecoverableError("the file has no video");
   const audio = info.streams.find((s) => s.type === "audio") ?? null;
   const cuts = Spans.parse(row.cuts);
   const duration = info.duration;
@@ -181,15 +185,36 @@ async function makeCopy(deps: WorkerDeps, id: string, dir: string, signal: Abort
   const chapters = remapChapters(Chapters.safeParse(row.chapters).data ?? [], cuts, duration);
   const chaptersFile = chapters.length === 0 ? null : join(dir, "chapters.txt");
   if (chaptersFile !== null) await writeFile(chaptersFile, chaptersMetadata(chapters));
-  const output = join(dir, "copy.mp4");
+  const output = join(dir, `copy.${row.format}`);
   const offset = info.startTime ?? 0;
+  const ranges = keptRanges(cuts).map((r) => ({
+    start: r.start + offset,
+    end: r.end === null ? null : r.end + offset,
+  }));
+  if (video === undefined) {
+    const audioPlan = audioPlanFor(info, {
+      input,
+      output,
+      ranges,
+      chapters: chaptersFile,
+      format: row.format,
+    });
+    const encoder = audioPlan.encoder[1] ?? "audio";
+    const outcome = await encode(
+      deps,
+      id,
+      { args: audioExportArgs(audioPlan), encoder },
+      kept,
+      signal,
+    );
+    if (!outcome.ok) throw new EncodeFailed(outcome.reason);
+    await storeCopy(deps, row, output, encoder);
+    return;
+  }
   const plan = (pipeline: Pipeline): ExportPlan => ({
     input,
     output,
-    ranges: keptRanges(cuts).map((r) => ({
-      start: r.start + offset,
-      end: r.end === null ? null : r.end + offset,
-    })),
+    ranges,
     video: videoSettings(video, pipeline),
     audio: audio === null ? null : { index: audio.index },
     vaapiDevice: t.vaapiDevice,
@@ -213,7 +238,8 @@ async function encodeOnChain(
   const key = sourceKey(video);
   const chain = exportChain(deps);
   for (let pipeline = choosePipeline(chain, memo, key); ;) {
-    const outcome = await encode(deps, id, plan(pipeline), kept, signal);
+    const run = { args: exportArgs(plan(pipeline)), encoder: encoderOf(pipeline) };
+    const outcome = await encode(deps, id, run, kept, signal);
     if (outcome.ok) return encoderOf(pipeline);
     if (outcome.progressed || pipeline === "cpu") throw new EncodeFailed(outcome.reason);
     deps.logger.warn(
@@ -227,23 +253,19 @@ async function encodeOnChain(
 
 type Outcome = { ok: true } | { ok: false; progressed: boolean; reason: string };
 
-/** One ffmpeg run, its progress written to the row; a row gone stops it. */
+/** One ffmpeg run (`args`, encoding with `encoder`), its progress written to the row; a row gone stops it. */
 async function encode(
   deps: WorkerDeps,
   id: string,
-  plan: ExportPlan,
+  run: { args: string[]; encoder: string },
   kept: number | null,
   signal: AbortSignal,
 ): Promise<Outcome> {
   const t = deps.transcoder;
-  await deps.db
-    .updateTable("exports")
-    .set({ encoder: encoderOf(plan.video.pipeline) })
-    .where("id", "=", id)
-    .execute();
+  await deps.db.updateTable("exports").set({ encoder: run.encoder }).where("id", "=", id).execute();
   const proc = spawnStream({
     binary: t.ffmpeg.binary,
-    args: exportArgs(plan),
+    args: run.args,
     ...env(t.ffmpeg.env),
     signal,
   });
@@ -286,12 +308,12 @@ async function encode(
 /** Stores the copy, marks it done and tells its person; a row gone meanwhile takes the file back. */
 async function storeCopy(
   deps: WorkerDeps,
-  row: { id: string; user_id: string; title: string | null; video_id: string },
+  row: { id: string; user_id: string; title: string | null; video_id: string; format: string },
   output: string,
   encoder: string,
 ): Promise<void> {
-  const key = exportKey(row.id);
-  const { size } = await deps.store.put(key, output, "video/mp4");
+  const key = exportKey(row.id, row.format);
+  const { size } = await deps.store.put(key, output, contentTypeOf(row.format));
   const done = await deps.db
     .updateTable("exports")
     .set({

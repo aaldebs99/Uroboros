@@ -946,10 +946,12 @@ CREATE TABLE exports (
   entry_id UUID NOT NULL REFERENCES library_entries ON DELETE CASCADE,
   rendition_id UUID NOT NULL REFERENCES renditions ON DELETE CASCADE,
   cuts JSONB NOT NULL,
+  -- The copy's container, its file extension: mp4 for a video, an audio file's own (mp3, opus…).
+  format TEXT NOT NULL DEFAULT 'mp4' CHECK (format ~ '^[a-z0-9]{1,8}$'),
   state TEXT NOT NULL DEFAULT 'queued' CHECK (state IN ('queued', 'running', 'done', 'failed')),
   -- How far the encode is, 0 to 1, while it runs.
   progress REAL CHECK (progress BETWEEN 0 AND 1),
-  -- The encoder it ran on (libx264, nvenc or vaapi).
+  -- The encoder it ran on (libx264, nvenc or vaapi for a video; libmp3lame, flac… for audio).
   encoder TEXT,
   storage_key TEXT UNIQUE,
   size_bytes BIGINT CHECK (size_bytes >= 0),

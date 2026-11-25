@@ -27,8 +27,11 @@ afterAll(async () => {
   await t.close();
 });
 
-/** A copy queued of a fresh 3 s clip (the probe fixture), cutting 1–2 s, with two chapters. */
-async function queuedCopy(): Promise<{ id: string; userId: string }> {
+/**
+ * A copy queued of a fresh 3 s clip (the probe fixture), cutting 1–2 s, with two chapters, made as
+ * `format`.
+ */
+async function queuedCopy(format = "mp4"): Promise<{ id: string; userId: string }> {
   const me = await signedIn(t.db, { username: `xr${String(++n)}` });
   const e = await seedEntry(t.db, me.userId, { title: `Clip ${String(n)}` });
   await t.db
@@ -48,6 +51,7 @@ async function queuedCopy(): Promise<{ id: string; userId: string }> {
       entry_id: e.entryId,
       rendition_id: e.renditionId,
       cuts: JSON.stringify([{ start: 1, end: 2 }]),
+      format,
     })
     .returning("id")
     .executeTakeFirstOrThrow();
@@ -92,11 +96,11 @@ describe("making a copy without sponsors", () => {
       state: "done",
       progress: 1,
       encoder: "libx264",
-      storage_key: exportKey(copy.id),
+      storage_key: exportKey(copy.id, "mp4"),
       size_bytes: "9",
       error: null,
     });
-    expect(await readFile(join(h.root, exportKey(copy.id)), "utf8")).toBe("mp4 bytes");
+    expect(await readFile(join(h.root, exportKey(copy.id, "mp4")), "utf8")).toBe("mp4 bytes");
     const args = await ffmpegRun.argv();
     const graph = args[args.indexOf("-filter_complex") + 1];
     expect(graph).toContain("[0:0]trim=start=0.000:end=1.000");
@@ -159,5 +163,51 @@ describe("making a copy without sponsors", () => {
     await t.db.deleteFrom("exports").where("id", "=", copy.id).execute();
     await run;
     expect(await rowOf(copy.id)).toBeUndefined();
+  });
+});
+
+describe("making a copy of an audio file", () => {
+  /** ffprobe's view of a 3 s audio file of `codec`, with a cover picture as stream 1. */
+  const audioProbe = (codec: string, container: string) => ({
+    streams: [
+      { index: 0, codec_type: "audio", codec_name: codec, sample_rate: "44100", channels: 2 },
+      { index: 1, codec_type: "video", codec_name: "mjpeg", disposition: { attached_pic: 1 } },
+    ],
+    format: { format_name: container, start_time: "0.000000", duration: "3.000000" },
+  });
+
+  it("makes an MP3 copy of an MP3 with libmp3lame, keeping the cover", async () => {
+    const copy = await queuedCopy("mp3");
+    const out = join(h.workDir, `export-${copy.id}`, "copy.mp3");
+    const deps = await h.sessionDeps(
+      { steps: [progress(1), { writeFile: out, content: "mp3 bytes" }] },
+      audioProbe("mp3", "mp3"),
+    );
+    const ffmpegRun = h.runs.at(-2);
+    await exportProcessor(deps).process(job(copy.id));
+    expect(await rowOf(copy.id)).toMatchObject({
+      state: "done",
+      encoder: "libmp3lame",
+      storage_key: exportKey(copy.id, "mp3"),
+      error: null,
+    });
+    expect(await readFile(join(h.root, exportKey(copy.id, "mp3")), "utf8")).toBe("mp3 bytes");
+    const args = (await ffmpegRun?.argv()) ?? [];
+    expect(args.join(" ")).toContain("-c:a libmp3lame -q:a 0");
+    expect(args.join(" ")).toContain("-map 0:1 -c:v copy -disposition:v attached_pic");
+    expect(args[args.indexOf("-filter_complex") + 1]).toContain(
+      "[0:0]atrim=start=2.000,asetpts=PTS-STARTPTS[a1]",
+    );
+    expect(args.at(-1)).toBe(out);
+  });
+
+  it("fails a codec it can't encode again, saying which", async () => {
+    const copy = await queuedCopy("wma");
+    const deps = await h.sessionDeps({ steps: [] }, audioProbe("wmav2", "asf"));
+    await expect(exportProcessor(deps).process(job(copy.id))).rejects.toThrow();
+    expect(await rowOf(copy.id)).toMatchObject({
+      state: "failed",
+      error: "can't cut a wmav2 file",
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { baseArgs } from "./args.ts";
 import { exportArgs, type ExportPlan } from "./exportArgs.ts";
+import { audioExportArgs, type AudioExportPlan } from "./exportAudioArgs.ts";
 import { sessionArgs, type RunPlan } from "./ffmpegArgs.ts";
 import { inputArgs } from "./ffprobe.ts";
 import { grabFrame } from "./frame.ts";
@@ -84,6 +85,17 @@ const exported: ExportPlan = {
   title: "A video",
 };
 
+const audioCopy: AudioExportPlan = {
+  input: "/media/a.mp3",
+  output: "/work/copy.mp3",
+  ranges: [{ start: 0, end: 10 }],
+  audio: { index: 0 },
+  cover: null,
+  encoder: ["-c:a", "libmp3lame"],
+  muxer: "mp3",
+  chapters: "/work/chapters.txt",
+};
+
 const preview: PreviewPlan = {
   input: "/media/a.webm",
   output: "/work/preview.mp4",
@@ -119,6 +131,8 @@ describe("a downloaded or stored file is only ever read as a media container", (
     expectPinned(previewArgs({ ...preview, input: URL_INPUT }));
     expectPinned(exportArgs(exported));
     expectPinned(exportArgs({ ...exported, input: URL_INPUT }));
+    expectPinned(audioExportArgs(audioCopy));
+    expectPinned(audioExportArgs({ ...audioCopy, input: URL_INPUT }));
   });
 
   it("reads keyframes and frames with the input pinned", async () => {

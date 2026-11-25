@@ -210,37 +210,50 @@ as the preview stops.
 
 ## Saving without SponsorBlock segments
 
-A video keeps its SponsorBlock segments ([automation.md](automation.md#sponsorblock)), so the file
-Save gives has them. Save on a video with segments is a menu: **Original file**, or **Without
-sponsors**, a copy with the segments cut out, made by the server and saved from Downloads ›
-**Copies to save**. Cutting without re-encoding could only start each kept part at a keyframe,
-which leaves part of a sponsor in or puts the sound out of step, so the copy is re-encoded:
+Every file keeps its SponsorBlock segments ([automation.md](automation.md#sponsorblock)), so the
+file Save gives has them. Save on a file with segments its person skips is a menu: **Original
+file**, or **Without sponsors**, a copy with those segments cut out, made by the server and saved
+from Downloads › **Copies to save**. Cutting without re-encoding could only start each kept part
+at a keyframe, which leaves part of a sponsor in or puts the sound out of step, so the copy is
+re-encoded:
 
 - **Asking** (`POST /api/library/{id}/export`, any entry the person sees) records an `exports` row
-  with the cuts (the segments joined as the player joins them, `src/exports/cuts.ts`) and adds an
+  with the cuts (the segments its person skips by their own setting, the audio choice for a file
+  without video, joined as the player joins them, `src/exports/cuts.ts`), its format
+  (`src/exports/formats.ts`: `mp4` for a video, an audio file's own container), and adds an
   `export` job. Asking again for the same entry and cuts, while that copy is waiting, being made or
-  ready, answers with it; a failed one is reset and made again in its own row. A video with no
-  segments is refused. Once a copy is ready, Save › Without sponsors on the item page saves it
-  straight away, as long as it is `current`: cut from the segments the file has now. After a
-  SponsorBlock refetch changed them ([automation.md](automation.md#sponsorblock)), the old copy
+  ready, answers with it; a failed one is reset and made again in its own row. A file with nothing
+  the person skips, skipped segments that cover the whole file, or an audio file in a container a
+  copy can't write is refused. Once a copy is ready, Save › Without sponsors on the item page saves
+  it straight away, as long as it is `current`: cut from the segments the file has now, by the
+  setting its person has now. After a SponsorBlock refetch or a change of setting, the old copy
   stays under Copies to save, and Without sponsors asks for a new one with the new cuts.
-- **The job** (`src/worker/exportRun.ts`) runs on replicas that run sessions, one copy at a time.
-  It trims each kept range from the decoded frames and samples, joins them (`trim`/`atrim` and
-  `concat`, `packages/ytdlp/src/exportArgs.ts`), and encodes H.264 at the source's own size (its
-  rung's cap times 1.5, the level for its size) with AAC at 192 kbit/s, into an MP4 with
-  `+faststart`. The chapters are moved to the copy's timeline; a chapter the cuts swallow goes.
-  The GPU encodes when the replica has one, decoding on the CPU (`nvenc-sw`, `vaapi-sw`) so the
-  frames can be trimmed; a pipeline that fails before any output moves to the next, the CPU last,
-  as a session's does. HDR is tone-mapped to BT.709.
+- **The job for a video** (`src/worker/exportRun.ts`) runs on replicas that run sessions, one copy
+  at a time. It trims each kept range from the decoded frames and samples, joins them
+  (`trim`/`atrim` and `concat`, `packages/ytdlp/src/exportArgs.ts`), and encodes H.264 at the
+  source's own size (its rung's cap times 1.5, the level for its size) with AAC at 192 kbit/s, into
+  an MP4 with `+faststart`. The chapters are moved to the copy's timeline; a chapter the cuts
+  swallow goes. The GPU encodes when the replica has one, decoding on the CPU (`nvenc-sw`,
+  `vaapi-sw`) so the frames can be trimmed; a pipeline that fails before any output moves to the
+  next, the CPU last, as a session's does. HDR is tone-mapped to BT.709.
+- **The job for an audio file** (one with no video stream; cover art isn't one,
+  `src/worker/exportAudio.ts`) trims and joins the samples the same way (`atrim` and `concat`,
+  `packages/ytdlp/src/exportAudioArgs.ts`) and encodes them again with the file's own codec, into
+  its own container, so MP3 stays MP3 and lossless stays lossless: MP3 with `libmp3lame` (VBR
+  best), Opus with `libopus` (160 kbit/s), Vorbis with `libvorbis` (quality 6), AAC with `aac` (256
+  kbit/s), FLAC, ALAC and 16-, 24- and 32-bit PCM as themselves. The file's tags come along, its
+  cover where the container keeps one (MP3, M4A, MP4, FLAC, Matroska), and the chapters moved as a
+  video's are. Any other codec fails the copy, saying which.
 - **Progress** goes to the row every 2 s from ffmpeg's `-progress` output, and the page asks for it
   every 3 s while a copy is being made. A row deleted meanwhile (Remove) stops the run.
-- **Done**, the copy is stored at `.exports/<id>.mp4`, its person gets a push ("Ready to save",
-  under the downloads notification kind), and `GET /api/exports/{id}/file` serves it as
-  `<title> (no sponsors).mp4`. A failure records ffmpeg's reason; a run cut for shutdown goes back
-  to the queue.
+- **Done**, the copy is stored at `.exports/<id>.<format>`, its person gets a push ("Ready to
+  save", under the downloads notification kind), and `GET /api/exports/{id}/file` serves it as
+  `<title> (no sponsors).<format>`. A failure records ffmpeg's reason; a run cut for shutdown goes
+  back to the queue.
 - **Copies stay** until their person removes them. Deleting a row any way (Remove, or its person,
   entry or source file going) puts its file in `storage_trash` for the reaper. The leader's sweep
   (`src/exports/sweep.ts`) only fails a copy whose job is gone, so it can be asked for again.
+- **Public links** offer no copies: a link's download is the original file.
 
 ## Not yet
 

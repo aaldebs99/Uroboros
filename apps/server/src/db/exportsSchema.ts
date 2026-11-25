@@ -6,7 +6,7 @@ type Timestamp = ColumnType<Date, Date | string | undefined, Date | string>;
 
 export type ExportStateValue = "queued" | "running" | "done" | "failed";
 
-/** `exports`: a copy of an entry's video without its SponsorBlock segments, to save. */
+/** `exports`: a copy of an entry's file without the SponsorBlock segments its person skips, to save. */
 export interface ExportsTable {
   id: Generated<string>;
   user_id: string;
@@ -14,6 +14,8 @@ export interface ExportsTable {
   rendition_id: string;
   /** JSONB: the merged spans removed (`{ start, end }[]`, seconds on the file's timeline). */
   cuts: ColumnType<unknown, string, string>;
+  /** The copy's container, its extension: `mp4` for a video, an audio file's own (`mp3`, `opus`…). */
+  format: ColumnType<string, string | undefined, string>;
   state: ColumnType<ExportStateValue, ExportStateValue | undefined, ExportStateValue>;
   progress: number | null;
   encoder: string | null;

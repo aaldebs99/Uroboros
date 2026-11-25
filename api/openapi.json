@@ -5248,14 +5248,14 @@
         "responses": {
           "200": {
             "content": {
-              "video/mp4": {
+              "application/octet-stream": {
                 "schema": {
                   "format": "binary",
                   "type": "string"
                 }
               }
             },
-            "description": "The copy"
+            "description": "The copy: an MP4 of a video, or an audio file in its own container"
           },
           "206": {
             "description": "A byte range of it"

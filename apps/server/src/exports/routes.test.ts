@@ -260,6 +260,75 @@ describe("a copy's cuts follow its person's SponsorBlock setting (docs/automatio
   });
 });
 
+describe("a copy's format (docs/transcoding.md)", () => {
+  /** An entry of `me`'s whose file is `container`, with or without video, and one skipped segment. */
+  async function fileOf(me: SignedIn, container: string, videoCodec: string | null) {
+    const e = await entryWith(me);
+    await t.db
+      .updateTable("renditions")
+      .set({ container, video_codec: videoCodec })
+      .where("id", "=", e.renditionId)
+      .execute();
+    return e;
+  }
+  const formatOf = async (id: string) =>
+    (
+      await t.db
+        .selectFrom("exports")
+        .select("format")
+        .where("id", "=", id)
+        .executeTakeFirstOrThrow()
+    ).format;
+
+  it("is MP4 for a video, and the audio file's own container for audio", async () => {
+    const me = await user();
+    const video = await fileOf(me, "webm", "vp9");
+    const audio = await fileOf(me, "mp3", null);
+    const v = Export.parse(
+      await (await post(app(me), `/api/library/${video.entryId}/export`)).json(),
+    );
+    const a = Export.parse(
+      await (await post(app(me), `/api/library/${audio.entryId}/export`)).json(),
+    );
+    expect(await formatOf(v.id)).toBe("mp4");
+    expect(await formatOf(a.id)).toBe("mp3");
+  });
+
+  it("refuses an audio file in a container a copy can't write (400)", async () => {
+    const me = await user();
+    const e = await fileOf(me, "wma", null);
+    const res = await post(app(me), `/api/library/${e.entryId}/export`);
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("wma");
+  });
+
+  it("serves an audio copy as '<title> (no sponsors).mp3', as audio/mpeg", async () => {
+    const me = await user();
+    const e = await fileOf(me, "mp3", null);
+    const made = Export.parse(
+      await (await post(app(me), `/api/library/${e.entryId}/export`)).json(),
+    );
+    const src = join(await mkdtemp(join(tmpdir(), "uroboros-exports-src-")), "copy.mp3");
+    await writeFile(src, "ID3");
+    await store.put(exportKey(made.id, "mp3"), src, "audio/mpeg");
+    await t.db
+      .updateTable("exports")
+      .set({
+        state: "done",
+        progress: 1,
+        storage_key: exportKey(made.id, "mp3"),
+        size_bytes: 3,
+        finished_at: new Date(),
+      })
+      .where("id", "=", made.id)
+      .execute();
+    const file = await app(me).request(`/api/exports/${made.id}/file`);
+    expect(file.status).toBe(200);
+    expect(file.headers.get("content-type")).toBe("audio/mpeg");
+    expect(file.headers.get("content-disposition")).toContain("(no%20sponsors).mp3");
+  });
+});
+
 describe("a copy once made", () => {
   async function finished(me: SignedIn) {
     const e = await entryWith(me);
@@ -268,13 +337,13 @@ describe("a copy once made", () => {
     );
     const src = join(await mkdtemp(join(tmpdir(), "uroboros-exports-src-")), "copy.mp4");
     await writeFile(src, "0123456789");
-    await store.put(exportKey(made.id), src, "video/mp4");
+    await store.put(exportKey(made.id, "mp4"), src, "video/mp4");
     await t.db
       .updateTable("exports")
       .set({
         state: "done",
         progress: 1,
-        storage_key: exportKey(made.id),
+        storage_key: exportKey(made.id, "mp4"),
         size_bytes: 10,
         finished_at: new Date(),
       })
@@ -318,7 +387,7 @@ describe("a copy once made", () => {
     const trash = await t.db
       .selectFrom("storage_trash")
       .select("key")
-      .where("key", "=", exportKey(made.id))
+      .where("key", "=", exportKey(made.id, "mp4"))
       .execute();
     expect(trash).toHaveLength(1);
     expect((await app(me).request(`/api/exports/${made.id}/file`)).status).toBe(404);
