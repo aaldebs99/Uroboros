@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { useExports } from "@/api/exports";
 import { fakeApi } from "@/test/fakeApi";
 import { renderWithQuery } from "@/test/render";
 
@@ -34,9 +35,22 @@ afterEach(() => {
 describe("ExportsSection", () => {
   it("shows nothing without copies", async () => {
     fakeApi({ "GET /api/exports": () => Response.json([]) });
-    const { container } = renderWithQuery(<ExportsSection />);
-    await new Promise((r) => setTimeout(r, 20));
-    expect(container).toBeEmptyDOMElement();
+    // The section is empty while loading too: a probe on the same query says when the empty
+    // list has arrived.
+    function Settled() {
+      return useExports().isSuccess ? <p>settled</p> : null;
+    }
+    const { container } = renderWithQuery(
+      <>
+        <div data-testid="section">
+          <ExportsSection />
+        </div>
+        <Settled />
+      </>,
+    );
+    await screen.findByText("settled");
+    expect(screen.getByTestId("section")).toBeEmptyDOMElement();
+    expect(container).not.toBeEmptyDOMElement();
   });
 
   it("shows each copy's state, how far it is, and a Save once ready", async () => {

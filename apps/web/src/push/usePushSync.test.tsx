@@ -18,6 +18,11 @@ function Probe() {
   return null;
 }
 
+/** How often the hook looked at the browser's subscription: it has begun mending once it has. */
+let looks = 0;
+/** Requests the fake server had no answer for (asserted after each test, not swallowed). */
+const unexpected: string[] = [];
+
 function browser(permission: NotificationPermission, existing: object | null) {
   const subscribe = vi.fn(() => Promise.resolve(fresh));
   vi.stubGlobal("Notification", { permission });
@@ -26,7 +31,13 @@ function browser(permission: NotificationPermission, existing: object | null) {
     configurable: true,
     value: {
       ready: Promise.resolve({
-        pushManager: { getSubscription: () => Promise.resolve(existing), subscribe },
+        pushManager: {
+          getSubscription: () => {
+            looks++;
+            return Promise.resolve(existing);
+          },
+          subscribe,
+        },
       }),
     },
   });
@@ -54,7 +65,8 @@ function server(devices: string[], turnedOffElsewhere = false) {
       if (url.startsWith("/api/me/push/devices/status?endpoint=")) {
         return Promise.resolve(Response.json({ known: false, turnedOffElsewhere }));
       }
-      expect(input).toBe("/api/me/push");
+      // An expect here would throw inside fetch, which the hook's catch-all swallows.
+      if (url !== "/api/me/push") unexpected.push(url);
       return Promise.resolve(
         Response.json({
           enabled: true,
@@ -77,6 +89,8 @@ function server(devices: string[], turnedOffElsewhere = false) {
 afterEach(() => {
   Reflect.deleteProperty(navigator, "serviceWorker");
   localStorage.clear();
+  looks = 0;
+  expect(unexpected.splice(0)).toEqual([]);
 });
 
 describe("usePushSync", () => {
@@ -134,7 +148,11 @@ describe("usePushSync", () => {
     const subscribe = browser("granted", null);
     const posted = server([]);
     renderWithQuery(<Probe />);
-    await new Promise((r) => setTimeout(r, 20));
+    // It has read the server's view and looked at the browser's subscription, and decided.
+    await waitFor(() => {
+      expect(looks).toBe(1);
+    });
+    await new Promise((r) => setTimeout(r, 0));
     expect(subscribe).not.toHaveBeenCalled();
     expect(posted).toEqual([]);
   });
