@@ -36,8 +36,8 @@ that flag's pattern and re-emits everything as `--name` or `--name=value`, so yt
 sees spellings the wrapper wrote. Anything else fails as `invalid_arguments` before anything
 spawns, including a bare `--` or a positional argument. The flags that pace a download are
 bounded too (`--limit-rate` at least 100K, retries at most 50 and never `infinite`, sleeps and
-`--socket-timeout` at most 300 s), so no profile can hold a download slot until the fetch times
-out. The basic set covers rate limits,
+`--socket-timeout` at most 300 s, and no `--throttled-rate`, whose re-extraction loop sleeps
+again on every pass), so no profile can crawl a download along until the fetch times out. The basic set covers rate limits,
 retries and sleeps, playlist selection and filters, format sorting and remuxing, audio
 extraction, subtitles, thumbnails, metadata, chapters, SponsorBlock and filename sanitising. To
 allow another flag, add a row to the table. Never add one that takes a path, a URL, a binary, or

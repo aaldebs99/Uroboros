@@ -117,7 +117,10 @@ channel ([jobs.md](jobs.md)).
 yt-dlp presets (`format_profiles`, `src/downloads/profiles.ts`): a format selector, a container to
 merge into, or audio-only with an audio format, SponsorBlock categories to get rid of, and extra arguments
 from the wrapper's allowlist (each value checked against its flag's pattern, and the pacing ones
-bounded: `--limit-rate` at least 100K, retries at most 50, sleeps at most 300 s; checked by the
+bounded: `--limit-rate` at least 100K, retries at most 50, sleeps at most 300 s, and no
+`--throttled-rate`, whose re-extraction loop sleeps again on every pass. The floor still lets a
+download of more than about 2 GB, or one from a slow server, run into the 6-hour fetch timeout,
+holding one of its owner's slots until then; checked by the
 server with `@uroboros/ytdlp/flags` when saved, and
 again, with the server's own subtitle arguments, when the job runs; its one extractor argument is
 `youtube:skip=translated_subs`, which those use, [library.md](library.md#subtitles-and-chapters)). `revision` hashes the file-shaping arguments, and renditions are keyed by

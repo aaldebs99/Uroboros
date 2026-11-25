@@ -27,7 +27,9 @@ const TEXT = /^\P{Cc}+$/u;
 const FLAGS: Readonly<Record<string, RegExp | null>> = {
   // Network and pacing.
   "limit-rate": RATE,
-  "throttled-rate": RATE,
+  // Not `--throttled-rate`: below that rate yt-dlp re-extracts and downloads again, sleeping
+  // `--sleep-interval` before each pass, so a high one turns a fetch into seconds of data every
+  // few minutes until the fetch timeout.
   retries: RETRIES,
   "fragment-retries": RETRIES,
   "extractor-retries": RETRIES,

@@ -164,6 +164,10 @@ describe("normalizeExtraArgs", () => {
     ]);
   });
 
+  it("refuses --throttled-rate, whose re-extraction loop sleeps again on every pass", () => {
+    expect(refusal(["--throttled-rate=100K"])).toBe("not an allowed flag: --throttled-rate=100K");
+  });
+
   it("names the offending token", () => {
     expect(refusal(["--embed-subs", "--exe", "id"])).toBe("not an allowed flag: --exe");
   });
