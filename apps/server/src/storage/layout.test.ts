@@ -92,6 +92,32 @@ describe("renderLayout", () => {
     }
   });
 
+  it("cuts the title before the id, so long same-named links keep apart", () => {
+    const name = "2024-05-01_quarterly_all_hands_meeting_recording";
+    const generic = (hash: string): MediaNames => ({
+      ...bunny,
+      extractor: "generic",
+      title: name,
+      id: `${name}~${hash}`,
+      channel: null,
+      uploader: null,
+    });
+    const [a, b] = [generic("9f8519cd39c6bb87"), generic("29213998d8ec8a56")];
+    const fs = { kind: "filesystem", layout: DEFAULT_LAYOUT } as const;
+    expect(renderLayout(DEFAULT_LAYOUT, a)).not.toBe(renderLayout(DEFAULT_LAYOUT, b));
+    expect(sidecarKey(fs, "m1", a, "thumbnail", "jpg")).not.toBe(
+      sidecarKey(fs, "m2", b, "thumbnail", "jpg"),
+    );
+    expect(renderLayout(DEFAULT_LAYOUT, a).split("/")[1]).toMatch(/~9f8519cd39c6bb87\]$/);
+  });
+
+  it("keeps an id's end when even the id alone is too long", () => {
+    const id = `${"n".repeat(150)}~9f8519cd39c6bb87`;
+    const seg = renderLayout(DEFAULT_LAYOUT, { ...bunny, id }).split("/")[1] ?? "";
+    expect(Buffer.byteLength(seg)).toBeLessThanOrEqual(100);
+    expect(seg).toMatch(/~9f8519cd39c6bb87\]$/);
+  });
+
   it("never leaves the root, whatever the metadata", () => {
     const root = "/media";
     for (const evil of ["../../etc", "/abs", "..", ".", "a/../../b", "\u0000"]) {

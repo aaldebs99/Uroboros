@@ -175,7 +175,8 @@ another file holds the path, `freeKey` adds the short revision, and then the pro
   then every path segment, is sanitized: no separators or control characters, no leading dots, at
   most 100 bytes on a character boundary, never empty. When a segment would pass 100 bytes, the
   longest token values are cut, never the literal text, so `[{id}]`, `[{profile}]` and `.{ext}`
-  survive a long title. A custom layout must use `{id}`, `{profile}` and `{ext}`. A file name carries
+  survive a long title. `{id}` is cut last and from its start, since a generic link's id ends in
+  the hash that keeps two same-named links apart. A custom layout must use `{id}`, `{profile}` and `{ext}`. A file name carries
   the profile's name, not its revision, so when an edited profile's file would land on another
   revision's path, the short revision is added before the extension; `renditions.storage_key` is
   unique. Writes go to a temp file and are renamed
