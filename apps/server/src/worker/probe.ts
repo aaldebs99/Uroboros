@@ -11,6 +11,7 @@ import type { WorkerDeps } from "./deps.ts";
 import { withLoginsOf } from "./logins.ts";
 import { mediaVideoId } from "../library/mediaKey.ts";
 import { upsertMedia } from "./media.ts";
+import { probeAnswered, waitForProbeSite, waitIfProbeLimited } from "./probeWait.ts";
 
 const PROBE_TIMEOUT_MS = 120_000;
 
@@ -265,13 +266,17 @@ export function probeProcessor(deps: Deps) {
   return async (job: { data: ProbeJob }): Promise<void> => {
     const req = await deps.db
       .selectFrom("download_requests")
-      .select(["id", "user_id", "profile_id", "url", "state", "intent"])
+      .select(["id", "user_id", "profile_id", "url", "state", "intent", "retry_at"])
       .where("id", "=", job.data.requestId)
       .executeTakeFirst();
     if (req?.state !== "probing") return;
+    // A site rate-limiting this server is not asked: the request waits, probing (throws).
+    await waitForProbeSite(deps, req);
     try {
       await resolve(deps, req);
+      await probeAnswered(deps, req);
     } catch (err) {
+      await waitIfProbeLimited(deps, req, err);
       const failure = toDownloadError(err);
       deps.logger.warn({ err, requestId: req.id }, "probe failed");
       await deps.db

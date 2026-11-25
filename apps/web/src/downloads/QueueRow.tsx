@@ -5,7 +5,7 @@ import { DownloadBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 
-import { DOWNLOAD_ERROR_TEXT } from "./errorText";
+import { DOWNLOAD_ERROR_TEXT, rateLimitWait } from "./errorText";
 import { LoginHint } from "./LoginHint";
 import { YtDlpDetails } from "./YtDlpDetails";
 import { progressDetail } from "./format";
@@ -81,6 +81,9 @@ export function QueueRow({
         <p className="truncate font-medium">{title}</p>
         <StateLine download={download} progress={live} meta={meta} />
         {download.state === "failed" ? <Failure download={download} /> : null}
+        {active && download.errorKind === "rate_limited" && download.retryAt !== null ? (
+          <p className="text-sm text-muted-foreground">{rateLimitWait(download.retryAt)}</p>
+        ) : null}
       </div>
       {active ? (
         <Button variant="ghostDestructive" size="icon" aria-label="Cancel" onClick={onCancel}>

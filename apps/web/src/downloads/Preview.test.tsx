@@ -34,6 +34,7 @@ const preview = (selected: string[] | null) => ({
   errorKind: null,
   errorMessage: null,
   stderrTail: [],
+  retryAt: null,
   selected,
   createdAt: "2026-11-22T10:00:00.000Z",
 });
@@ -90,6 +91,27 @@ describe("a preview's picks", () => {
     await userEvent.click(await screen.findByRole("checkbox", { name: "Video v1" }));
     expect(await screen.findByText(/Couldn't save your picks/)).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Video v1" })).not.toBeChecked();
+  });
+
+  it("says when a link waiting out its site's rate limit is looked at again", async () => {
+    const retryAt = "2026-11-25T14:05:00.000Z";
+    fakeApi({
+      [`GET /api/downloads/requests/${ID}`]: () =>
+        Response.json({
+          ...preview(null),
+          state: "probing",
+          kind: null,
+          groups: [],
+          errorKind: "rate_limited",
+          retryAt,
+        }),
+    });
+    show();
+    const at = new Date(retryAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    expect(
+      await screen.findByText(`The site is limiting requests. Trying again at ${at}.`),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Looking at the link/)).toBeInTheDocument();
   });
 
   it("says a preview that is gone expired", async () => {

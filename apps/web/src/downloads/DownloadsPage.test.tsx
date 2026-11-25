@@ -50,6 +50,7 @@ const download = (over: Record<string, unknown> = {}) => ({
   errorKind: null,
   errorMessage: null,
   stderrTail: [],
+  retryAt: null,
   attempts: 1,
   createdAt: T,
   startedAt: T,
@@ -81,6 +82,7 @@ const choosingRequest = {
   errorKind: null,
   errorMessage: null,
   stderrTail: [],
+  retryAt: null,
   selected: null,
   createdAt: T,
 };
@@ -270,6 +272,23 @@ describe("DownloadsPage", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.path === `/api/downloads/${failed.id}/retry`)).toBe(true);
     });
+  });
+
+  it("says when a download waiting out its site's rate limit tries again", async () => {
+    const retryAt = "2026-11-25T14:05:00.000Z";
+    const waiting = download({ state: "queued", errorKind: "rate_limited", retryAt });
+    api({ "GET /api/downloads": () => Response.json([waiting]) });
+    renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
+    const at = new Date(retryAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    expect(
+      await screen.findByText(`The site is limiting requests. Trying again at ${at}.`),
+    ).toBeInTheDocument();
+    // Still waiting, so still cancellable.
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   it("cancels a running download", async () => {

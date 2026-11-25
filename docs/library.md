@@ -232,7 +232,8 @@ site that rate-limits them. A non-English video's English automatic captions are
 translation of its speech. yt-dlp fetches subtitles before the media and fails the whole run when
 one cannot be had (an HTTP 429 on YouTube's captions, say), so a fetch that fails that way runs once
 more without the subtitle arguments (`withSubtitleFallback`, `src/worker/subtitles.ts`): the video
-arrives, with whatever subtitles the first run finished. Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
+arrives, with whatever subtitles the first run finished. When the site rate-limited them, they
+come later, once its cooldown is over ([downloads.md](downloads.md#rate-limits)). Each `.vtt` is stored beside the file (`media/<id>/subs/<lang>.vtt`
 on S3; in the folder layout, beside the media file and named after it, `<file>.<lang>.vtt`, so
 videos that share a title never share a subtitle; one that cannot be stored is skipped) and recorded in `subtitles`. Chapters come from
 the `.info.json` into `media.chapters`.

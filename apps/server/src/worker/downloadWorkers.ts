@@ -11,7 +11,8 @@ import { uploadProcessor } from "../uploads/process.ts";
 import { exportProcessor } from "./exportRun.ts";
 import { previewProcessor } from "./previewRun.ts";
 import { refetchSkipsProcessor } from "./refetchSkips.ts";
-import type { ProbeJob, SkipsJob } from "../downloads/queues.ts";
+import { subtitlesProcessor } from "./subtitlesJob.ts";
+import type { ProbeJob, SkipsJob, SubtitlesJob } from "../downloads/queues.ts";
 
 /** Pushes sent at once per replica. */
 const NOTIFY_CONCURRENCY = 4;
@@ -64,9 +65,14 @@ export async function startDownloadWorkers(
   const previews = previewProcessor(deps);
   const probes = probeProcessor(deps);
   const skips = refetchSkipsProcessor(deps);
-  // One queue, two kinds of job: a pasted link's probe, or a SponsorBlock refetch (`skips`).
-  const probeQueue = (job: { name: string; data: ProbeJob | SkipsJob }) =>
-    job.name === "skips" ? skips(job as { data: SkipsJob }) : probes(job as { data: ProbeJob });
+  const subtitles = subtitlesProcessor(deps);
+  // One queue, three kinds of job: a pasted link's probe, a SponsorBlock refetch (`skips`), or the
+  // subtitles a rate limit held back (`subtitles`).
+  const probeQueue = (job: { name: string; data: ProbeJob | SkipsJob | SubtitlesJob }) => {
+    if (job.name === "skips") return skips(job as { data: SkipsJob });
+    if (job.name === "subtitles") return subtitles(job as { data: SubtitlesJob });
+    return probes(job as { data: ProbeJob });
+  };
   const consumers: Consumer[] = [
     {
       queue: "probe",

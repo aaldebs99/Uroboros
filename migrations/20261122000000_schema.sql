@@ -375,6 +375,9 @@ CREATE TABLE download_requests (
   error_message TEXT,
   -- A failed probe's last stderr lines from yt-dlp, redacted, shown under the error.
   stderr_tail TEXT[] NOT NULL DEFAULT '{}',
+  -- While a probe waits out its site's rate limit (docs/downloads.md "Rate limits"): when it tries
+  -- again; error_kind is 'rate_limited' meanwhile.
+  retry_at TIMESTAMPTZ,
   -- A playlist's own id, so queueing it records the playlist (docs/library.md).
   source_extractor TEXT,
   source_id TEXT,
@@ -415,6 +418,9 @@ CREATE TABLE downloads (
   error_message TEXT,
   stderr_tail TEXT[] NOT NULL DEFAULT '{}',
   attempts INTEGER NOT NULL DEFAULT 0,
+  -- While the fetch waits out its site's rate limit (docs/downloads.md "Rate limits"): when it
+  -- tries again; it is queued, with error_kind 'rate_limited', meanwhile.
+  retry_at TIMESTAMPTZ,
   -- 0 first: pasted links and new uploads; 1 behind them: a subscription's backfill.
   priority SMALLINT NOT NULL DEFAULT 0 CHECK (priority IN (0, 1)),
   subscription_id UUID REFERENCES subscriptions ON DELETE SET NULL,
@@ -429,6 +435,17 @@ CREATE INDEX downloads_fetch_idx ON downloads (fetch_key) WHERE state IN ('queue
 -- A file's latest download, which a SponsorBlock refetch reads its profile arguments from; every
 -- item page asks (src/library/skipRefetch.ts).
 CREATE INDEX downloads_rendition_idx ON downloads (rendition_id, created_at DESC);
+
+-- A site limiting this server's requests (docs/downloads.md "Rate limits"): nothing ('site') or no
+-- subtitle ('subtitles') is asked of it until `until`. `strikes` counts the limits in a row, which
+-- the wait grows with when the site gives no time; a run that succeeds after `until` clears it.
+CREATE TABLE site_cooldowns (
+  site TEXT NOT NULL,
+  scope TEXT NOT NULL CHECK (scope IN ('site', 'subtitles')),
+  until TIMESTAMPTZ NOT NULL,
+  strikes INTEGER NOT NULL CHECK (strikes > 0),
+  PRIMARY KEY (site, scope)
+);
 
 -- What a subscription has seen: an entry with a final outcome is never reconsidered (so a video
 -- retention removed is not fetched again); `waiting` ones (upcoming, or held for the delay) are.

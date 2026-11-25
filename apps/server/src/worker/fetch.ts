@@ -17,7 +17,8 @@ import type { WorkerDeps } from "./deps.ts";
 import { upsertMedia } from "./media.ts";
 import { skipSegmentsFor } from "./skipSegments.ts";
 import { createProgressPublisher } from "./progress.ts";
-import { storeSubtitles, subtitleArgs, withSubtitleFallback } from "./subtitles.ts";
+import { afterAnswered, runWithSubtitles, waitForSite, waitIfLimited } from "./fetchWait.ts";
+import { findSubtitles, storeSubtitles } from "./subtitles.ts";
 import { queuePreview } from "../previews/queue.ts";
 
 const ACTIVE = ["queued", "running"] as const;
@@ -286,7 +287,7 @@ async function store(
     thumbnailKey,
     infoKey,
   });
-  await storeSubtitles(deps, mediaId, key, file);
+  await storeSubtitles(deps, mediaId, key, await findSubtitles(file.path, file.info));
   const facts = renditionFacts(probed);
   await deps.db
     .insertInto("renditions")
@@ -342,7 +343,12 @@ async function recordFailure(
 async function markRunning(deps: WorkerDeps, job: FetchJobLike): Promise<void> {
   const rows = await deps.db
     .updateTable("downloads")
-    .set({ state: "running", started_at: new Date(), attempts: job.attemptsMade + 1 })
+    .set({
+      state: "running",
+      started_at: new Date(),
+      attempts: job.attemptsMade + 1,
+      retry_at: null,
+    })
     .where("fetch_key", "=", job.data.fetchKey)
     .where("state", "in", ACTIVE)
     .returning(["id", "user_id"])
@@ -374,18 +380,21 @@ async function downloadAndSettle(
       timeoutMs: DOWNLOAD_TIMEOUT_MS,
       onProgress: progress,
     });
-  const result = await withSubtitleFallback(
+  const { result, subtitles, heldUntil } = await runWithSubtitles(
+    deps,
+    data.url,
     run,
-    { profile: profileArgs, subtitles: subtitleArgs(deps.subtitles) },
+    profileArgs,
     signal,
-    deps.logger,
   );
   const file = result.files[0];
   if (file === undefined) throw new StorageError("yt-dlp finished without a file");
   progress({ phase: "storing" });
-  if (!(await settleDone(deps, data, await store(deps, data, file)))) {
+  const rendition = await store(deps, data, file);
+  if (!(await settleDone(deps, data, rendition))) {
     throw new StorageError("the rendition was not recorded");
   }
+  await afterAnswered(deps, data, rendition, subtitles, heldUntil);
 }
 
 /** Downloads one video in one profile revision and settles everyone waiting on it. */
@@ -395,6 +404,8 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
     if ((await waitingUsers(deps, data.fetchKey)).length === 0) return;
     const stored = await existingRendition(deps, data);
     if (stored !== undefined && (await settleDone(deps, data, stored))) return;
+    // A site that is rate-limiting this server is not asked: the fetch waits, queued.
+    await waitForSite(deps, job);
     const controller = cancels.start(data.fetchKey);
     job.signal?.addEventListener(
       "abort",
@@ -426,6 +437,8 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
         if ((await waitingUsers(deps, data.fetchKey)).length === 0) return;
         throw new Error("cancelled while someone still waits; retrying", { cause: err });
       }
+      // A rate limit is waited out, never spent as an attempt (throws).
+      await waitIfLimited(deps, job, err);
       const failure = toDownloadError(err);
       deps.logger.warn({ err, fetchKey: data.fetchKey, kind: failure.kind }, "fetch failed");
       if (await recordFailure(deps, job, failure)) throw new UnrecoverableError(failure.message);

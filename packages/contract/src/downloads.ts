@@ -205,6 +205,11 @@ export const DownloadRequest = z
     /** A failed probe's last stderr lines from yt-dlp, redacted, for a Details disclosure. */
     stderrTail: z.array(z.string()),
     /**
+     * While the probe waits out its site's rate limit (`errorKind` "rate_limited"; docs/downloads.md
+     * "Rate limits"): when it tries again. Null otherwise.
+     */
+    retryAt: z.iso.datetime().nullable(),
+    /**
      * The entries the person picked in the preview so far (`PUT .../selection`), kept while it
      * waits for them; null until they change anything, when the groups' own ticks stand.
      */
@@ -284,6 +289,11 @@ export const Download = z
     errorMessage: z.string().nullable(),
     stderrTail: z.array(z.string()),
     attempts: z.number().int(),
+    /**
+     * While the download waits, queued, out its site's rate limit (`errorKind` "rate_limited";
+     * docs/downloads.md "Rate limits"): when it tries again. Null otherwise.
+     */
+    retryAt: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),
     startedAt: z.iso.datetime().nullable(),
     finishedAt: z.iso.datetime().nullable(),

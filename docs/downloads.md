@@ -73,10 +73,11 @@ request handler.
    cut or join through a concat list it writes). Then one transaction records
    the rendition (`ON CONFLICT DO NOTHING`), marks every download waiting on the fetch key `done`
    and adds their library entries. The scratch directory is removed whatever happens.
-7. **Failures**: `rate_limited`, `network`, `timed_out`, `unknown` and `storage` retry up to 3
-   attempts with exponential backoff (the downloads stay `running`, `attempts` counts); every other
-   kind, or the last attempt, marks them `failed` with a server message and the redacted stderr
-   tail. A stalled job (a replica that died mid-job) runs again; one cut by a
+7. **Failures**: `network`, `timed_out`, `unknown` and `storage` retry up to 3 attempts with
+   exponential backoff (the downloads stay `running`, `attempts` counts); every other kind, or the
+   last attempt, marks them `failed` with a server message and the redacted stderr tail. A
+   `rate_limited` one is never a failure: it waits out the site's cooldown ([Rate
+   limits](#rate-limits)). A stalled job (a replica that died mid-job) runs again; one cut by a
    replica's shutdown goes back to the queue without spending an attempt; storage keys are deterministic and the rendition
    and library inserts are idempotent, so a rerun never duplicates anything.
 
@@ -93,6 +94,31 @@ or a finished fetch races someone else's dispatch of the same key. The api leade
 active download dispatched more than two minutes ago whose job is gone, so nobody's slots are held
 by work nobody will do. An aborted fetch that someone started waiting on during the cancel retries
 instead of finishing quietly.
+
+## Rate limits
+
+A site that answers yt-dlp with a rate limit (`rate_limited`: an HTTP 429, "Too Many Requests",
+YouTube's "rate-limited" or bot check) puts the site in a **cooldown** (`site_cooldowns`, by the
+link's host without `www.`, `m.`, `mobile.` or `music.`; youtu.be is youtube.com;
+`src/downloads/rateLimits.ts`). It lasts as long as the site said, when its message says
+(`cooldownHintMs` in `@uroboros/ytdlp`: YouTube's "for up to an hour", "try again in 30 seconds",
+a quoted Retry-After; yt-dlp never prints the response's headers), and otherwise an estimate that
+doubles with each limit in a row: 1, 2, 4… minutes, up to an hour. A cooldown already running
+longer stands, and the first run the site answers after it ends clears the count.
+
+While a site cools down, nothing asks it anything: a fetch, a pasted link's probe and a
+subscription check each go back to their queue for just after the cooldown (spread over 15 s),
+without spending an attempt, and a run the site limits does the same. A waiting download is
+`queued` with `errorKind: "rate_limited"` and `retryAt`, and a waiting link stays `probing` with
+the same two; the web says "The site is limiting requests. Trying again at 14:05." A rate limit
+never fails anything, however long it lasts; a person can cancel a waiting download.
+
+**Subtitles** have a cooldown of their own (`subtitles`), since YouTube limits its caption files
+apart from its videos. A fetch whose subtitles the site limits stores the video at once, without
+them; while that cooldown lasts, fetches ask for none; and each such video gets a `subtitles` job
+on the probe queue (key `subtitles:<media id>`, `src/worker/subtitlesJob.ts`) for just after the
+cooldown, which fetches its subtitles alone (`downloadSubtitles`, yt-dlp's `--skip-download`),
+signed in as the fetch's earliest waiter, and stores and indexes them as the fetch would have.
 
 ## Cancel and retry
 
@@ -256,5 +282,5 @@ names, but only to read it and throw the answer away, so they add blind requests
 
 ## Not yet
 
-Per-site rate limits and per-user cookies. Subscriptions,
+Per-user cookies. Subscriptions,
 retention and the reaper are in [automation.md](automation.md).

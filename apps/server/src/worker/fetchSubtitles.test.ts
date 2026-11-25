@@ -188,7 +188,7 @@ describe("subtitles and chapters", () => {
 
   it("fetches the video without subtitles when the site refuses them", async () => {
     const u = await user();
-    const data = await queued("sub429-1", [u]);
+    const data = await queued("sub403-1", [u]);
     const scenario = await downloadScenario();
     // yt-dlp writes subtitles before the video, and a failed one fails the whole run.
     scenario.variants = [
@@ -197,16 +197,19 @@ describe("subtitles and chapters", () => {
         steps: [
           {
             stderr:
-              "ERROR: Unable to download video subtitles for 'en': HTTP Error 429: Too Many Requests\n",
+              "ERROR: Unable to download video subtitles for 'en': HTTP Error 403: Forbidden\n",
           },
         ],
         exitCode: 1,
       },
     ];
     await fetchProcessor(await h.deps(scenario), createCancelRegistry())(job(data));
-    expect((await states("sub429-1"))[0]?.state).toBe("done");
+    expect((await states("sub403-1"))[0]?.state).toBe("done");
     const argv = await h.lastArgv();
     expect(argv.filter((a) => a.startsWith("--") && a.includes("sub"))).toEqual([]);
+    // Not a rate limit: nothing is held for later (fetchRateLimit.test.ts has the 429).
+    const held = await testDb.db.selectFrom("site_cooldowns").select("site").execute();
+    expect(held).toEqual([]);
   });
 
   it("still fails a download whose video fails, subtitles or not", async () => {

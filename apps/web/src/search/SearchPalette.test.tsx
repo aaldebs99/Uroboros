@@ -60,6 +60,7 @@ function request(over: Partial<DownloadRequest>): DownloadRequest {
     errorKind: null,
     errorMessage: null,
     stderrTail: [],
+    retryAt: null,
     selected: null,
     createdAt: "2026-11-23T04:00:00.000Z",
     ...over,

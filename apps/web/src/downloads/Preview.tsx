@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { notify } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
-import { DOWNLOAD_ERROR_TEXT } from "./errorText";
+import { DOWNLOAD_ERROR_TEXT, rateLimitWait } from "./errorText";
 import { LoginHint } from "./LoginHint";
 import { YtDlpDetails } from "./YtDlpDetails";
 import { formatDuration } from "./format";
@@ -286,10 +286,17 @@ function PanelBody({
     );
   }
   if (data === undefined || data.state === "probing") {
+    const waiting =
+      data?.errorKind === "rate_limited" && data.retryAt !== null ? data.retryAt : null;
     return (
-      <p className="flex items-center gap-2 text-muted-foreground">
-        <Loader className="size-4 animate-spin" aria-hidden /> Looking at the link…
-      </p>
+      <div className="grid gap-1">
+        <p className="flex items-center gap-2 text-muted-foreground">
+          <Loader className="size-4 animate-spin" aria-hidden /> Looking at the link…
+        </p>
+        {waiting === null ? null : (
+          <p className="text-sm text-muted-foreground">{rateLimitWait(waiting)}</p>
+        )}
+      </div>
     );
   }
   if (data.state === "failed") {

@@ -1,6 +1,14 @@
 import type { DownloadErrorKind } from "@uroboros/contract";
 import { RequeueError } from "../jobs/errors.ts";
 import { toDownloadError } from "../downloads/errors.ts";
+import {
+  activeCooldown,
+  clearRateLimit,
+  isRateLimit,
+  noteRateLimit,
+  requeueDelay,
+  siteOf,
+} from "../downloads/rateLimits.ts";
 import { recordPlaylistItems } from "../downloads/sources.ts";
 import { sendNotice, type NoticeDeps } from "../notices/send.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
@@ -182,6 +190,29 @@ async function runCheck(
 }
 
 /**
+ * A site rate-limiting this server is not asked (docs/downloads.md "Rate limits"): while it cools
+ * down, the check lets its lease go and its job goes back to the queue for after (throws).
+ */
+async function waitForSite(deps: WorkerDeps, sub: SubscriptionRow): Promise<void> {
+  const until = await activeCooldown(deps.db, siteOf(sub.url), "site");
+  if (until === null) return;
+  await freeLease(deps.db, sub.id);
+  throw new RequeueError(requeueDelay(until));
+}
+
+/**
+ * A check the site rate-limited records the site's cooldown and waits it out (throws), counting
+ * no failure; any other failure returns.
+ */
+async function waitIfLimited(deps: WorkerDeps, sub: SubscriptionRow, err: unknown) {
+  if (!isRateLimit(err)) return;
+  const until = await noteRateLimit(deps.db, siteOf(sub.url), "site", err.retryAfterMs);
+  deps.logger.info({ subscriptionId: sub.id, until }, "site rate-limited a subscription check");
+  await freeLease(deps.db, sub.id);
+  throw new RequeueError(requeueDelay(until), { cause: err });
+}
+
+/**
  * The `automation` queue's `check` job: list, filter, record and queue (docs/automation.md).
  * `signal` (shutdown) stops a running check; it records nothing and the schedule runs it again.
  */
@@ -189,6 +220,7 @@ export function checkProcessor(deps: WorkerDeps, signal?: AbortSignal) {
   return async (job: { data: CheckJob }): Promise<void> => {
     const sub = await takeLease(deps.db, job.data.subscriptionId);
     if (sub === undefined) return;
+    await waitForSite(deps, sub);
     let stale = false;
     try {
       // The owner's logins sign in the listing and the full probes.
@@ -197,11 +229,14 @@ export function checkProcessor(deps: WorkerDeps, signal?: AbortSignal) {
         await freeLease(deps.db, sub.id);
         stale = true;
       }
+      // The site answered: its limits in a row are over.
+      await clearRateLimit(deps.db, siteOf(sub.url), "site");
     } catch (err) {
       if (signal?.aborted === true) {
         await freeLease(deps.db, sub.id);
         return;
       }
+      await waitIfLimited(deps, sub, err);
       deps.logger.warn({ err, subscriptionId: sub.id }, "subscription check failed");
       const failure = checkFailure(err);
       const { failures } = await releaseLease(deps.db, sub.id, { ok: false, ...failure });

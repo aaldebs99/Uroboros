@@ -52,6 +52,7 @@ export async function toDownloads(ctx: DownloadContext, rows: DownloadRow[]): Pr
       errorMessage: r.error_message,
       stderrTail: r.stderr_tail,
       attempts: r.attempts,
+      retryAt: iso(r.retry_at),
       createdAt: r.created_at.toISOString(),
       startedAt: iso(r.started_at),
       finishedAt: iso(r.finished_at),

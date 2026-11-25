@@ -22,3 +22,12 @@ export const DOWNLOAD_ERROR_TEXT = {
   storage: "The file couldn't be stored.",
   not_a_feed: "That's a single video. Subscriptions follow a channel or a playlist.",
 } as const satisfies Record<DownloadErrorKind, string>;
+
+/**
+ * What a download or a pasted link waiting out its site's rate limit says (docs/downloads.md
+ * "Rate limits"): when it tries again, in the viewer's own time of day.
+ */
+export function rateLimitWait(retryAt: string): string {
+  const at = new Date(retryAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `The site is limiting requests. Trying again at ${at}.`;
+}

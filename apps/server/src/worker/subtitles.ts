@@ -1,6 +1,6 @@
 import { open, readdir } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
-import { YtDlpError, type DownloadedFile, type VideoInfo } from "@uroboros/ytdlp";
+import { YtDlpError, type VideoInfo } from "@uroboros/ytdlp";
 import type { Logger } from "pino";
 import {
   indexMediaCaptions,
@@ -36,27 +36,44 @@ export function subtitleArgs(s: SubtitleSettings): string[] {
 }
 
 /** yt-dlp's words when a subtitle could not be fetched (an HTTP 429 on YouTube's captions, say). */
-const SUBTITLE_FAILED = "Unable to download video subtitles";
+export const SUBTITLE_FAILED = "Unable to download video subtitles";
+
+/**
+ * How a fetch's subtitles went: `fetched` with the video, `none` (none wanted, or the site refused
+ * them for a reason other than a rate limit), or `held`: a rate limit kept them back, and they are
+ * fetched after the cooldown (docs/downloads.md "Rate limits").
+ */
+export type SubtitleOutcome = "fetched" | "none" | "held";
 
 /**
  * Runs yt-dlp with the profile's and the subtitle arguments, and once more with the profile's alone
  * when a subtitle could not be fetched: yt-dlp writes subtitles before the media and fails the
- * whole run on one it cannot get, so the video never came, and the second run costs little.
+ * whole run on one it cannot get, so the video never came, and the second run costs little. With
+ * `held` (the site's subtitles are cooling down) it asks for none at all. A subtitle the site
+ * rate-limited calls `onLimited` with the time it said to wait, if any, and holds them.
  */
 export async function withSubtitleFallback<T>(
   run: (extraArgs: string[]) => Promise<T>,
-  args: { profile: string[]; subtitles: string[] },
+  args: { profile: string[]; subtitles: string[]; held: boolean },
   signal: AbortSignal,
   logger: Logger,
-): Promise<T> {
+  onLimited: (hintMs: number | null) => Promise<void>,
+): Promise<{ result: T; subtitles: SubtitleOutcome }> {
+  if (args.subtitles.length === 0) return { result: await run(args.profile), subtitles: "none" };
+  if (args.held) return { result: await run(args.profile), subtitles: "held" };
   try {
-    return await run([...args.profile, ...args.subtitles]);
+    return { result: await run([...args.profile, ...args.subtitles]), subtitles: "fetched" };
   } catch (err) {
     const subtitlesFailed =
       err instanceof YtDlpError && err.stderrTail.some((l) => l.includes(SUBTITLE_FAILED));
-    if (!subtitlesFailed || args.subtitles.length === 0 || signal.aborted) throw err;
+    if (!subtitlesFailed || signal.aborted) throw err;
+    if (err.kind === "rate_limited") {
+      logger.warn({ err }, "the site rate-limited subtitles; fetching the video, them later");
+      await onLimited(err.retryAfterMs);
+      return { result: await run(args.profile), subtitles: "held" };
+    }
     logger.warn({ err }, "fetching subtitles failed; fetching the video without them");
-    return run(args.profile);
+    return { result: await run(args.profile), subtitles: "none" };
   }
 }
 
@@ -67,13 +84,15 @@ export interface FoundSubtitle {
 }
 
 /**
- * The `<base>.<lang>.vtt` files yt-dlp wrote beside `mediaPath`. A language counts as automatic when
- * the info lists it only among the automatic captions. Nothing found is fine.
+ * The `<base>.<lang>.vtt` files among `names` in `dir`. A language counts as automatic when the info
+ * lists it only among the automatic captions.
  */
-export async function findSubtitles(mediaPath: string, info: VideoInfo): Promise<FoundSubtitle[]> {
-  const dir = dirname(mediaPath);
-  const base = basename(mediaPath, extname(mediaPath));
-  const names = await readdir(dir).catch(() => [] as string[]);
+export function subtitlesNamed(
+  dir: string,
+  base: string,
+  names: readonly string[],
+  info: VideoInfo,
+): FoundSubtitle[] {
   return names
     .filter((n) => n.startsWith(`${base}.`) && n.endsWith(".vtt"))
     .map((n) => {
@@ -82,6 +101,13 @@ export async function findSubtitles(mediaPath: string, info: VideoInfo): Promise
       return { lang, path: join(dir, n), automatic };
     })
     .filter((s) => s.lang !== "");
+}
+
+/** The subtitle files yt-dlp wrote beside `mediaPath` (`subtitlesNamed`). Nothing found is fine. */
+export async function findSubtitles(mediaPath: string, info: VideoInfo): Promise<FoundSubtitle[]> {
+  const dir = dirname(mediaPath);
+  const names = await readdir(dir).catch(() => [] as string[]);
+  return subtitlesNamed(dir, basename(mediaPath, extname(mediaPath)), names, info);
 }
 
 /** The start of a local file (at most `MAX_CAPTION_BYTES`), as text. */
@@ -114,10 +140,10 @@ export async function storeSubtitles(
   deps: WorkerDeps,
   mediaId: string,
   mediaKey: string,
-  file: DownloadedFile,
+  found: readonly FoundSubtitle[],
 ) {
   const stored = new Map<string, string>();
-  for (const sub of await findSubtitles(file.path, file.info)) {
+  for (const sub of found) {
     try {
       const key = subtitleKey(deps.storage, mediaId, mediaKey, sub.lang);
       await deps.store.put(key, sub.path, contentTypeOf("vtt"));

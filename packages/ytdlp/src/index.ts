@@ -11,7 +11,7 @@ export {
   type DownloadOptions,
   type DownloadResult,
 } from "./download.ts";
-export { YTDLP_ERROR_KINDS, YtDlpError, type YtDlpErrorKind } from "./errors.ts";
+export { cooldownHintMs, YTDLP_ERROR_KINDS, YtDlpError, type YtDlpErrorKind } from "./errors.ts";
 export { ALLOWED_FLAGS, normalizeExtraArgs } from "./flags.ts";
 export { ffprobe, MediaInfo, MediaStream, type FfprobeOptions } from "./ffprobe.ts";
 export { grabFrame, type FrameOptions } from "./frame.ts";
@@ -52,5 +52,6 @@ export {
   type ProbeResult,
 } from "./info.ts";
 export { probe, type ProbeOptions } from "./probe.ts";
+export { downloadSubtitles, type SubtitlesOptions, type SubtitlesResult } from "./subtitles.ts";
 export type { ProgressEvent, ProgressPhase, ProgressState } from "./progress.ts";
 export { redactLine } from "./redact.ts";

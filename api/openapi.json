@@ -502,6 +502,11 @@
           "progress": {
             "$ref": "#/components/schemas/DownloadProgress"
           },
+          "retryAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
           "startedAt": {
             "format": "date-time",
             "nullable": true,
@@ -542,6 +547,7 @@
           "errorMessage",
           "stderrTail",
           "attempts",
+          "retryAt",
           "createdAt",
           "startedAt",
           "finishedAt"
@@ -788,6 +794,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "retryAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
           "selected": {
             "items": {
               "type": "string"
@@ -823,6 +834,7 @@
           "errorKind",
           "errorMessage",
           "stderrTail",
+          "retryAt",
           "selected",
           "createdAt"
         ],

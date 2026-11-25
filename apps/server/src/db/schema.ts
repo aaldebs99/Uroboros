@@ -15,6 +15,7 @@ import type { CaptionSegmentsTable } from "./captionsSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
 import type { NoticesTable } from "./noticesSchema.ts";
 import type { UserPreferencesTable } from "./preferencesSchema.ts";
+import type { SiteCooldownsTable } from "./rateLimitsSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
 import type { NotificationPrefsTable, SharePeopleTable, SharesTable } from "./sharingSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
@@ -305,6 +306,7 @@ export interface DownloadRequestsTable {
   error_message: string | null;
   /** A failed probe's last stderr lines from yt-dlp, redacted. */
   stderr_tail: Defaulted<string[]>;
+  retry_at: Timestamp | null;
   source_extractor: string | null;
   source_id: string | null;
   /** The entries picked in the preview so far; null until the person changes anything. */
@@ -334,6 +336,7 @@ export interface DownloadsTable {
   error_message: string | null;
   stderr_tail: Defaulted<string[]>;
   attempts: Defaulted<number>;
+  retry_at: Timestamp | null;
   priority: Defaulted<number>;
   subscription_id: string | null;
   created_at: Created;
@@ -461,6 +464,7 @@ export interface Database {
   group_members: GroupMembersTable;
   notification_prefs: NotificationPrefsTable;
   user_preferences: UserPreferencesTable;
+  site_cooldowns: SiteCooldownsTable;
   jobs: JobsTable;
   job_limits: JobLimitsTable;
   download_progress: DownloadProgressTable;

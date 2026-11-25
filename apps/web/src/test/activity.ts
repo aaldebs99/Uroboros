@@ -18,6 +18,7 @@ export const downloadFixture = (over: Partial<Download> = {}): Download => ({
   errorKind: null,
   errorMessage: null,
   stderrTail: [],
+  retryAt: null,
   attempts: 1,
   createdAt: T,
   startedAt: T,

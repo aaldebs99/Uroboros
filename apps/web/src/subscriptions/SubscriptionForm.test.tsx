@@ -55,6 +55,7 @@ const request = (kind: "channel" | "playlist") => ({
   errorKind: null,
   errorMessage: null,
   stderrTail: [],
+  retryAt: null,
   selected: null,
   createdAt: "2026-11-23T08:00:00.000Z",
 });

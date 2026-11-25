@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { LineSplitter, LineTail } from "./lines.ts";
 import { redactLine } from "./redact.ts";
-import { classifyFailure, failureMessage, YtDlpError } from "./errors.ts";
+import { classifyFailure, cooldownHintMs, failureMessage, YtDlpError } from "./errors.ts";
 
 /** Why the wrapper stopped a run itself, or null when the process ended on its own. */
 export type StopReason = "cancelled" | "timed_out" | "output_too_large";
@@ -192,11 +192,12 @@ export const DEFAULT_STDERR_TAIL_LINES = 20;
 export function checkRun(result: RunResult): string {
   if (result.stopped !== null) throw stoppedError(result.stopped, result);
   if (result.exitCode !== 0) {
-    throw new YtDlpError(
-      classifyFailure(result.exitCode, result.stderrTail),
-      failureMessage(result.exitCode, result.stderrTail),
-      { exitCode: result.exitCode, stderrTail: result.stderrTail },
-    );
+    const kind = classifyFailure(result.exitCode, result.stderrTail);
+    throw new YtDlpError(kind, failureMessage(result.exitCode, result.stderrTail), {
+      exitCode: result.exitCode,
+      stderrTail: result.stderrTail,
+      retryAfterMs: kind === "rate_limited" ? cooldownHintMs(result.stderrTail) : null,
+    });
   }
   return result.stdout;
 }

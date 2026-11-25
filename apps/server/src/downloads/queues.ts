@@ -21,6 +21,18 @@ export interface SkipsJob {
   userId: string;
 }
 
+/**
+ * Fetch the subtitles a rate limit held back from a video's fetch, once the site's cooldown is
+ * over (the probe queue's `subtitles` jobs; docs/downloads.md "Rate limits"). `userId` is the
+ * person whose saved logins it signs in with: the fetch's earliest waiter.
+ */
+export interface SubtitlesJob {
+  mediaId: string;
+  renditionId: string;
+  url: string;
+  userId: string;
+}
+
 /** Fetch one video in one profile revision; every download waiting on `fetchKey` is settled. */
 export interface FetchJob {
   fetchKey: string;
@@ -56,8 +68,11 @@ export interface NotifyJob {
 }
 
 export interface DownloadQueues {
-  /** Pasted links' probes, and (`skips`) SponsorBlock refetches: both one quick yt-dlp probe. */
-  probe: JobQueue<ProbeJob | SkipsJob>;
+  /**
+   * Pasted links' probes, (`skips`) SponsorBlock refetches and (`subtitles`) subtitles a rate limit
+   * held back: each one quick yt-dlp run.
+   */
+  probe: JobQueue<ProbeJob | SkipsJob | SubtitlesJob>;
   download: JobQueue<FetchJob>;
   /** Subscription checks and "latest" downloads (docs/automation.md). */
   automation: JobQueue<CheckJob>;
@@ -75,7 +90,7 @@ export interface DownloadQueues {
 /** The producer side of every queue (docs/jobs.md). */
 export function createDownloadQueues(db: Kysely<Database>): DownloadQueues {
   return {
-    probe: new JobQueue<ProbeJob | SkipsJob>(db, "probe"),
+    probe: new JobQueue<ProbeJob | SkipsJob | SubtitlesJob>(db, "probe"),
     download: new JobQueue<FetchJob>(db, "download"),
     automation: new JobQueue<CheckJob>(db, "automation"),
     notify: new JobQueue<NotifyJob>(db, "notify"),

@@ -29,6 +29,7 @@ export function toRequest(row: RequestRow): DownloadRequest {
     errorKind: kind.success ? kind.data : null,
     errorMessage: row.error_message,
     stderrTail: row.stderr_tail,
+    retryAt: row.retry_at === null ? null : row.retry_at.toISOString(),
     selected: row.selected,
     createdAt: row.created_at.toISOString(),
   };
