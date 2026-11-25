@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { alive, FakeRun } from "./testFake.ts";
+import { alive, FakeRun, readWhenWritten, waitDead } from "./testFake.ts";
 import { meaningfulLine, spawnStream } from "./streamProcess.ts";
 
 const runs: FakeRun[] = [];
@@ -51,13 +51,12 @@ describe("spawnStream", () => {
       ignoreSigterm: true,
     });
     const p = spawnStream({ ...run.options, args: [], cwd: run.dir, killGraceMs: 200 });
-    await new Promise((r) => setTimeout(r, 500));
+    // The fake ignores SIGTERM from its start and writes the pid once the sleeper runs.
+    const pid = Number(await readWhenWritten(`${run.dir}/sleeper.pid`));
+    expect(alive(pid)).toBe(true);
     p.stop();
     expect((await p.exited).stopped).toBe(true);
-    const { readFile } = await import("node:fs/promises");
-    const pid = Number(await readFile(`${run.dir}/sleeper.pid`, "utf8"));
-    await new Promise((r) => setTimeout(r, 200));
-    expect(alive(pid)).toBe(false);
+    expect(await waitDead(pid)).toBe(true);
   });
 
   it("stops when its signal aborts", async () => {

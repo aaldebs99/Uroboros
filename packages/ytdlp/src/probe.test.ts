@@ -1,7 +1,7 @@
-import { readdir, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { baseArgs } from "./args.ts";
 import { YtDlpError } from "./errors.ts";
 import { ffprobe } from "./ffprobe.ts";
@@ -133,16 +133,21 @@ describe("probe", () => {
     const run = await fake({ steps: [{ stdout: await fixture("probe-video.json") }] });
     const original = join(run.dir, "cookies.txt");
     await writeFile(original, "# Netscape HTTP Cookie File\n");
-    const before = await readdir(tmpdir());
-    await probe(URL, { ...run.options, cookiesFile: original });
+    // A temp dir of this test's own: in the shared one, anything else making a
+    // uroboros-cookies-* directory meanwhile would look like a leftover.
+    const temp = await mkdtemp(join(tmpdir(), "uroboros-probe-tmp-"));
+    vi.stubEnv("TMPDIR", temp);
+    try {
+      await probe(URL, { ...run.options, cookiesFile: original });
+    } finally {
+      vi.unstubAllEnvs();
+    }
     const argv = await run.argv();
     const copy = argv[argv.indexOf("--cookies") + 1];
-    expect(copy).toMatch(/uroboros-cookies-.*\/cookies\.txt$/);
+    expect(copy).toMatch(new RegExp(`^${temp}/uroboros-cookies-.*/cookies\\.txt$`));
     expect(copy).not.toBe(original);
-    const leftovers = (await readdir(tmpdir())).filter(
-      (name) => name.startsWith("uroboros-cookies-") && !before.includes(name),
-    );
-    expect(leftovers).toEqual([]);
+    expect(await readdir(temp)).toEqual([]);
+    await rm(temp, { recursive: true, force: true });
   });
 
   it("signs in from a private .netrc, never on the command line, and scrubs the password", async () => {

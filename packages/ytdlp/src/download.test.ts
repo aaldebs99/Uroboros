@@ -1,11 +1,18 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { download } from "./download.ts";
 import { YtDlpError } from "./errors.ts";
 import type { ProgressEvent } from "./progress.ts";
-import { alive, FakeRun, fixture, type Scenario, type Step } from "./testFake.ts";
+import {
+  FakeRun,
+  fixture,
+  readWhenWritten,
+  type Scenario,
+  type Step,
+  waitDead,
+} from "./testFake.ts";
 
 const runs: FakeRun[] = [];
 
@@ -153,24 +160,6 @@ describe("download", () => {
   });
 });
 
-async function waitFor(path: string): Promise<string> {
-  for (let i = 0; i < 200; i++) {
-    try {
-      return await readFile(path, "utf8");
-    } catch {
-      await new Promise((done) => setTimeout(done, 25));
-    }
-  }
-  throw new Error(`${path} never appeared`);
-}
-
-async function waitDead(pid: number): Promise<boolean> {
-  for (let i = 0; i < 40 && alive(pid); i++) {
-    await new Promise((done) => setTimeout(done, 25));
-  }
-  return !alive(pid);
-}
-
 describe("cancellation", () => {
   async function cancelMidDownload(ignoreSigterm: boolean) {
     const run = await fake({
@@ -190,6 +179,7 @@ describe("cancellation", () => {
     });
     const controller = new AbortController();
     const events: ProgressEvent[] = [];
+    let abortedAt = 0;
     const pending = download(URL, {
       ...run.options,
       workDir: run.workDir,
@@ -198,13 +188,15 @@ describe("cancellation", () => {
       killGraceMs: 300,
       onProgress: (event) => {
         events.push(event);
+        abortedAt = Date.now();
         controller.abort();
       },
     });
     const error = await failure(pending);
-    const ytdlp = Number(await waitFor(join(run.workDir, "yt-dlp.pid")));
-    const ffmpeg = Number(await waitFor(join(run.workDir, "ffmpeg.pid")));
-    return { run, error, events, ytdlp, ffmpeg };
+    const tookMs = Date.now() - abortedAt;
+    const ytdlp = Number(await readWhenWritten(join(run.workDir, "yt-dlp.pid")));
+    const ffmpeg = Number(await readWhenWritten(join(run.workDir, "ffmpeg.pid")));
+    return { run, error, events, ytdlp, ffmpeg, tookMs };
   }
 
   it("kills the process group and removes the partial files", async () => {
@@ -221,10 +213,10 @@ describe("cancellation", () => {
   });
 
   it("escalates to SIGKILL when yt-dlp ignores SIGTERM", async () => {
-    const started = Date.now();
-    const { error, ytdlp, ffmpeg } = await cancelMidDownload(true);
+    const { error, ytdlp, ffmpeg, tookMs } = await cancelMidDownload(true);
     expect(error.kind).toBe("cancelled");
-    expect(Date.now() - started).toBeGreaterThanOrEqual(300);
+    // From the abort, not from before the fake's two processes started: the grace was waited out.
+    expect(tookMs).toBeGreaterThanOrEqual(290);
     expect(await waitDead(ytdlp)).toBe(true);
     expect(await waitDead(ffmpeg)).toBe(true);
   });

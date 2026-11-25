@@ -63,6 +63,26 @@ export class FakeRun {
   }
 }
 
+/** The contents of `path` once a fake has written it, polling for up to 5 s. */
+export async function readWhenWritten(path: string): Promise<string> {
+  for (let i = 0; i < 200; i++) {
+    try {
+      return await readFile(path, "utf8");
+    } catch {
+      await new Promise((done) => setTimeout(done, 25));
+    }
+  }
+  throw new Error(`${path} never appeared`);
+}
+
+/** True once the process is gone (see `alive`), polling for up to 2 s. */
+export async function waitDead(pid: number): Promise<boolean> {
+  for (let i = 0; i < 80 && alive(pid); i++) {
+    await new Promise((done) => setTimeout(done, 25));
+  }
+  return !alive(pid);
+}
+
 /**
  * True while a process with this pid runs. A killed process whose parent is gone waits as a
  * zombie until the system's init reaps it, and a CI job's container may have an init that never
