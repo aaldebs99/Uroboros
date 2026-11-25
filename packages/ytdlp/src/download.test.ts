@@ -1,4 +1,5 @@
-import { readdir, readFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { download } from "./download.ts";
@@ -107,6 +108,32 @@ describe("download", () => {
       download(URL, { ...run.options, workDir: run.workDir, format: "b" }),
     );
     expect(error.kind).toBe("invalid_output");
+  });
+
+  it("refuses a finished file or .info.json outside the job's folder", async () => {
+    const elsewhere = await mkdtemp(join(tmpdir(), "uro-elsewhere-"));
+    try {
+      await writeFile(join(elsewhere, "x.info.json"), await fixture("probe-video.json"));
+      for (const [file, info] of [
+        ["/etc/hostname", "{{cwd}}/x.info.json"],
+        ["{{cwd}}/x.mp4", join(elsewhere, "x.info.json")],
+        ["{{cwd}}/../x.mp4", "{{cwd}}/x.info.json"],
+      ]) {
+        const run = await fake({
+          steps: [
+            { stdout: `[uroboros]\tfile\t"x"\t${JSON.stringify(file)}\t${JSON.stringify(info)}\n` },
+          ],
+        });
+        await writeFile(join(run.workDir, "x.info.json"), await fixture("probe-video.json"));
+        const error = await failure(
+          download(URL, { ...run.options, workDir: run.workDir, format: "b" }),
+        );
+        expect(error.kind, file).toBe("invalid_output");
+        expect(error.message, file).toMatch(/outside the job's folder/);
+      }
+    } finally {
+      await rm(elsewhere, { recursive: true, force: true });
+    }
   });
 
   it("classifies a failed download", async () => {

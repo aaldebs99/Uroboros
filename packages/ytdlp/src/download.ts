@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { checkUrl, commandLine, DEFAULT_BINARY, runtimeArgs, type YtDlpOptions } from "./args.ts";
 import { removePartialFiles } from "./cleanup.ts";
 import { YtDlpError } from "./errors.ts";
@@ -63,6 +63,15 @@ function invalidOutput(message: string, result: RunResult, cause?: unknown): YtD
   });
 }
 
+/**
+ * Whether `path` lies inside `dir`. The paths come from yt-dlp's own output lines, so a forged one
+ * must never make the server store or read a file elsewhere on the disk.
+ */
+function inside(dir: string, path: string): boolean {
+  const rel = relative(resolve(dir), path);
+  return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+
 async function readInfo(
   workDir: string,
   file: FinishedFile,
@@ -72,9 +81,15 @@ async function readInfo(
     throw invalidOutput(`yt-dlp wrote no .info.json for ${file.path}`, result);
   }
   const infoJsonPath = resolve(workDir, file.infoJsonPath);
+  const path = resolve(workDir, file.path);
+  for (const reported of [path, infoJsonPath]) {
+    if (!inside(workDir, reported)) {
+      throw invalidOutput(`yt-dlp reported ${reported}, outside the job's folder`, result);
+    }
+  }
   try {
     const info = VideoInfo.parse(JSON.parse(await readFile(infoJsonPath, "utf8")));
-    return { videoId: file.videoId, path: resolve(workDir, file.path), infoJsonPath, info };
+    return { videoId: file.videoId, path, infoJsonPath, info };
   } catch (cause) {
     throw invalidOutput(`unreadable .info.json at ${infoJsonPath}`, result, cause);
   }
