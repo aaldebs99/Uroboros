@@ -29,7 +29,7 @@
   // never gets checks and a branch automerge would wait forever.
   //
   // platformAutomerge false: Renovate defaults it to TRUE, which asks the forge to "merge when
-  // checks succeed" in the same call that opens the PR. Some forges (Forgejo/Gitea) treat a base
+  // checks succeed" in the same call that opens the PR. Some forges (Gitea among them) treat a base
   // branch without a protected-branch rule as "checks passed" without reading a single status
   // and merge within seconds, CI still pending. With it false, Renovate itself verifies the
   // statuses on every platform.

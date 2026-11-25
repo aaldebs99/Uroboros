@@ -70,7 +70,7 @@ package_manager = "aube"
 # .git-blame-ignore-revs, and installs the workspace dependencies so the toolchain works
 # immediately. All three are idempotent.
 #
-# Skipped in CI (`CI` or `GITHUB_ACTIONS` set — Forgejo/Gitea runners set GITHUB_ACTIONS too):
+# Skipped in CI (`CI` or `GITHUB_ACTIONS` set — Gitea's runners set GITHUB_ACTIONS too):
 # git hooks are meaningless there, and the tasks that need node_modules depend on `install`.
 #
 # `[hooks]`, not `[settings]`: mise only warns "unknown field" for `settings.postinstall` and

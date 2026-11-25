@@ -5,7 +5,7 @@
 # forge's, named by the REGISTRY repository variable, and GHCR (ghcr.io/aaldebs99/uroboros, the
 # public copy beside the GitHub mirror). Both pushes go to the aaldebs99 namespace and
 # authenticate as that user: on the forge with the REGISTRY_TOKEN secret (an access token of
-# that account scoped write:package; a Forgejo user's package namespace takes pushes from that
+# that account scoped write:package; a Gitea user's package namespace takes pushes from that
 # user alone), on GHCR with the GHCR_TOKEN secret (a GitHub personal access token, classic,
 # write:packages). Neither is the release bot release-pr.yml cuts releases with.
 #
@@ -22,7 +22,7 @@
 #
 # Ported from Djinn's release.yml. This is not a CI gate:
 # `mise run ci` and ci:parity do not know about it.
-# No `permissions:` blocks: Forgejo ignores the field and warns about it on every run;
+# No `permissions:` blocks: Gitea ignores the field and warns about it on every run;
 # capabilities come from the forge's Authorized Integrations.
 name: Release
 

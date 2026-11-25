@@ -2,7 +2,7 @@
 #
 # Renovate, self-hosted: two runs a day against this repository, plus a manual trigger. The policy
 # (what to bump, when to automerge, the soak) lives in .renovaterc.json5; this file only says
-# where and as whom Renovate runs. Forgejo schedules only the copy of this file that is on the
+# where and as whom Renovate runs. Gitea schedules only the copy of this file that is on the
 # default branch, and reads `schedule` as UTC.
 #
 # RENOVATE_TOKEN is an access token of the Renovate bot account: a collaborator with write access,
@@ -12,8 +12,8 @@
 # RENOVATE_GITHUB_COM_TOKEN is a github.com token with no scopes (a fine-grained one with public
 # read-only access will do). Renovate looks up GitHub-hosted dependencies (every action, the mise
 # tools released on GitHub) on api.github.com, which this forge's token cannot reach; without it
-# those dependencies are skipped with a "GitHub token is required" warning. Forgejo refuses secret
-# names that start with GITHUB_, hence the prefix.
+# those dependencies are skipped with a "GitHub token is required" warning. Gitea refuses secret
+# names that start with GITHUB_ (or GITEA_), hence the prefix.
 #
 # The image's ffmpeg is a public GHCR image (ghcr.io/aaldebs99/ffmpeg-ytdlp), so Renovate looks
 # its tags up without credentials, like every other image here.
@@ -54,7 +54,7 @@ jobs:
     container:
       image: ghcr.io/renovatebot/renovate:44.167.5@sha256:c33150ec6407624a9399a2d827fd125becafdbe4519d7584488cbdd17f99081e
     env:
-      RENOVATE_PLATFORM: forgejo
+      RENOVATE_PLATFORM: gitea
       # The server root. Renovate appends /api/v1 itself (and strips it if given).
       RENOVATE_ENDPOINT: ${{ github.server_url }}
       RENOVATE_REPOSITORIES: ${{ github.repository }}

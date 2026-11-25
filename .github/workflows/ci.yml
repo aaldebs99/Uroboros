@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 #
-# CI. Portable: runs unchanged on GitHub Actions and on Forgejo/Gitea Actions (act-based runners).
-# No `permissions:` blocks: Forgejo ignores the field and warns about it on every run;
+# CI. Portable: runs unchanged on GitHub Actions and on Gitea Actions (act-based runners).
+# No `permissions:` blocks: Gitea ignores the field and warns about it on every run;
 # capabilities come from the forge's Authorized Integrations (zizmor's audit of the field is
 # off in .github/zizmor.yml for the same reason).
 #

@@ -269,8 +269,8 @@ messages, and the accounts that merge or open pull requests (the owner, the rele
 Renovate) need emails off the domain. A commit that names the forge reaches main only as a
 red CI and a stopped mirror; take it out by rewriting main before anything else lands. The
 workflows
-run on Forgejo Actions with the Gitea runner's labels (`small`, `big`, `big-dind` and so on,
-listed in `.github/actionlint.yaml`). They carry no `permissions:` blocks, because Forgejo ignores
+run on Gitea Actions with the runner's labels (`small`, `big`, `big-dind` and so on,
+listed in `.github/actionlint.yaml`). They carry no `permissions:` blocks, because Gitea ignores
 the field and warns about it; zizmor's audit of it is off in `.github/zizmor.yml` for that reason.
 Every CI step is `run: mise run <task>`, and the `CI` job is the one required status check.
 
