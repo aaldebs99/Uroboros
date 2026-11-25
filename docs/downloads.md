@@ -221,6 +221,18 @@ while the committed list differs from the image's yt-dlp, so a yt-dlp bump regen
 - **A refused login** (`login_failed`: "bad username or password" and its kin) fails at once, with
   no retry.
 
+## What a download can reach
+
+yt-dlp fetches whatever http or https link a person pastes, follows its redirects, and does so
+from the server's own network. Nothing holds it to public addresses, so anyone who can download
+can make the server request an internal one: another container, a machine on the LAN, a cloud
+provider's metadata address. What yt-dlp can read there as a video is downloaded and stored like
+any other, and a failed request shows yt-dlp's error output, which says whether the host
+answered. Uroboros treats the people it has accounts for as trusted to fetch from its network (a
+NAS on the LAN is a fair source). An operator who doesn't trust them that far restricts what the
+containers can reach at the network: a firewall rule, or an egress proxy. ffmpeg never follows a
+downloaded file to anywhere else: its inputs are pinned to media containers (the fetch, step 6).
+
 ## Not yet
 
 Per-site rate limits and per-user cookies. Subscriptions,
