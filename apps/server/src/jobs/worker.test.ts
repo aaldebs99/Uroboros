@@ -1,7 +1,8 @@
 import { sql } from "kysely";
 import { pino } from "pino";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { testBus } from "../../test/bus.ts";
+import { eventually } from "../../test/eventually.ts";
 import { liveJobs } from "../../test/jobs.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { PgBus } from "../db/notifications.ts";
@@ -15,6 +16,8 @@ import type { Consumer, JobWorker, JobWorkerOptions } from "./worker.ts";
 let t: TestDb;
 let bus: PgBus;
 const workers: JobWorker[] = [];
+/** Every held processor's release, so a failed test's runs still end and its workers drain. */
+const releases: (() => void)[] = [];
 const logger = pino({ level: "silent" });
 
 beforeEach(async () => {
@@ -24,6 +27,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  for (const release of releases.splice(0)) release();
   await Promise.all(workers.splice(0).map((w) => w.drain()));
   await bus.close();
   await t.close();
@@ -44,6 +48,34 @@ function consumer(
 }
 
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * A processor the test lets finish: each run waits for `release()`, and `running` counts the
+ * runs inside it. Ending a run on a timer instead races whatever the test does meanwhile.
+ */
+function held() {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  releases.push(() => {
+    release();
+  });
+  const state = { running: 0, most: 0, done: [] as number[] };
+  return {
+    state,
+    release: () => {
+      release();
+    },
+    process: async (job: Job<{ n: number }>) => {
+      state.running++;
+      state.most = Math.max(state.most, state.running);
+      await gate;
+      state.running--;
+      state.done.push(job.data.n);
+    },
+  };
+}
 /** A processor that only records, synchronously. */
 const noting =
   (note: (job: Job<{ n: number }>) => void) =>
@@ -61,14 +93,14 @@ describe("the job worker", () => {
         noting((job) => seen.push(job.data.n)),
       ),
     ]);
-    await wait(100);
     const started = Date.now();
     await new JobQueue(t.db, "probe").add("probe", { n: 1 });
-    await vi.waitFor(() => {
+    // Woken by the add, not found by its poll, which is a minute away.
+    await eventually(() => {
       expect(seen).toEqual([1]);
     });
-    expect(Date.now() - started).toBeLessThan(2000);
-    await vi.waitFor(async () => {
+    expect(Date.now() - started).toBeLessThan(5000);
+    await eventually(async () => {
       expect(await liveJobs(t.db, "probe")).toEqual([]);
     });
   });
@@ -90,7 +122,7 @@ describe("the job worker", () => {
         },
       );
       await new JobQueue(t.db, "notify").add("notify", { n: 7 });
-      await vi.waitFor(() => {
+      await eventually(() => {
         expect(seen).toEqual([7]);
       });
     } finally {
@@ -108,7 +140,7 @@ describe("the job worker", () => {
     ]);
     const added = Date.now();
     await new JobQueue(t.db, "probe").add("probe", { n: 1 }, { delayMs: 500 });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(ranAt).toBeGreaterThan(0);
     });
     expect(ranAt - added).toBeGreaterThanOrEqual(450);
@@ -127,7 +159,7 @@ describe("the job worker", () => {
       { n: 1 },
       { key: "k", attempts: 3, backoff: { type: "exponential", delayMs: 150 } },
     );
-    await vi.waitFor(
+    await eventually(
       () => {
         expect(runs).toHaveLength(3);
       },
@@ -136,7 +168,7 @@ describe("the job worker", () => {
     expect(runs.map((r) => r.made)).toEqual([0, 1, 2]);
     expect((runs[1]?.at ?? 0) - (runs[0]?.at ?? 0)).toBeGreaterThanOrEqual(130);
     expect((runs[2]?.at ?? 0) - (runs[1]?.at ?? 0)).toBeGreaterThanOrEqual(280);
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect(await liveJobs(t.db, "download")).toEqual([]);
     });
   });
@@ -150,7 +182,7 @@ describe("the job worker", () => {
       }),
     ]);
     await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key: "k", attempts: 3 });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect(runs).toBe(1);
       expect(await liveJobs(t.db, "download")).toEqual([]);
     });
@@ -167,33 +199,28 @@ describe("the job worker", () => {
       }),
     ]);
     await new JobQueue(t.db, "playback").add("playback", { n: 1 }, { key: "p" });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect(made).toEqual([0, 0]);
       expect(await liveJobs(t.db, "playback")).toEqual([]);
     });
   });
 
   it("runs at most its concurrency at once", async () => {
-    let now = 0;
-    let most = 0;
-    worker([
-      consumer(
-        "download",
-        async () => {
-          now++;
-          most = Math.max(most, now);
-          await wait(100);
-          now--;
-        },
-        2,
-      ),
-    ]);
+    const h = held();
+    worker([consumer("download", h.process, 2)]);
     const q = new JobQueue(t.db, "download");
     for (let n = 0; n < 6; n++) await q.add("fetch", { n }, { key: `k${String(n)}` });
-    await vi.waitFor(async () => {
+    await eventually(() => {
+      expect(h.state.running).toBe(2);
+    });
+    // Four more are waiting, and two runs are free to end: no third starts meanwhile.
+    await wait(300);
+    expect(h.state.most).toBe(2);
+    h.release();
+    await eventually(async () => {
       expect(await liveJobs(t.db, "download")).toEqual([]);
     });
-    expect(most).toBe(2);
+    expect(h.state.most).toBe(2);
   });
 
   it("starts at most one automation job per window, across workers", async () => {
@@ -208,7 +235,7 @@ describe("the job worker", () => {
     worker([run], { specs, pollMs: 100 });
     const q = new JobQueue(t.db, "automation");
     for (let n = 0; n < 3; n++) await q.add("check", { n }, { key: `c${String(n)}` });
-    await vi.waitFor(
+    await eventually(
       () => {
         expect(starts).toHaveLength(3);
       },
@@ -233,7 +260,7 @@ describe("the job worker", () => {
     worker([run]);
     const q = new JobQueue(t.db, "download");
     for (let n = 0; n < 30; n++) await q.add("fetch", { n }, { key: `k${String(n)}` });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect(await liveJobs(t.db, "download")).toEqual([]);
     });
     expect(seen.size).toBe(30);
@@ -241,34 +268,30 @@ describe("the job worker", () => {
   });
 
   it("renews a long job's lease, so the stall sweep leaves it alone", async () => {
-    let runs = 0;
-    worker(
-      [
-        consumer("download", async () => {
-          runs++;
-          await wait(900);
-        }),
-      ],
-      { specs: { download: { leaseMs: 300 } } },
-    );
+    const h = held();
+    // Renewed every 500 ms: a renewal can run 500 ms late before the lease lapses.
+    worker([consumer("download", h.process)], { specs: { download: { leaseMs: 1000 } } });
     await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key: "long" });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await liveJobs(t.db, "download"))[0]?.state).toBe("running");
     });
-    for (let i = 0; i < 4; i++) {
-      await wait(200);
+    // Two and a half leases long.
+    for (let i = 0; i < 5; i++) {
+      await wait(500);
       expect((await recoverStalled(t.db, logger)).requeued).toBe(0);
     }
-    await vi.waitFor(async () => {
+    h.release();
+    await eventually(async () => {
       expect(await liveJobs(t.db, "download")).toEqual([]);
     });
-    expect(runs).toBe(1);
+    expect(h.state.done).toEqual([1]);
   });
 
   it("writes no outcome for a run that lost its job to another", async () => {
-    worker([consumer("download", () => wait(300))]);
+    const h = held();
+    const w = worker([consumer("download", h.process)]);
     await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key: "taken" });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await liveJobs(t.db, "download"))[0]?.state).toBe("running");
     });
     await t.db
@@ -276,26 +299,27 @@ describe("the job worker", () => {
       .set({ locked_by: "00000000-0000-4000-8000-000000000001" })
       .where("key", "=", "taken")
       .execute();
-    await wait(500);
+    // The run ends only now, after the job changed hands; drain waits for it to finish.
+    h.release();
+    await w.drain();
+    expect(h.state.done).toEqual([1]);
     expect((await liveJobs(t.db, "download")).map((j) => j.state)).toEqual(["running"]);
   });
 
   it("drains: lets running jobs finish and starts nothing more", async () => {
-    const done: number[] = [];
-    const w = worker([
-      consumer("download", async (job) => {
-        await wait(200);
-        done.push(job.data.n);
-      }),
-    ]);
+    const h = held();
+    const w = worker([consumer("download", h.process)]);
     const q = new JobQueue(t.db, "download");
     await q.add("fetch", { n: 1 }, { key: "a" });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await liveJobs(t.db, "download"))[0]?.state).toBe("running");
     });
     await q.add("fetch", { n: 2 }, { key: "b" });
-    await w.drain();
-    expect(done).toEqual([1]);
+    // Draining starts while "a" still runs, so nothing may claim "b" once "a" ends.
+    const drained = w.drain();
+    h.release();
+    await drained;
+    expect(h.state.done).toEqual([1]);
     expect((await liveJobs(t.db, "download")).map((j) => [j.key, j.state])).toEqual([
       ["b", "queued"],
     ]);
@@ -304,7 +328,7 @@ describe("the job worker", () => {
   it("abandons: puts running jobs back as stalls, their attempt returned", async () => {
     const w = worker([consumer("download", () => wait(5000))]);
     await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key: "hung", attempts: 3 });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await liveJobs(t.db, "download"))[0]?.state).toBe("running");
     });
     await w.abandon();
@@ -327,7 +351,7 @@ describe("the job worker", () => {
       { specs: { download: { leaseMs: 300 } } },
     );
     await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key: "lost" });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await liveJobs(t.db, "download"))[0]?.state).toBe("running");
     });
     // Another run took the job (its lease lapsed and the sweep put it back, say).
@@ -336,7 +360,7 @@ describe("the job worker", () => {
       .set({ locked_by: "00000000-0000-4000-8000-000000000002" })
       .where("key", "=", "lost")
       .execute();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(lost?.aborted).toBe(true);
     });
   });
@@ -364,7 +388,7 @@ describe("the job worker", () => {
       { pollMs: 100 },
     );
     await new JobQueue(t.db, "download").add("fetch", { n: 1 }, { key: "twice", attempts: 3 });
-    await vi.waitFor(async () => {
+    await eventually(async () => {
       expect((await liveJobs(t.db, "download"))[0]?.state).toBe("running");
     });
     // The lease lapses while the run is still alive (the database was away), and the sweep puts
@@ -373,7 +397,7 @@ describe("the job worker", () => {
       t.db,
     );
     await recoverStalled(t.db, logger);
-    await vi.waitFor(
+    await eventually(
       async () => {
         expect(await liveJobs(t.db, "download")).toEqual([]);
       },
