@@ -65,7 +65,8 @@ The `upload` job (lease 60 s, two stalls, three tries 10 s and 20 s apart, two a
 2. reads the file with ffprobe (its path, or an S3 read URL), with its demuxers pinned to MP4/MOV,
    Matroska/WebM and AVI (`-format_whitelist mov,matroska,avi`, and a local file held to the file
    protocol): ffmpeg picks a demuxer by content, so a playlist named `.mp4` (HLS, ffconcat) would
-   otherwise make the server fetch URLs or read other files. A file in any other container, or with
+   otherwise make the server fetch URLs or read other files (every later read of a stored file is
+   pinned too, to the wider list a download may be in; docs/downloads.md). A file in any other container, or with
    no video stream, fails at once, "That file has no video we can read". Every later reader
    (playback sessions, keyframes) reads only a file that passed this check;
 3. grabs a frame (a tenth of the way in, no later than a minute) with the image's own ffmpeg when

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkUrl, commandLine } from "./args.ts";
+import { baseArgs, checkUrl, commandLine } from "./args.ts";
 import { classifyFailure, failureMessage, YtDlpError, type YtDlpErrorKind } from "./errors.ts";
 import { LineSplitter, LineTail } from "./lines.ts";
 import { redactLine } from "./redact.ts";
@@ -178,10 +178,7 @@ describe("arguments", () => {
   it("puts the URL last, behind --", () => {
     const files = { cookies: "/tmp/c.txt", netrcDir: "/tmp/n" };
     expect(commandLine(files, ["--a"], ["--b"], "https://x.example/")).toEqual([
-      "--ignore-config",
-      "--no-update",
-      "--color",
-      "never",
+      ...baseArgs({ cookies: null, netrcDir: null }),
       "--cookies",
       "/tmp/c.txt",
       "--netrc",

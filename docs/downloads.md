@@ -46,7 +46,16 @@ request handler.
    same video and profile at once share one fetch. Whenever a download settles, its owner's next one is dispatched.
 6. **Fetch** (`src/worker/fetch.ts`): in a scratch directory under `UROBOROS_WORK_DIR`, yt-dlp
    downloads with the snapshot's arguments (plus a jpg thumbnail and the `.info.json`), ffprobe
-   reads the codecs, and the file and its sidecars go to the store. Then one transaction records
+   reads the codecs, and the file and its sidecars go to the store. ffmpeg picks a demuxer by a
+   file's contents, not its name, so a link serving a DASH or HLS playlist as `video/mp4` would
+   make it open whatever files or URLs the playlist names (another person's stored video, an
+   internal address). Every ffmpeg and ffprobe input of a downloaded or stored file (this probe,
+   playback, keyframes, hover previews, cut copies) is held to the media containers
+   (`-format_whitelist`, `MEDIA_FORMATS` in `packages/ytdlp/src/mediaFormats.ts`) and to its
+   protocols (the file protocol for a path). yt-dlp's own ffmpeg post-processors (merge, remux,
+   embed, convert, cut) get the same through `--postprocessor-args <PP>+ffmpeg_i:…` for each of
+   them, plus the subtitle, image and metadata formats they read (and `concat` for the two that
+   cut or join through a concat list it writes). Then one transaction records
    the rendition (`ON CONFLICT DO NOTHING`), marks every download waiting on the fetch key `done`
    and adds their library entries. The scratch directory is removed whatever happens.
 7. **Failures**: `rate_limited`, `network`, `timed_out`, `unknown` and `storage` retry up to 3

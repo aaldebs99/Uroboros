@@ -2,6 +2,7 @@ import { readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { baseArgs } from "./args.ts";
 import { YtDlpError } from "./errors.ts";
 import { ffprobe } from "./ffprobe.ts";
 import { probe } from "./probe.ts";
@@ -37,10 +38,7 @@ describe("probe", () => {
     const info = await probe(URL, run.options);
     expect(info).toMatchObject({ kind: "video", id: "aqz-KE-bpKQ" });
     expect(await run.argv()).toEqual([
-      "--ignore-config",
-      "--no-update",
-      "--color",
-      "never",
+      ...baseArgs({ cookies: null, netrcDir: null }),
       "--dump-single-json",
       "--no-warnings",
       "--no-progress",

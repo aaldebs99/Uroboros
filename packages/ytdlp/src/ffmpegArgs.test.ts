@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { sessionArgs, type RunPlan } from "./ffmpegArgs.ts";
+import { MEDIA_FORMATS } from "./mediaFormats.ts";
+
+/** What a local file's input is held to (`mediaFormats.test.ts` covers every builder). */
+const PIN = ["-protocol_whitelist", "file", "-format_whitelist", MEDIA_FORMATS];
 
 const OUT = [
   "-avoid_negative_ts",
@@ -51,6 +55,7 @@ describe("sessionArgs", () => {
       "error",
       "-copyts",
       "-start_at_zero",
+      ...PIN,
       "-i",
       "/media/a.mkv",
       "-map",
@@ -87,15 +92,17 @@ describe("sessionArgs", () => {
 
   it("starts a later run at its boundary, with the audio from a second input a little earlier", () => {
     const args = sessionArgs(encode({ start: 30, audio: { index: 2, copy: false } }));
-    expect(args.slice(4, 16)).toEqual([
+    expect(args.slice(4, 24)).toEqual([
       "-copyts",
       "-start_at_zero",
       "-ss",
       "30.0000",
+      ...PIN,
       "-i",
       "/media/a.mkv",
       "-ss",
       "29.7500",
+      ...PIN,
       "-i",
       "/media/a.mkv",
       "-map",
@@ -209,13 +216,15 @@ describe("sessionArgs", () => {
       audio: { index: 1, copy: true },
       vaapiDevice: "/dev/dri/renderD128",
     });
-    expect(args.slice(6, 14)).toEqual([
+    expect(args.slice(6, 22)).toEqual([
       "-ss",
       "12.0005",
+      ...PIN,
       "-i",
       "/media/b.mp4",
       "-ss",
       "11.7500",
+      ...PIN,
       "-i",
       "/media/b.mp4",
     ]);
@@ -234,11 +243,12 @@ describe("sessionArgs", () => {
       audio: { index: 0, copy: false },
       vaapiDevice: "/dev/dri/renderD128",
     });
-    expect(args.slice(4, 12)).toEqual([
+    expect(args.slice(4, 16)).toEqual([
       "-copyts",
       "-start_at_zero",
       "-ss",
       "17.7500",
+      ...PIN,
       "-i",
       "/media/song.opus",
       "-map",
@@ -264,11 +274,12 @@ describe("sessionArgs", () => {
       "-protocol_whitelist",
       "http,https,tcp,tls,crypto",
     ];
+    const pinned = [...net, "-format_whitelist", MEDIA_FORMATS];
     const first = args.indexOf(url);
     const second = args.lastIndexOf(url);
     expect(first).not.toBe(second);
-    expect(args.slice(first - 1 - net.length, first - 1)).toEqual(net);
-    expect(args.slice(second - 1 - net.length, second - 1)).toEqual(net);
+    expect(args.slice(first - 1 - pinned.length, first - 1)).toEqual(pinned);
+    expect(args.slice(second - 1 - pinned.length, second - 1)).toEqual(pinned);
   });
 
   it("keeps a silent video silent", () => {

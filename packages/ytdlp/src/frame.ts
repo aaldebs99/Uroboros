@@ -14,7 +14,7 @@ export interface FrameOptions {
   /** The most bytes the picture may have. Default 10 MiB. */
   maxBytes?: number;
   killGraceMs?: number;
-  /** The demuxers ffmpeg may use (`-format_whitelist`), for a file someone uploaded. */
+  /** The demuxers ffmpeg may use (`-format_whitelist`); defaults to `MEDIA_FORMATS`. */
   formats?: string;
 }
 

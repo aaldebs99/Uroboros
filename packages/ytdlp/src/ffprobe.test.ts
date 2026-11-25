@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ffprobe } from "./ffprobe.ts";
+import { MEDIA_FORMATS } from "./mediaFormats.ts";
 import { FakeRun } from "./testFake.ts";
 
 const runs: FakeRun[] = [];
@@ -57,9 +58,11 @@ describe("ffprobe for playback sessions", () => {
     runs.push(run);
     await ffprobe("http://rustfs:9000/media/a.mkv?sig=1", run.options);
     const argv = await run.argv();
-    expect(argv.slice(-4)).toEqual([
+    expect(argv.slice(-6)).toEqual([
       "-protocol_whitelist",
       "http,https,tcp,tls,crypto",
+      "-format_whitelist",
+      MEDIA_FORMATS,
       "-i",
       "http://rustfs:9000/media/a.mkv?sig=1",
     ]);

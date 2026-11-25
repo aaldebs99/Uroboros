@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { z } from "zod";
 import { YtDlpError } from "./errors.ts";
+import { MEDIA_FORMATS } from "./mediaFormats.ts";
 import { list, num, str } from "./lenient.ts";
 import {
   checkRun,
@@ -17,10 +18,10 @@ export interface FfprobeOptions {
   env?: Readonly<Record<string, string>>;
   killGraceMs?: number;
   /**
-   * The demuxers ffprobe may use, comma-separated (`-format_whitelist`), for a file someone
-   * uploaded: ffmpeg picks a demuxer by content, so a playlist named `.mp4` (HLS, ffconcat) would
-   * otherwise make it fetch URLs or read other files. A local file is then held to the file
-   * protocol too.
+   * The demuxers ffprobe may use, comma-separated (`-format_whitelist`). Defaults to
+   * `MEDIA_FORMATS`; an upload passes its narrower list. ffmpeg picks a demuxer by content, so a
+   * playlist named `.mp4` (DASH, HLS, ffconcat) would otherwise make it fetch URLs or read other
+   * files.
    */
   formats?: string;
 }
@@ -141,15 +142,15 @@ export type MediaInfo = z.output<typeof MediaInfo>;
 const URL_PROTOCOLS = ["-protocol_whitelist", "http,https,tcp,tls,crypto"];
 
 /**
- * The input, with its protocols held to what it needs: a URL to the network ones; a local file,
- * when the demuxers are pinned (`formats`), to the file protocol. An absolute path never starts
- * with "-", so ffmpeg cannot read it as an option; a URL starts with its scheme.
+ * The input, held to the demuxers it may be read as (`formats`, by default the media containers)
+ * and the protocols it needs: a URL to the network ones, a local file to the file protocol. An
+ * absolute path never starts with "-", so ffmpeg cannot read it as an option; a URL starts with
+ * its scheme.
  */
-export function inputArgs(path: string, formats?: string): string[] {
-  const pinned = formats === undefined ? [] : ["-format_whitelist", formats];
+export function inputArgs(path: string, formats: string = MEDIA_FORMATS): string[] {
+  const pinned = ["-format_whitelist", formats];
   if (/^https?:\/\//.test(path)) return [...URL_PROTOCOLS, ...pinned, "-i", path];
-  const local = formats === undefined ? [] : ["-protocol_whitelist", "file"];
-  return [...local, ...pinned, "-i", resolve(path)];
+  return ["-protocol_whitelist", "file", ...pinned, "-i", resolve(path)];
 }
 
 /** Reads a media file's (or URL's) container, duration and streams with ffprobe. */

@@ -1,4 +1,4 @@
-import { networkInputArgs } from "./ffmpegArgs.ts";
+import { mediaInputArgs } from "./ffmpegArgs.ts";
 import {
   videoEncoderArgs,
   videoFilter,
@@ -69,7 +69,7 @@ export function exportArgs(p: ExportPlan): string[] {
     "pipe:1",
     "-nostats",
     ...videoInputArgs(p.video.pipeline, p.vaapiDevice),
-    ...networkInputArgs(p.input),
+    ...mediaInputArgs(p.input),
     "-i",
     p.input,
     ...(p.chapters === null ? [] : ["-f", "ffmetadata", "-i", p.chapters]),

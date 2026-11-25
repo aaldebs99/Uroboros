@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { FakeRun } from "./testFake.ts";
 import { probeKeyframes } from "./keyframes.ts";
+import { MEDIA_FORMATS } from "./mediaFormats.ts";
 
 const runs: FakeRun[] = [];
 afterEach(async () => {
@@ -29,6 +30,10 @@ describe("probeKeyframes", () => {
       "packet=pts_time,flags",
       "-of",
       "csv=p=0",
+      "-protocol_whitelist",
+      "file",
+      "-format_whitelist",
+      MEDIA_FORMATS,
       "-i",
       "/m/a.mkv",
     ]);

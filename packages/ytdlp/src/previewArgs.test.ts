@@ -5,6 +5,7 @@ import {
   previewWindows,
   type PreviewPlan,
 } from "./previewArgs.ts";
+import { MEDIA_FORMATS } from "./mediaFormats.ts";
 
 const plan = (over: Partial<PreviewPlan> = {}): PreviewPlan => ({
   input: "/media/a.webm",
@@ -64,12 +65,16 @@ describe("previewArgs", () => {
     const args = previewArgs(plan());
     const opens = args.flatMap((a, i) => (a === "-i" ? [i] : []));
     expect(opens).toHaveLength(5);
-    expect(opens.map((i) => args.slice(i - 4, i + 2))).toEqual(
+    expect(opens.map((i) => args.slice(i - 8, i + 2))).toEqual(
       ["0.000", "20.000", "40.000", "60.000", "80.000"].map((start) => [
         "-ss",
         start,
         "-t",
         "2.000",
+        "-protocol_whitelist",
+        "file",
+        "-format_whitelist",
+        MEDIA_FORMATS,
         "-i",
         "/media/a.webm",
       ]),

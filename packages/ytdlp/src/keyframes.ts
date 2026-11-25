@@ -4,6 +4,7 @@ import {
   DEFAULT_STDERR_TAIL_LINES,
   runProcess,
 } from "./process.ts";
+import { inputArgs } from "./ffprobe.ts";
 
 export interface KeyframeOptions {
   binary?: string;
@@ -35,8 +36,7 @@ export async function probeKeyframes(input: string, o: KeyframeOptions): Promise
       "packet=pts_time,flags",
       "-of",
       "csv=p=0",
-      "-i",
-      input,
+      ...inputArgs(input),
     ],
     env: o.env,
     signal: o.signal,

@@ -1,4 +1,4 @@
-import { networkInputArgs } from "./ffmpegArgs.ts";
+import { mediaInputArgs } from "./ffmpegArgs.ts";
 import { videoEncoderArgs, videoFilter, type EncodeSettings } from "./ffmpegVideo.ts";
 
 /**
@@ -59,7 +59,7 @@ export function previewArgs(p: PreviewPlan): string[] {
     t(w.start),
     "-t",
     t(w.length),
-    ...networkInputArgs(p.input),
+    ...mediaInputArgs(p.input),
     "-i",
     p.input,
   ]);
