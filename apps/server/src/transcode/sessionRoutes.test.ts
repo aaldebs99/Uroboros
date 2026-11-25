@@ -265,6 +265,33 @@ describe("a public link's sessions", () => {
     expect((await app().request(first.masterUrl)).status).toBe(200);
   });
 
+  it("answers the session, its playlist and a stored segment under the code, and stops it", async () => {
+    const path = await link("pubcode00000000000000c");
+    const s = PlaybackSession.parse(await (await open(path)).json());
+    const got = await app().request(s.url);
+    expect(got.status).toBe(200);
+    expect(PlaybackSession.parse(await got.json()).id).toBe(s.id);
+    const index = await app().request(`${s.url}/index.m3u8`);
+    expect(index.status).toBe(200);
+    expect(await index.text()).toContain("#EXT-X-ENDLIST");
+    await store.putBytes(segmentKey(s.id, 0), Buffer.from("segment zero"), "video/mp4");
+    await markStored({ db: t.db }, s.id, 0);
+    const seg = await app().request(`${s.url}/seg-0.m4s`);
+    expect(seg.status).toBe(200);
+    expect(await seg.text()).toBe("segment zero");
+    // The same session under a code that was never made, or on the signed-in path, is nobody's.
+    expect(
+      (await app().request(s.url.replace("pubcode00000000000000c", "pubcode0000000000000zz")))
+        .status,
+    ).toBe(404);
+    expect(
+      (await app().request(`/api/library/${film.entryId}/playback/sessions/${s.id}`)).status,
+    ).toBe(401);
+    expect((await app().request(s.url, { method: "DELETE" })).status).toBe(204);
+    expect((await app().request(`${s.url}/seg-0.m4s`)).status).toBe(404);
+    expect((await app().request(s.masterUrl)).status).toBe(404);
+  });
+
   it("stops working when the link is turned off", async () => {
     const path = await link("pubcode00000000000000b");
     const s = PlaybackSession.parse(await (await open(path)).json());
