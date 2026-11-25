@@ -104,7 +104,11 @@ describe("POST /api/me/password", () => {
   it("keeps the person's API tokens: they are listed beside it to revoke", async () => {
     const u = await localUser();
     const secret = await mcpToken(testDb.db, u.userId, { scopes: ["api"] });
-    await send(u, "POST", "/api/me/password", { currentPassword: OLD, newPassword: NEW });
+    const res = await send(u, "POST", "/api/me/password", {
+      currentPassword: OLD,
+      newPassword: NEW,
+    });
+    expect(res.status).toBe(204);
     expect(await resolveToken(testDb.db, secret)).not.toBeNull();
   });
 
@@ -164,9 +168,47 @@ describe("/api/me/sessions", () => {
 });
 
 describe("/api/admin/users", () => {
-  it("is for admins only", async () => {
+  it("is for admins only: a member is refused every route, and nothing changes", async () => {
     const member = await localUser();
-    expect((await send(member, "GET", "/api/admin/users")).status).toBe(403);
+    const target = await localUser();
+    const before = await testDb.db
+      .selectFrom("users")
+      .selectAll()
+      .where("id", "=", target.userId)
+      .executeTakeFirstOrThrow();
+    const attempts: [string, string, unknown?][] = [
+      ["GET", "/api/admin/users"],
+      [
+        "POST",
+        "/api/admin/users",
+        { username: "mallory", displayName: "M", role: "admin", password: NEW },
+      ],
+      ["PATCH", `/api/admin/users/${member.userId}`, { role: "admin" }],
+      ["PATCH", `/api/admin/users/${target.userId}`, { disabled: true }],
+      ["POST", `/api/admin/users/${target.userId}/password`, { password: NEW }],
+      ["DELETE", `/api/admin/users/${target.userId}`],
+    ];
+    for (const [method, path, body] of attempts) {
+      const res = await send(member, method, path, body);
+      expect(res.status, `${method} ${path}`).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "forbidden" });
+    }
+    const after = await testDb.db
+      .selectFrom("users")
+      .selectAll()
+      .where("id", "=", target.userId)
+      .executeTakeFirstOrThrow();
+    expect(after).toEqual(before);
+    const self = await testDb.db
+      .selectFrom("users")
+      .select("role")
+      .where("id", "=", member.userId)
+      .executeTakeFirstOrThrow();
+    expect(self.role).toBe("member");
+    expect(
+      await testDb.db.selectFrom("users").select("id").where("username", "=", "mallory").execute(),
+    ).toEqual([]);
+    expect(await resolveSession(testDb.db, target.token)).not.toBeNull();
   });
 
   it("lists users and creates a local one (409 on a taken username)", async () => {
@@ -249,7 +291,10 @@ describe("/api/admin/users", () => {
     const target = await localUser();
     const secret = await mcpToken(testDb.db, target.userId, { scopes: ["api", "mcp"] });
     const keep = await mcpToken(testDb.db, admin.userId, { scopes: ["api"] });
-    await send(admin, "POST", `/api/admin/users/${target.userId}/password`, { password: NEW });
+    expect(
+      (await send(admin, "POST", `/api/admin/users/${target.userId}/password`, { password: NEW }))
+        .status,
+    ).toBe(204);
     expect(await resolveToken(testDb.db, secret)).toBeNull();
     expect(await resolveToken(testDb.db, keep)).not.toBeNull();
   });
@@ -258,8 +303,10 @@ describe("/api/admin/users", () => {
     const admin = await localUser("admin");
     const target = await localUser();
     const secret = await mcpToken(testDb.db, target.userId, { scopes: ["api"] });
-    await send(admin, "PATCH", `/api/admin/users/${target.userId}`, { disabled: true });
-    await send(admin, "PATCH", `/api/admin/users/${target.userId}`, { disabled: false });
+    const patch = (body: unknown) =>
+      send(admin, "PATCH", `/api/admin/users/${target.userId}`, body);
+    expect((await patch({ disabled: true })).status).toBe(200);
+    expect((await patch({ disabled: false })).status).toBe(200);
     expect(await resolveToken(testDb.db, secret)).toBeNull();
     expect(await resolveSession(testDb.db, target.token)).toBeNull();
   });
@@ -268,8 +315,10 @@ describe("/api/admin/users", () => {
     const admin = await localUser("admin");
     const target = await localUser();
     const secret = await mcpToken(testDb.db, target.userId, { scopes: ["api"] });
-    await send(admin, "PATCH", `/api/admin/users/${target.userId}`, { displayName: "Renamed" });
-    await send(admin, "PATCH", `/api/admin/users/${target.userId}`, { disabled: false });
+    const patch = (body: unknown) =>
+      send(admin, "PATCH", `/api/admin/users/${target.userId}`, body);
+    expect((await patch({ displayName: "Renamed" })).status).toBe(200);
+    expect((await patch({ disabled: false })).status).toBe(200);
     expect(await resolveToken(testDb.db, secret)).not.toBeNull();
   });
 
@@ -284,5 +333,20 @@ describe("/api/admin/users", () => {
       message: "disable SSO accounts instead; they come back on next sign-in",
     });
     expect((await send(admin, "DELETE", `/api/admin/users/${admin.userId}`)).status).toBe(409);
+    const boot = await localUser("admin");
+    await testDb.db.updateTable("users").set({ bootstrap: false }).execute();
+    await testDb.db
+      .updateTable("users")
+      .set({ bootstrap: true })
+      .where("id", "=", boot.userId)
+      .execute();
+    const refused = await send(admin, "DELETE", `/api/admin/users/${boot.userId}`);
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({
+      message: "the bootstrap admin cannot be deleted",
+    });
+    expect(
+      await testDb.db.selectFrom("users").select("id").where("id", "=", boot.userId).execute(),
+    ).toHaveLength(1);
   });
 });
