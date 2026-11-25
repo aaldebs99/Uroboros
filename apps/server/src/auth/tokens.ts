@@ -11,7 +11,6 @@ import type { Kysely, Transaction } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
-import { readInstanceSettings } from "../settings/store.ts";
 import type { ResolveToken } from "./guard.ts";
 import { digest, newSecret } from "./secrets.ts";
 
@@ -136,7 +135,11 @@ async function insertToken(tx: Transaction<Database>, t: NewToken) {
   }
 }
 
-export function registerTokenRoutes(app: OpenAPIHono, db: Kysely<Database>): void {
+export function registerTokenRoutes(
+  app: OpenAPIHono,
+  db: Kysely<Database>,
+  { mcpEnabled = false }: { mcpEnabled?: boolean | undefined } = {},
+): void {
   app.openapi(listRoute, async (c) => {
     const { userId } = currentPrincipal(c);
     const rows = await db
@@ -145,15 +148,14 @@ export function registerTokenRoutes(app: OpenAPIHono, db: Kysely<Database>): voi
       .where("user_id", "=", userId)
       .orderBy("created_at")
       .execute();
-    const { mcpEnabled } = await readInstanceSettings(db);
     return c.json({ mcp: { enabled: mcpEnabled }, tokens: rows.map(view) }, 200);
   });
 
   app.openapi(createTokenRoute, async (c) => {
     const { userId } = currentPrincipal(c);
     const { name, scopes, readOnly } = c.req.valid("json");
-    if (scopes.includes("mcp") && !(await readInstanceSettings(db)).mcpEnabled) {
-      throw new ApiError("conflict", "the MCP server is off; ask an admin to turn it on");
+    if (scopes.includes("mcp") && !mcpEnabled) {
+      throw new ApiError("conflict", "the MCP server is off (UROBOROS_MCP_ENABLED)");
     }
     const secret = newSecret();
     const row = await db

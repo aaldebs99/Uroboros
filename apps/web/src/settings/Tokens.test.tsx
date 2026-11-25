@@ -77,12 +77,14 @@ describe("Tokens", () => {
     expect(within(await openDialog()).getByLabelText("Token name")).toHaveValue("");
   });
 
-  it("can't offer MCP while an admin has the MCP server off, and says so", async () => {
+  it("can't offer MCP while the server has MCP off, and says so", async () => {
     api(false);
     await renderInRouter(<Tokens />);
     const mcp = within(await openDialog()).getByRole("checkbox", { name: "MCP" });
     expect(mcp).toBeDisabled();
-    expect(mcp).toHaveAccessibleDescription("An admin has turned the MCP server off.");
+    expect(mcp).toHaveAccessibleDescription(
+      "The MCP server is off on this server (UROBOROS_MCP_ENABLED).",
+    );
   });
 
   it("needs at least one kind of access", async () => {

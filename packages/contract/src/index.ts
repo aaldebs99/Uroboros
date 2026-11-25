@@ -174,7 +174,6 @@ export {
   MAX_GROUPS_CREATED,
   NewGroupBody,
 } from "./groups.ts";
-export { InstanceSettings, InstanceSettingsPatch } from "./settings.ts";
 export {
   MAX_PROBE_WAIT_SECONDS,
   MAX_TRANSCRIPT_LINES,

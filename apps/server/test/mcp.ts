@@ -22,15 +22,6 @@ export async function mcpToken(
   return secret;
 }
 
-/** Turns the MCP server on or off, as an admin would. */
-export async function setMcp(db: Kysely<Database>, on: boolean): Promise<void> {
-  await db
-    .insertInto("instance_settings")
-    .values({ id: 1, mcp_enabled: on })
-    .onConflict((oc) => oc.column("id").doUpdateSet({ mcp_enabled: on }))
-    .execute();
-}
-
 interface Requester {
   request(input: string, init?: RequestInit): Response | Promise<Response>;
 }

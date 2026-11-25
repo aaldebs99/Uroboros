@@ -8,12 +8,11 @@ the API tokens Uroboros took from Djinn (docs/auth.md).
 
 ## Turning it on
 
-The server is off until an admin turns it on under **Admin › Server** (`PATCH /api/admin/settings
-{ "mcpEnabled": true }`). The switch is the `mcp_enabled` column of `instance_settings`, the
-instance's one row of runtime settings (none until the first change; `settings/store.ts` reads the
-defaults then). Every MCP request reads it afresh, so turning it off stops every MCP token on every
-replica at once: `/api/mcp` then answers 404 "the MCP server is off". Turning it back on restores
-the tokens that already exist.
+The server is off unless the deployment sets `UROBOROS_MCP_ENABLED=true` (`config.ts`). Each
+replica reads it when it starts, so set it the same on every replica and restart them to change it;
+there is no switch in the app. Off, `/api/mcp` answers 404 "the MCP server is off", which stops
+every MCP token, and no token can be made for MCP (409). Turning it back on restores the tokens that
+already exist.
 
 ## Tokens for MCP
 

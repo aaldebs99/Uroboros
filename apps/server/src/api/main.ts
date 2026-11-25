@@ -163,13 +163,14 @@ export async function startApi(
           ? [new URL(config.storage.publicUrl).origin]
           : [],
       publicBaseUrl: config.push.publicBaseUrl,
+      mcpEnabled: config.mcpEnabled,
     },
   );
   opts.configure?.(app, db);
   const server = await listen(app, config.bind);
   const address = server.address();
   const port = typeof address === "object" && address !== null ? address.port : config.bind.port;
-  logger.info({ host: config.bind.host, port }, "api listening");
+  logger.info({ host: config.bind.host, port, mcp: config.mcpEnabled }, "api listening");
 
   const stop = new AbortController();
   // Discovery retries in the background; until it succeeds the sign-in button says so.

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { mcpPost, mcpToken, setMcp, toolNames } from "../../test/mcp.ts";
+import { mcpPost, mcpToken, toolNames } from "../../test/mcp.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { insertUser } from "../../test/users.ts";
 import { createApp } from "../api/app.ts";
@@ -13,11 +13,14 @@ const logger = pino({ level: "silent" });
 
 let testDb: TestDb;
 let app: OpenAPIHono;
+/** The same server with MCP off, as without `UROBOROS_MCP_ENABLED`. */
+let off: OpenAPIHono;
 let secret: string;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  app = createApp({ db: testDb.db, version: "9.9.9", logger }, { webDist: null });
+  app = createApp({ db: testDb.db, version: "9.9.9", logger }, { webDist: null, mcpEnabled: true });
+  off = createApp({ db: testDb.db, version: "9.9.9", logger }, { webDist: null });
   secret = await mcpToken(testDb.db, await insertUser(testDb.db, { username: "mcproute" }));
 });
 afterAll(async () => {
@@ -70,14 +73,12 @@ const initialize = (a: OpenAPIHono, s: string) =>
 
 describe("the MCP endpoint", () => {
   it("answers 404 while the MCP server is off", async () => {
-    await setMcp(testDb.db, false);
-    const res = await initialize(app, secret);
+    const res = await initialize(off, secret);
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({ code: "not_found", message: "the MCP server is off" });
   });
 
   it("introduces itself as Uroboros and offers its tools once it is on", async () => {
-    await setMcp(testDb.db, true);
     const res = await initialize(app, secret);
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -88,7 +89,6 @@ describe("the MCP endpoint", () => {
   });
 
   it("serves a client of the 2026-07-28 revision too, in plain JSON", async () => {
-    await setMcp(testDb.db, true);
     const _meta = MODERN_META;
     const res = await app.request("/api/mcp", {
       method: "POST",
@@ -114,7 +114,6 @@ describe("the MCP endpoint", () => {
   });
 
   it("marks the tools that reach other sites, and the ones that can delete", async () => {
-    await setMcp(testDb.db, true);
     const res = await mcpPost(app, secret, "tools/list");
     const { result } = (await res.json()) as {
       result: {
@@ -148,7 +147,6 @@ describe("the MCP endpoint", () => {
   });
 
   it("offers a read-only token only the tools that read", async () => {
-    await setMcp(testDb.db, true);
     const reader = await mcpToken(testDb.db, await insertUser(testDb.db, { username: "mcpro" }), {
       readOnly: true,
     });
@@ -156,7 +154,6 @@ describe("the MCP endpoint", () => {
   });
 
   it("ends a 2026-07-28 client's listen at once, so no stream outlives the request", async () => {
-    await setMcp(testDb.db, true);
     const res = await app.request("/api/mcp", {
       method: "POST",
       headers: {
@@ -185,7 +182,6 @@ describe("the MCP endpoint", () => {
   });
 
   it("keeps no sessions, so a GET for a stream is refused", async () => {
-    await setMcp(testDb.db, true);
     const res = await app.request("/api/mcp", {
       headers: { authorization: `Bearer ${secret}`, accept: "text/event-stream" },
     });
@@ -195,13 +191,12 @@ describe("the MCP endpoint", () => {
   it("answers 503 while the replica is starting", async () => {
     const starting = createApp(
       { db: testDb.db, version: "t", logger, attached: () => false },
-      { webDist: null },
+      { webDist: null, mcpEnabled: true },
     );
     expect((await initialize(starting, secret)).status).toBe(503);
   });
 
   it("refuses a body over the API's limit", async () => {
-    await setMcp(testDb.db, true);
     const res = await mcpPost(app, secret, "tools/call", {
       name: "search_library",
       arguments: { q: "x".repeat(70 * 1024) },

@@ -23,7 +23,7 @@ const SCOPE_HELP: Record<TokenScope, string> = {
   api: "Scripts and tools calling the REST API under /api.",
   mcp: "AI tools such as Claude Code, Cursor or VS Code, through the MCP server.",
 };
-const MCP_OFF = "An admin has turned the MCP server off.";
+const MCP_OFF = "The MCP server is off on this server (UROBOROS_MCP_ENABLED).";
 
 function CheckRow({
   id,

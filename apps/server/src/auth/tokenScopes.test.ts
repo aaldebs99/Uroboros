@@ -5,20 +5,21 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
-import { writeInstanceSettings } from "../settings/store.ts";
 
 const logger = pino({ level: "silent" });
 
 let testDb: TestDb;
+/** MCP off, as without `UROBOROS_MCP_ENABLED`. */
 let app: OpenAPIHono;
+/** The same server with MCP on. */
+let mcpOn: OpenAPIHono;
 let n = 0;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  app = createApp(
-    { db: testDb.db, version: "t", logger, auth: { secureCookies: false } },
-    { webDist: null },
-  );
+  const deps = { db: testDb.db, version: "t", logger, auth: { secureCookies: false } };
+  app = createApp(deps, { webDist: null });
+  mcpOn = createApp(deps, { webDist: null, mcpEnabled: true });
 });
 afterAll(async () => {
   await testDb.close();
@@ -29,20 +30,15 @@ async function person(): Promise<SignedIn> {
   return signedIn(testDb.db, { username: `scope${String(n)}` });
 }
 
-async function setMcp(on: boolean): Promise<void> {
-  const admin = await signedIn(testDb.db, { username: `scopeadmin${String(++n)}`, role: "admin" });
-  await writeInstanceSettings(testDb.db, { mcpEnabled: on }, admin.userId);
-}
-
-const create = (u: SignedIn, body: Record<string, unknown>) =>
-  asUser(app, u).request("/api/me/tokens", {
+const create = (u: SignedIn, body: Record<string, unknown>, via = app) =>
+  asUser(via, u).request("/api/me/tokens", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 
-async function made(u: SignedIn, body: Record<string, unknown>): Promise<NewApiToken> {
-  const res = await create(u, body);
+async function made(u: SignedIn, body: Record<string, unknown>, via = app): Promise<NewApiToken> {
+  const res = await create(u, body, via);
   expect(res.status).toBe(200);
   return NewApiToken.parse(await res.json());
 }
@@ -67,34 +63,30 @@ describe("API token scopes", () => {
 
   it("refuse an MCP token while the MCP server is off, and allow it once it is on", async () => {
     const u = await person();
-    await setMcp(false);
     const refused = await create(u, { name: "agent", scopes: ["mcp"] });
     expect(refused.status).toBe(409);
-    await setMcp(true);
-    const t = await made(u, { name: "agent", scopes: ["mcp", "api"] });
+    expect(await refused.json()).toMatchObject({
+      message: "the MCP server is off (UROBOROS_MCP_ENABLED)",
+    });
+    const t = await made(u, { name: "agent", scopes: ["mcp", "api"] }, mcpOn);
     expect(t.token.scopes).toEqual(["api", "mcp"]);
-    await setMcp(false);
   });
 
   it("list the tokens with whether the MCP server is on", async () => {
     const u = await person();
     await made(u, { name: "reader", readOnly: true });
-    await setMcp(true);
-    const on = TokenList.parse(await (await asUser(app, u).request("/api/me/tokens")).json());
+    const on = TokenList.parse(await (await asUser(mcpOn, u).request("/api/me/tokens")).json());
     expect(on.mcp).toEqual({ enabled: true });
     expect(on.tokens.map((t) => [t.name, t.scopes, t.readOnly])).toEqual([
       ["reader", ["api"], true],
     ]);
-    await setMcp(false);
     const off = TokenList.parse(await (await asUser(app, u).request("/api/me/tokens")).json());
     expect(off.mcp).toEqual({ enabled: false });
   });
 
   it("keep an MCP-only token off the REST API", async () => {
     const u = await person();
-    await setMcp(true);
-    const t = await made(u, { name: "mcp only", scopes: ["mcp"] });
-    await setMcp(false);
+    const t = await made(u, { name: "mcp only", scopes: ["mcp"] }, mcpOn);
     const res = await app.request("/api/me", { headers: bearer(t.secret) });
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ message: "this token cannot use the REST API" });

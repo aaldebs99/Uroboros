@@ -47,6 +47,7 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
       },
       generatePreviews: true,
     },
+    mcpEnabled: false,
     secretsKey: null,
     ...over,
   };

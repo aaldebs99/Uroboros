@@ -10,7 +10,7 @@ import {
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { seedEntry, type SeededEntry } from "../../test/library.ts";
-import { callTool, mcpToken, setMcp } from "../../test/mcp.ts";
+import { callTool, mcpToken } from "../../test/mcp.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { insertUser } from "../../test/users.ts";
 import { createApp } from "../api/app.ts";
@@ -26,10 +26,9 @@ let talk: SeededEntry;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
-  app = createApp({ db: testDb.db, version: "t", logger }, { webDist: null });
+  app = createApp({ db: testDb.db, version: "t", logger }, { webDist: null, mcpEnabled: true });
   owner = await insertUser(testDb.db, { username: "mcplib" });
   secret = await mcpToken(testDb.db, owner, { readOnly: true });
-  await setMcp(testDb.db, true);
   talk = await seedEntry(testDb.db, owner, {
     title: "Ownership in Rust",
     media: { channel: "Systems Weekly" },

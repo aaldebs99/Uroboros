@@ -3,7 +3,7 @@ import { Download, DownloadRequest, FormatProfile, QueueSelectionResult } from "
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { downloadHarness } from "../../test/downloads.ts";
-import { callTool, mcpPost, mcpToken, setMcp, toolNames } from "../../test/mcp.ts";
+import { callTool, mcpPost, mcpToken, toolNames } from "../../test/mcp.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { insertUser } from "../../test/users.ts";
 import { createApp } from "../api/app.ts";
@@ -19,10 +19,12 @@ let secret: string;
 beforeAll(async () => {
   testDb = await TestDb.create();
   h = await downloadHarness(testDb.db);
-  app = createApp({ db: testDb.db, version: "t", logger, downloads: h.ctx }, { webDist: null });
+  app = createApp(
+    { db: testDb.db, version: "t", logger, downloads: h.ctx },
+    { webDist: null, mcpEnabled: true },
+  );
   owner = await insertUser(testDb.db, { username: "mcpdl" });
   secret = await mcpToken(testDb.db, owner);
-  await setMcp(testDb.db, true);
 });
 afterAll(async () => {
   await h.close();

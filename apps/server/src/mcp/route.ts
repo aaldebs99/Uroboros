@@ -14,7 +14,6 @@ import type { Database } from "../db/schema.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { ApiError, errorResponse } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
-import { readInstanceSettings } from "../settings/store.ts";
 import { fromAuthInfo, toAuthInfo } from "./caller.ts";
 import { buildMcpServer } from "./server.ts";
 
@@ -23,6 +22,8 @@ export interface McpDeps {
   downloads: DownloadContext | undefined;
   logger: Logger;
   version: string;
+  /** `UROBOROS_MCP_ENABLED`, read at start: off (the default), `/api/mcp` answers 404. */
+  enabled?: boolean | undefined;
 }
 
 const METHOD_NOT_ALLOWED = {
@@ -61,7 +62,7 @@ async function serveLegacy(
 /**
  * The MCP server at `MCP_PATH` (docs/mcp.md): stateless, so any replica answers any request,
  * each with a fresh server and a plain JSON reply. The guard has already let only a token with
- * the `mcp` scope through; the admin's switch is read on every request.
+ * the `mcp` scope through. Whether it answers at all is `UROBOROS_MCP_ENABLED`, read at start.
  */
 export function registerMcpRoute(app: OpenAPIHono, deps: McpDeps): void {
   const build = (info: AuthInfo | undefined) =>
@@ -84,7 +85,7 @@ export function registerMcpRoute(app: OpenAPIHono, deps: McpDeps): void {
   });
 
   app.on(["GET", "POST", "DELETE"], MCP_PATH, async (c) => {
-    if (!(await readInstanceSettings(deps.db)).mcpEnabled) {
+    if (deps.enabled !== true) {
       throw new ApiError("not_found", "the MCP server is off");
     }
     const principal = currentPrincipal(c);

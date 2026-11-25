@@ -27,7 +27,6 @@ import type { MediaStore } from "../storage/index.ts";
 import { registerUploadRoutes } from "../uploads/routes.ts";
 import { registerExportRoutes, type ExportContext } from "../exports/routes.ts";
 import { registerNoticeRoutes } from "../notices/routes.ts";
-import { registerSettingsRoutes } from "../settings/routes.ts";
 import { registerMcpRoute } from "../mcp/route.ts";
 import { registerPreviewRoutes } from "../previews/routes.ts";
 import type { UploadContext } from "../uploads/store.ts";
@@ -146,6 +145,8 @@ export interface AppOptions {
   mediaOrigins?: string[];
   /** `UROBOROS_PUBLIC_BASE_URL`: absolute links in public link previews (else the request's origin). */
   publicBaseUrl?: string | null;
+  /** `UROBOROS_MCP_ENABLED`: whether `/api/mcp` answers and tokens may be made for it. Default off. */
+  mcpEnabled?: boolean;
 }
 
 /** What uploads need; without downloads, a store or its settings they answer 503. */
@@ -180,7 +181,12 @@ function playbackContext(deps: Deps): SessionContext | undefined {
   };
 }
 
-function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void {
+function registerAuthRoutes(
+  app: OpenAPIHono,
+  deps: Deps,
+  logger: Logger,
+  mcpEnabled: boolean | undefined,
+): void {
   const settings = deps.auth?.settings ?? DEFAULT_AUTH_SETTINGS;
   const secureCookies = deps.auth?.secureCookies ?? false;
   const provider = deps.auth?.oidc;
@@ -197,7 +203,7 @@ function registerAuthRoutes(app: OpenAPIHono, deps: Deps, logger: Logger): void 
         ? Promise.resolve(null)
         : oidcEndSessionUrl(deps.db, provider, new URL(oidc.redirectUrl).origin, userId),
   });
-  registerTokenRoutes(app, deps.db);
+  registerTokenRoutes(app, deps.db, { mcpEnabled });
   registerAccountRoutes(app, deps.db);
   registerAdminUserRoutes(app, {
     db: deps.db,
@@ -277,7 +283,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     publicBaseUrl: opts.publicBaseUrl ?? null,
   };
   app.openapi(infoRoute, (c) => c.json(info, 200));
-  registerAuthRoutes(app, deps, logger);
+  registerAuthRoutes(app, deps, logger, opts.mcpEnabled);
   registerProfileRoutes(app, deps.db);
   registerDownloadRoutes(app, deps.downloads);
   registerEventRoutes(app, deps.downloads, deps.downloadEvents);
@@ -288,7 +294,6 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerNotificationPrefRoutes(app, deps.db);
   registerNoticeRoutes(app, deps.db);
-  registerSettingsRoutes(app, deps.db);
   registerPreviewRoutes(app, deps.db, deps.generatePreviews);
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
@@ -298,7 +303,13 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerPlaybackSessionRoutes(app, playback);
   registerPublicRoutes(app, deps.db, deps.store, playback);
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
-  registerMcpRoute(app, { db: deps.db, downloads: deps.downloads, logger, version: deps.version });
+  registerMcpRoute(app, {
+    db: deps.db,
+    downloads: deps.downloads,
+    logger,
+    version: deps.version,
+    enabled: opts.mcpEnabled,
+  });
   registerSecuritySchemes(app);
   app.doc("/api/openapi.json", openApiConfig(deps.version));
   registerDocs(app);

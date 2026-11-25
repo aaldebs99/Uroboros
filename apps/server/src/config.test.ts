@@ -298,6 +298,21 @@ describe("loadConfig transcoding", () => {
   });
 });
 
+describe("loadConfig MCP server", () => {
+  it("keeps the MCP server off unless UROBOROS_MCP_ENABLED is true", () => {
+    expect(loadConfig(base).mcpEnabled).toBe(false);
+    expect(loadConfig({ ...base, UROBOROS_MCP_ENABLED: "" }).mcpEnabled).toBe(false);
+    expect(loadConfig({ ...base, UROBOROS_MCP_ENABLED: "false" }).mcpEnabled).toBe(false);
+    expect(loadConfig({ ...base, UROBOROS_MCP_ENABLED: "true" }).mcpEnabled).toBe(true);
+  });
+
+  it("names UROBOROS_MCP_ENABLED when it is neither true nor false", () => {
+    expect(() => loadConfig({ ...base, UROBOROS_MCP_ENABLED: "yes" })).toThrow(
+      /UROBOROS_MCP_ENABLED must be true or false/,
+    );
+  });
+});
+
 describe("loadConfig secrets key", () => {
   const key = Buffer.alloc(32, 7).toString("base64");
 

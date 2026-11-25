@@ -115,8 +115,9 @@ other route without `api` 403 "this token cannot use the REST API". A **read-onl
 "this token is read-only" on every REST write (anything but GET, HEAD and OPTIONS, so it cannot
 start a playback session either), and the MCP server hides and refuses its tools that change
 anything. `/api/mcp` takes tokens only, never the session cookie, and its 401 carries
-`WWW-Authenticate: Bearer`. A token for MCP can be made only while an admin has the MCP server on
-(409 otherwise); turning it off later keeps the token but stops it at the MCP server (404). Over
+`WWW-Authenticate: Bearer`. A token for MCP can be made only while the MCP server is on
+(`UROBOROS_MCP_ENABLED`; 409 otherwise); turning it off later keeps the token but stops it at the
+MCP server (404). Over
 REST an admin's token keeps the admin's reach outside `/api/admin` (all downloads, for one); the
 MCP server always acts as a member.
 
