@@ -115,6 +115,13 @@ person's own playlists (`playlist_items`) or in a YouTube playlist they have (`u
 `source_items`, by extractor and video id); another person's playlist never hides it. Channel and
 playlist pages, the search palette and API callers that don't ask for `inPlaylist` are unaffected.
 
+### SponsorBlock
+
+Settings › SponsorBlock keeps the person's SponsorBlock choices in the same `Preferences`
+(`sponsorBlock`): for videos and for audio files apart, which categories their player shows as
+bands and which it skips. Each switch patches `sponsorBlock` alone and fetches open items again,
+since the server resolves an item's segments by it ([automation.md](automation.md#sponsorblock)).
+
 ## The item page
 
 `GET /api/library/{id}` gives an entry with its description, chapters, subtitles, playlists (its
@@ -124,11 +131,13 @@ to a presigned URL when `UROBOROS_S3_PUBLIC_URL` is set; the CSP's `media-src` a
 and `GET /api/library/{id}/subtitles/{subId}` serves a WebVTT file. The web app plays it with
 Video.js 10 (`@videojs/react`, the Neutral video skin in the app's accent): subtitles are `<track>`s
 in its captions menu, chapters are a text track its time slider divides into sections, and the page
-also lists the chapters to jump to (`apps/web/src/library/Player.tsx`). The item's `skipSegments`,
-the SponsorBlock segments a video keeps, are bands on the timeline that playback jumps over when it
-runs into one, without a toast; a segment the viewer seeks into plays out (`SponsorSkip.tsx`,
-[automation.md](automation.md#sponsorblock)). The owner can fetch a video's segments again from
-the page (Refetch SponsorBlock segments, [automation.md](automation.md#sponsorblock)). When the browser cannot play
+also lists the chapters to jump to (`apps/web/src/library/Player.tsx`). The item's
+`sponsorSegments`, the file's SponsorBlock segments as the caller's setting has them, are bands on
+the timeline (strong where playback jumps them, faint where it only shows them), and playback jumps
+over a skipped one when it runs into it, without a toast; a segment the viewer seeks into plays out
+(`SponsorSkip.tsx`, [automation.md](automation.md#sponsorblock)). The owner can fetch a file's
+segments again from the page (Refetch SponsorBlock segments,
+[automation.md](automation.md#sponsorblock)). When the browser cannot play
 the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand instead
 ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.

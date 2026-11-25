@@ -96,7 +96,7 @@ describe("patches/@videojs__react.patch", () => {
   );
 
   it.each(["dev", "default"] as const)(
-    'draws the SponsorBlock segments\' track (label "skip") as markers on the timeline (%s build)',
+    'draws the SponsorBlock segments\' track (label "skip") as markers on the timeline, marking skipped ones (%s build)',
     (build) => {
       const slider = timeSlider(build);
       expect(slider).toContain(
@@ -104,6 +104,8 @@ describe("patches/@videojs__react.patch", () => {
       );
       expect(slider).toContain('const uroSkipFilter = { label: "skip" };');
       expect(slider).toMatch(/className: "uro-skip-markers",\s*filter: uroSkipFilter,/);
+      // A band playback jumps (cue id "skip:…") is marked; a shown-only one ("show:…") isn't.
+      expect(slider).toContain('"data-skips": marker.cue.id.startsWith("show:") ? void 0 : ""');
       expect(slider).toMatch(/children: \[\s*t4,\s*uroSkipMarkers,\s*t5,\s*t11\s*\]/);
     },
   );

@@ -3,5 +3,6 @@ export {
   SettingsLoginsPage,
   SettingsPage,
   SettingsProfilesPage,
+  SettingsSponsorBlockPage,
   SettingsTokensPage,
 } from "./settings";

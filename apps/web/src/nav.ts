@@ -64,6 +64,7 @@ export const SETTINGS_VIEWS = [
   { to: "/settings", label: "Notifications" },
   { to: "/settings/logins", label: "Logins" },
   { to: "/settings/profiles", label: "Profiles" },
+  { to: "/settings/sponsorblock", label: "SponsorBlock" },
   { to: "/settings/groups", label: "Groups" },
   { to: "/settings/tokens", label: "Tokens" },
 ] as const;

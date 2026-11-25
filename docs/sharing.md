@@ -114,8 +114,9 @@ its code itself and answers `X-Robots-Tag: noindex`:
 - `GET /api/public/s/{code}`: the link's title, description, whether it allows downloads, and its
   videos (`PublicShare`). It never names who shared it.
 - `GET …/items/{id}`: one video with its chapters, subtitles, codecs and URLs, all under the link
-  (`PublicItem`); `…/stream`, `…/thumbnail`, `…/subtitles/{subId}`, `…/file` (404 unless downloads
-  are allowed), and the playback sessions' `…/playback` and `…/playback/sessions/{sid}/…`, the same
+  (`PublicItem`), and its SponsorBlock segments by the link owner's setting, whoever opens it
+  ([automation.md](automation.md#sponsorblock)); `…/stream`, `…/thumbnail`, `…/subtitles/{subId}`,
+  `…/file` (the original file, segments and all; 404 unless downloads are allowed), and the playback sessions' `…/playback` and `…/playback/sessions/{sid}/…`, the same
   routes as a library entry's (`registerSessionScope`, [transcoding.md](transcoding.md)). A link
   plays on at most 3 screens at once.
 

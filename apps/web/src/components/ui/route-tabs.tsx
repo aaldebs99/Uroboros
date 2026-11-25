@@ -14,6 +14,7 @@ export interface RouteTab {
     | "/settings"
     | "/settings/logins"
     | "/settings/profiles"
+    | "/settings/sponsorblock"
     | "/settings/groups"
     | "/settings/tokens";
   label: string;

@@ -14,6 +14,7 @@ import {
   SettingsLoginsPage,
   SettingsPage,
   SettingsProfilesPage,
+  SettingsSponsorBlockPage,
   SettingsTokensPage,
 } from "./routes";
 import { AccountRoute, AdminGroupsRoute, AdminUsersRoute } from "./routes/account";
@@ -102,6 +103,11 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: "/settings/profiles",
     component: SettingsProfilesPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/settings/sponsorblock",
+    component: SettingsSponsorBlockPage,
   }),
   createRoute({
     getParentRoute: () => rootRoute,

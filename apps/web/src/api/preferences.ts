@@ -27,8 +27,14 @@ export function useUpdatePreferences() {
     onError: (_err, _patch, context) => {
       if (context?.before !== undefined) client.setQueryData(preferencesKey, context.before);
     },
-    onSuccess: (prefs) => {
+    onSuccess: (prefs, patch) => {
       client.setQueryData(preferencesKey, prefs);
+      // The server resolves each item's SponsorBlock segments by this setting: open players fetch
+      // their item again (a public link goes by its owner's, so the owner's open links too).
+      if (patch.sponsorBlock !== undefined) {
+        void client.invalidateQueries({ queryKey: ["api", "library", "item"] });
+        void client.invalidateQueries({ queryKey: ["api", "public"] });
+      }
     },
   });
 }

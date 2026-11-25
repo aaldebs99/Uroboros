@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { DEFAULT_SPONSORBLOCK } from "@uroboros/contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAppRouter } from "../router";
@@ -9,7 +10,6 @@ import { fakeApi } from "../test/fakeApi";
 
 function renderAt(path: string) {
   fakeApi({
-    "GET /api/ready": () => Response.json({ status: "ok", failing: [] }),
     "GET /api/info": () =>
       Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
     "GET /api/me": () =>
@@ -27,6 +27,8 @@ function renderAt(path: string) {
       Response.json({ downloads: true, shares: true, groups: true }),
     "GET /api/me/site-logins": () => Response.json({ enabled: true, logins: [] }),
     "GET /api/me/tokens": () => Response.json({ mcp: { enabled: true }, tokens: [] }),
+    "GET /api/me/preferences": () =>
+      Response.json({ hidePlaylistVideos: false, sponsorBlock: DEFAULT_SPONSORBLOCK }),
   });
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -44,6 +46,14 @@ afterEach(() => {
 });
 
 describe("Settings", () => {
+  it("has a SponsorBlock view at its own address", async () => {
+    const router = renderAt("/settings");
+    const tabs = await screen.findByRole("navigation", { name: "Settings views" });
+    await userEvent.click(within(tabs).getByRole("link", { name: "SponsorBlock" }));
+    expect(await screen.findByRole("heading", { name: "SponsorBlock" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/settings/sponsorblock");
+  });
+
   it("opens on Notifications, and the Logins tab has its own address", async () => {
     const router = renderAt("/settings");
     const tabs = await screen.findByRole("navigation", { name: "Settings views" });
@@ -69,7 +79,7 @@ describe("Settings", () => {
       within(tabs)
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Notifications", "Logins", "Profiles", "Groups", "Tokens"]);
+    ).toEqual(["Notifications", "Logins", "Profiles", "SponsorBlock", "Groups", "Tokens"]);
     await userEvent.click(within(tabs).getByRole("link", { name: "Tokens" }));
     expect(await screen.findByRole("heading", { name: "API tokens" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/settings/tokens");

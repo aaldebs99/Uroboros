@@ -1,4 +1,4 @@
-import { Bell, KeyRound, KeySquare, SlidersHorizontal, Users } from "lucide-react";
+import { Bell, FastForward, KeyRound, KeySquare, SlidersHorizontal, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Section } from "@/account/Section";
@@ -9,6 +9,7 @@ import { NotificationKinds } from "@/settings/NotificationKinds";
 import { FormatProfiles } from "@/settings/Profiles";
 import { SettingsTabs } from "@/settings/SettingsTabs";
 import { SiteLogins } from "@/settings/SiteLogins";
+import { SponsorBlockSettings } from "@/settings/SponsorBlockSettings";
 import { Tokens } from "@/settings/Tokens";
 import { Groups } from "@/sharing/GroupsPage";
 
@@ -71,6 +72,24 @@ export function SettingsProfilesPage() {
         description="The yt-dlp presets you download with. The built-in ones are everyone's until you change them; your changes, and the profiles you add, are yours alone. Your default is used whenever you don't pick one."
       >
         <FormatProfiles />
+      </Section>
+    </SettingsFrame>
+  );
+}
+
+/**
+ * Settings › SponsorBlock: which segments the person's player shows and skips, for videos and for
+ * audio (docs/automation.md#sponsorblock).
+ */
+export function SettingsSponsorBlockPage() {
+  return (
+    <SettingsFrame>
+      <Section
+        icon={FastForward}
+        title="SponsorBlock"
+        description="Which SponsorBlock segments show on the timeline and which playback skips. Videos and audio each have their own choice; a public link you share plays by yours."
+      >
+        <SponsorBlockSettings />
       </Section>
     </SettingsFrame>
   );
