@@ -64,6 +64,7 @@ link is absolute, built on `UROBOROS_PUBLIC_BASE_URL`.
 Besides the test (`POST /api/me/push/devices/{id}/test`, a tap opening Settings), features tell
 people things through `sendNotice` (`apps/server/src/notices/send.ts`): what subscriptions find and
 a subscription that keeps failing ([automation.md](automation.md)), finished and failed downloads, a
+download held for its owner's OK because it is large ([downloads.md](downloads.md#large-downloads)), a
 copy ready to save ([transcoding.md](transcoding.md)), what is shared with someone and being added
 to a group ([sharing.md](sharing.md)). It files the notice in the person's
 [list](#the-list-in-the-app), then pushes it through the `notify` queue ([jobs.md](jobs.md)), whose

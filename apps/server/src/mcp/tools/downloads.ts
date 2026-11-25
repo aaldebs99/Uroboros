@@ -17,7 +17,12 @@ import type { Kysely } from "kysely";
 import type { Database } from "../../db/schema.ts";
 import { ApiError } from "../../api/errors.ts";
 import type { Principal } from "../../auth/guard.ts";
-import { cancelDownload, retryDownload, type DownloadContext } from "../../downloads/dispatch.ts";
+import {
+  cancelDownload,
+  confirmDownload,
+  retryDownload,
+  type DownloadContext,
+} from "../../downloads/dispatch.ts";
 import { defaultProfileFor, profilesFor, toProfile } from "../../downloads/profiles.ts";
 import {
   createRequest,
@@ -176,6 +181,21 @@ export const downloadTools: Tool[] = [
     run: async ({ downloadId }, { downloads, caller }) => {
       const ctx = need(downloads);
       await retryDownload(ctx, asMember(caller), downloadId);
+      return ownDownload(ctx, caller.userId, downloadId);
+    },
+  }),
+  defineTool({
+    name: "confirm_download",
+    title: "Confirm a large download",
+    description:
+      "Lets one of the person's downloads that waits for their OK (its sizeHold says yt-dlp expects it to be larger than the server's limit) go ahead and be fetched.",
+    input: McpDownloadInput,
+    output: Download,
+    write: true,
+    openWorld: true,
+    run: async ({ downloadId }, { downloads, caller }) => {
+      const ctx = need(downloads);
+      await confirmDownload(ctx, asMember(caller), downloadId);
       return ownDownload(ctx, caller.userId, downloadId);
     },
   }),

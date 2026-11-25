@@ -68,16 +68,25 @@ export function RequestBadge({ state }: { state: RequestState }) {
   return <Badge tone={tone}>{label}</Badge>;
 }
 
+/** Queued, but held for its owner's OK because it is large (docs/downloads.md "Large downloads"). */
+const HELD: Look = { label: "Needs your OK", tone: "warning" };
+
 /** A download's state; while running, its phase ("Starting" until progress arrives). */
 export function DownloadBadge({
   state,
   progress,
+  held = false,
 }: {
   state: Download["state"];
   progress: DownloadProgress | null;
+  held?: boolean;
 }) {
   const { label, tone } =
-    state === "running" && progress !== null ? PHASE[progress.phase] : JOB[state];
+    state === "running" && progress !== null
+      ? PHASE[progress.phase]
+      : state === "queued" && held
+        ? HELD
+        : JOB[state];
   return <Badge tone={tone}>{label}</Badge>;
 }
 

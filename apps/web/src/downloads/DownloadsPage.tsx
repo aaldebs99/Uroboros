@@ -6,6 +6,7 @@ import { useState } from "react";
 import { errorText } from "@/api/client";
 import {
   cancelDownload,
+  confirmDownload,
   retryDownload,
   useDownloads,
   useEveryoneDownloadEvents,
@@ -55,6 +56,11 @@ export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | n
   };
   const cancel = act(cancelDownload);
   const retry = act(retryDownload);
+  const confirm = act((id) =>
+    confirmDownload(id).then(() => {
+      notify.success("Queued to download.");
+    }),
+  );
   const list = downloads.data ?? [];
   return (
     <section className="grid w-full grid-cols-1 gap-6">
@@ -115,6 +121,9 @@ export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | n
               }}
               onRetry={() => {
                 retry(d.id);
+              }}
+              onConfirm={() => {
+                confirm(d.id);
               }}
             />
           ))}

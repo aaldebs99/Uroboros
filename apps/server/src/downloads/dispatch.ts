@@ -208,6 +208,8 @@ export async function dispatchFor(ctx: DownloadContext, userId: string): Promise
       .where("d.user_id", "=", userId)
       .where("d.state", "=", "queued")
       .where("d.dispatched_at", "is", null)
+      // Held for its owner's OK (docs/downloads.md "Large downloads"): never until they confirm.
+      .where("d.size_held_at", "is", null)
       .orderBy("d.priority")
       .orderBy("d.created_at")
       .orderBy("d.id")
@@ -303,6 +305,9 @@ export async function retryDownload(
         attempts: 0,
         started_at: null,
         finished_at: null,
+        // A hold is asked again by the next fetch, unless its owner already said yes.
+        size_held_bytes: null,
+        size_held_at: null,
       })
       .where("id", "=", id)
       .execute();
@@ -318,5 +323,29 @@ export async function retryDownload(
     downloadId: id,
     userId: row.user_id,
   });
+  await dispatchFor(ctx, row.user_id);
+}
+
+/**
+ * Its owner's yes to a download held for its size (docs/downloads.md "Large downloads"): the hold
+ * goes and the next fetch for it goes ahead, whatever size yt-dlp says. 409 when it is not held.
+ */
+export async function confirmDownload(
+  ctx: DownloadContext,
+  principal: Principal,
+  id: string,
+): Promise<void> {
+  const row = await findDownload(ctx.db, principal, id);
+  const updated = await ctx.db
+    .updateTable("downloads")
+    .set({ size_ok_at: new Date(), size_held_bytes: null, size_held_at: null })
+    .where("id", "=", id)
+    .where("state", "=", "queued")
+    .where("size_held_at", "is not", null)
+    .returning("id")
+    .executeTakeFirst();
+  if (updated === undefined)
+    throw new ApiError("conflict", "this download is not waiting for an OK");
+  await publishDownloadEvent(ctx.db, { kind: "state", downloadId: id, userId: row.user_id });
   await dispatchFor(ctx, row.user_id);
 }

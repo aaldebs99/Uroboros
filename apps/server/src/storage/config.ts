@@ -41,12 +41,18 @@ export interface DownloadLimits {
   minCheckIntervalMinutes: number;
   /** The largest file a person may upload (docs/uploads.md). */
   uploadMaxBytes: number;
+  /**
+   * A download yt-dlp expects to be larger than this waits for its owner's OK before it is fetched
+   * (docs/downloads.md "Large downloads"); 0 never asks.
+   */
+  largeDownloadBytes: number;
 }
 
 const DEFAULT_MAX_ACTIVE_PER_USER = 3;
 const DEFAULT_MAX_PLAYLIST_ENTRIES = 1000;
 const DEFAULT_MIN_CHECK_INTERVAL_MINUTES = 60;
 const DEFAULT_UPLOAD_MAX_BYTES = 10 * 1024 ** 3;
+const DEFAULT_LARGE_DOWNLOAD_BYTES = 30 * 1024 ** 3;
 
 const optional = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
 
@@ -55,6 +61,15 @@ const positive = (name: string, fallback: number) =>
     .preprocess(
       (v) => (v === "" || v === undefined ? String(fallback) : v),
       z.string().regex(/^[1-9]\d*$/, `${name} must be a positive integer`),
+    )
+    .transform(Number);
+
+/** A count where 0 means off. */
+const nonNegative = (name: string, fallback: number) =>
+  z
+    .preprocess(
+      (v) => (v === "" || v === undefined ? String(fallback) : v),
+      z.string().regex(/^(0|[1-9]\d*)$/, `${name} must be 0 or a positive integer`),
     )
     .transform(Number);
 
@@ -89,6 +104,10 @@ export const storageEnvSchema = z.object({
     DEFAULT_MIN_CHECK_INTERVAL_MINUTES,
   ),
   UROBOROS_UPLOAD_MAX_BYTES: positive("UROBOROS_UPLOAD_MAX_BYTES", DEFAULT_UPLOAD_MAX_BYTES),
+  UROBOROS_LARGE_DOWNLOAD_BYTES: nonNegative(
+    "UROBOROS_LARGE_DOWNLOAD_BYTES",
+    DEFAULT_LARGE_DOWNLOAD_BYTES,
+  ),
 });
 
 type StorageEnv = z.output<typeof storageEnvSchema>;
@@ -181,5 +200,6 @@ export function toDownloadLimits(env: StorageEnv): DownloadLimits {
     maxPlaylistEntries: env.UROBOROS_MAX_PLAYLIST_ENTRIES,
     minCheckIntervalMinutes: env.UROBOROS_MIN_CHECK_INTERVAL_MINUTES,
     uploadMaxBytes: env.UROBOROS_UPLOAD_MAX_BYTES,
+    largeDownloadBytes: env.UROBOROS_LARGE_DOWNLOAD_BYTES,
   };
 }

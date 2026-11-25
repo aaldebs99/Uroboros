@@ -290,6 +290,14 @@ export const Download = z
      * docs/downloads.md "Rate limits"): when it tries again. Null otherwise.
      */
     retryAt: z.iso.datetime().nullable(),
+    /**
+     * While the download waits, queued, for its owner's OK because yt-dlp expects it to be larger
+     * than the server's limit (docs/downloads.md "Large downloads"): that estimate and the limit,
+     * in bytes. `POST /api/downloads/{id}/confirm` lets it go ahead. Null otherwise.
+     */
+    sizeHold: z
+      .object({ expectedBytes: z.number().int(), limitBytes: z.number().int() })
+      .nullable(),
     createdAt: z.iso.datetime(),
     startedAt: z.iso.datetime().nullable(),
     finishedAt: z.iso.datetime().nullable(),

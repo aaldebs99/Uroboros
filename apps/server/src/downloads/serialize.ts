@@ -54,6 +54,10 @@ export async function toDownloads(ctx: DownloadContext, rows: DownloadRow[]): Pr
       stderrTail: r.stderr_tail,
       attempts: r.attempts,
       retryAt: iso(r.retry_at),
+      sizeHold:
+        r.state === "queued" && r.size_held_bytes !== null
+          ? { expectedBytes: Number(r.size_held_bytes), limitBytes: ctx.limits.largeDownloadBytes }
+          : null,
       createdAt: r.created_at.toISOString(),
       startedAt: iso(r.started_at),
       finishedAt: iso(r.finished_at),

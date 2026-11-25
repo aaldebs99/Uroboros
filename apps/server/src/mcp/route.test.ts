@@ -47,6 +47,7 @@ const WRITE_TOOLS = [
   "add_to_playlist",
   "cancel_download",
   "check_subscription_now",
+  "confirm_download",
   "create_playlist",
   "create_subscription",
   "delete_subscription",
@@ -133,6 +134,7 @@ describe("the MCP endpoint", () => {
         .sort();
     expect(hinted("openWorldHint")).toEqual([
       "check_subscription_now",
+      "confirm_download",
       "create_subscription",
       "download_link",
       "preview_subscription",
