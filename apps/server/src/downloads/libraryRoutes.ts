@@ -151,10 +151,10 @@ const previewRoute = createRoute({
   tags: ["library"],
   summary: "The entry's hover preview",
   description:
-    "A short silent MP4 of snippets from across the video, or the whole of a short one (docs/library.md).",
+    'The whole video at 480p with its sound, made once after the download (docs/library.md "Hover previews").',
   request: { params: idParams },
   responses: {
-    200: binary("The clip", "video/mp4"),
+    200: binary("The preview", "video/mp4"),
     206: binary("A byte range of it", "video/mp4"),
     404: error("No such entry, or no preview yet"),
     416: { description: "The range is past the end" },

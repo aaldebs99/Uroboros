@@ -6848,7 +6848,7 @@
     },
     "/api/library/{id}/preview": {
       "get": {
-        "description": "A short silent MP4 of snippets from across the video, or the whole of a short one (docs/library.md).",
+        "description": "The whole video at 480p with its sound, made once after the download (docs/library.md \"Hover previews\").",
         "parameters": [
           {
             "in": "path",
@@ -6870,7 +6870,7 @@
                 }
               }
             },
-            "description": "The clip"
+            "description": "The preview"
           },
           "206": {
             "content": {

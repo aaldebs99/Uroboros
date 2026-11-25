@@ -4,9 +4,9 @@ import { publishDownloadEvents, type InternalEvent } from "../downloads/events.t
 import type { DownloadQueues } from "../downloads/queues.ts";
 
 /**
- * Hover previews (docs/library.md "Hover previews"): one short silent clip per media, made by the
- * `preview` job after a download or upload and by the leader's backfill, stored under `.previews/`
- * and served beside the thumbnail.
+ * Hover previews (docs/library.md "Hover previews"): one 480p copy of the whole video, with its
+ * sound, per media, made by the `preview` job after a download or upload and by the leader's
+ * backfill, stored under `.previews/` and served beside the thumbnail.
  */
 
 /** Where a media's preview is stored (UUID-named, so no other key is ever the same). */
