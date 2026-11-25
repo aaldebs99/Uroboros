@@ -8,7 +8,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { DOWNLOAD_ERROR_TEXT, rateLimitWait } from "./errorText";
 import { LoginHint } from "./LoginHint";
 import { YtDlpDetails } from "./YtDlpDetails";
-import { progressDetail } from "./format";
+import { formatBytes, progressDetail } from "./format";
 
 /** The badge, the detail and, only with a real fraction, the percentage and the glowing bar. */
 function StateLine({
@@ -26,7 +26,11 @@ function StateLine({
   return (
     <div className="grid grid-cols-1 gap-1.5">
       <div className="flex items-center gap-2.5">
-        <DownloadBadge state={download.state} progress={running} />
+        <DownloadBadge
+          state={download.state}
+          progress={running}
+          held={download.sizeHold !== null}
+        />
         <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground tabular-nums">
           {detail}
         </span>
@@ -51,6 +55,29 @@ function Failure({ download }: { download: Download }) {
   );
 }
 
+/** "30 GB", "34.2 GB": a limit reads better without its ".0". */
+const size = (bytes: number) => formatBytes(bytes).replace(".0 ", " ");
+
+/** Held for its owner's OK (docs/downloads.md "Large downloads"): how large, and the way on. */
+function SizeHold({
+  hold,
+  onConfirm,
+}: {
+  hold: NonNullable<Download["sizeHold"]>;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="grid justify-items-start gap-2">
+      <p className="text-sm text-muted-foreground">
+        About {size(hold.expectedBytes)}, over the {size(hold.limitBytes)} limit.
+      </p>
+      <Button variant="secondary" onClick={onConfirm}>
+        Download anyway
+      </Button>
+    </div>
+  );
+}
+
 /** One download in the queue: a thumbnail, the title, its state line and one action. */
 export function QueueRow({
   download,
@@ -58,12 +85,14 @@ export function QueueRow({
   showOwner,
   onCancel,
   onRetry,
+  onConfirm,
 }: {
   download: Download;
   progress: DownloadProgress | null;
   showOwner: boolean;
   onCancel: () => void;
   onRetry: () => void;
+  onConfirm: () => void;
 }) {
   const active = download.state === "queued" || download.state === "running";
   const retryable = download.state === "failed" || download.state === "cancelled";
@@ -81,6 +110,9 @@ export function QueueRow({
         <p className="truncate font-medium">{title}</p>
         <StateLine download={download} progress={live} meta={meta} />
         {download.state === "failed" ? <Failure download={download} /> : null}
+        {download.state === "queued" && download.sizeHold !== null ? (
+          <SizeHold hold={download.sizeHold} onConfirm={onConfirm} />
+        ) : null}
         {active && download.errorKind === "rate_limited" && download.retryAt !== null ? (
           <p className="text-sm text-muted-foreground">{rateLimitWait(download.retryAt)}</p>
         ) : null}

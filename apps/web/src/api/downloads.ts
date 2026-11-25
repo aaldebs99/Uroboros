@@ -127,6 +127,9 @@ export const cancelDownload = (id: string) =>
   postNoContent(`/api/downloads/${encodeURIComponent(id)}/cancel`);
 export const retryDownload = (id: string) =>
   postNoContent(`/api/downloads/${encodeURIComponent(id)}/retry`);
+/** Lets a download held for its size go ahead (docs/downloads.md "Large downloads"). */
+export const confirmDownload = (id: string) =>
+  postNoContent(`/api/downloads/${encodeURIComponent(id)}/confirm`);
 
 /**
  * Follows everyone's live download events, for an admin's everyone view: state changes go into

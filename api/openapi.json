@@ -575,6 +575,22 @@
             "nullable": true,
             "type": "string"
           },
+          "sizeHold": {
+            "nullable": true,
+            "properties": {
+              "expectedBytes": {
+                "type": "integer"
+              },
+              "limitBytes": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "expectedBytes",
+              "limitBytes"
+            ],
+            "type": "object"
+          },
           "startedAt": {
             "format": "date-time",
             "nullable": true,
@@ -616,6 +632,7 @@
           "stderrTail",
           "attempts",
           "retryAt",
+          "sizeHold",
           "createdAt",
           "startedAt",
           "finishedAt"
@@ -5443,6 +5460,50 @@
           }
         },
         "summary": "Cancel a download; a fetch others still wait on keeps going",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/{id}/confirm": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Confirmed; it is queued to be fetched"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such download"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not waiting for an OK"
+          }
+        },
+        "summary": "Let a download held for its size go ahead (docs/downloads.md \"Large downloads\")",
         "tags": [
           "downloads"
         ]

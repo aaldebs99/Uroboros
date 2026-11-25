@@ -8,12 +8,21 @@ const IDLE_SWEEP_MS = 100;
 /**
  * The bound on everything after the drain: closing the cut connections, giving up leadership,
  * ending the pool and the listener. A database gone silent would otherwise hold `db.destroy()` until
- * every checked-out client's 30 s query timeout, well past the container's stop timeout.
+ * every checked-out client's 30 s query timeout, well past the container's stop timeout. It is
+ * generous: this work takes milliseconds, but a loaded host can stall it for seconds, and giving up
+ * the leader lock alone may take 2 s for the unlock and 2 s for the goodbye (`shared/leader.ts`).
  */
-export const CLEANUP_MS = 2000;
+export const CLEANUP_MS = 15_000;
 
-/** Resolves true once `server` has closed, false if connections remain after `graceMs`. */
-export async function drain(server: ServerType, graceMs: number): Promise<boolean> {
+/**
+ * Resolves true once `server` has closed, false if connections remain after `graceMs`; the cut
+ * connections then get up to `cleanupMs` to close.
+ */
+export async function drain(
+  server: ServerType,
+  graceMs: number,
+  cleanupMs = CLEANUP_MS,
+): Promise<boolean> {
   const closed = new Promise<void>((resolve) => {
     server.close(() => {
       resolve();
@@ -37,7 +46,7 @@ export async function drain(server: ServerType, graceMs: number): Promise<boolea
     server.closeAllConnections();
     // The sockets are destroyed; their close events are all that is left, but never wait on
     // them unbounded.
-    await withDeadline(closed, CLEANUP_MS, "close after cut").catch(() => undefined);
+    await withDeadline(closed, cleanupMs, "close after cut").catch(() => undefined);
     return false;
   } finally {
     clearInterval(sweep);

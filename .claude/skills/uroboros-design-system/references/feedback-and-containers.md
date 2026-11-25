@@ -49,17 +49,18 @@ requests, and `DownloadState` (plus `DownloadProgress["phase"]` while running) f
 | `queued`                       | Queued       | `text-muted-foreground` |
 | `failed`                       | Failed       | `text-destructive`      |
 
-| Job state (`DownloadState`)       | Label       | Tone (text class)       |
-| --------------------------------- | ----------- | ----------------------- |
-| `queued`                          | Queued      | `text-muted-foreground` |
-| `running`, no progress yet        | Starting    | `text-primary`          |
-| `running`, phase `downloading`    | Downloading | `text-primary`          |
-| `running`, phase `storing`        | Saving      | `text-primary`          |
-| `running`, phase `merging`        | Merging     | `text-warning`          |
-| `running`, phase `postprocessing` | Processing  | `text-warning`          |
-| `done`                            | Done        | `text-success`          |
-| `failed`                          | Failed      | `text-destructive`      |
-| `cancelled`                       | Cancelled   | `text-muted-foreground` |
+| Job state (`DownloadState`)       | Label         | Tone (text class)       |
+| --------------------------------- | ------------- | ----------------------- |
+| `queued`                          | Queued        | `text-muted-foreground` |
+| `queued`, held (`sizeHold`)       | Needs your OK | `text-warning`          |
+| `running`, no progress yet        | Starting      | `text-primary`          |
+| `running`, phase `downloading`    | Downloading   | `text-primary`          |
+| `running`, phase `storing`        | Saving        | `text-primary`          |
+| `running`, phase `merging`        | Merging       | `text-warning`          |
+| `running`, phase `postprocessing` | Processing    | `text-warning`          |
+| `done`                            | Done          | `text-success`          |
+| `failed`                          | Failed        | `text-destructive`      |
+| `cancelled`                       | Cancelled     | `text-muted-foreground` |
 
 - Write each map as `{…} as const satisfies Record<RequestState, …>` (likewise
   `Record<DownloadState, …>` and `Record<DownloadProgress["phase"], …>`), so a new state breaks

@@ -350,6 +350,11 @@ export interface DownloadsTable {
   created_at: Created;
   started_at: Timestamp | null;
   finished_at: Timestamp | null;
+  /** Held for its owner's OK (docs/downloads.md "Large downloads"): yt-dlp's estimate, and when. */
+  size_held_bytes: FileBytes;
+  size_held_at: Timestamp | null;
+  /** Its owner said yes to a large download: no fetch for it holds again. */
+  size_ok_at: Timestamp | null;
 }
 
 /** `sources`: a playlist someone queued from a preview. */

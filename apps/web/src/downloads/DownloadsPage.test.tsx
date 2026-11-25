@@ -50,6 +50,7 @@ const download = (over: Record<string, unknown> = {}) => ({
   errorMessage: null,
   stderrTail: [],
   retryAt: null,
+  sizeHold: null,
   attempts: 1,
   createdAt: T,
   startedAt: T,
@@ -288,6 +289,30 @@ describe("DownloadsPage", () => {
     ).toBeInTheDocument();
     // Still waiting, so still cancellable.
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("asks before a large download, and Download anyway lets it go ahead", async () => {
+    const GB = 1024 ** 3;
+    const held = download({
+      state: "queued",
+      sizeHold: { expectedBytes: Math.round(34.2 * GB), limitBytes: 30 * GB },
+    });
+    const calls = api({
+      "GET /api/downloads": () => Response.json([held]),
+      [`POST /api/downloads/${held.id}/confirm`]: () => new Response(null, { status: 204 }),
+    });
+    renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
+    expect(await screen.findByText("Needs your OK")).toBeInTheDocument();
+    expect(screen.getByText("About 34.2 GB, over the 30 GB limit.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Download anyway" }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === `/api/downloads/${held.id}/confirm`)).toBe(true);
+    });
   });
 
   it("cancels a running download", async () => {

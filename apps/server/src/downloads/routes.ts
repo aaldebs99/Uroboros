@@ -13,7 +13,12 @@ import {
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { requireAdmin } from "../auth/guard.ts";
-import { cancelDownload, retryDownload, type DownloadContext } from "./dispatch.ts";
+import {
+  cancelDownload,
+  confirmDownload,
+  retryDownload,
+  type DownloadContext,
+} from "./dispatch.ts";
 import {
   createRequest,
   findRequest,
@@ -153,6 +158,19 @@ const retryRoute = createRoute({
   },
 });
 
+const confirmRoute = createRoute({
+  method: "post",
+  path: "/api/downloads/{id}/confirm",
+  tags: ["downloads"],
+  summary: 'Let a download held for its size go ahead (docs/downloads.md "Large downloads")',
+  request: { params: idParams },
+  responses: {
+    204: { description: "Confirmed; it is queued to be fetched" },
+    404: error("No such download"),
+    409: error("Not waiting for an OK"),
+  },
+});
+
 /** Downloads need queues; `gen` and tests without them get 503 `unavailable`. */
 export function need(ctx: DownloadContext | undefined): DownloadContext {
   if (ctx === undefined) throw new ApiError("unavailable", "downloads are not available");
@@ -222,6 +240,11 @@ export function registerDownloadRoutes(app: OpenAPIHono, ctx: DownloadContext | 
 
   app.openapi(retryRoute, async (c) => {
     await retryDownload(need(ctx), currentPrincipal(c), c.req.valid("param").id);
+    return c.body(null, 204);
+  });
+
+  app.openapi(confirmRoute, async (c) => {
+    await confirmDownload(need(ctx), currentPrincipal(c), c.req.valid("param").id);
     return c.body(null, 204);
   });
 }

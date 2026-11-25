@@ -9,6 +9,8 @@ import { TestDb } from "../../test/testDb.ts";
 import type { Config } from "../config.ts";
 import { LeaderStatus } from "../shared/leader.ts";
 import { CLEANUP_MS } from "./drain.ts";
+
+const CLEANUP = 2000;
 import { type RunningApi, runUntilSignal, startApi } from "./main.ts";
 
 const logger = pino({ level: "silent" });
@@ -141,6 +143,12 @@ describe("api shutdown", () => {
 });
 
 describe("bounded cleanup", () => {
+  it("gives each step after the drain 15 s, a loaded host's stall and the leader lock's own 4 s", async () => {
+    const api = await ready(apiConfig(testDb.url, { shutdownGraceMs: 300 }));
+    expect(CLEANUP_MS).toBe(15_000);
+    expect(api.shutdownBudgetMs).toBe(300 + 2 * CLEANUP_MS);
+  });
+
   it("does not wait out a silent database's query timeout after the drain", async () => {
     const proxy = await silentProxy(testDb.url);
     try {
@@ -148,7 +156,9 @@ describe("bounded cleanup", () => {
       const entered = new Promise<void>((resolve) => {
         enter = resolve;
       });
+      // A short bound, so the test does not sit out production's 15 s twice.
       const api = await ready(apiConfig(proxy.url, { shutdownGraceMs: 300 }), {
+        cleanupMs: CLEANUP,
         configure: (app, db) => {
           app.get("/test/query", async (c) => {
             // Opens the pool's connection first, so the next query runs on an established one.
@@ -164,8 +174,8 @@ describe("bounded cleanup", () => {
       // The query now waits on a server that will never answer: its pool client stays checked
       // out until the pool's 30 s query timeout.
       proxy.silence();
-      // Grace, then at most 2 s for the cut connections and 2 s for the cleanup.
-      expect(api.shutdownBudgetMs).toBe(300 + 2 * CLEANUP_MS);
+      // Grace, then at most the bound for the cut connections and again for the cleanup.
+      expect(api.shutdownBudgetMs).toBe(300 + 2 * CLEANUP);
       const start = Date.now();
       await expect(api.close()).rejects.toThrow(/did not drain within 300 ms/);
       expect(Date.now() - start).toBeLessThan(api.shutdownBudgetMs + 1000);

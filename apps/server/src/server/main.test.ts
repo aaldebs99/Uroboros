@@ -6,6 +6,7 @@ import { apiConfig } from "../../test/apiConfig.ts";
 import { eventually } from "../../test/eventually.ts";
 import { withAdmin } from "../../test/pgAdmin.ts";
 import { TestDb } from "../../test/testDb.ts";
+import { CLEANUP_MS } from "../api/drain.ts";
 import type { RunningApi } from "../api/main.ts";
 import { ConfigError, loadConfig } from "../config.ts";
 import { MIGRATE_KEY_NAME } from "../shared/lockKeys.ts";
@@ -69,7 +70,7 @@ describe("one server process", () => {
         worker: { shutdownGraceMs: 3000 },
       }),
     );
-    expect(server.shutdownBudgetMs).toBe(3000 + 2 * 2000);
+    expect(server.shutdownBudgetMs).toBe(3000 + 2 * CLEANUP_MS);
   });
 
   it("reports a crash when its consumers cannot start", async () => {

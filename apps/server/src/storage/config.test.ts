@@ -87,13 +87,25 @@ describe("storage settings", () => {
     expect(() => loadConfig({ ...base, UROBOROS_STORAGE: "ftp" })).toThrow(ConfigError);
   });
 
-  it("defaults the download limits to 3 active per user, 1000 preview entries, 10 GiB uploads", () => {
+  it("defaults the download limits to 3 active per user, 1000 preview entries, 10 GiB uploads, and an OK past 30 GiB", () => {
     expect(loadConfig({ ...base, ...s3 }).downloads).toEqual({
       maxActivePerUser: 3,
       maxPlaylistEntries: 1000,
       minCheckIntervalMinutes: 60,
       uploadMaxBytes: 10 * 1024 ** 3,
+      largeDownloadBytes: 30 * 1024 ** 3,
     });
+  });
+
+  it("asks before downloads past UROBOROS_LARGE_DOWNLOAD_BYTES, or never at 0", () => {
+    const limit = (v: string) =>
+      loadConfig({ ...base, ...s3, UROBOROS_LARGE_DOWNLOAD_BYTES: v }).downloads.largeDownloadBytes;
+    expect(limit("1048576")).toBe(1048576);
+    expect(limit("0")).toBe(0);
+    expect(limit("")).toBe(30 * 1024 ** 3);
+    for (const bad of ["-1", "30GB", "1.5", "007"]) {
+      expect(() => limit(bad)).toThrow(/UROBOROS_LARGE_DOWNLOAD_BYTES/);
+    }
   });
 
   it("takes an upload cap up to 10,000 parts of 8 MiB", () => {

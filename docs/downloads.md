@@ -122,6 +122,39 @@ on the probe queue (key `subtitles:<media id>`, `src/worker/subtitlesJob.ts`) fo
 cooldown, which fetches its subtitles alone (`downloadSubtitles`, yt-dlp's `--skip-download`),
 signed in as the fetch's earliest waiter, and stores and indexes them as the fetch would have.
 
+## Large downloads
+
+A download yt-dlp expects to be larger than `UROBOROS_LARGE_DOWNLOAD_BYTES` (30 GiB; 0 never asks)
+waits for its owner's OK before it is fetched, however it started: a pasted link, entries ticked
+in a preview, a subscription, MCP or a retry.
+
+The size is yt-dlp's own, at the one moment it is known for every way in: a fetch's run prints it
+(`--print before_dl:`, the `size` line in `@uroboros/ytdlp`'s progress protocol) once it has picked
+the profile's formats and before it downloads a byte of them. It is `filesize` for one file and
+otherwise `filesize_approx`, which for a merged pick (`bv+ba`) is the parts' sum. A link's probe
+can't say it: it runs without the profile's `--format`, and a preview's or a subscription's
+entries carry no formats at all. A video yt-dlp can't size (a live stream, some HLS) goes ahead.
+
+When the size is over the limit and nobody waiting on the fetch has said yes, the run is stopped
+there (as a cancel stops one: the process group killed, the partial files removed) and every
+download waiting on it is **held** (`src/worker/sizeHold.ts`): back to `queued`, undispatched,
+with `size_held_bytes` and `size_held_at`. The job ends without failing or spending an attempt,
+each owner's freed slot goes to their next download, and each owner is told: a `downloads`
+notice, "Large download needs your OK" ("Video is about 34.2 GB, over the 30 GB limit"), filed in
+their list and pushed unless they turned download pushes off ([push.md](push.md#what-is-pushed)),
+whatever a subscription's own switch says, since the download waits on them. Dispatch passes held
+downloads by.
+
+The Downloads page shows a held download as "Needs your OK" with the estimate, the limit (its
+`sizeHold` in the contract), Download anyway and Cancel. Download anyway
+(`POST /api/downloads/{id}/confirm`, MCP's `confirm_download`; 409 for a download not held) sets
+`size_ok_at` and dispatches it, and a fetch with a confirmed download waiting on it is never held,
+so everyone else waiting on that file gets it too. Retrying a held download that was cancelled
+asks again, unless it was confirmed before. Raising the limit, or setting it to 0, lets go of the
+holds it no longer makes: the leader's reconcile (`releaseHolds` in
+`src/downloads/reconcile.ts`, at once when it starts and then every minute) dispatches them, and
+their fetch asks yt-dlp the size anew.
+
 ## Cancel and retry
 
 Cancelling marks that person's download `cancelled`. Only when no other active download waits on

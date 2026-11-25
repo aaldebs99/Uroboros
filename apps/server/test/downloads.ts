@@ -22,6 +22,7 @@ export function downloadHarness(db: Kysely<Database>, limit = 3) {
       maxPlaylistEntries: 1000,
       minCheckIntervalMinutes: 60,
       uploadMaxBytes: 10 * 1024 ** 3,
+      largeDownloadBytes: 30 * 1024 ** 3,
     },
     logger,
   };

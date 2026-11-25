@@ -49,8 +49,8 @@ export interface RunningApi {
   leader: LeaderStatus;
   /**
    * The longest `close()` may take: the longer of the HTTP drain grace and the consumers' grace,
-   * then up to `CLEANUP_MS` for the cut connections to close, then up to `CLEANUP_MS` for the
-   * pool, the listener and the leader lock.
+   * then up to `CLEANUP_MS` (15 s) for the cut connections to close, then up to `CLEANUP_MS` for
+   * the pool, the listener and the leader lock.
    */
   shutdownBudgetMs: number;
   /**
@@ -83,6 +83,8 @@ export interface StartApiOptions {
   configure?: (app: OpenAPIHono, db: Kysely<Database>) => void;
   /** Test seam: how often a replica that does not lead tries the lock again (default 5 s). */
   leaderRetryMs?: number;
+  /** Test seam: the bound on each step after the drain (default `CLEANUP_MS`, 15 s). */
+  cleanupMs?: number;
 }
 
 function listen(app: OpenAPIHono, bind: Config["bind"]): Promise<ServerType> {
@@ -113,6 +115,7 @@ export async function startApi(
   logger: Logger,
   opts: StartApiOptions = {},
 ): Promise<RunningApi> {
+  const cleanupMs = opts.cleanupMs ?? CLEANUP_MS;
   // The pool connects lazily: nothing touches the database until it is attached.
   const db = createDb(config.databaseUrl, logger);
   const push = createPushService(config.push, db, logger);
@@ -266,12 +269,12 @@ export async function startApi(
     // The playback bus stays open until the consumers close: a session still running here hears
     // its viewer's seeks until it is cut and requeued, and held segment requests still wake.
     const [drained, consumersClosed] = await Promise.all([
-      drain(server, config.shutdownGraceMs),
+      drain(server, config.shutdownGraceMs, cleanupMs),
       closeConsumers(),
     ]);
     playbackBus.close();
-    await settlesWithin(bus.close(), CLEANUP_MS);
-    const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), CLEANUP_MS);
+    await settlesWithin(bus.close(), cleanupMs);
+    const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), cleanupMs);
     if (!drained) {
       throw new Error(
         `api did not drain within ${String(config.shutdownGraceMs)} ms; connections cut`,
@@ -281,7 +284,7 @@ export async function startApi(
       throw new Error("the job consumers did not drain in time; their running jobs were requeued");
     }
     if (!cleaned) {
-      throw new Error(`api cleanup did not finish within ${String(CLEANUP_MS)} ms`);
+      throw new Error(`api cleanup did not finish within ${String(cleanupMs)} ms`);
     }
   };
   return {
@@ -290,7 +293,7 @@ export async function startApi(
     crashed,
     leader,
     shutdownBudgetMs:
-      Math.max(config.shutdownGraceMs, opts.consumers?.graceMs ?? 0) + 2 * CLEANUP_MS,
+      Math.max(config.shutdownGraceMs, opts.consumers?.graceMs ?? 0) + 2 * cleanupMs,
     close() {
       closing ??= closeOnce();
       return closing;

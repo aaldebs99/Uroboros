@@ -36,6 +36,7 @@ const download = {
   errorMessage: null,
   stderrTail: [],
   retryAt: null,
+  sizeHold: null,
   attempts: 0,
   createdAt: "2026-11-22T10:00:00.000Z",
   startedAt: null,

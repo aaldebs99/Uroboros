@@ -60,5 +60,5 @@ export {
 } from "./info.ts";
 export { probe, type ProbeOptions } from "./probe.ts";
 export { downloadSubtitles, type SubtitlesOptions, type SubtitlesResult } from "./subtitles.ts";
-export type { ProgressEvent, ProgressPhase, ProgressState } from "./progress.ts";
+export type { PickedSize, ProgressEvent, ProgressPhase, ProgressState } from "./progress.ts";
 export { redactLine } from "./redact.ts";

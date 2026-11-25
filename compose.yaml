@@ -35,6 +35,7 @@ x-storage-env: &storage-env
   UROBOROS_MAX_PLAYLIST_ENTRIES: ${UROBOROS_MAX_PLAYLIST_ENTRIES:-}
   UROBOROS_MIN_CHECK_INTERVAL_MINUTES: ${UROBOROS_MIN_CHECK_INTERVAL_MINUTES:-}
   UROBOROS_UPLOAD_MAX_BYTES: ${UROBOROS_UPLOAD_MAX_BYTES:-}
+  UROBOROS_LARGE_DOWNLOAD_BYTES: ${UROBOROS_LARGE_DOWNLOAD_BYTES:-}
   UROBOROS_TRANSCODE_CONCURRENCY: ${UROBOROS_TRANSCODE_CONCURRENCY:-}
   UROBOROS_TRANSCODE_HWACCEL: ${UROBOROS_TRANSCODE_HWACCEL:-}
   UROBOROS_TRANSCODE_VAAPI_DEVICE: ${UROBOROS_TRANSCODE_VAAPI_DEVICE:-}
@@ -161,10 +162,10 @@ services:
     # write.
     tmpfs:
       - /tmp/uroboros-work:mode=1777
-    # Above the stop budget: the 25 s job grace (alongside the 20 s HTTP drain), 2 s for cut
-    # connections, 2 s cleanup and 2 s hard-exit slack (31 s at most), so compose does not
+    # Above the stop budget: the 25 s job grace (alongside the 20 s HTTP drain), 15 s for cut
+    # connections, 15 s cleanup and 2 s hard-exit slack (57 s at most), so compose does not
     # SIGKILL a replica mid-drain (the default is 10 s).
-    stop_grace_period: 35s
+    stop_grace_period: 60s
     healthcheck:
       # /api/ready is 503 until the replica has migrated, then 200 (degraded too, so a database
       # blip does not restart the replicas).

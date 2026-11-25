@@ -18,6 +18,8 @@ import { upsertMedia } from "./media.ts";
 import { lookUpSegments } from "./fetchSegments.ts";
 import { createProgressPublisher } from "./progress.ts";
 import { openScratch, type Scratch } from "./scratch.ts";
+import { holdForSize, sizeGate, TooLarge } from "./sizeHold.ts";
+import { LeaseLost, ShutdownAbort, type CancelRegistry } from "./fetchStops.ts";
 import { afterAnswered, runWithSubtitles, waitForSite, waitIfLimited } from "./fetchWait.ts";
 import { findSubtitles, storeSubtitles } from "./subtitles.ts";
 import { queuePreview } from "../previews/queue.ts";
@@ -25,44 +27,7 @@ import { queuePreview } from "../previews/queue.ts";
 const ACTIVE = ["queued", "running"] as const;
 const DOWNLOAD_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 
-/**
- * Why a fetch was aborted when the process is stopping: not a person's cancel and not a failure,
- * so the job goes back to the queue for another replica and no outcome is recorded.
- */
-export class ShutdownAbort extends Error {
-  override readonly name = "ShutdownAbort";
-  constructor() {
-    super("the process is shutting down");
-  }
-}
-
-/** The run lost its job (its lease lapsed and another run has it): stop, recording nothing. */
-class LeaseLost extends Error {
-  override readonly name = "LeaseLost";
-}
-
-/** Aborts running fetches: one by key (a cancel), or all of them (shutdown). */
-export function createCancelRegistry() {
-  const running = new Map<string, AbortController>();
-  return {
-    start(key: string): AbortController {
-      const controller = new AbortController();
-      running.set(key, controller);
-      return controller;
-    },
-    end(key: string): void {
-      running.delete(key);
-    },
-    cancel(key: string): void {
-      running.get(key)?.abort(new Error("cancelled"));
-    },
-    /** Aborts every running fetch with a `ShutdownAbort`; they go back to the queue. */
-    abortAll(): void {
-      for (const controller of running.values()) controller.abort(new ShutdownAbort());
-    },
-  };
-}
-export type CancelRegistry = ReturnType<typeof createCancelRegistry>;
+export { createCancelRegistry, ShutdownAbort, type CancelRegistry } from "./fetchStops.ts";
 
 export interface FetchJobLike {
   id?: string | undefined;
@@ -368,8 +333,11 @@ async function downloadAndSettle(
   deps: WorkerDeps,
   data: FetchJob,
   scratch: string,
-  signal: AbortSignal,
+  controller: AbortController,
 ): Promise<void> {
+  const { signal } = controller;
+  // Before a byte is fetched: too large, and nobody waiting said yes, stops the run (sizeHold.ts).
+  const onSize = await sizeGate(deps, data.fetchKey, controller);
   const progress = createProgressPublisher(deps.db, data.fetchKey);
   const { format, extraArgs: profileArgs } = ytdlpArgsFor(data.args);
   // Whoever waits on this fetch now: per site, the earliest waiter's saved login.
@@ -386,6 +354,7 @@ async function downloadAndSettle(
       signal,
       timeoutMs: DOWNLOAD_TIMEOUT_MS,
       onProgress: progress,
+      onSize,
     });
   const { result, subtitles, heldUntil } = await runWithSubtitles(
     deps,
@@ -394,6 +363,8 @@ async function downloadAndSettle(
     profileArgs,
     signal,
   );
+  // Held for its size even when yt-dlp got to the end before the stop reached it.
+  if (signal.reason instanceof TooLarge) throw signal.reason;
   const file = result.files[0];
   if (file === undefined) throw new StorageError("yt-dlp finished without a file");
   progress({ phase: "storing" });
@@ -426,12 +397,17 @@ export function fetchProcessor(deps: WorkerDeps, cancels: CancelRegistry) {
       await markRunning(deps, job);
       // A folder of this run's own: a run that lost the job may still be writing in its folder.
       scratch = await openScratch(deps.workDir, encodeURIComponent(data.fetchKey));
-      await downloadAndSettle(deps, data, scratch.dir, controller.signal);
+      await downloadAndSettle(deps, data, scratch.dir, controller);
     } catch (err) {
       if (controller.signal.reason instanceof ShutdownAbort) {
         // Back to the queue as it was: no failure, no cancel, and no attempt spent.
         deps.logger.info({ fetchKey: data.fetchKey }, "fetch cut by shutdown; requeued");
         throw new RequeueError(SHUTDOWN_REQUEUE_DELAY_MS, { cause: err });
+      }
+      if (controller.signal.reason instanceof TooLarge) {
+        // Not a failure: everyone waiting is held for their OK, and no attempt is spent.
+        await holdForSize(deps, data, controller.signal.reason.bytes);
+        return;
       }
       if (controller.signal.reason instanceof LeaseLost) {
         // Another run has the job now: it records how the fetch ends.
