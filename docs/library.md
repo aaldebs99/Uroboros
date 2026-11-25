@@ -200,10 +200,23 @@ A source that fails to play gives way to the next.
 - **The stored preview** (`packages/ytdlp/src/previewArgs.ts`) is H.264 at 480p (the short side,
   never scaled up), capped at 1 Mbit/s, with stereo AAC at 96 kbit/s, in an MP4 with `+faststart`;
   HDR is tone-mapped to BT.709. It is about half a gigabyte for an hour of video.
-- **The job** (`preview` queue, `src/worker/previewRun.ts`) reads the media's smallest stored video
-  of at least 480p (else its tallest), runs on replicas that run sessions, one at a time, on the
-  CPU with the transcoder's ffmpeg, and stores the preview at `.previews/<media id>.mp4`
-  (`media.preview_key`). Two attempts; one that fails for good sets `media.preview_failed_at`.
+- **Where it comes from** (`UROBOROS_PREVIEW_METHOD`). With `download`, the default, the job
+  downloads the video from its site again at 480p (`src/worker/previewDownload.ts`): yt-dlp's best
+  video with the best sound, sorted by `res:480` (the largest whose short side is at most 480, else
+  the smallest above it), H.264 and AAC first, signed in with the saved logins of the person who has
+  had the video longest. A copy that already is a preview (H.264 in 8-bit 4:2:0, 480p at most, not
+  HDR, at most 2 Mbit/s, with AAC or no sound, as YouTube's 480p is) goes into the preview's MP4 as
+  it is, encoding nothing; any other is encoded from that copy. Its download waits out the site's
+  rate limits as a fetch does ([downloads.md](downloads.md#rate-limits)), and a limit never fails
+  it. The stored file is encoded instead for an upload, a media with no page, a file cut from the
+  video (its profile has `--download-sections`, `--remove-chapters` or `--sponsorblock-remove`, so
+  the preview shows what the library holds) and a video the site no longer gives (gone, private,
+  blocked); with `transcode`, for every video.
+- **The job** (`preview` queue, `src/worker/previewRun.ts`) runs on replicas that run sessions, one
+  at a time, encoding on the CPU with the transcoder's ffmpeg; from the stored file, it reads the
+  media's smallest stored video of at least 480p (else its tallest). It stores the preview at
+  `.previews/<media id>.mp4` (`media.preview_key`). Two attempts; one that fails for good sets
+  `media.preview_failed_at`.
 - **What queues it:** a download that stored a video, a filed upload, and the leader's backfill
   (`src/previews/sweep.ts`), which every minute queues up to 30 media with a stored video, no
   preview, none failed and none waiting, so a library made before previews gets them at the
@@ -214,9 +227,10 @@ A source that fails to play gives way to the next.
   at all: a tile offers a preview only then, before the stored one exists too. The tile fetches
   the video's details (`GET /api/library/{id}`) as its preview starts, for the sources and the
   subtitles; the watch page reuses them.
-- **Off.** `UROBOROS_GENERATE_PREVIEWS=false` makes none, new or backfilled; previews already made
-  still play, and the others play the original or a live session. The reaper deletes a preview
-  with its media.
+- **Off.** `UROBOROS_GENERATE_PREVIEWS=false` makes none, new or backfilled, whatever
+  `UROBOROS_PREVIEW_METHOD` says: a preview queued before it was turned off downloads and encodes
+  nothing. Previews already made still play, and the others play the original or a live session.
+  The reaper deletes a preview with its media.
 - **The bell** lists the person's previews being made, one row however many, while any of their
   videos still wait for one, and none while previews are stalled ([push.md](push.md)).
 

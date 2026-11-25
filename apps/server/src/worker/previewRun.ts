@@ -5,7 +5,10 @@ import {
   ffprobe,
   meaningfulLine,
   previewArgs,
+  previewCopyArgs,
   spawnStream,
+  type MediaInfo,
+  type MediaStream,
   type PreviewPlan,
 } from "@uroboros/ytdlp";
 import { sql } from "kysely";
@@ -15,17 +18,24 @@ import type { Processor } from "../jobs/queues.ts";
 import { announcePreview, previewKey } from "../previews/queue.ts";
 import { h264Level, outputSize } from "../transcode/ladder.ts";
 import type { WorkerDeps } from "./deps.ts";
+import { downloadPreviewCopy, previewPage } from "./previewDownload.ts";
 import { readInput } from "./sessionSource.ts";
 
 /**
  * The `preview` job (docs/library.md "Hover previews"): makes a media's hover preview, the whole
- * video at 480p with its sound, on the CPU with the transcoder's ffmpeg, and stores it beside the
- * thumbnail.
+ * video at 480p with its sound, and stores it beside the thumbnail. It comes from the video's site
+ * (`UROBOROS_PREVIEW_METHOD=download`, `previewDownload.ts`), copied as it is when the site's copy
+ * already is one; otherwise it is encoded on the CPU with the transcoder's ffmpeg, from that copy or
+ * from the stored file.
  */
 
 /** The preview's short side, and the most it may run at. */
 export const PREVIEW_SHORT_SIDE = 480;
 const PREVIEW_BITRATE = 1_000_000;
+/** A copy from the site is kept as it is up to this rate, rather than encoded again. */
+const COPY_MAX_BITRATE = 2 * PREVIEW_BITRATE;
+/** 8-bit 4:2:0, the only H.264 every browser plays. */
+const BROWSER_PIX_FMTS = new Set(["yuv420p", "yuvj420p"]);
 /** A cut for shutdown goes back to the queue this soon, on any replica. */
 const SHUTDOWN_REQUEUE_DELAY_MS = 1000;
 
@@ -48,6 +58,8 @@ export function previewProcessor(deps: WorkerDeps): PreviewProcessor {
       for (const cut of running) cut.abort(new ShutdownCut("the replica is shutting down"));
     },
     async process(job) {
+      // Turned off since it was queued: nothing is downloaded or made.
+      if (!deps.generatePreviews) return;
       const cut = new AbortController();
       running.add(cut);
       const { mediaId } = job.data;
@@ -56,7 +68,8 @@ export function previewProcessor(deps: WorkerDeps): PreviewProcessor {
         await makePreview(deps, mediaId, dir, AbortSignal.any([job.signal, cut.signal]));
       } catch (err) {
         if (cut.signal.aborted) throw new RequeueError(SHUTDOWN_REQUEUE_DELAY_MS, { cause: err });
-        if (job.signal.aborted) throw err;
+        // Waiting out the site's cooldown is no failure, on the last attempt either.
+        if (job.signal.aborted || err instanceof RequeueError) throw err;
         const last = err instanceof UnrecoverableError || job.attemptsMade + 1 >= job.opts.attempts;
         if (last) await failPreview(deps, mediaId, err);
         await tell(deps, mediaId);
@@ -93,17 +106,21 @@ async function failPreview(deps: WorkerDeps, mediaId: string, err: unknown): Pro
   deps.logger.warn({ err, mediaId }, "a hover preview could not be made");
 }
 
-/** The media's stored video to read: the smallest at least 480p (cheapest to decode), else the tallest. */
+/**
+ * The media's stored video to read: the smallest at least 480p (cheapest to decode), else the
+ * tallest; with its format profile's extra arguments, which say whether it was cut from the video.
+ */
 async function sourceOf(deps: WorkerDeps, mediaId: string) {
   return deps.db
-    .selectFrom("renditions")
-    .select(["storage_key", "height"])
-    .where("media_id", "=", mediaId)
-    .where("video_codec", "is not", null)
-    .where("orphaned_at", "is", null)
-    .orderBy(sql`coalesce(height, 0) >= ${PREVIEW_SHORT_SIDE}`, "desc")
+    .selectFrom("renditions as r")
+    .leftJoin("format_profiles as p", "p.id", "r.profile_id")
+    .select(["r.storage_key", "r.height", "p.extra_args"])
+    .where("r.media_id", "=", mediaId)
+    .where("r.video_codec", "is not", null)
+    .where("r.orphaned_at", "is", null)
+    .orderBy(sql`coalesce(r.height, 0) >= ${PREVIEW_SHORT_SIDE}`, "desc")
     .orderBy(
-      sql`CASE WHEN coalesce(height, 0) >= ${PREVIEW_SHORT_SIDE} THEN height ELSE -coalesce(height, 0) END`,
+      sql`CASE WHEN coalesce(r.height, 0) >= ${PREVIEW_SHORT_SIDE} THEN r.height ELSE -coalesce(r.height, 0) END`,
     )
     .executeTakeFirst();
 }
@@ -111,7 +128,7 @@ async function sourceOf(deps: WorkerDeps, mediaId: string) {
 async function makePreview(deps: WorkerDeps, mediaId: string, dir: string, signal: AbortSignal) {
   const media = await deps.db
     .selectFrom("media")
-    .select(["id", "preview_key"])
+    .select(["id", "preview_key", "extractor", "webpage_url"])
     .where("id", "=", mediaId)
     .executeTakeFirst();
   if (media === undefined || media.preview_key !== null) return;
@@ -119,27 +136,85 @@ async function makePreview(deps: WorkerDeps, mediaId: string, dir: string, signa
   await tell(deps, mediaId);
   const source = await sourceOf(deps, mediaId);
   if (source === undefined) throw new UnrecoverableError("the media has no stored video");
-  const input = await readInput(deps, source.storage_key).catch((err: unknown) => {
+  await mkdir(dir, { recursive: true });
+  const output = join(dir, "preview.mp4");
+  const page = previewPage(deps, {
+    extractor: media.extractor,
+    webpageUrl: media.webpage_url,
+    profileArgs: source.extra_args,
+  });
+  const copy =
+    page === null
+      ? null
+      : await downloadPreviewCopy(deps, mediaId, page, join(dir, "site"), signal);
+  if (copy === null || !(await fromCopy(deps, copy, output, signal))) {
+    await fromStored(deps, source.storage_key, output, signal);
+  }
+  await storePreview(deps, mediaId, output);
+}
+
+/** Encodes the preview from the stored file. */
+async function fromStored(deps: WorkerDeps, key: string, output: string, signal: AbortSignal) {
+  const input = await readInput(deps, key).catch((err: unknown) => {
     throw new UnrecoverableError("the video's file can't be read", { cause: err });
   });
-  await mkdir(dir, { recursive: true });
-  const plan = await planFor(deps, input, join(dir, "preview.mp4"), signal);
-  await encode(deps, plan, signal);
-  await storePreview(deps, mediaId, plan.output);
+  const info = await probe(deps, input, signal);
+  await runFfmpeg(deps, previewArgs(planFor(info, input, output)), signal);
+}
+
+/**
+ * Makes the preview from the site's copy: copied as it is when it already is one, else encoded.
+ * False for a copy with no picture, which the stored file stands in for.
+ */
+async function fromCopy(deps: WorkerDeps, copy: string, output: string, signal: AbortSignal) {
+  const info = await probe(deps, copy, signal);
+  const { video, audio } = streamsOf(info);
+  if (video === undefined) return false;
+  const args = alreadyPreview(video, audio)
+    ? previewCopyArgs({
+        input: copy,
+        output,
+        video: { index: video.index },
+        audio: audio === undefined ? null : { index: audio.index },
+      })
+    : previewArgs(planFor(info, copy, output));
+  await runFfmpeg(deps, args, signal);
+  return true;
+}
+
+/** A file's picture (never a cover image) and its sound, the first of each. */
+function streamsOf(info: MediaInfo) {
+  return {
+    video: info.streams.find((s) => s.type === "video" && !s.attachedPic),
+    audio: info.streams.find((s) => s.type === "audio"),
+  };
+}
+
+/**
+ * Whether a copy is a preview already, so copying it is enough: H.264 that every browser plays,
+ * 480p at most (the short side), not HDR, at most 2 Mbit/s, with AAC or no sound.
+ */
+function alreadyPreview(video: MediaStream, audio: MediaStream | undefined): boolean {
+  const short = Math.min(video.width ?? Infinity, video.height ?? Infinity);
+  return (
+    video.codec === "h264" &&
+    BROWSER_PIX_FMTS.has(video.pixFmt ?? "") &&
+    short <= PREVIEW_SHORT_SIDE &&
+    (video.bitRate ?? 0) <= COPY_MAX_BITRATE &&
+    !HDR.has(video.colorTransfer ?? "") &&
+    (audio === undefined || audio.codec === "aac")
+  );
+}
+
+async function probe(deps: WorkerDeps, input: string, signal: AbortSignal): Promise<MediaInfo> {
+  const t = deps.transcoder;
+  return ffprobe(input, { binary: t.ffprobe.binary, ...env(t.ffprobe.env), signal });
 }
 
 /** The preview's plan from the file's own streams: 480p at most, on the CPU, HDR tone-mapped. */
-async function planFor(
-  deps: WorkerDeps,
-  input: string,
-  output: string,
-  signal: AbortSignal,
-): Promise<PreviewPlan> {
-  const t = deps.transcoder;
-  const info = await ffprobe(input, { binary: t.ffprobe.binary, ...env(t.ffprobe.env), signal });
-  const video = info.streams.find((s) => s.type === "video" && !s.attachedPic);
+function planFor(info: MediaInfo, input: string, output: string): PreviewPlan {
+  const { video, audio } = streamsOf(info);
   if (video === undefined) throw new UnrecoverableError("the file has no video");
-  const audio = info.streams.find((s) => s.type === "audio");
   const size = outputSize(video.width ?? 1280, video.height ?? 720, PREVIEW_SHORT_SIDE);
   const transfer = video.colorTransfer ?? "";
   return {
@@ -157,15 +232,10 @@ async function planFor(
   };
 }
 
-/** One ffmpeg run, writing the clip to the plan's output; its reason when it fails. */
-async function encode(deps: WorkerDeps, plan: PreviewPlan, signal: AbortSignal): Promise<void> {
+/** One ffmpeg run, writing the clip to its output; its reason when it fails. */
+async function runFfmpeg(deps: WorkerDeps, args: string[], signal: AbortSignal): Promise<void> {
   const t = deps.transcoder;
-  const proc = spawnStream({
-    binary: t.ffmpeg.binary,
-    args: previewArgs(plan),
-    ...env(t.ffmpeg.env),
-    signal,
-  });
+  const proc = spawnStream({ binary: t.ffmpeg.binary, args, ...env(t.ffmpeg.env), signal });
   // Nothing comes on stdout (the clip goes to a file), but an unread pipe would block ffmpeg.
   await buffer(proc.stdout);
   const exit = await proc.exited;

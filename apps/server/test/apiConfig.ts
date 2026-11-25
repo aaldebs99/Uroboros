@@ -46,6 +46,7 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
         vaapiDevice: "/dev/dri/renderD128",
       },
       generatePreviews: true,
+      previewMethod: "download",
     },
     mcpEnabled: false,
     secretsKey: null,

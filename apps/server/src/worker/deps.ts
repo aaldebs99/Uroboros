@@ -48,6 +48,11 @@ export interface WorkerDeps extends DownloadContext {
   transcoder: Transcoder;
   /** Whether new videos get hover preview clips (`UROBOROS_GENERATE_PREVIEWS`; docs/library.md). */
   generatePreviews: boolean;
+  /**
+   * How a hover preview is made (`UROBOROS_PREVIEW_METHOD`): a 480p copy downloaded from the
+   * video's site, or encoded from the stored file. Ignored while `generatePreviews` is off.
+   */
+  previewMethod: "download" | "transcode";
   /** SponsorBlock's API, asked for YouTube videos' segments (docs/automation.md#sponsorblock). */
   sponsorBlock: SponsorBlockClient;
 }

@@ -106,9 +106,10 @@ a quoted Retry-After; yt-dlp never prints the response's headers), and otherwise
 doubles with each limit in a row: 1, 2, 4… minutes, up to an hour. A cooldown already running
 longer stands, and the first run the site answers after it ends clears the count.
 
-While a site cools down, nothing asks it anything: a fetch, a pasted link's probe and a
-subscription check each go back to their queue for just after the cooldown (spread over 15 s),
-without spending an attempt, and a run the site limits does the same. A waiting download is
+While a site cools down, nothing asks it anything: a fetch, a pasted link's probe, a
+subscription check and a hover preview's download ([library.md](library.md#hover-previews)) each go
+back to their queue for just after the cooldown (spread over 15 s), without spending an attempt,
+and a run the site limits does the same. A waiting download is
 `queued` with `errorKind: "rate_limited"` and `retryAt`, and a waiting link stays `probing` with
 the same two; the web says "The site is limiting requests. Trying again at 14:05." A rate limit
 never fails anything, however long it lasts; a person can cancel a waiting download.

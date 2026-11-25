@@ -83,6 +83,12 @@ export interface WorkerSettings {
    * are made, new or backfilled; those already made still play.
    */
   generatePreviews: boolean;
+  /**
+   * How a hover preview is made (`UROBOROS_PREVIEW_METHOD`): `download`, a 480p copy fetched from
+   * the video's site (the default), or `transcode`, encoded from the stored file. Ignored while
+   * `generatePreviews` is off.
+   */
+  previewMethod: "download" | "transcode";
 }
 
 const DEFAULT_WORKER_CONCURRENCY = 4;
@@ -192,6 +198,13 @@ const workerEnvSchema = z.object({
     z
       .enum(["true", "false"], { error: "UROBOROS_GENERATE_PREVIEWS must be true or false" })
       .optional(),
+  ),
+  UROBOROS_PREVIEW_METHOD: unsetIfEmpty(
+    z
+      .enum(["download", "transcode"], {
+        error: "UROBOROS_PREVIEW_METHOD must be download or transcode",
+      })
+      .prefault("download"),
   ),
   UROBOROS_MCP_ENABLED: unsetIfEmpty(
     z.enum(["true", "false"], { error: "UROBOROS_MCP_ENABLED must be true or false" }).optional(),
@@ -342,6 +355,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
         vaapiDevice: e.UROBOROS_TRANSCODE_VAAPI_DEVICE,
       },
       generatePreviews: e.UROBOROS_GENERATE_PREVIEWS !== "false",
+      previewMethod: e.UROBOROS_PREVIEW_METHOD,
     },
     secretsKey: e.UROBOROS_SECRETS_KEY ?? null,
     mcpEnabled: e.UROBOROS_MCP_ENABLED !== "false",

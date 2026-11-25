@@ -32,6 +32,22 @@ function audioArgs(audio: PreviewPlan["audio"]): string[] {
   ];
 }
 
+/** What every preview drops, and how it is written: an MP4 that starts playing at once. */
+const previewOutputArgs = (output: string): string[] => [
+  "-sn",
+  "-dn",
+  "-map_metadata",
+  "-1",
+  "-map_chapters",
+  "-1",
+  "-movflags",
+  "+faststart",
+  "-f",
+  "mp4",
+  "-y",
+  output,
+];
+
 /** The whole command line, after the binary: the file read once, start to end. */
 export function previewArgs(p: PreviewPlan): string[] {
   return [
@@ -48,17 +64,36 @@ export function previewArgs(p: PreviewPlan): string[] {
     videoFilter(p.video),
     ...videoEncoderArgs(p.video),
     ...audioArgs(p.audio),
-    "-sn",
-    "-dn",
-    "-map_metadata",
-    "-1",
-    "-map_chapters",
-    "-1",
-    "-movflags",
-    "+faststart",
-    "-f",
-    "mp4",
-    "-y",
-    p.output,
+    ...previewOutputArgs(p.output),
+  ];
+}
+
+/**
+ * A copy that already is a preview (one downloaded from the video's site at 480p, in H.264 with
+ * AAC), rewritten as one without encoding anything: its streams copied as they are.
+ */
+export interface PreviewCopy {
+  input: string;
+  output: string;
+  video: { index: number };
+  audio: { index: number } | null;
+}
+
+/** The whole command line, after the binary: the streams copied, the rest dropped. */
+export function previewCopyArgs(p: PreviewCopy): string[] {
+  return [
+    "-hide_banner",
+    "-nostdin",
+    "-v",
+    "error",
+    ...mediaInputArgs(p.input),
+    "-i",
+    p.input,
+    "-map",
+    `0:${String(p.video.index)}`,
+    ...(p.audio === null ? ["-an"] : ["-map", `0:${String(p.audio.index)}`]),
+    "-c",
+    "copy",
+    ...previewOutputArgs(p.output),
   ];
 }

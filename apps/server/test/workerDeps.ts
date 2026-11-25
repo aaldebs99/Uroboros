@@ -78,6 +78,8 @@ export async function workerHarness(db: Kysely<Database>, limit = 3) {
           memo: new PipelineMemo(),
         },
         generatePreviews: true,
+        // As in production; a seeded media has no site page, so its preview is still encoded.
+        previewMethod: "download",
         // No test reaches SponsorBlock: every video has no segments unless a test says otherwise.
         sponsorBlock: fakeSponsorBlock(),
       };

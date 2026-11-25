@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { previewArgs, type PreviewPlan } from "./previewArgs.ts";
+import { previewArgs, previewCopyArgs, type PreviewPlan } from "./previewArgs.ts";
 import { MEDIA_FORMATS } from "./mediaFormats.ts";
 
 const plan = (over: Partial<PreviewPlan> = {}): PreviewPlan => ({
@@ -73,5 +73,36 @@ describe("previewArgs", () => {
     expect(args.filter((a) => a === "-map")).toHaveLength(1);
     expect(args).toContain("-an");
     expect(args).not.toContain("-c:a");
+  });
+});
+
+describe("previewCopyArgs", () => {
+  const copy = { input: "/work/site/clip.mp4", output: "/work/preview.mp4" };
+
+  it("copies the streams it was given, untouched, from the whole file read once", () => {
+    const args = previewCopyArgs({ ...copy, video: { index: 1 }, audio: { index: 0 } });
+    expect(args.filter((a) => a === "-i")).toHaveLength(1);
+    expect(after(args, "-i")).toBe("/work/site/clip.mp4");
+    expect(args.flatMap((a, i) => (a === "-map" ? [args[i + 1]] : []))).toEqual(["0:1", "0:0"]);
+    expect(after(args, "-c")).toBe("copy");
+    expect(args).not.toContain("-c:v");
+    expect(args).not.toContain("-vf");
+  });
+
+  it("drops the rest and writes an MP4 that starts at once", () => {
+    const args = previewCopyArgs({ ...copy, video: { index: 0 }, audio: { index: 1 } });
+    expect(args).toContain("-sn");
+    expect(args).toContain("-dn");
+    expect(after(args, "-map_metadata")).toBe("-1");
+    expect(after(args, "-map_chapters")).toBe("-1");
+    expect(after(args, "-movflags")).toBe("+faststart");
+    expect(after(args, "-f")).toBe("mp4");
+    expect(args.at(-1)).toBe("/work/preview.mp4");
+  });
+
+  it("stays silent when the copy has no sound", () => {
+    const args = previewCopyArgs({ ...copy, video: { index: 0 }, audio: null });
+    expect(args.filter((a) => a === "-map")).toHaveLength(1);
+    expect(args).toContain("-an");
   });
 });

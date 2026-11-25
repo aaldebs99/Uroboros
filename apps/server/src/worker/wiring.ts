@@ -48,6 +48,7 @@ export function workerDeps(shared: SharedResources, config: Config, logger: Logg
     playbackBus: shared.playbackBus,
     transcoder: transcoderFor(config),
     generatePreviews: config.worker.generatePreviews,
+    previewMethod: config.worker.previewMethod,
     sponsorBlock: sponsorBlockClient({ baseUrl: SPONSORBLOCK_API }),
   };
 }

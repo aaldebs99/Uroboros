@@ -36,7 +36,7 @@ export {
   coverFits,
   type AudioExportPlan,
 } from "./exportAudioArgs.ts";
-export { previewArgs, type PreviewPlan } from "./previewArgs.ts";
+export { previewArgs, previewCopyArgs, type PreviewCopy, type PreviewPlan } from "./previewArgs.ts";
 export { checkEncoder, type EncoderCheck, type EncoderCheckOptions } from "./encoderCheck.ts";
 export { probeKeyframes, type KeyframeOptions } from "./keyframes.ts";
 export {

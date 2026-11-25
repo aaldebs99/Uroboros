@@ -296,6 +296,19 @@ describe("loadConfig transcoding", () => {
       loadConfig({ ...base, UROBOROS_GENERATE_PREVIEWS: "false" }).worker.generatePreviews,
     ).toBe(false);
   });
+
+  it("downloads hover previews from the site unless UROBOROS_PREVIEW_METHOD is transcode", () => {
+    expect(loadConfig(base).worker.previewMethod).toBe("download");
+    expect(loadConfig({ ...base, UROBOROS_PREVIEW_METHOD: "" }).worker.previewMethod).toBe(
+      "download",
+    );
+    expect(loadConfig({ ...base, UROBOROS_PREVIEW_METHOD: "transcode" }).worker.previewMethod).toBe(
+      "transcode",
+    );
+    expect(() => loadConfig({ ...base, UROBOROS_PREVIEW_METHOD: "ffmpeg" })).toThrow(
+      /UROBOROS_PREVIEW_METHOD must be download or transcode/,
+    );
+  });
 });
 
 describe("loadConfig MCP server", () => {
