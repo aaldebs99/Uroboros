@@ -71,7 +71,8 @@ skill, this skill wins. The existing files are listed in each reference.
     channel, a playlist, a subscription, a group, a shared playlist, a new subscription) starts
     with `BackLink` (`components/ui/back-link.tsx`) above its title: "← Playlists", a router link
     to that list, never `history.back()`. It shows in every state the page has, loading and errors
-    included. Only the watch page goes without. Details in
+    included. The watch page, opened from anywhere, has `WatchBack` instead: back to the page the
+    video was opened from ("← Downloads"), or the Library. Details in
     [shell-and-navigation](references/shell-and-navigation.md#back-link).
 
 ## Where each primitive is

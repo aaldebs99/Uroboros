@@ -86,6 +86,8 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   are 24px, so the player starts at the left margin. It takes 65% of the page and the suggestions
   column the rest (at least 18rem), 24px away; the player isn't wider than that, because a
   full-width player on a large screen is too much.
+- Above the player, the [back link](shell-and-navigation.md#back-link) to the page the video was
+  opened from (`WatchBack`).
 - Under the player: the title (20/700), the channel row with the actions, the clamped
   description, tags, the playlists it is in, and chapters.
 - The actions: Watched, Keep on a subscription's entry, then a row of

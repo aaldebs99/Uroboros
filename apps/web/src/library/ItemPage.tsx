@@ -2,7 +2,7 @@ import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ListVideo, SearchX, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { ApiError, errorText } from "@/api/client";
 import { itemKey, reportProgress, setTags, useItem } from "@/api/library";
@@ -17,6 +17,7 @@ import { Suggestions } from "./Suggestions";
 import { TagEditor } from "./TagEditor";
 import { nextInQueue, UpNext, useQueue, type PlayQueue } from "./UpNext";
 import { useProgressReporter } from "./useProgressReporter";
+import { WatchBack } from "./WatchBack";
 import { WatchPlayer } from "./WatchPlayer";
 
 function Description({ text }: { text: string }) {
@@ -109,6 +110,16 @@ function InPlaylists({ item }: { item: LibraryItem }) {
   );
 }
 
+/** Every state of a watch page, its back link above (`WatchBack`). */
+function Frame({ children }: { children: ReactNode }) {
+  return (
+    <div className="@container grid w-full content-start gap-6">
+      <WatchBack />
+      {children}
+    </div>
+  );
+}
+
 /**
  * One video, laid out like a watch page across the whole page: the player at the top left with its
  * details, description, tags and chapters below it, and suggestions in a column on the right. The
@@ -137,13 +148,19 @@ export function ItemPage({
   );
   if (item.isError)
     return (
-      <Unavailable
-        error={item.error}
-        shared={queue?.kind === "share" || item.data?.sharedBy != null}
-      />
+      <Frame>
+        <Unavailable
+          error={item.error}
+          shared={queue?.kind === "share" || item.data?.sharedBy != null}
+        />
+      </Frame>
     );
   if (item.isPending)
-    return <div aria-busy="true" className="aspect-video w-full rounded-[0.75rem] bg-raised" />;
+    return (
+      <Frame>
+        <div aria-busy="true" className="aspect-video w-full rounded-[0.75rem] bg-raised" />
+      </Frame>
+    );
   const it = item.data;
   const refresh = () => client.invalidateQueries({ queryKey: ["api", "library"] });
   const fail = (err: unknown) => {
@@ -160,7 +177,7 @@ export function ItemPage({
     });
   };
   return (
-    <div className="@container w-full">
+    <Frame>
       <div className="grid gap-6 @6xl:grid-cols-[minmax(0,13fr)_minmax(18rem,7fr)]">
         <article className="grid min-w-0 content-start gap-4">
           <WatchPlayer
@@ -209,6 +226,6 @@ export function ItemPage({
           </aside>
         )}
       </div>
-    </div>
+    </Frame>
   );
 }

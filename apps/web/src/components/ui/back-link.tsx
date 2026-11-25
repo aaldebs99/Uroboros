@@ -6,11 +6,19 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * Back to the list a detail page was opened from: a compact quiet link above the title, its arrow
- * lined up with the text at the left margin, named after the list ("← Subscriptions"). It is a
- * router link to the list rather than `history.back()`, so it works from a deep link too, and a
- * page shows it in its error state as well. The negative bottom margin leaves 0.75rem to the title
- * in a `gap-6` section; a page in a `gap-8` one passes `-mb-5`.
+ * A back link's look: a compact quiet button whose arrow lines up with the text at the left margin.
+ * The negative bottom margin leaves 0.75rem to what follows in a `gap-6` section.
+ */
+export const backLinkClass = cn(
+  buttonVariants({ variant: "quiet", size: "compact" }),
+  "-mb-3 -ml-3.5 w-fit",
+);
+
+/**
+ * Back to the list a detail page was opened from: a compact quiet link above the title, named after
+ * the list ("← Subscriptions"). It is a router link to the list rather than `history.back()`, so it
+ * works from a deep link too, and a page shows it in its error state as well. A page in a `gap-8`
+ * section passes `-mb-5`. The watch page has its own (`library/WatchBack.tsx`).
  */
 export function BackLink({
   to,
@@ -27,14 +35,7 @@ export function BackLink({
   className?: string;
 }) {
   return (
-    <Link
-      to={to}
-      className={cn(
-        buttonVariants({ variant: "quiet", size: "compact" }),
-        "-mb-3 -ml-3.5 w-fit",
-        className,
-      )}
-    >
+    <Link to={to} className={cn(backLinkClass, className)}>
       <ArrowLeft aria-hidden /> {children}
     </Link>
   );

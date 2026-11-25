@@ -9,6 +9,7 @@ import {
 
 import { ChannelsPage } from "./library/ChannelsPage";
 import { PlaylistsPage } from "./library/PlaylistsPage";
+import { keepTrail } from "./library/watchOrigin";
 import {
   SettingsGroupsPage,
   SettingsLoginsPage,
@@ -138,9 +139,12 @@ const routeTree = rootRoute.addChildren([
   }),
 ]);
 
-/** Code-based routes (no file-route codegen). Tests pass a memory history. */
+/**
+ * Code-based routes (no file-route codegen). Tests pass a memory history. Its trail is kept, so a
+ * watch page's back link finds the page the video was opened from (`library/watchOrigin.ts`).
+ */
 export function createAppRouter(history: RouterHistory = createBrowserHistory()) {
-  return createRouter({ routeTree, history });
+  return createRouter({ routeTree, history: keepTrail(history) });
 }
 
 declare module "@tanstack/react-router" {

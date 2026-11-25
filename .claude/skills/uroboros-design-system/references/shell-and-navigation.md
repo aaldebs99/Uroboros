@@ -234,5 +234,10 @@ itself. Wrap the states in one frame that holds the link (`SharedPlaylistPage`'s
 `NewSubscriptionFrame`) rather than returning an early branch without it. A new detail page adds
 its list's route to `BackLink`'s `to` union and a test that the link is there in its error state.
 
-The watch page is the one exception, as on YouTube: it is opened from too many places for one of
-them to be "back". A public link (`/s/$code`) has no list behind it, so it has none either.
+The watch page is opened from too many places for one list to be "back", so it has its own,
+`WatchBack` (`library/WatchBack.tsx`), the same quiet link above the player in every state. It
+names the page the video was opened from ("← Downloads", "← Playlist", "← Library") and goes
+there as the browser's Back would, past any videos played since (a queue's next, a suggestion), so
+that page's search and filters come back as they were. The router keeps the history's trail for it
+(`keepTrail` in `library/watchOrigin.ts`); a watch page opened from outside the app, or reloaded,
+leads to the Library. A public link (`/s/$code`) has no page behind it, so it has none.

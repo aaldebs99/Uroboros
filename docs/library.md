@@ -164,6 +164,10 @@ segments again from the page (Refetch SponsorBlock segments,
 the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand instead
 ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.
+Above the player, a back link names the page the video was opened from and returns to it as the
+browser's Back would, past the videos played since, so its search and filters are as they were; a
+page opened from outside the app (a link, a notification) leads to the Library
+(`WatchBack.tsx`, `watchOrigin.ts`).
 
 Every entry says where it came from (`origin`: `download`, or `upload` for a video someone uploaded)
 and its format profile's name (`profileName`, null for an upload, or once a download's profile went

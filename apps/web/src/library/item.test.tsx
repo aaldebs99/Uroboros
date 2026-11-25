@@ -80,6 +80,8 @@ describe("ItemPage", () => {
     expect(player).toHaveAttribute("data-src", item.streamUrl);
     expect(player).toHaveAttribute("data-start", "42");
     expect(player).toHaveAttribute("data-subs", "en");
+    // Opened from outside the app (this router keeps no trail), the way back is the Library.
+    expect(screen.getByRole("link", { name: "Library" })).toHaveAttribute("href", "/");
     await userEvent.click(screen.getByRole("button", { name: "more" }));
     expect(screen.getByRole("button", { name: "less" })).toBeInTheDocument();
   });
