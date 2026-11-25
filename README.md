@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logos/uroboros-transparent.svg" alt="" width="200"></p>
+<p align="center"><img src="assets/logos/uroboros.svg" alt="" width="160"></p>
 
 <h1 align="center">Uroboros</h1>
 
