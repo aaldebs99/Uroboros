@@ -37,9 +37,7 @@ export function ReadySection({
               </span>
               <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-1.5">
                 <p className="truncate font-medium">{title}</p>
-                <p className="truncate text-xs text-muted-foreground tabular-nums">
-                  {readyDetail(p, now)}
-                </p>
+                <p className="text-xs text-muted-foreground tabular-nums">{readyDetail(p, now)}</p>
               </div>
               <Button
                 variant="secondary"
