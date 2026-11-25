@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -62,11 +63,23 @@ export class FakeRun {
   }
 }
 
-/** True while a process with this pid exists. */
+/**
+ * True while a process with this pid runs. A killed process whose parent is gone waits as a
+ * zombie until the system's init reaps it, and a CI job's container may have an init that never
+ * does (its PID 1 is the job's own process), so on Linux a zombie counts as dead: it was killed,
+ * and only the reaping is left. `kill(pid, 0)` alone succeeds on a zombie.
+ */
 export function alive(pid: number): boolean {
   try {
     process.kill(pid, 0);
-    return true;
+  } catch {
+    return false;
+  }
+  if (!existsSync("/proc/self/stat")) return true;
+  try {
+    const stat = readFileSync(`/proc/${String(pid)}/stat`, "utf8");
+    // The state is the field after the command name, which is in parentheses and may hold spaces.
+    return stat.slice(stat.lastIndexOf(")") + 2).split(" ", 1)[0] !== "Z";
   } catch {
     return false;
   }

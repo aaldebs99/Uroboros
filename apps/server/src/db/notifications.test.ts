@@ -145,9 +145,17 @@ describe("the notification bus", () => {
     const setting = async (db: typeof t.db) =>
       (await sql<{ synchronous_commit: string }>`SHOW synchronous_commit`.execute(db)).rows[0]
         ?.synchronous_commit;
+    // The server's own default, which CI's Postgres sets to off for speed.
+    const serverDefault = (
+      await sql<{ reset_val: string }>`
+        SELECT reset_val FROM pg_settings WHERE name = 'synchronous_commit'
+      `.execute(t.db)
+    ).rows[0]?.reset_val;
     await notify(t.db, "uroboros_jobs", "on the pool");
-    expect(await setting(t.db)).toBe("on");
+    expect(await setting(t.db)).toBe(serverDefault);
     await t.db.transaction().execute(async (trx) => {
+      // The caller asks for durable commits, so a relaxation shows whatever the default is.
+      await sql`SET LOCAL synchronous_commit TO on`.execute(trx);
       await notify(trx, "uroboros_jobs", "in a transaction");
       expect(await setting(trx)).toBe("on");
     });
