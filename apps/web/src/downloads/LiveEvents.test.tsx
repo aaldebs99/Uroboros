@@ -4,9 +4,12 @@ import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { exportsKey } from "@/api/exports";
+import { subscriptionKeys } from "@/api/subscriptions";
 import { itemKey } from "@/api/library";
 import { followLiveEvents, type LiveMessage } from "@/api/liveEvents";
 import { Toaster } from "@/components/ui/sonner";
+import { downloadFixture } from "@/test/activity";
+import { itemFixture } from "@/test/subscriptions";
 
 import { LiveEventsProvider } from "./LiveEvents";
 
@@ -46,6 +49,25 @@ function renderLive() {
 }
 
 describe("LiveEventsProvider", () => {
+  it("fetches a subscription's activity again when one of its downloads changes state", () => {
+    const { client, deliver } = renderLive();
+    const DOWNLOAD = "0190a3f2-7c1e-7000-8000-0000000000d1";
+    const holding = subscriptionKeys.items("0190a3f2-7c1e-7000-8000-0000000000a1", null);
+    const other = subscriptionKeys.items("0190a3f2-7c1e-7000-8000-0000000000a2", null);
+    const page = (downloadId: string | null) => ({
+      pages: [{ items: [itemFixture({ downloadId })], nextCursor: null }],
+      pageParams: [null],
+    });
+    client.setQueryData(holding, page(DOWNLOAD));
+    client.setQueryData(other, page(null));
+    deliver({
+      kind: "event",
+      event: { type: "state", download: downloadFixture({ id: DOWNLOAD, state: "done" }) },
+    });
+    expect(client.getQueryState(holding)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(other)?.isInvalidated).toBe(false);
+  });
+
   it("fetches the entry and the person's copies again after a SponsorBlock refetch, and says how it went", async () => {
     const { client, deliver } = renderLive();
     deliver({ kind: "event", event: { type: "skips", entryId: ENTRY, found: 3, error: null } });

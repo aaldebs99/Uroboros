@@ -5,6 +5,7 @@ import type {
   RequestState,
   UploadState,
   Subscription,
+  SubscriptionItem,
   SubscriptionItemOutcome,
 } from "@uroboros/contract";
 
@@ -87,9 +88,26 @@ const OUTCOME = {
   waiting: { label: "Waiting", tone: "warning" },
 } as const satisfies Record<SubscriptionItemOutcome, Look>;
 
-/** What became of a video a subscription saw. */
-export function ItemOutcomeBadge({ outcome }: { outcome: SubscriptionItemOutcome }) {
-  const { label, tone } = OUTCOME[outcome];
+/** A subscription's video that has a download of its own: how that download is doing. */
+const ITEM_DOWNLOAD = {
+  queued: { label: "Queued", tone: "muted" },
+  running: { label: "Downloading", tone: "primary" },
+  done: { label: "Downloaded", tone: "success" },
+  failed: { label: "Failed", tone: "destructive" },
+  cancelled: { label: "Cancelled", tone: "muted" },
+} as const satisfies Record<Download["state"], Look>;
+
+/**
+ * What became of a video a subscription saw: its download's state while it has one (the outcome
+ * says only that it was queued, and would read Queued forever), else the subscription's decision.
+ */
+export function ItemOutcomeBadge({
+  item,
+}: {
+  item: Pick<SubscriptionItem, "outcome" | "downloadState">;
+}) {
+  const { label, tone } =
+    item.downloadState === null ? OUTCOME[item.outcome] : ITEM_DOWNLOAD[item.downloadState];
   return <Badge tone={tone}>{label}</Badge>;
 }
 

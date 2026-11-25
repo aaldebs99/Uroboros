@@ -135,7 +135,10 @@ tab), offers **Watch** for one in the library, and **Download** beside one the s
 over (skipped, filtered or waiting): `POST /api/subscriptions/{id}/items/download {extractor,
 videoId}` queues that video in the subscription's format at a pasted link's priority, from the
 item's own link (no yt-dlp in the request), and the item turns `queued`. One already had or on its
-way counts as skipped.
+way counts as skipped. Each row's pill follows the video's download while it has one (Queued,
+Downloading, Downloaded, Failed or Cancelled, from the item's `downloadState`; a live change to that
+download fetches the list again), since `queued` records only the decision; otherwise it shows the
+decision itself (Skipped, Filtered, Waiting, or Queued for one already had or on its way).
 
 ## SponsorBlock
 

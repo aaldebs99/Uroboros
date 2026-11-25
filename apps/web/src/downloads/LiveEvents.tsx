@@ -8,6 +8,7 @@ import { itemKey } from "@/api/library";
 import { followLiveEvents } from "@/api/liveEvents";
 import { noticesKey } from "@/api/notices";
 import { previewsKey } from "@/api/previews";
+import { refreshActivityHolding } from "@/api/subscriptions";
 import { notify } from "@/components/ui/sonner";
 
 import { skipsOutcome } from "./skipsOutcome";
@@ -18,7 +19,8 @@ const lists = { list: downloadKeys.list(false), active: downloadKeys.active };
 
 /**
  * The shell's one live stream (shared by this browser's tabs, `followLiveEvents`): download changes
- * go into the person's cached lists, progress into a map by fetch key, and a notice or previews
+ * go into the person's cached lists (and fetch a subscription's activity holding the download
+ * again), progress into a map by fetch key, and a notice or previews
  * nudge fetches the notifications or the hover previews being made again. A SponsorBlock refetch's
  * outcome fetches its entry and the person's copies to save again, and says how it went. After a
  * gap all of them are fetched again.
@@ -42,6 +44,7 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
             return;
           case "state":
             applyDownloadChange(client, lists, { download: event.download });
+            refreshActivityHolding(client, event.download.id);
             return;
           case "removed":
             applyDownloadChange(client, lists, { removed: event.id });

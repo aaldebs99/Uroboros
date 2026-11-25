@@ -3633,6 +3633,16 @@
             "nullable": true,
             "type": "string"
           },
+          "downloadState": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DownloadState"
+              },
+              {
+                "nullable": true
+              }
+            ]
+          },
           "dueAt": {
             "format": "date-time",
             "nullable": true,
@@ -3678,6 +3688,7 @@
           "seenAt",
           "dueAt",
           "downloadId",
+          "downloadState",
           "entryId"
         ],
         "type": "object"

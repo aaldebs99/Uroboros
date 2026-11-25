@@ -34,7 +34,10 @@ function decode(raw: string): ItemCursor {
   throw new ApiError("bad_request", "not a valid cursor");
 }
 
-/** A subscription's recent activity, newest first, with the caller's entry for each download. */
+/**
+ * A subscription's recent activity, newest first, with each download's state and the caller's
+ * entry for it.
+ */
 export async function listItems(
   db: Kysely<Database>,
   userId: string,
@@ -59,6 +62,7 @@ export async function listItems(
       sql<string>`i.seen_at::text`.as("seen_text"),
       "i.due_at",
       "i.download_id",
+      "d.state as download_state",
       "e.id as entry_id",
     ])
     .where("i.subscription_id", "=", subscriptionId);
@@ -87,6 +91,7 @@ export async function listItems(
       seenAt: new Date(r.seen_at).toISOString(),
       dueAt: r.due_at === null ? null : new Date(r.due_at).toISOString(),
       downloadId: r.download_id,
+      downloadState: r.download_state,
       entryId: r.entry_id,
     })),
     nextCursor:

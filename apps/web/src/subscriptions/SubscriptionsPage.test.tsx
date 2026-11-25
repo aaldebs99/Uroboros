@@ -145,6 +145,49 @@ describe("SubscriptionPage", () => {
     expect(within(activity).getAllByRole("button", { name: /^Download/ })).toHaveLength(1);
   });
 
+  it("shows a queued video's download as it goes, and Downloaded once it's in the library", async () => {
+    const queued = (videoId: string, over: Parameters<typeof itemFixture>[0]) =>
+      itemFixture({
+        videoId,
+        title: videoId,
+        outcome: "queued",
+        downloadId: `0190a3f2-7c1e-7000-8000-00000000d0${videoId.slice(-1)}0`,
+        ...over,
+      });
+    fakeApi({
+      [`GET /api/subscriptions/${SUB_ID}`]: () => Response.json(subscriptionFixture()),
+      [`GET /api/subscriptions/${SUB_ID}/items`]: () =>
+        Response.json({
+          items: [
+            queued("waits-1", { downloadState: "queued" }),
+            queued("runs-2", { downloadState: "running" }),
+            queued("done-3", {
+              downloadState: "done",
+              entryId: "0190a3f2-7c1e-7000-8000-0000000000e9",
+            }),
+            queued("fails-4", { downloadState: "failed" }),
+            queued("stops-5", { downloadState: "cancelled" }),
+          ],
+          nextCursor: null,
+        }),
+      "GET /api/format-profiles": () => Response.json([]),
+    });
+    await renderInRouter(<SubscriptionPage subscriptionId={SUB_ID} />);
+    const activity = await screen.findByRole("list", { name: "Recent activity" });
+    const pill = (title: string) => {
+      const row = within(activity).getByText(title).closest("li") as HTMLElement;
+      return ["Queued", "Downloading", "Downloaded", "Failed", "Cancelled"].filter(
+        (label) => within(row).queryByText(label) !== null,
+      );
+    };
+    expect(pill("waits-1")).toEqual(["Queued"]);
+    expect(pill("runs-2")).toEqual(["Downloading"]);
+    expect(pill("done-3")).toEqual(["Downloaded"]);
+    expect(within(activity).getByRole("link", { name: "Watch done-3" })).toBeInTheDocument();
+    expect(pill("fails-4")).toEqual(["Failed"]);
+    expect(pill("stops-5")).toEqual(["Cancelled"]);
+  });
+
   it("refreshes the activity when a running check finishes", async () => {
     let subCalls = 0;
     let itemCalls = 0;

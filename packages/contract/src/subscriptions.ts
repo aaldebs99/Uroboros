@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { DownloadErrorKind } from "./downloads.ts";
+import { DownloadErrorKind, DownloadState } from "./downloads.ts";
 
 const Id = z.uuid();
 
@@ -198,6 +198,11 @@ export const SubscriptionItem = z
     seenAt: z.iso.datetime(),
     dueAt: z.iso.datetime().nullable(),
     downloadId: Id.nullable(),
+    /**
+     * How its download is doing, while it has one: `outcome` says only that it was queued. Null for
+     * one never queued, or queued with no download of its own (already had or on its way).
+     */
+    downloadState: DownloadState.nullable(),
     /** The caller's library entry for it, once downloaded. */
     entryId: Id.nullable(),
   })

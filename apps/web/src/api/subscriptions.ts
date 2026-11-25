@@ -6,7 +6,12 @@ import {
   type NewSubscriptionBody,
   type SubscriptionPatch,
 } from "@uroboros/contract";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  type InfiniteData,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { z } from "zod";
 
 import { deleteJson, getJson, patchJson, postJson, postNoContent } from "./client";
@@ -18,6 +23,21 @@ export const subscriptionKeys = {
   items: (id: string, lastCheckedAt: string | null = null) =>
     ["api", "subscriptions", id, "items", lastCheckedAt] as const,
 };
+
+/**
+ * Fetches again every loaded activity list holding this download, so its row follows the download
+ * (Queued, Downloading, Downloaded) without waiting for the next check.
+ */
+export function refreshActivityHolding(client: QueryClient, downloadId: string): void {
+  void client.invalidateQueries({
+    queryKey: subscriptionKeys.all,
+    predicate: (query) =>
+      query.queryKey[3] === "items" &&
+      ((query.state.data as InfiniteData<SubscriptionItemsPage> | undefined)?.pages ?? []).some(
+        (page) => page.items.some((item) => item.downloadId === downloadId),
+      ),
+  });
+}
 
 const path = (id: string) => `/api/subscriptions/${encodeURIComponent(id)}`;
 /** While a check runs (or a new one has yet to) the lists refetch this often. */

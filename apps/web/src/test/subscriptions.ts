@@ -55,6 +55,7 @@ export const itemFixture = (over: Partial<SubscriptionItem> = {}): SubscriptionI
   seenAt: "2026-11-23T08:00:00.000Z",
   dueAt: null,
   downloadId: null,
+  downloadState: null,
   entryId: null,
   ...over,
 });

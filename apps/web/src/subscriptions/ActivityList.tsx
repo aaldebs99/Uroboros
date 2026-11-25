@@ -122,7 +122,7 @@ export function ActivityList({
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <ItemOutcomeBadge outcome={item.outcome} />
+              <ItemOutcomeBadge item={item} />
               <ItemAction subscriptionId={subscriptionId} item={item} />
             </div>
           </li>
