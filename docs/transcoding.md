@@ -202,9 +202,11 @@ Safari's native HLS, and VA-API on Intel, are built to spec but untested.
 A paused viewer's session holds its slot while their tab is open, but its run is paused, so it
 costs nothing.
 
-Replicas that run sessions also make the hover previews, one at a time, on the CPU with the same
-ffmpeg ([library.md](library.md#hover-previews)); `UROBOROS_GENERATE_PREVIEWS=false` turns them
-off.
+Replicas that run sessions also make the hover previews (the whole video at 480p with its sound),
+one at a time, on the CPU with the same ffmpeg ([library.md](library.md#hover-previews));
+`UROBOROS_GENERATE_PREVIEWS=false` turns them off. A video whose preview isn't made yet, and whose
+original the browser can't play, previews through a live 480p session of its own, stopped as soon
+as the preview stops.
 
 ## Saving without SponsorBlock segments
 

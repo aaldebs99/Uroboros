@@ -63,14 +63,18 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
 - The watched bar (a 4px `bg-primary` bar on a `bg-white/35` track along the thumbnail's bottom
   edge) appears only once watch progress is tracked.
 - **Hover preview** (`PreviewSurface` in `library/ThumbnailPreview.tsx`, `VideoThumbnail`'s
-  `preview`): a grid tile's thumbnail plays the video's preview clip (`previewUrl`: two seconds
-  from each fifth, or the whole of a short video) once a mouse rests on it for 300 ms, or after a
-  press and hold on a phone. It is muted, loops, covers the picture (`object-cover`) and fades in
-  over 150 ms once it plays (no fade with reduced motion), under the duration badge and watched
-  bar; it stops when the mouse leaves, another tile starts one, the tile scrolls away or a touch
-  lands elsewhere. One plays at a time. It is a plain `<video>`, never the player, so it reports
-  no progress. The rows (suggestions, Up next, the playlist editor, the palette) have none:
-  a hover there means picking. A tile without a clip yet behaves as before.
+  `preview`, `PreviewPlayer.tsx`): a grid tile's thumbnail plays the whole video at 480p once a
+  mouse rests on it for 300 ms, or after a press and hold on a phone. It starts muted with
+  captions on, covers the picture (`object-cover`) and fades in over 150 ms once it plays (no fade
+  with reduced motion), under the duration badge. Its controls sit over it: a sound button
+  (`VolumeX`/`Volume2`) and, below it, a captions button (`Captions`/`CaptionsOff`, only with
+  subtitles) in the top right, each a 32px `bg-overlay` circle with a 44px hit area and
+  `aria-pressed`, and a scrub bar along the bottom edge (the watched bar's 4px track, 6px on
+  hover, played in `bg-primary`) that takes the watched bar's place while it plays. A press on a
+  control never opens the video. It stops at the end, when the mouse leaves, another tile starts
+  one, the tile scrolls away or a touch lands elsewhere. One plays at a time. It is never the
+  player, so it reports no progress. The rows (suggestions, Up next, the playlist editor, the
+  palette) have none: a hover there means picking. Sound alone (`hasVideo` false) has none.
 
 ## Watch page
 

@@ -42,7 +42,7 @@ export function VideoThumbnail({
         : Math.min(1, watched.position / watched.duration);
   return (
     <PreviewSurface
-      previewUrl={preview ? entry.previewUrl : null}
+      entryId={preview && entry.hasVideo ? entry.id : null}
       className={cn("relative aspect-video overflow-hidden bg-raised", className)}
     >
       {entry.thumbnailUrl === null ? (
@@ -56,7 +56,11 @@ export function VideoThumbnail({
         </span>
       )}
       {fraction === null ? null : (
-        <span aria-hidden data-watched-bar className="absolute inset-x-0 bottom-0 h-1 bg-white/35">
+        <span
+          aria-hidden
+          data-watched-bar
+          className="absolute inset-x-0 bottom-0 h-1 bg-white/35 [[data-previewing]_&]:hidden"
+        >
           <span
             className="block h-full bg-primary"
             style={{ width: `${String(fraction * 100)}%` }}

@@ -11,11 +11,13 @@ import {
 
 import { cn } from "@/lib/utils";
 
+import { PreviewPlayer } from "./PreviewPlayer";
+
 /**
- * A tile's hover preview (docs/library.md "Hover previews"): the server's short silent clip of
- * snippets from across the video, played over the thumbnail while a mouse rests on it, or after a
- * press and hold on a touch screen. It is a plain muted <video>, never the player, so it reports
- * no watch progress and leaves the remembered volume alone.
+ * A tile's hover preview (docs/library.md "Hover previews"): the whole video at 480p, played over
+ * the thumbnail while a mouse rests on it, or after a press and hold on a touch screen, with a
+ * scrub bar and sound and captions buttons (`PreviewPlayer.tsx`). It is never the player, so it
+ * reports no watch progress and leaves the remembered volume and subtitles alone.
  */
 
 /** A mouse resting this long starts it, so sweeping across a grid starts nothing. */
@@ -46,6 +48,8 @@ function release(id: symbol): void {
 interface PreviewGesture {
   /** Whether this tile's preview is playing. */
   playing: boolean;
+  /** Ends it (the video played to its end). */
+  stop: () => void;
   /** For the thumbnail's element; none when the video has no preview. */
   handlers: {
     onPointerEnter?: (e: PointerEvent) => void;
@@ -65,7 +69,7 @@ interface PreviewGesture {
  * outside it.
  */
 function usePreviewGesture(
-  previewUrl: string | null,
+  enabled: boolean,
   surface: RefObject<HTMLDivElement | null>,
 ): PreviewGesture {
   const [id] = useState(() => Symbol("preview"));
@@ -111,7 +115,10 @@ function usePreviewGesture(
     };
   }, [playing, id, surface]);
 
-  if (previewUrl === null) return { playing: false, handlers: {} };
+  const stop = () => {
+    release(id);
+  };
+  if (!enabled) return { playing: false, stop, handlers: {} };
 
   const wait = (ms: number, then: () => void) => {
     window.clearTimeout(timer.current);
@@ -123,6 +130,7 @@ function usePreviewGesture(
   };
   return {
     playing,
+    stop,
     handlers: {
       onPointerEnter(e) {
         if (e.pointerType === "mouse") {
@@ -168,70 +176,36 @@ function usePreviewGesture(
   };
 }
 
-/** The clip over the thumbnail, faded in once it plays so no black frame flashes. */
-export function PreviewVideo({ src }: { src: string }) {
-  const [shown, setShown] = useState(false);
-  const video = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const el = video.current;
-    if (el === null) return;
-    // Muted as a property too (React leaves the attribute off), so autoplay is always allowed.
-    el.muted = true;
-    const started = typeof el.play === "function" ? el.play() : undefined;
-    started?.catch(() => undefined);
-  }, []);
-  return (
-    <video
-      ref={video}
-      src={src}
-      muted
-      playsInline
-      loop
-      autoPlay
-      preload="auto"
-      disablePictureInPicture
-      disableRemotePlayback
-      aria-hidden
-      tabIndex={-1}
-      data-preview
-      onPlaying={() => {
-        setShown(true);
-      }}
-      className={cn(
-        "pointer-events-none absolute inset-0 size-full object-cover transition-opacity duration-150 motion-reduce:transition-none",
-        shown ? "opacity-100" : "opacity-0",
-      )}
-    />
-  );
-}
-
 /**
- * A thumbnail's box that plays the video's preview (none when `previewUrl` is null): the clip goes
- * first, so the box's positioned children (the duration badge, the watched bar) stay above it.
+ * A thumbnail's box that plays the video's preview (none when `entryId` is null: no preview here,
+ * or no picture to preview). The preview goes first, so the box's positioned children (the
+ * duration badge) stay above the picture, and its controls above them. While it plays the box
+ * carries `data-previewing`, which hides the watched bar under the scrub bar.
  */
 export function PreviewSurface({
-  previewUrl,
+  entryId,
   className,
   children,
 }: {
-  previewUrl: string | null;
+  entryId: string | null;
   className?: string;
   children: ReactNode;
 }) {
   const surface = useRef<HTMLDivElement>(null);
-  const { playing, handlers } = usePreviewGesture(previewUrl, surface);
+  const { playing, stop, handlers } = usePreviewGesture(entryId !== null, surface);
   return (
     <div
       ref={surface}
       {...handlers}
+      data-previewing={playing ? "" : undefined}
       className={cn(
         // A press and hold is the preview's, not the phone's link menu or a text selection.
-        previewUrl !== null &&
+        entryId !== null &&
           "select-none [-webkit-touch-callout:none] [&_img]:[-webkit-user-drag:none]",
         className,
       )}
     >
-      {previewUrl !== null && playing ? <PreviewVideo src={previewUrl} /> : null}
+      {entryId !== null && playing ? <PreviewPlayer entryId={entryId} onEnded={stop} /> : null}
       {children}
     </div>
   );

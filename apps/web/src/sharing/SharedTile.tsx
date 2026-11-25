@@ -31,7 +31,7 @@ export function SharedTile({ share }: { share: SharedWithMe & { mine?: boolean }
         className="grid gap-3 rounded-[0.75rem] focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45 focus-visible:outline-none"
       >
         <PreviewSurface
-          previewUrl={share.kind === "entry" ? share.previewUrl : null}
+          entryId={share.kind === "entry" && share.hasVideo ? share.id : null}
           className="relative aspect-video overflow-hidden rounded-[0.75rem] bg-raised"
         >
           {share.thumbnailUrl === null ? (

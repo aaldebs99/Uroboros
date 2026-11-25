@@ -263,6 +263,14 @@ select[data-slot] option {
  * curve (a quick start, a soft settle); under a finger, inline styles place it and nothing eases.
  */
 @layer components {
+  /* A hover preview's captions (docs/library.md "Hover previews"): sized for a tile, in the overlay's colours. */
+  video[data-preview-video]::cue {
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    color: var(--overlay-foreground);
+    background-color: var(--overlay);
+  }
+
   .drawer {
     position: fixed;
     inset: 0;

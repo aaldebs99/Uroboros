@@ -137,35 +137,55 @@ where the person left off.
 
 ## Hover previews
 
-A video's tile plays a short preview while it is hovered with a mouse (after 300 ms), or after a
-press and hold of 400 ms on a touch screen: two seconds at the start, at 20%, 40%, 60% and 80%, or
-the whole of a video under 15 seconds. It is a clip the server makes once per media, so it starts
-at once, plays the same for every file the library holds, and costs a few hundred KB to watch:
+A video's tile plays the whole video, smaller, while it is hovered with a mouse (after 300 ms), or
+after a press and hold of 400 ms on a touch screen. It starts at the beginning, muted, with captions
+on, and has its own controls: a scrub bar along the bottom, a sound button in the top right and a
+captions button below it. What it plays is, best first:
 
-- **The clip** (`packages/ytdlp/src/previewArgs.ts`) is silent H.264 at 480p (the short side, never
-  scaled up), capped at 1 Mbit/s, in an MP4 with `+faststart`. Each snippet is its own input seeked
-  before it is opened, so only a little around each point is read and decoded; HDR is tone-mapped
-  to BT.709.
+1. **The stored preview**, which the server makes once per media: the whole video at 480p with its
+   sound, so it starts at once, plays the same for every file the library holds and seeks anywhere.
+2. **The original**, when there is no stored preview yet (or it failed to play) and this browser
+   plays the file itself (`canPlayOriginal`): no server work, but the file's own size.
+3. **A live 480p playback session** ([transcoding.md](transcoding.md)) otherwise, asked for when the
+   preview starts and stopped the moment it does. It holds a transcoder slot meanwhile.
+
+A source that fails to play gives way to the next.
+
+- **The stored preview** (`packages/ytdlp/src/previewArgs.ts`) is H.264 at 480p (the short side,
+  never scaled up), capped at 1 Mbit/s, with stereo AAC at 96 kbit/s, in an MP4 with `+faststart`;
+  HDR is tone-mapped to BT.709. It is about half a gigabyte for an hour of video.
 - **The job** (`preview` queue, `src/worker/previewRun.ts`) reads the media's smallest stored video
   of at least 480p (else its tallest), runs on replicas that run sessions, one at a time, on the
-  CPU with the transcoder's ffmpeg, and stores the clip at `.previews/<media id>.mp4`
+  CPU with the transcoder's ffmpeg, and stores the preview at `.previews/<media id>.mp4`
   (`media.preview_key`). Two attempts; one that fails for good sets `media.preview_failed_at`.
 - **What queues it:** a download that stored a video, a filed upload, and the leader's backfill
   (`src/previews/sweep.ts`), which every minute queues up to 30 media with a stored video, no
   preview, none failed and none waiting, so a library made before previews gets them at the
-  encoder's pace. Audio has none.
+  encoder's pace (a long video takes minutes). Audio has none.
 - **Serving.** `previewUrl` on a `LibraryEntry` (and on a video in Shared › With me) is
   `GET /api/library/{id}/preview`, which answers to whoever sees the entry and serves byte ranges,
-  cached for a day; null until the clip is made.
-- **Off.** `UROBOROS_GENERATE_PREVIEWS=false` makes none, new or backfilled; clips already made
-  still play. The reaper deletes a clip with its media.
+  cached for a day; null until the preview is made. `hasVideo` says whether the entry has a picture
+  at all: a tile offers a preview only then, before the stored one exists too. The tile fetches
+  the video's details (`GET /api/library/{id}`) as its preview starts, for the sources and the
+  subtitles; the watch page reuses them.
+- **Off.** `UROBOROS_GENERATE_PREVIEWS=false` makes none, new or backfilled; previews already made
+  still play, and the others play the original or a live session. The reaper deletes a preview
+  with its media.
 - **The bell** lists the person's previews being made, one row however many, while any of their
   videos still wait for one, and none while previews are stalled ([push.md](push.md)).
 
-The preview is a plain muted `<video>` laid over the thumbnail, not the player: it reports no watch
-progress and never touches the remembered volume. Grid tiles have it (the library, search,
-channels, playlists, a shared playlist and Shared › With me); the rows beside the player (where a
-hover means picking), the playlist editor, the search palette and public links don't.
+**Sound.** Unmuting a preview carries over to the next ones in the tab until the page reloads; it
+is never stored, and never the player's remembered volume. A browser that refuses to start with
+sound gets the preview muted instead.
+
+**Captions** show the remembered subtitle language (as the player picks it), else the first manual
+track, else the first; the captions button hides and shows them for that preview only, and never
+changes the player's remembered choice.
+
+The preview is never the player: it reports no watch progress, however far it plays or seeks.
+While it plays, the scrub bar takes the watched bar's place. Grid tiles have it (the library,
+search, channels, playlists, a shared playlist and Shared › With me); the rows beside the player
+(where a hover means picking), the playlist editor, the search palette and public links don't.
 
 ## Keep and retention
 

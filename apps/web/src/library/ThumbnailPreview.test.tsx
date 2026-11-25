@@ -1,29 +1,48 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, fireEvent, render as renderBare, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { fakeApi } from "@/test/fakeApi";
 import { itemFixture } from "@/test/libraryItem";
 
 import { HOLD_MS, HOVER_DELAY_MS, PreviewSurface } from "./ThumbnailPreview";
 import { VideoThumbnail } from "./VideoTile";
 
-const CLIP = "/api/library/e1/preview?v=1";
-
-let play: ReturnType<typeof vi.fn<() => Promise<void>>>;
+/**
+ * When a preview starts and stops; what it plays is `PreviewPlayer.test.tsx`'s. The video's
+ * details never arrive here (every call 404s), so a started preview is its empty frame.
+ */
 
 beforeEach(() => {
   vi.useFakeTimers();
-  play = vi.fn<() => Promise<void>>(() => Promise.resolve());
-  vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(play);
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+  fakeApi({});
 });
 afterEach(() => {
   vi.useRealTimers();
 });
 
-/** A thumbnail inside its link, as a tile has it. */
-function tile(name: string, previewUrl: string | null = CLIP) {
+/** Renders inside a query client, as the app does; `rerender` keeps it. */
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrap = (el: ReactElement) => (
+    <QueryClientProvider client={client}>{el}</QueryClientProvider>
+  );
+  const result = renderBare(wrap(ui));
+  return {
+    ...result,
+    rerender: (el: ReactElement) => {
+      result.rerender(wrap(el));
+    },
+  };
+}
+
+/** A thumbnail inside its link, as a tile has it; a null entry has no preview. */
+function tile(name: string, entryId: string | null = `entry-${name}`) {
   return (
     <a href={`#${name}`}>
-      <PreviewSurface previewUrl={previewUrl} className="relative">
+      <PreviewSurface entryId={entryId} className="relative">
         <img alt={name} src="/thumb.jpg" />
       </PreviewSurface>
     </a>
@@ -31,7 +50,7 @@ function tile(name: string, previewUrl: string | null = CLIP) {
 }
 
 const surfaceOf = (name: string) => screen.getByAltText(name).parentElement as HTMLElement;
-const clips = () => document.querySelectorAll<HTMLVideoElement>("video[data-preview]");
+const clips = () => document.querySelectorAll<HTMLElement>("[data-preview]");
 const wait = (ms: number) => {
   act(() => {
     vi.advanceTimersByTime(ms);
@@ -39,19 +58,17 @@ const wait = (ms: number) => {
 };
 
 describe("a thumbnail's hover preview", () => {
-  it("plays muted once a mouse rests on it, and stops when it leaves", () => {
+  it("starts once a mouse rests on it, hidden from assistive tech, and stops when it leaves", () => {
     render(tile("a"));
     fireEvent.pointerEnter(surfaceOf("a"), { pointerType: "mouse" });
     wait(HOVER_DELAY_MS - 1);
     expect(clips()).toHaveLength(0);
     wait(1);
-    const [clip] = clips();
-    expect(clip).toHaveAttribute("src", CLIP);
-    expect(clip?.muted).toBe(true);
-    expect(clip).toHaveAttribute("aria-hidden", "true");
-    expect(play).toHaveBeenCalled();
+    expect(clips()[0]).toHaveAttribute("aria-hidden", "true");
+    expect(surfaceOf("a")).toHaveAttribute("data-previewing");
     fireEvent.pointerLeave(surfaceOf("a"), { pointerType: "mouse" });
     expect(clips()).toHaveLength(0);
+    expect(surfaceOf("a")).not.toHaveAttribute("data-previewing");
   });
 
   it("starts nothing for a mouse passing over", () => {
@@ -120,13 +137,13 @@ describe("a thumbnail's hover preview", () => {
     fireEvent.pointerDown(surfaceOf("b"), { pointerType: "touch" });
     wait(HOLD_MS);
     expect(clips()).toHaveLength(1);
-    expect(surfaceOf("b").querySelector("video")).not.toBeNull();
+    expect(surfaceOf("b").querySelector("[data-preview]")).not.toBeNull();
     fireEvent.pointerDown(document.body, { pointerType: "touch" });
     expect(clips()).toHaveLength(0);
   });
 
   it("is on for a grid tile's thumbnail, and off for the small rows'", () => {
-    const entry = { ...itemFixture, previewUrl: CLIP };
+    const entry = { ...itemFixture, hasVideo: true };
     const { container, rerender } = render(<VideoThumbnail entry={entry} />);
     const box = container.firstElementChild as HTMLElement;
     fireEvent.pointerEnter(box, { pointerType: "mouse" });
@@ -136,7 +153,7 @@ describe("a thumbnail's hover preview", () => {
     fireEvent.pointerEnter(container.firstElementChild as HTMLElement, { pointerType: "mouse" });
     wait(HOVER_DELAY_MS);
     expect(clips()).toHaveLength(1);
-    // The badge stays over the clip.
+    // The badge stays over the picture.
     const badge = screen.getByText("9:56");
     expect(clips()[0]?.compareDocumentPosition(badge)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
