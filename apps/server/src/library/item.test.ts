@@ -312,6 +312,24 @@ describe("an item's SponsorBlock segments (docs/automation.md#sponsorblock)", ()
     ]);
   });
 
+  it("carries the file's highlight to every viewer, whatever their setting", async () => {
+    const highlight = (at: number | null) =>
+      testDb.db
+        .updateTable("renditions")
+        .set({ sponsor_highlight: at })
+        .where("storage_key", "=", "v.mp4")
+        .execute();
+    expect((await item(alice)).sponsorHighlight).toBeNull();
+    await highlight(25);
+    try {
+      expect((await prefs(bob, { show: [], skip: [] })).status).toBe(200);
+      expect((await item(alice)).sponsorHighlight).toBe(25);
+      expect((await item(bob)).sponsorHighlight).toBe(25);
+    } finally {
+      await highlight(null);
+    }
+  });
+
   it("serves a shared entry by the viewer's setting, not the owner's", async () => {
     expect((await prefs(bob, { show: [], skip: ["sponsor", "intro"] })).status).toBe(200);
     expect((await item(bob)).sponsorSegments).toEqual([

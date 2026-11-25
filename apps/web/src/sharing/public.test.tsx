@@ -40,6 +40,7 @@ const item = (n: number, fileUrl: string | null = null) => ({
   description: "An open movie.",
   chapters: [],
   sponsorSegments: [],
+  sponsorHighlight: null,
   subtitles: [],
   streamUrl: `${base(n)}/stream`,
   fileUrl,

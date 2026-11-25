@@ -1,7 +1,14 @@
 import "@videojs/react/video/neutral-skin.css";
 import "./player.css";
 
-import type { Chapter, SponsorSegment, SubtitleTrack } from "@uroboros/contract";
+import {
+  DEFAULT_SPONSORBLOCK_COLORS,
+  SPONSORBLOCK_COLOR_KEYS,
+  type Chapter,
+  type SponsorBlockColors,
+  type SponsorSegment,
+  type SubtitleTrack,
+} from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
 import { HlsVideo } from "@videojs/react/media/hls-video";
 import { NativeHlsVideo } from "@videojs/react/media/native-hls-video";
@@ -13,6 +20,7 @@ import { readVolume, storeVolume } from "@/lib/playerPrefs";
 
 import { AudioArtwork } from "./AudioArtwork";
 import { centerCaptions } from "./captions";
+import { HighlightJump } from "./HighlightJump";
 import { PlayerErrorWatch } from "./PlayerErrorWatch";
 import { PlayerHotkeys } from "./PlayerHotkeys";
 import { SponsorSkip } from "./SponsorSkip";
@@ -40,6 +48,10 @@ export interface PlayerProps {
   chapters: Chapter[];
   /** SponsorBlock segments: drawn on the timeline and jumped over as playback reaches them. */
   sponsorSegments?: readonly SponsorSegment[];
+  /** SponsorBlock's highlight, in seconds: marked on the timeline, with a Jump to highlight. */
+  sponsorHighlight?: number | null;
+  /** The colours the timeline draws SponsorBlock's segments and highlight in; SponsorBlock's own by default. */
+  sponsorColors?: SponsorBlockColors | undefined;
   subtitles: SubtitleTrack[];
   onTime: (position: number, duration: number) => void;
   onPause: (position: number, duration: number) => void;
@@ -69,6 +81,14 @@ const brand = {
   aspectRatio: "16 / 9",
   width: "100%",
 } as CSSProperties;
+
+/** Stable: a new empty list each render would re-add SponsorSkip's track in a loop. */
+const NO_SEGMENTS: readonly SponsorSegment[] = [];
+
+/** The SponsorBlock colours as the variables player.css paints the timeline's marks with. */
+function colorVariables(colors: SponsorBlockColors): CSSProperties {
+  return Object.fromEntries(SPONSORBLOCK_COLOR_KEYS.map((k) => [`--uro-sb-${k}`, colors[k]]));
+}
 
 /** The chapters as a text track: the skin's time slider draws them. */
 function ChapterTrack({ chapters }: { chapters: Chapter[] }) {
@@ -156,19 +176,29 @@ export function Player(p: PlayerProps) {
   }, [p.seek]);
   const at = (v: HTMLVideoElement) =>
     [v.currentTime, Number.isFinite(v.duration) ? v.duration : 0] as const;
+  const jump = useCallback((time: number) => {
+    const v = video.current;
+    if (v === null) return;
+    v.currentTime = time;
+    tryPlay(v);
+  }, []);
+  const colors = p.sponsorColors ?? DEFAULT_SPONSORBLOCK_COLORS;
+  const style = useMemo(() => ({ ...brand, ...colorVariables(colors) }), [colors]);
+  const segments = p.sponsorSegments ?? NO_SEGMENTS;
+  const highlight = p.sponsorHighlight ?? null;
   // The same element and props either way: a file, or an HLS copy.
   const Media = p.hls === undefined ? Video : p.hls.native ? NativeHlsVideo : HlsVideo;
   return (
     <VideoPlayer>
       <SettingsMenuSlot.Provider value={p.settings ?? null}>
         {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
-        {p.sponsorSegments === undefined || p.sponsorSegments.length === 0 ? null : (
-          <SponsorSkip video={video} segments={p.sponsorSegments} />
+        {segments.length === 0 && highlight === null ? null : (
+          <SponsorSkip video={video} segments={segments} highlight={highlight} />
         )}
         {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
           navigation drawer (components/useDrawerDrag.ts). */}
         <NeutralVideoSkin
-          style={brand}
+          style={style}
           className="uro-player overflow-hidden rounded-[0.75rem] bg-black"
           data-own-swipe=""
         >
@@ -206,6 +236,7 @@ export function Player(p: PlayerProps) {
             ))}
           </Media>
           <PlayerHotkeys video={video} />
+          {highlight === null ? null : <HighlightJump video={video} at={highlight} onJump={jump} />}
           <PlayerErrorWatch onError={report} />
         </NeutralVideoSkin>
       </SettingsMenuSlot.Provider>

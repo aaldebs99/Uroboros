@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DEFAULT_SPONSORBLOCK } from "@uroboros/contract";
+import { DEFAULT_SPONSORBLOCK, DEFAULT_SPONSORBLOCK_COLORS } from "@uroboros/contract";
 import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -43,10 +43,18 @@ function serveHiding(hide: boolean, entries: unknown[] = [entry]) {
   const asked: (string | null)[] = [];
   const calls = fakeApi({
     "GET /api/me/preferences": () =>
-      Response.json({ hidePlaylistVideos: hide, sponsorBlock: DEFAULT_SPONSORBLOCK }),
+      Response.json({
+        hidePlaylistVideos: hide,
+        sponsorBlock: DEFAULT_SPONSORBLOCK,
+        sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
+      }),
     // The only change these tests make is turning it on.
     "PATCH /api/me/preferences": () =>
-      Response.json({ hidePlaylistVideos: true, sponsorBlock: DEFAULT_SPONSORBLOCK }),
+      Response.json({
+        hidePlaylistVideos: true,
+        sponsorBlock: DEFAULT_SPONSORBLOCK,
+        sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
+      }),
     "GET /api/library": (_init, url) => {
       asked.push(url.searchParams.get("inPlaylist"));
       return Response.json({ entries, nextCursor: null });
@@ -213,7 +221,11 @@ describe("LibraryPage", () => {
   it("puts the chip back and says why when the account refuses the change", async () => {
     const refuse = fakeApi({
       "GET /api/me/preferences": () =>
-        Response.json({ hidePlaylistVideos: false, sponsorBlock: DEFAULT_SPONSORBLOCK }),
+        Response.json({
+          hidePlaylistVideos: false,
+          sponsorBlock: DEFAULT_SPONSORBLOCK,
+          sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
+        }),
       "PATCH /api/me/preferences": () =>
         Response.json({ code: "unavailable", message: "starting" }, { status: 503 }),
       "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }),
@@ -258,9 +270,17 @@ describe("LibraryPage's Videos and Audio views", () => {
     const kinds: (string | null)[] = [];
     const calls = fakeApi({
       "GET /api/me/preferences": () =>
-        Response.json({ hidePlaylistVideos: false, sponsorBlock: DEFAULT_SPONSORBLOCK }),
+        Response.json({
+          hidePlaylistVideos: false,
+          sponsorBlock: DEFAULT_SPONSORBLOCK,
+          sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
+        }),
       "PATCH /api/me/preferences": () =>
-        Response.json({ hidePlaylistVideos: true, sponsorBlock: DEFAULT_SPONSORBLOCK }),
+        Response.json({
+          hidePlaylistVideos: true,
+          sponsorBlock: DEFAULT_SPONSORBLOCK,
+          sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
+        }),
       "GET /api/library": (_init, url) => {
         kinds.push(url.searchParams.get("kind"));
         return Response.json({ entries, nextCursor: null });

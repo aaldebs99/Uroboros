@@ -157,6 +157,8 @@ export const PublicItem = PublicListItem.extend({
   chapters: z.array(Chapter),
   /** The file's SponsorBlock segments its player shows or skips, by the link owner's setting. */
   sponsorSegments: z.array(SponsorSegment),
+  /** SponsorBlock's highlight, in seconds on the file's timeline; null when it has none. */
+  sponsorHighlight: z.number().nullable(),
   subtitles: z.array(SubtitleTrack),
   streamUrl: z.string(),
   /** Present only when the link allows downloads. */

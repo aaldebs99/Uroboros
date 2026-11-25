@@ -2,38 +2,34 @@ import type { SponsorSegment } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
 import { useEffect, useMemo, type RefObject } from "react";
 
-import { bandTitle, shownSpans, skipSpans, spanReached } from "./sponsorSkip";
+import { skipSpans, spanReached, timelineCues } from "./sponsorSkip";
 
 /**
  * The file's SponsorBlock segments as the person's setting has them (Settings › SponsorBlock,
- * docs/automation.md#sponsorblock): the shown ones drawn as bands on the timeline (a metadata track
- * labelled "skip", which the patched skin's time slider draws; a cue id of `skip:` or `show:` says
- * whether playback jumps the band), and the skipped ones jumped over without a word when playback
- * runs into one. A segment the viewer seeks into plays out, so seeking back to one's start watches
- * it: only playing up to a segment's start skips it.
+ * docs/automation.md#sponsorblock), and its highlight: the shown segments drawn as bands on the
+ * timeline and the highlight as a mark (a metadata track labelled "skip", which the patched skin's
+ * time slider draws, each in its category's colour; `timelineCues`), and the skipped segments
+ * jumped over without a word when playback runs into one. A segment the viewer seeks into plays
+ * out, so seeking back to one's start watches it: only playing up to a segment's start skips it.
  */
 export function SponsorSkip({
   video,
   segments,
+  highlight,
 }: {
   video: RefObject<HTMLVideoElement | null>;
   segments: readonly SponsorSegment[];
+  highlight: number | null;
 }) {
   const spans = useMemo(() => skipSpans(segments), [segments]);
-  const bands = useMemo(() => shownSpans(segments), [segments]);
   // Stable across renders: a new track object each render would re-add the track in a loop.
   const track = useMemo(
     () => ({
       kind: "metadata" as const,
       label: "skip",
-      cues: bands.map((b, i) => ({
-        id: `${b.skipped ? "skip" : "show"}:${String(i)}`,
-        startTime: b.start,
-        endTime: b.end,
-        text: bandTitle(b),
-      })),
+      cues: timelineCues(segments, highlight),
     }),
-    [bands],
+    [segments, highlight],
   );
   useCreateTextTrack(track);
   useEffect(() => {

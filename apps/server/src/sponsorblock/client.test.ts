@@ -28,10 +28,18 @@ const seg = (
   ...(videoDuration === undefined ? {} : { videoDuration }),
 });
 
+/** The segments SponsorBlock's answer comes to for a file of `duration` seconds. */
+const segmentsFor = async (duration: number | null) =>
+  (await sponsorBlockClient({ baseUrl: stub.baseUrl }).lookUp(VIDEO, duration)).segments;
+
+/** The highlight SponsorBlock's answer comes to for a file of `duration` seconds. */
+const highlightFor = async (duration: number | null) =>
+  (await sponsorBlockClient({ baseUrl: stub.baseUrl }).lookUp(VIDEO, duration)).highlight;
+
 describe("asking SponsorBlock for a video's segments (docs/automation.md#sponsorblock)", () => {
-  it("asks by the hash prefix, with the eight categories and the skip action", async () => {
+  it("asks by the hash prefix, for the nine categories' skips and the highlight", async () => {
     stub.answer({ status: 200, body: [entry(VIDEO, [seg([1, 2], "sponsor")])] });
-    await sponsorBlockClient({ baseUrl: stub.baseUrl }).segments(VIDEO, null);
+    await sponsorBlockClient({ baseUrl: stub.baseUrl }).lookUp(VIDEO, null);
     const ask = stub.asked.at(-1);
     expect(ask?.path).toBe(`/api/skipSegments/${prefix}`);
     expect(ask?.query.get("service")).toBe("YouTube");
@@ -41,11 +49,13 @@ describe("asking SponsorBlock for a video's segments (docs/automation.md#sponsor
       "outro",
       "selfpromo",
       "preview",
+      "hook",
       "filler",
       "interaction",
       "music_offtopic",
+      "poi_highlight",
     ]);
-    expect(JSON.parse(ask?.query.get("actionTypes") ?? "[]")).toEqual(["skip"]);
+    expect(JSON.parse(ask?.query.get("actionTypes") ?? "[]")).toEqual(["skip", "poi"]);
   });
 
   it("keeps only the asked video's segments: the prefix matches others too", async () => {
@@ -53,28 +63,29 @@ describe("asking SponsorBlock for a video's segments (docs/automation.md#sponsor
       status: 200,
       body: [entry("someoneElse", [seg([5, 6], "sponsor")]), entry(VIDEO, [seg([3, 4], "intro")])],
     });
-    expect(await sponsorBlockClient({ baseUrl: stub.baseUrl }).segments(VIDEO, null)).toEqual([
-      { start: 3, end: 4, category: "intro" },
-    ]);
+    expect(await segmentsFor(null)).toEqual([{ start: 3, end: 4, category: "intro" }]);
   });
 
-  it("answers [] when SponsorBlock has none (404)", async () => {
+  it("answers nothing when SponsorBlock has nothing (404)", async () => {
     stub.answer({ status: 404 });
-    expect(await sponsorBlockClient({ baseUrl: stub.baseUrl }).segments(VIDEO, null)).toEqual([]);
+    expect(await sponsorBlockClient({ baseUrl: stub.baseUrl }).lookUp(VIDEO, null)).toEqual({
+      segments: [],
+      highlight: null,
+    });
   });
 
   it("fails on a server error and on a timeout", async () => {
     stub.answer({ status: 500, body: "oops" });
-    await expect(
-      sponsorBlockClient({ baseUrl: stub.baseUrl }).segments(VIDEO, null),
-    ).rejects.toThrow(SponsorBlockError);
+    await expect(sponsorBlockClient({ baseUrl: stub.baseUrl }).lookUp(VIDEO, null)).rejects.toThrow(
+      SponsorBlockError,
+    );
     stub.answer({ status: 200, body: [], delayMs: 500 });
     await expect(
-      sponsorBlockClient({ baseUrl: stub.baseUrl, timeoutMs: 50 }).segments(VIDEO, null),
+      sponsorBlockClient({ baseUrl: stub.baseUrl, timeoutMs: 50 }).lookUp(VIDEO, null),
     ).rejects.toThrow(SponsorBlockError);
   });
 
-  it("drops unknown categories, other actions and empty spans, sorted by start", async () => {
+  it("keeps the skip segments, hooks too, sorted by start; drops other categories, actions and empty spans", async () => {
     stub.answer({
       status: 200,
       body: [
@@ -85,10 +96,12 @@ describe("asking SponsorBlock for a video's segments (docs/automation.md#sponsor
           seg([60, 60], "poi_highlight", "poi"),
           seg([70, 80], "exclusive_access", "full"),
           seg([90, 95], "filler", "mute"),
+          seg([5, 8], "hook"),
         ]),
       ],
     });
-    expect(await sponsorBlockClient({ baseUrl: stub.baseUrl }).segments(VIDEO, null)).toEqual([
+    expect(await segmentsFor(null)).toEqual([
+      { start: 5, end: 8, category: "hook" },
       { start: 10, end: 20, category: "sponsor" },
       { start: 30, end: 40, category: "selfpromo" },
     ]);
@@ -96,9 +109,9 @@ describe("asking SponsorBlock for a video's segments (docs/automation.md#sponsor
 
   it("fails on an answer it can't read", async () => {
     stub.answer({ status: 200, body: { not: "a list" } });
-    await expect(
-      sponsorBlockClient({ baseUrl: stub.baseUrl }).segments(VIDEO, null),
-    ).rejects.toThrow(SponsorBlockError);
+    await expect(sponsorBlockClient({ baseUrl: stub.baseUrl }).lookUp(VIDEO, null)).rejects.toThrow(
+      SponsorBlockError,
+    );
   });
 
   it("drops segments timed on a video of another length (an older cut of it), as yt-dlp does", async () => {
@@ -119,7 +132,7 @@ describe("asking SponsorBlock for a video's segments (docs/automation.md#sponsor
         ]),
       ],
     });
-    expect(await sponsorBlockClient({ baseUrl: stub.baseUrl }).segments(VIDEO, 300)).toEqual([
+    expect(await segmentsFor(300)).toEqual([
       { start: 10, end: 20, category: "sponsor" },
       { start: 100, end: 200, category: "filler" },
       { start: 230, end: 240, category: "selfpromo" },
@@ -131,9 +144,67 @@ describe("asking SponsorBlock for a video's segments (docs/automation.md#sponsor
       status: 200,
       body: [entry(VIDEO, [seg([0.6, 10], "intro", "skip", 300), seg([295, 299.5], "outro")])],
     });
-    expect(await sponsorBlockClient({ baseUrl: stub.baseUrl }).segments(VIDEO, 300)).toEqual([
+    expect(await segmentsFor(300)).toEqual([
       { start: 0, end: 10, category: "intro" },
       { start: 295, end: 300, category: "outro" },
     ]);
+  });
+});
+
+describe("SponsorBlock's highlight (docs/automation.md#sponsorblock)", () => {
+  it("is the moment its poi segment marks, apart from the segments", async () => {
+    stub.answer({
+      status: 200,
+      body: [entry(VIDEO, [seg([10, 20], "sponsor"), seg([42.5, 42.5], "poi_highlight", "poi")])],
+    });
+    expect(await sponsorBlockClient({ baseUrl: stub.baseUrl }).lookUp(VIDEO, 300)).toEqual({
+      segments: [{ start: 10, end: 20, category: "sponsor" }],
+      highlight: 42.5,
+    });
+  });
+
+  it("is null without one, and ignores a highlight under another action", async () => {
+    stub.answer({ status: 200, body: [entry(VIDEO, [seg([10, 20], "sponsor")])] });
+    expect(await highlightFor(300)).toBeNull();
+    stub.answer({ status: 200, body: [entry(VIDEO, [seg([30, 30], "poi_highlight", "skip")])] });
+    expect(await highlightFor(300)).toBeNull();
+  });
+
+  it("takes the most-voted one when SponsorBlock has several", async () => {
+    stub.answer({
+      status: 200,
+      body: [
+        entry(VIDEO, [
+          { ...seg([30, 30], "poi_highlight", "poi"), votes: 2 },
+          { ...seg([90, 90], "poi_highlight", "poi"), votes: 7 },
+          { ...seg([60, 60], "poi_highlight", "poi"), votes: 1 },
+        ]),
+      ],
+    });
+    expect(await highlightFor(300)).toBe(90);
+  });
+
+  it("is fitted as yt-dlp fits a point of interest: a second long, on the file's own length", async () => {
+    // A start within a second of 0 is 0.
+    stub.answer({ status: 200, body: [entry(VIDEO, [seg([0.6, 0.6], "poi_highlight", "poi")])] });
+    expect(await highlightFor(300)).toBe(0);
+    // Within a second of the file's 300 s: kept.
+    stub.answer({
+      status: 200,
+      body: [entry(VIDEO, [seg([120, 120], "poi_highlight", "poi", 300.4)])],
+    });
+    expect(await highlightFor(300)).toBe(120);
+    // Two seconds off: timed on another cut of the video.
+    stub.answer({
+      status: 200,
+      body: [entry(VIDEO, [seg([120, 120], "poi_highlight", "poi", 302)])],
+    });
+    expect(await highlightFor(300)).toBeNull();
+    // At or past the file's end: nothing to jump to.
+    stub.answer({ status: 200, body: [entry(VIDEO, [seg([300, 300], "poi_highlight", "poi")])] });
+    expect(await highlightFor(300)).toBeNull();
+    // Without the file's length, it stands as given.
+    stub.answer({ status: 200, body: [entry(VIDEO, [seg([500, 500], "poi_highlight", "poi")])] });
+    expect(await highlightFor(null)).toBe(500);
   });
 });

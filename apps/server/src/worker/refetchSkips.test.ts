@@ -42,12 +42,22 @@ const segmentsOf = async (renditionId: string) =>
       .executeTakeFirstOrThrow()
   ).skip_segments;
 
+const highlightOf = async (renditionId: string) =>
+  (
+    await testDb.db
+      .selectFrom("renditions")
+      .select("sponsor_highlight")
+      .where("id", "=", renditionId)
+      .executeTakeFirstOrThrow()
+  ).sponsor_highlight;
+
 const OLD = [{ start: 1, end: 2, category: "sponsor" }];
+const OLD_HIGHLIGHT = 5;
 
 async function withOldSegments(renditionId: string) {
   await testDb.db
     .updateTable("renditions")
-    .set({ skip_segments: JSON.stringify(OLD) })
+    .set({ skip_segments: JSON.stringify(OLD), sponsor_highlight: OLD_HIGHLIGHT })
     .where("id", "=", renditionId)
     .execute();
 }
@@ -79,15 +89,17 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
       { start: 0, end: 9, category: "intro" as const },
       { start: 49.04, end: 69, category: "sponsor" as const },
     ];
-    const sb = fakeSponsorBlock({ [id]: found });
+    const sb = fakeSponsorBlock({ [id]: { segments: found, highlight: 30 } });
     await refetchSkipsProcessor(await depsWith(sb))({
       data: { entryId: e.entryId, userId: u.userId },
     });
     expect(sb.asked).toEqual([id]);
     // With the file's length (the seeded media's 100 s), as the fetch asks.
     expect(sb.durations).toEqual([100]);
-    // Every category is stored; the asker's setting only decides what they hear about.
+    // Every category is stored, the highlight beside them; the asker's setting only decides what
+    // they hear about, and the highlight isn't counted.
     expect(await segmentsOf(e.renditionId)).toEqual(found);
+    expect(await highlightOf(e.renditionId)).toBe(30);
     // yt-dlp never ran: the lookup is the server's own.
     await expect(h.lastArgv()).rejects.toThrow();
     await expect
@@ -101,7 +113,7 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
       });
   });
 
-  it("finds none when SponsorBlock has none, and says so", async () => {
+  it("finds none when SponsorBlock has none (no highlight either), and says so", async () => {
     const u = await user();
     const e = await seedDownloadedEntry(testDb.db, u.userId, { videoId: videoId() });
     await withOldSegments(e.renditionId);
@@ -109,6 +121,7 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
       data: { entryId: e.entryId, userId: u.userId },
     });
     expect(await segmentsOf(e.renditionId)).toEqual([]);
+    expect(await highlightOf(e.renditionId)).toBeNull();
     await expect
       .poll(() => heard)
       .toContainEqual({
@@ -120,7 +133,7 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
       });
   });
 
-  it("keeps the old segments when SponsorBlock fails, and says why", async () => {
+  it("keeps the old segments and highlight when SponsorBlock fails, and says why", async () => {
     const u = await user();
     const id = videoId();
     const e = await seedDownloadedEntry(testDb.db, u.userId, { videoId: id });
@@ -130,6 +143,7 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
       data: { entryId: e.entryId, userId: u.userId },
     });
     expect(await segmentsOf(e.renditionId)).toEqual(OLD);
+    expect(await highlightOf(e.renditionId)).toBe(OLD_HIGHLIGHT);
     await expect
       .poll(() => heard)
       .toContainEqual({

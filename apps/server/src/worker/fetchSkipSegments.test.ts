@@ -35,13 +35,13 @@ const youtube = async (videoId: string): Promise<FetchJob> => ({
   extractor: "youtube",
 });
 
-/** Fetches `data` with SponsorBlock answering `sb`; the rendition's stored segments. */
+/** Fetches `data` with SponsorBlock answering `sb`; the rendition's stored segments and highlight. */
 async function fetched(data: FetchJob, sb: ReturnType<typeof fakeSponsorBlock>) {
   const deps = { ...(await h.deps(await downloadScenario())), sponsorBlock: sb };
   await fetchProcessor(deps, createCancelRegistry())(fetchJob(data));
   const row = await testDb.db
     .selectFrom("renditions")
-    .select("skip_segments")
+    .select(["skip_segments", "sponsor_highlight"])
     .where("profile_id", "=", data.profileId)
     .where("media_id", "in", (eb) =>
       eb.selectFrom("media").select("id").where("video_id", "=", data.videoId),
@@ -52,14 +52,14 @@ async function fetched(data: FetchJob, sb: ReturnType<typeof fakeSponsorBlock>) 
     .select("state")
     .where("fetch_key", "=", data.fetchKey)
     .executeTakeFirstOrThrow();
-  return { segments: row.skip_segments, state: download.state };
+  return { segments: row.skip_segments, highlight: row.sponsor_highlight, state: download.state };
 }
 
 describe("a fetch's SponsorBlock segments (docs/automation.md#sponsorblock)", () => {
-  it("are every category SponsorBlock has for a YouTube video, asked by the server itself", async () => {
+  it("are every category SponsorBlock has for a YouTube video, with its highlight, asked by the server itself", async () => {
     const data = await youtube("sb-video");
-    const sb = fakeSponsorBlock({ "sb-video": FOUND });
-    expect(await fetched(data, sb)).toEqual({ segments: FOUND, state: "done" });
+    const sb = fakeSponsorBlock({ "sb-video": { segments: FOUND, highlight: 42.5 } });
+    expect(await fetched(data, sb)).toEqual({ segments: FOUND, highlight: 42.5, state: "done" });
     expect(sb.asked).toEqual(["sb-video"]);
     // With the stored file's own length, so segments from another cut of the video are dropped.
     expect(sb.durations).toEqual([expect.any(Number)]);
@@ -74,7 +74,7 @@ describe("a fetch's SponsorBlock segments (docs/automation.md#sponsorblock)", ()
   it("are none when SponsorBlock fails, and the download still finishes", async () => {
     const data = await youtube("sb-down");
     const sb = fakeSponsorBlock({ "sb-down": new Error("SponsorBlock answered 503") });
-    expect(await fetched(data, sb)).toEqual({ segments: [], state: "done" });
+    expect(await fetched(data, sb)).toEqual({ segments: [], highlight: null, state: "done" });
   });
 
   it("are never asked for a site SponsorBlock doesn't cover", async () => {

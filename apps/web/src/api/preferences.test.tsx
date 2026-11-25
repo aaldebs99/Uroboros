@@ -1,5 +1,5 @@
 import { act, waitFor } from "@testing-library/react";
-import { DEFAULT_SPONSORBLOCK } from "@uroboros/contract";
+import { DEFAULT_SPONSORBLOCK, DEFAULT_SPONSORBLOCK_COLORS } from "@uroboros/contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
@@ -15,7 +15,11 @@ afterEach(() => {
 
 describe("changing the SponsorBlock setting", () => {
   it("fetches an open item again, so its player shows and skips by the new setting", async () => {
-    const prefs = { hidePlaylistVideos: false, sponsorBlock: DEFAULT_SPONSORBLOCK };
+    const prefs = {
+      hidePlaylistVideos: false,
+      sponsorBlock: DEFAULT_SPONSORBLOCK,
+      sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
+    };
     const calls = fakeApi({
       [`GET /api/library/${ITEM_ID}`]: () => Response.json(itemFixture),
       "PATCH /api/me/preferences": () => Response.json(prefs),

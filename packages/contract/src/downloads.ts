@@ -48,6 +48,7 @@ export const SPONSORBLOCK_CATEGORIES = [
   "outro",
   "selfpromo",
   "preview",
+  "hook",
   "filler",
   "interaction",
   "music_offtopic",

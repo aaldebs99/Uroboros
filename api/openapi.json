@@ -1506,6 +1506,10 @@
                 },
                 "type": "array"
               },
+              "sponsorHighlight": {
+                "nullable": true,
+                "type": "number"
+              },
               "sponsorSegments": {
                 "items": {
                   "$ref": "#/components/schemas/SponsorSegment"
@@ -1545,6 +1549,7 @@
               "description",
               "chapters",
               "sponsorSegments",
+              "sponsorHighlight",
               "sponsorSegmentsRefetchable",
               "subtitles",
               "streamUrl",
@@ -2449,11 +2454,15 @@
           },
           "sponsorBlock": {
             "$ref": "#/components/schemas/SponsorBlockSettings"
+          },
+          "sponsorBlockColors": {
+            "$ref": "#/components/schemas/SponsorBlockColors"
           }
         },
         "required": [
           "hidePlaylistVideos",
-          "sponsorBlock"
+          "sponsorBlock",
+          "sponsorBlockColors"
         ],
         "type": "object"
       },
@@ -2464,6 +2473,9 @@
           },
           "sponsorBlock": {
             "$ref": "#/components/schemas/SponsorBlockSettings"
+          },
+          "sponsorBlockColors": {
+            "$ref": "#/components/schemas/SponsorBlockColors"
           }
         },
         "type": "object"
@@ -2644,6 +2656,10 @@
                 },
                 "type": "array"
               },
+              "sponsorHighlight": {
+                "nullable": true,
+                "type": "number"
+              },
               "sponsorSegments": {
                 "items": {
                   "$ref": "#/components/schemas/SponsorSegment"
@@ -2676,6 +2692,7 @@
               "description",
               "chapters",
               "sponsorSegments",
+              "sponsorHighlight",
               "subtitles",
               "streamUrl",
               "fileUrl",
@@ -3525,6 +3542,7 @@
           "outro",
           "selfpromo",
           "preview",
+          "hook",
           "filler",
           "interaction",
           "music_offtopic"
@@ -3537,20 +3555,87 @@
             "items": {
               "$ref": "#/components/schemas/SponsorBlockCategory"
             },
-            "maxItems": 16,
+            "maxItems": 18,
             "type": "array"
           },
           "skip": {
             "items": {
               "$ref": "#/components/schemas/SponsorBlockCategory"
             },
-            "maxItems": 16,
+            "maxItems": 18,
             "type": "array"
           }
         },
         "required": [
           "show",
           "skip"
+        ],
+        "type": "object"
+      },
+      "SponsorBlockColors": {
+        "properties": {
+          "filler": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "hook": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "interaction": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "intro": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "music_offtopic": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "outro": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "poi_highlight": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "preview": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "selfpromo": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "sponsor": {
+            "example": "#00d400",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sponsor",
+          "intro",
+          "outro",
+          "selfpromo",
+          "preview",
+          "hook",
+          "filler",
+          "interaction",
+          "music_offtopic",
+          "poi_highlight"
         ],
         "type": "object"
       },

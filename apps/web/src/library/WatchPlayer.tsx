@@ -12,7 +12,7 @@ const Player = lazy(() => import("./Player").then((m) => ({ default: m.Player })
 
 type Shared = Omit<
   PlayerProps,
-  "src" | "hls" | "title" | "chapters" | "sponsorSegments" | "subtitles"
+  "src" | "hls" | "title" | "chapters" | "sponsorSegments" | "sponsorHighlight" | "subtitles"
 >;
 
 /** What the watch player needs of a video: a library item, or a public link's item. */
@@ -21,6 +21,7 @@ export type PlayableItem = Pick<
   | "title"
   | "chapters"
   | "sponsorSegments"
+  | "sponsorHighlight"
   | "subtitles"
   | "streamUrl"
   | "container"
@@ -82,6 +83,7 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
     title: item.title,
     chapters: item.chapters,
     sponsorSegments: item.sponsorSegments,
+    sponsorHighlight: item.sponsorHighlight,
     subtitles: item.subtitles,
     settings,
     // A file with sound alone shows its thumbnail where the picture would be.

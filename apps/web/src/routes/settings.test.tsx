@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DEFAULT_SPONSORBLOCK } from "@uroboros/contract";
+import { DEFAULT_SPONSORBLOCK, DEFAULT_SPONSORBLOCK_COLORS } from "@uroboros/contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAppRouter } from "../router";
@@ -28,7 +28,11 @@ function renderAt(path: string) {
     "GET /api/me/site-logins": () => Response.json({ enabled: true, logins: [] }),
     "GET /api/me/tokens": () => Response.json({ mcp: { enabled: true }, tokens: [] }),
     "GET /api/me/preferences": () =>
-      Response.json({ hidePlaylistVideos: false, sponsorBlock: DEFAULT_SPONSORBLOCK }),
+      Response.json({
+        hidePlaylistVideos: false,
+        sponsorBlock: DEFAULT_SPONSORBLOCK,
+        sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
+      }),
   });
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

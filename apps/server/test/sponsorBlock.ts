@@ -1,7 +1,11 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { StoredSegment } from "../src/library/sponsorSegments.ts";
-import { SponsorBlockError, type SponsorBlockClient } from "../src/sponsorblock/client.ts";
+import {
+  SponsorBlockError,
+  type SponsorBlockClient,
+  type SponsorBlockFindings,
+} from "../src/sponsorblock/client.ts";
 
 /** One request the stub SponsorBlock received. */
 export interface StubAsk {
@@ -66,25 +70,29 @@ export class SponsorBlockStub {
 }
 
 /**
- * A SponsorBlock client for job tests: answers each video id from `answers` (an Error fails it),
- * `[]` for any other, and records the ids (and file lengths) it was asked about.
+ * A SponsorBlock client for job tests: answers each video id from `answers` (segments alone mean
+ * no highlight; an Error fails it), nothing for any other, and records the ids (and file lengths)
+ * it was asked about.
  */
 export function fakeSponsorBlock(
-  answers: Record<string, StoredSegment[] | Error> = {},
+  answers: Record<string, StoredSegment[] | SponsorBlockFindings | Error> = {},
 ): SponsorBlockClient & { asked: string[]; durations: (number | null)[] } {
   const asked: string[] = [];
   const durations: (number | null)[] = [];
   return {
     asked,
     durations,
-    segments(videoId, duration) {
+    lookUp(videoId, duration) {
       asked.push(videoId);
       durations.push(duration);
       const answer = answers[videoId];
       if (answer instanceof Error) {
         return Promise.reject(new SponsorBlockError(answer.message, { cause: answer }));
       }
-      return Promise.resolve(answer ?? []);
+      if (answer === undefined) return Promise.resolve({ segments: [], highlight: null });
+      return Promise.resolve(
+        Array.isArray(answer) ? { segments: answer, highlight: null } : answer,
+      );
     },
   };
 }

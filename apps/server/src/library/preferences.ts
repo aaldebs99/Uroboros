@@ -1,9 +1,12 @@
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 import {
   DEFAULT_SPONSORBLOCK,
+  DEFAULT_SPONSORBLOCK_COLORS,
   Preferences,
   PreferencesPatch,
+  SPONSORBLOCK_COLOR_KEYS,
   SponsorBlockCategory,
+  SponsorBlockColors,
   type SponsorBlockSettings,
 } from "@uroboros/contract";
 import type { Kysely } from "kysely";
@@ -30,16 +33,42 @@ function sponsorBlockFrom(row: SponsorBlockRow | undefined): SponsorBlockSetting
   };
 }
 
+/**
+ * The colours a person keeps: SponsorBlock's, with each stored one that is still a colour for a
+ * key the app knows in its place.
+ */
+function colorsFrom(stored: unknown): SponsorBlockColors {
+  const kept: Record<string, unknown> =
+    typeof stored === "object" && stored !== null ? (stored as Record<string, unknown>) : {};
+  const colors = { ...DEFAULT_SPONSORBLOCK_COLORS };
+  for (const key of SPONSORBLOCK_COLOR_KEYS) {
+    const one = SponsorBlockColors.shape[key].safeParse(kept[key]);
+    if (one.success) colors[key] = one.data;
+  }
+  return colors;
+}
+
+/** The colours that differ from SponsorBlock's, as stored: SponsorBlock's own keep nothing. */
+function changedColors(colors: SponsorBlockColors): Partial<SponsorBlockColors> {
+  return Object.fromEntries(
+    SPONSORBLOCK_COLOR_KEYS.filter((k) => colors[k] !== DEFAULT_SPONSORBLOCK_COLORS[k]).map((k) => [
+      k,
+      colors[k],
+    ]),
+  );
+}
+
 /** A person's preferences (docs/library.md "Hide playlist videos"); no row means the defaults. */
 export async function getPreferences(db: Kysely<Database>, userId: string): Promise<Preferences> {
   const row = await db
     .selectFrom("user_preferences")
-    .select(["hide_playlist_videos", ...SPONSORBLOCK_COLUMNS])
+    .select(["hide_playlist_videos", "sponsorblock_colors", ...SPONSORBLOCK_COLUMNS])
     .where("user_id", "=", userId)
     .executeTakeFirst();
   return {
     hidePlaylistVideos: row?.hide_playlist_videos ?? false,
     sponsorBlock: sponsorBlockFrom(row),
+    sponsorBlockColors: colorsFrom(row?.sponsorblock_colors),
   };
 }
 
@@ -66,6 +95,7 @@ export async function updatePreferences(
   patch: PreferencesPatch,
 ): Promise<Preferences> {
   const sb = patch.sponsorBlock;
+  const colors = patch.sponsorBlockColors;
   const columns = {
     ...(patch.hidePlaylistVideos === undefined
       ? {}
@@ -78,6 +108,7 @@ export async function updatePreferences(
           sponsorblock_audio_show: sb.audio.show,
           sponsorblock_audio_skip: sb.audio.skip,
         }),
+    ...(colors === undefined ? {} : { sponsorblock_colors: JSON.stringify(changedColors(colors)) }),
   };
   if (Object.keys(columns).length > 0) {
     await db

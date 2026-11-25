@@ -5,7 +5,7 @@ import type { StoredSegment } from "../library/sponsorSegments.ts";
 
 /**
  * SponsorBlock's API (docs/automation.md#sponsorblock): the job consumers ask it for a YouTube
- * video's segments themselves, after each download and on a refetch, so no file is ever marked or
+ * video's segments and highlight themselves, after each download and on a refetch, so no file is ever marked or
  * cut for them. They ask by the first four hex digits of the video id's SHA-256, as yt-dlp does,
  * so SponsorBlock never learns which video it was, and keep the one that matches.
  */
@@ -19,19 +19,30 @@ export class SponsorBlockError extends Error {
   override readonly name = "SponsorBlockError";
 }
 
-/** Asks SponsorBlock for one video's segments: every category's, its "skip" action's. */
+/** What SponsorBlock knows of one video, on the stored file's timeline. */
+export interface SponsorBlockFindings {
+  /** Every category's "skip" segments, sorted by start. */
+  segments: StoredSegment[];
+  /** Its highlight (`poi_highlight`), the moment people marked as what the video is for, or null. */
+  highlight: number | null;
+}
+
+/** Asks SponsorBlock for one video's segments (every category's "skip" ones) and its highlight. */
 export interface SponsorBlockClient {
   /**
-   * The video's segments, sorted by start; `[]` when it has none. `duration` is the stored file's
-   * length (null when unknown): segments timed on a video of another length are dropped, and ends
+   * The video's segments and highlight; none when it has none. `duration` is the stored file's
+   * length (null when unknown): those timed on a video of another length are dropped, and ends
    * within a second of it reach it. Throws `SponsorBlockError`.
    */
-  segments(
+  lookUp(
     videoId: string,
     duration: number | null,
     signal?: AbortSignal,
-  ): Promise<StoredSegment[]>;
+  ): Promise<SponsorBlockFindings>;
 }
+
+/** SponsorBlock's highlight category, asked for beside the segments with its own action. */
+const HIGHLIGHT = "poi_highlight";
 
 const Answer = z.array(
   z.object({
@@ -42,6 +53,7 @@ const Answer = z.array(
         category: z.string(),
         actionType: z.string().optional(),
         videoDuration: z.number().nullish(),
+        votes: z.number().optional(),
       }),
     ),
   }),
@@ -66,12 +78,7 @@ function fitted(s: Answered, duration: number | null): { start: number; end: num
   return fits ? { start, end } : null;
 }
 
-function segmentsOf(
-  answer: z.infer<typeof Answer>,
-  videoId: string,
-  duration: number | null,
-): StoredSegment[] {
-  const mine = answer.find((v) => v.videoID === videoId)?.segments ?? [];
+function segmentsOf(mine: readonly Answered[], duration: number | null): StoredSegment[] {
   return mine
     .flatMap((s) => {
       const known = SponsorBlockCategory.safeParse(s.category);
@@ -83,18 +90,38 @@ function segmentsOf(
     .sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
+/**
+ * The highlight: the most-voted `poi_highlight` point, fitted as yt-dlp fits a point of interest,
+ * as a second-long segment (so a start within a second of 0 is 0, and one timed on a video of
+ * another length is dropped), and only where it starts before the file's end.
+ */
+function highlightOf(mine: readonly Answered[], duration: number | null): number | null {
+  let best: { at: number; votes: number } | null = null;
+  for (const s of mine) {
+    if (s.category !== HIGHLIGHT || (s.actionType !== undefined && s.actionType !== "poi")) {
+      continue;
+    }
+    const at = s.segment[0];
+    const span = fitted({ ...s, segment: [at, at + 1] }, duration);
+    if (span === null || span.end <= span.start) continue;
+    const votes = s.votes ?? 0;
+    if (best === null || votes > best.votes) best = { at: span.start, votes };
+  }
+  return best?.at ?? null;
+}
+
 export function sponsorBlockClient(opts: {
   baseUrl: string;
   timeoutMs?: number;
 }): SponsorBlockClient {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   return {
-    async segments(videoId, duration, signal) {
+    async lookUp(videoId, duration, signal) {
       const prefix = createHash("sha256").update(videoId).digest("hex").slice(0, 4);
       const url = new URL(`/api/skipSegments/${prefix}`, opts.baseUrl);
       url.searchParams.set("service", "YouTube");
-      url.searchParams.set("categories", JSON.stringify(SPONSORBLOCK_CATEGORIES));
-      url.searchParams.set("actionTypes", JSON.stringify(["skip"]));
+      url.searchParams.set("categories", JSON.stringify([...SPONSORBLOCK_CATEGORIES, HIGHLIGHT]));
+      url.searchParams.set("actionTypes", JSON.stringify(["skip", "poi"]));
       const timeout = AbortSignal.timeout(timeoutMs);
       let res: Response;
       try {
@@ -105,12 +132,13 @@ export function sponsorBlockClient(opts: {
       } catch (err) {
         throw new SponsorBlockError("SponsorBlock didn't answer", { cause: err });
       }
-      if (res.status === 404) return [];
+      if (res.status === 404) return { segments: [], highlight: null };
       if (!res.ok) throw new SponsorBlockError(`SponsorBlock answered ${String(res.status)}`);
       const body: unknown = await res.json().catch(() => null);
       const answer = Answer.safeParse(body);
       if (!answer.success) throw new SponsorBlockError("SponsorBlock's answer was unreadable");
-      return segmentsOf(answer.data, videoId, duration);
+      const mine = answer.data.find((v) => v.videoID === videoId)?.segments ?? [];
+      return { segments: segmentsOf(mine, duration), highlight: highlightOf(mine, duration) };
     },
   };
 }

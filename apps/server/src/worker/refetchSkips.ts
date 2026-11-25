@@ -9,10 +9,10 @@ import type { WorkerDeps } from "./deps.ts";
 
 /**
  * The probe queue's `skips` jobs (docs/automation.md#sponsorblock): asks SponsorBlock for a video's
- * segments again, every category's, and puts them on the file, for everyone whose entry it is. A
- * failure keeps the segments it had. Either way the person who asked hears how it went (a `skips`
- * event, counting the segments their own setting shows or skips); an entry that is gone hears
- * nothing.
+ * segments again, every category's, and its highlight, and puts them on the file, for everyone
+ * whose entry it is. A failure keeps what it had. Either way the person who asked hears how it went
+ * (a `skips` event, counting the segments their own setting shows or skips, not the highlight); an
+ * entry that is gone hears nothing.
  */
 export function refetchSkipsProcessor(deps: WorkerDeps) {
   return async (job: { data: SkipsJob }): Promise<void> => {
@@ -38,10 +38,13 @@ export function refetchSkipsProcessor(deps: WorkerDeps) {
       return;
     }
     try {
-      const segments = await deps.sponsorBlock.segments(source.videoId, entry.duration);
+      const { segments, highlight } = await deps.sponsorBlock.lookUp(
+        source.videoId,
+        entry.duration,
+      );
       await deps.db
         .updateTable("renditions")
-        .set({ skip_segments: JSON.stringify(segments) })
+        .set({ skip_segments: JSON.stringify(segments), sponsor_highlight: highlight })
         .where("id", "=", entry.rendition_id)
         .execute();
       const settings = await sponsorBlockOf(deps.db, userId);

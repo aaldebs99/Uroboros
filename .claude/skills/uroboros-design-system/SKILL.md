@@ -27,7 +27,8 @@ skill, this skill wins. The existing files are listed in each reference.
    `bg-primary`, `bg-accent` (soft blue), `text-muted-foreground`, `text-destructive`,
    `text-success`, `text-warning`, `shadow-card`, `shadow-menu` and `bg-overlay`. Never use a hex
    value or a raw Tailwind colour (`red-600`, `bg-black/75`). Tokens switch with the theme, so
-   don't add `dark:` colour pairs.
+   don't add `dark:` colour pairs. The one exception is data: SponsorBlock's marks on the player's
+   timeline wear the colours the viewer picked ([media](references/media-and-library.md#player)).
 2. **Blue is the accent, never a state.** Success is `success`, warnings are `warning` and
    failures are `destructive`. Every contract state has a tone in
    [feedback](references/feedback-and-containers.md#status-badges). Branch on contract enums

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SponsorBlockCategory, SponsorSegment } from "@uroboros/contract";
 
-import { bandTitle, shownSpans, skipSpans, spanReached } from "./sponsorSkip";
+import { bandTitle, shownSpans, skipSpans, spanReached, timelineCues } from "./sponsorSkip";
 
 /** A segment shown and skipped, as the defaults have the usual categories. */
 const both = (start: number, end: number, category: SponsorBlockCategory): SponsorSegment => ({
@@ -41,17 +41,54 @@ describe("skipSpans", () => {
 });
 
 describe("shownSpans", () => {
-  it("bands show segments, marking the ones playback skips, never joining the two kinds", () => {
+  it("bands show segments, one category each so each has its colour, marking the ones playback skips", () => {
     expect(
       shownSpans([
         both(10, 20, "sponsor"),
         { start: 20.2, end: 30, category: "intro", show: true, skip: false },
         { start: 40, end: 50, category: "filler", show: false, skip: true },
         both(20.1, 25, "selfpromo"),
+        both(20.3, 22, "sponsor"),
       ]),
     ).toEqual([
-      { start: 10, end: 25, categories: ["sponsor", "selfpromo"], skipped: true },
-      { start: 20.2, end: 30, categories: ["intro"], skipped: false },
+      { start: 10, end: 22, category: "sponsor", skipped: true },
+      { start: 20.1, end: 25, category: "selfpromo", skipped: true },
+      { start: 20.2, end: 30, category: "intro", skipped: false },
+    ]);
+  });
+
+  it("never joins a band playback jumps with one of the same category it plays through", () => {
+    expect(
+      shownSpans([
+        both(10, 20, "hook"),
+        { start: 20, end: 30, category: "hook", show: true, skip: false },
+      ]),
+    ).toEqual([
+      { start: 10, end: 20, category: "hook", skipped: true },
+      { start: 20, end: 30, category: "hook", skipped: false },
+    ]);
+  });
+});
+
+describe("timelineCues", () => {
+  it("names each band's kind and category in its cue id, for the timeline's markers", () => {
+    expect(
+      timelineCues(
+        [
+          both(10, 20, "sponsor"),
+          { start: 30, end: 40, category: "intro", show: true, skip: false },
+        ],
+        null,
+      ),
+    ).toEqual([
+      { id: "skip:sponsor:0", startTime: 10, endTime: 20, text: "Skipped sponsor" },
+      { id: "show:intro:1", startTime: 30, endTime: 40, text: "Intro" },
+    ]);
+  });
+
+  it("marks the highlight as a second-long point", () => {
+    expect(timelineCues([], 42.5)).toEqual([
+      { id: "point:poi_highlight:0", startTime: 42.5, endTime: 43.5, text: "Highlight" },
     ]);
   });
 });
@@ -88,20 +125,15 @@ describe("spanReached", () => {
 
 describe("bandTitle", () => {
   it("names what a skipped band skips, and what a shown one is", () => {
-    const band = (categories: SponsorBlockCategory[], skipped: boolean) => ({
+    const band = (category: SponsorBlockCategory, skipped: boolean) => ({
       start: 0,
       end: 1,
-      categories,
+      category,
       skipped,
     });
-    expect(bandTitle(band(["sponsor"], true))).toBe("Skipped sponsor");
-    expect(bandTitle(band(["selfpromo", "sponsor"], true))).toBe(
-      "Skipped self-promotion and sponsor",
-    );
-    expect(bandTitle(band(["sponsor", "intro", "music_offtopic"], true))).toBe(
-      "Skipped sponsor, intro and non-music section",
-    );
-    expect(bandTitle(band(["sponsor"], false))).toBe("Sponsor");
-    expect(bandTitle(band(["intro", "outro"], false))).toBe("Intro and outro");
+    expect(bandTitle(band("sponsor", true))).toBe("Skipped sponsor");
+    expect(bandTitle(band("music_offtopic", true))).toBe("Skipped non-music section");
+    expect(bandTitle(band("sponsor", false))).toBe("Sponsor");
+    expect(bandTitle(band("hook", false))).toBe("Hook or greeting");
   });
 });

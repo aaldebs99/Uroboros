@@ -260,6 +260,9 @@ CREATE TABLE renditions (
   -- the same for everyone; each person's setting picks what their player shows and skips
   -- (docs/automation.md#sponsorblock).
   skip_segments JSONB NOT NULL DEFAULT '[]',
+  -- SponsorBlock's highlight, in seconds on the file's own timeline: the moment people marked as
+  -- what the video is for; null when it has none (docs/automation.md#sponsorblock).
+  sponsor_highlight DOUBLE PRECISION,
   -- Set by the reaper when no entry references it; cleared when one does again.
   orphaned_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -748,13 +751,16 @@ CREATE TABLE user_preferences (
   -- Settings › SponsorBlock (docs/automation.md#sponsorblock): the categories whose segments the
   -- player shows on the timeline and those it skips, for videos and for audio files apart.
   sponsorblock_video_show TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
-    CHECK (sponsorblock_video_show <@ ARRAY['sponsor','intro','outro','selfpromo','preview','filler','interaction','music_offtopic']),
+    CHECK (sponsorblock_video_show <@ ARRAY['sponsor','intro','outro','selfpromo','preview','hook','filler','interaction','music_offtopic']),
   sponsorblock_video_skip TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
-    CHECK (sponsorblock_video_skip <@ ARRAY['sponsor','intro','outro','selfpromo','preview','filler','interaction','music_offtopic']),
+    CHECK (sponsorblock_video_skip <@ ARRAY['sponsor','intro','outro','selfpromo','preview','hook','filler','interaction','music_offtopic']),
   sponsorblock_audio_show TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
-    CHECK (sponsorblock_audio_show <@ ARRAY['sponsor','intro','outro','selfpromo','preview','filler','interaction','music_offtopic']),
+    CHECK (sponsorblock_audio_show <@ ARRAY['sponsor','intro','outro','selfpromo','preview','hook','filler','interaction','music_offtopic']),
   sponsorblock_audio_skip TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
-    CHECK (sponsorblock_audio_skip <@ ARRAY['sponsor','intro','outro','selfpromo','preview','filler','interaction','music_offtopic'])
+    CHECK (sponsorblock_audio_skip <@ ARRAY['sponsor','intro','outro','selfpromo','preview','hook','filler','interaction','music_offtopic']),
+  -- The colours their player draws SponsorBlock's segments and highlight in (category or
+  -- poi_highlight → #rrggbb), only those changed from the SponsorBlock extension's.
+  sponsorblock_colors JSONB NOT NULL DEFAULT '{}'
 );
 
 -- A video's keyframe times in seconds from the file's start, sorted: where a playback session that

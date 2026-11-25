@@ -159,14 +159,20 @@ decision itself (Skipped, Filtered, Waiting, New, or Queued for one already had 
 
 What a person's player does with SponsorBlock's segments is their own setting, Settings ›
 SponsorBlock (`user_preferences`, `GET`/`PATCH /api/me/preferences`): for videos and for audio
-files apart, which categories (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`, `filler`,
-`interaction`, `music_offtopic`) it shows as bands on the timeline and which it skips, either
-without the other. Until they choose, both show and skip `sponsor`, `selfpromo` and `interaction`.
-Format profiles carry no categories, and no file is marked or cut for anyone:
+files apart, which categories (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`, `hook`,
+`filler`, `interaction`, `music_offtopic`) it shows as bands on the timeline and which it skips,
+either without the other. Until they choose, both show and skip `sponsor`, `selfpromo` and
+`interaction`. The same page picks the colour their player draws each category's bands and the
+highlight in, videos and audio alike (`sponsorBlockColors`; `user_preferences.sponsorblock_colors`
+keeps only the ones changed). Until they choose they are the SponsorBlock extension's own
+(`DEFAULT_SPONSORBLOCK_COLORS` in the contract): sponsor `#00d400`, intro `#00ffff`, outro
+`#0202ed`, self-promotion `#ffff00`, preview `#008fd6`, hook `#395699`, filler `#7300ff`,
+interaction `#cc00ff`, non-music `#ff9900` and the highlight `#ff1684`. A public link's viewer gets
+those. Format profiles carry no categories, and no file is marked or cut for anyone:
 
-- **Every YouTube file keeps every category's segments.** After a download the fetch asks
-  SponsorBlock's API itself (`src/sponsorblock/client.ts`, `src/worker/fetchSegments.ts`) for the
-  video's segments, by the first four hex digits of its id's SHA-256 as yt-dlp does, so SponsorBlock
+- **Every YouTube file keeps every category's segments, and its highlight.** After a download the
+  fetch asks SponsorBlock's API itself (`src/sponsorblock/client.ts`, `src/worker/fetchSegments.ts`)
+  for the video's segments and highlight, by the first four hex digits of its id's SHA-256 as yt-dlp does, so SponsorBlock
   never learns which video it was, fits them to the file's length as yt-dlp does (a start within a
   second of 0 is 0, an end within a second of the end is the end, and a segment SponsorBlock timed
   on a video of another length, an older cut of it, is dropped unless that is under a second, or
@@ -185,6 +191,15 @@ Format profiles carry no categories, and no file is marked or cut for anyone:
   (`apps/web/src/library/SponsorSkip.tsx`), audio and video alike. Only playback skips: a segment
   the viewer seeks into plays out (seeking back to a skipped one's start is how to watch it), and a
   jump of more than 2 s between two looks counts as a seek.
+- **The highlight** (`poi_highlight`, SponsorBlock's `poi` action: one moment, the part most people
+  are looking for) comes with the segments and is kept on the rendition
+  (`renditions.sponsor_highlight`, seconds). It is fitted as yt-dlp fits a point of interest, as a
+  second-long segment: a start within a second of 0 is 0, one timed on a video of another length
+  is dropped unless the lengths are within a second, and one at or past the file's end is dropped.
+  When SponsorBlock has several, the most-voted wins. Every route hands it out as
+  `sponsorHighlight`, whatever the person's setting. The player marks it on the timeline in its
+  colour and, while playback is short of it, offers Jump to highlight in its top corner, coming
+  and going with the controls (`apps/web/src/library/HighlightJump.tsx`).
 - **Files cut by their own profile keep none.** A profile whose extra arguments cut or trim the file
   (`--sponsorblock-remove`, `--remove-chapters`, `--download-sections`) moves its timeline, so
   SponsorBlock's times would point at the wrong moments in it: such a file stores no segments and
@@ -206,11 +221,11 @@ SponsorBlock segments button on its item page: `POST /api/library/{id}/skip-segm
 queues a `skips` job on the `probe` queue, one per entry at a time (key `skips:<entryId>`, one
 attempt). The job (`src/worker/refetchSkips.ts`) finds the video from the latest download that made
 the file (`src/library/skipRefetch.ts`), asks SponsorBlock again (`src/sponsorblock/client.ts`, no
-yt-dlp run and no request to YouTube), and puts every category's segments on the rendition, for
-everyone whose entry it is. A failed lookup keeps the segments the file had. Either way a `skips`
+yt-dlp run and no request to YouTube), and puts every category's segments and the highlight on the
+rendition, for everyone whose entry it is. A failed lookup keeps what the file had. Either way a `skips`
 event on the live stream tells the person who asked what came of it, counting the segments their
-own setting shows or skips: the web app fetches the entry again and toasts the segments found, none
-yet, or the failure.
+own setting shows or skips (not the highlight): the web app fetches the entry again and toasts the
+segments found, none yet, or the failure.
 
 To save a file to a device without the segments its person skips, the item page's Save offers a
 copy re-encoded without them, cut exactly and in sync

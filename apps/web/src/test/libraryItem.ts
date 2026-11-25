@@ -31,6 +31,7 @@ export const itemFixture: LibraryItem = {
     { start: 60, end: 596, title: "The chase" },
   ],
   sponsorSegments: [],
+  sponsorHighlight: null,
   sponsorSegmentsRefetchable: false,
   subtitles: [
     {

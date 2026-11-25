@@ -162,9 +162,13 @@ export { Export, ExportState } from "./exports.ts";
 export { MarkNoticesReadBody, Notice, NoticeKind, NoticeList } from "./notices.ts";
 export {
   DEFAULT_SPONSORBLOCK,
+  DEFAULT_SPONSORBLOCK_COLORS,
   Preferences,
   PreferencesPatch,
+  SPONSORBLOCK_COLOR_KEYS,
   SponsorBlockChoice,
+  type SponsorBlockColorKey,
+  SponsorBlockColors,
   SponsorBlockSettings,
 } from "./preferences.ts";
 export { PreviewWork } from "./previews.ts";

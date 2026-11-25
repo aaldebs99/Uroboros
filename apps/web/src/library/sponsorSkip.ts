@@ -38,21 +38,29 @@ export function skipSpans(segments: readonly SponsorSegment[]): SkipSpan[] {
   return joined(segments.filter((s) => s.skip));
 }
 
-/** One band on the timeline: shown segments joined, and whether playback jumps it. */
-export interface ShownSpan extends SkipSpan {
+/** One band on the timeline: one category's shown segments joined, and whether playback jumps it. */
+export interface ShownSpan {
+  start: number;
+  end: number;
+  category: SponsorBlockCategory;
   skipped: boolean;
 }
 
 /**
- * The bands the timeline draws: the shown segments, joined as `skipSpans` joins them, a band that
- * playback jumps never joined with one it plays through, so each reads as what it is.
+ * The bands the timeline draws: the shown segments, joined as `skipSpans` joins them but only
+ * within one category (so each band has its category's colour) and never a band playback jumps
+ * with one it plays through, so each reads as what it is. Bands of two categories may overlap.
  */
 export function shownSpans(segments: readonly SponsorSegment[]): ShownSpan[] {
   const shown = segments.filter((s) => s.show);
-  return [
-    ...joined(shown.filter((s) => s.skip)).map((s) => ({ ...s, skipped: true })),
-    ...joined(shown.filter((s) => !s.skip)).map((s) => ({ ...s, skipped: false })),
-  ].sort((a, b) => a.start - b.start || a.end - b.end);
+  const bands: ShownSpan[] = [];
+  for (const category of new Set(shown.map((s) => s.category))) {
+    for (const skipped of [true, false]) {
+      const same = shown.filter((s) => s.category === category && s.skip === skipped);
+      for (const { start, end } of joined(same)) bands.push({ start, end, category, skipped });
+    }
+  }
+  return bands.sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
 /**
@@ -76,20 +84,54 @@ const LABELS: Record<SponsorBlockCategory, string> = {
   outro: "outro",
   selfpromo: "self-promotion",
   preview: "preview",
+  hook: "hook or greeting",
   filler: "filler",
   interaction: "interaction reminder",
   music_offtopic: "non-music section",
 };
 
-/**
- * A band's cue on the timeline: "Skipped sponsor", "Skipped sponsor and self-promotion" for what
- * playback jumps; "Sponsor", "Intro and outro" for what it only shows.
- */
+/** A band's cue on the timeline: "Skipped sponsor" for what playback jumps, "Sponsor" for what it only shows. */
 export function bandTitle(span: ShownSpan): string {
-  const names = span.categories.map((c) => LABELS[c]);
-  const listed =
-    names.length <= 2
-      ? names.join(" and ")
-      : `${names.slice(0, -1).join(", ")} and ${names.at(-1) ?? ""}`;
-  return span.skipped ? `Skipped ${listed}` : listed.charAt(0).toUpperCase() + listed.slice(1);
+  const name = LABELS[span.category];
+  return span.skipped ? `Skipped ${name}` : name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/** One cue of the timeline's SponsorBlock track. */
+export interface TimelineCue {
+  id: string;
+  startTime: number;
+  endTime: number;
+  text: string;
+}
+
+/** How long the highlight's marker is, as yt-dlp marks a point of interest. */
+const POINT = 1;
+
+/**
+ * The cues of the timeline's SponsorBlock track (a metadata track labelled "skip", drawn by
+ * patches/@videojs__react.patch): each id is `<kind>:<category>:<n>`, the kind `skip` for a band
+ * playback jumps, `show` for one it plays through and `point` for the highlight; the markers take
+ * their colour from the category.
+ */
+export function timelineCues(
+  segments: readonly SponsorSegment[],
+  highlight: number | null,
+): TimelineCue[] {
+  const bands = shownSpans(segments).map((b, i) => ({
+    id: `${b.skipped ? "skip" : "show"}:${b.category}:${String(i)}`,
+    startTime: b.start,
+    endTime: b.end,
+    text: bandTitle(b),
+  }));
+  return highlight === null
+    ? bands
+    : [
+        ...bands,
+        {
+          id: "point:poi_highlight:0",
+          startTime: highlight,
+          endTime: highlight + POINT,
+          text: "Highlight",
+        },
+      ];
 }

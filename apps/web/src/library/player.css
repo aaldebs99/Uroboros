@@ -114,9 +114,11 @@
 }
 
 /*
- * SponsorBlock segments the person shows (SponsorSkip): warning-toned bands over the bar, as thick
- * as it is, strong where playback jumps them ([data-skips]) and faint where it plays through. The
- * markers come from patches/@videojs__react.patch, hence their own class names.
+ * SponsorBlock segments the person shows (SponsorSkip): bands over the bar, as thick as it is, each
+ * in its category's colour (the person's, Settings › SponsorBlock: Player sets --uro-sb-<category>
+ * on the skin), strong where playback jumps them ([data-skips]) and faint where it plays through;
+ * the highlight is a full-strength mark. The markers come from patches/@videojs__react.patch, hence
+ * their own class names.
  */
 .uro-player .uro-skip-markers {
   position: absolute;
@@ -137,11 +139,59 @@
   inset-block: 0;
   left: var(--media-slider-marker-start);
   width: var(--media-slider-marker-width);
-  background-color: color-mix(in oklch, var(--warning) 40%, transparent);
+  background-color: color-mix(in oklch, var(--uro-band, var(--warning)) 40%, transparent);
 }
 
 .uro-player .uro-skip-marker[data-skips] {
-  background-color: color-mix(in oklch, var(--warning) 85%, transparent);
+  background-color: color-mix(in oklch, var(--uro-band, var(--warning)) 85%, transparent);
+}
+
+.uro-player .uro-skip-marker[data-category="sponsor"] {
+  --uro-band: var(--uro-sb-sponsor);
+}
+.uro-player .uro-skip-marker[data-category="intro"] {
+  --uro-band: var(--uro-sb-intro);
+}
+.uro-player .uro-skip-marker[data-category="outro"] {
+  --uro-band: var(--uro-sb-outro);
+}
+.uro-player .uro-skip-marker[data-category="selfpromo"] {
+  --uro-band: var(--uro-sb-selfpromo);
+}
+.uro-player .uro-skip-marker[data-category="preview"] {
+  --uro-band: var(--uro-sb-preview);
+}
+.uro-player .uro-skip-marker[data-category="hook"] {
+  --uro-band: var(--uro-sb-hook);
+}
+.uro-player .uro-skip-marker[data-category="filler"] {
+  --uro-band: var(--uro-sb-filler);
+}
+.uro-player .uro-skip-marker[data-category="interaction"] {
+  --uro-band: var(--uro-sb-interaction);
+}
+.uro-player .uro-skip-marker[data-category="music_offtopic"] {
+  --uro-band: var(--uro-sb-music_offtopic);
+}
+
+/* The highlight: a point, so a mark wide enough to see, at full strength. */
+.uro-player .uro-skip-marker[data-category="poi_highlight"] {
+  min-width: 0.25rem;
+  background-color: var(--uro-sb-poi_highlight, var(--warning));
+}
+
+/* Jump to highlight (HighlightJump) comes and goes with the controls, unless it has the focus. */
+.uro-player .uro-highlight-jump {
+  transition: opacity var(--media-duration-controls, 0.15s) ease-out;
+}
+
+.uro-player:not([data-controls-visible]) .uro-highlight-jump:not(:focus-visible) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.uro-player .uro-highlight-jump svg {
+  color: var(--uro-sb-poi_highlight);
 }
 
 /* No hairline at the pointer: the lighter run marks it. */

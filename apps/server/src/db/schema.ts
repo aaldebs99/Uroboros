@@ -196,6 +196,8 @@ export interface RenditionsTable {
   audio_codecs: string | null;
   /** JSONB: every category's SponsorBlock segments (`StoredSegment[]`, library/sponsorSegments.ts). */
   skip_segments: ColumnType<unknown, string | undefined, string>;
+  /** SponsorBlock's highlight, in seconds on the file's timeline; null when it has none. */
+  sponsor_highlight: ColumnType<number | null, number | null | undefined, number | null>;
   orphaned_at: Timestamp | null;
   created_at: Created;
 }

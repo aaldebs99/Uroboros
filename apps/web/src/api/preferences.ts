@@ -1,4 +1,4 @@
-import { Preferences, type PreferencesPatch } from "@uroboros/contract";
+import { Preferences, type PreferencesPatch, type SponsorBlockColors } from "@uroboros/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getJson, patchJson } from "./client";
@@ -11,6 +11,11 @@ export function usePreferences() {
     queryKey: preferencesKey,
     queryFn: ({ signal }) => getJson("/api/me/preferences", Preferences, { signal }),
   });
+}
+
+/** The caller's SponsorBlock colours for their player; undefined (SponsorBlock's own) until loaded. */
+export function useSponsorColors(): SponsorBlockColors | undefined {
+  return usePreferences().data?.sponsorBlockColors;
 }
 
 /** Changes some preferences. The change shows at once; one the server refuses is put back. */

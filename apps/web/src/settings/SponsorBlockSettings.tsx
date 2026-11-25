@@ -12,6 +12,7 @@ import { SettingsRow } from "@/components/ui/settings-row";
 import { notify } from "@/components/ui/sonner";
 import { Switch } from "@/components/ui/switch";
 
+import { SegmentColors } from "./SegmentColors";
 import { SPONSORBLOCK_LABELS } from "./sponsorBlockLabels";
 
 /** What each category is, in a line. */
@@ -21,6 +22,7 @@ const DESCRIPTIONS: Record<SponsorBlockCategory, string> = {
   outro: "End cards, credits and endings with nothing new in them",
   selfpromo: "Unpaid promotion: merch, donations, the creator's other channels",
   preview: "Recaps of earlier episodes and previews of what's coming",
+  hook: "Narrated trailers for the video ahead, greetings and goodbyes",
   filler: "Tangents and jokes off the main content",
   interaction: "Reminders to like, subscribe or follow",
   music_offtopic: "The parts of a music video that aren't music",
@@ -77,7 +79,8 @@ function ChoiceSwitch({
 /**
  * Settings › SponsorBlock (docs/automation.md#sponsorblock): for videos and for audio files apart,
  * which categories' segments the player shows on the timeline (Show) and which it jumps over
- * (Skip), either without the other. Each switch saves at once.
+ * (Skip), either without the other, then the colours they and the highlight are drawn in
+ * (SegmentColors). Each switch saves at once.
  */
 export function SponsorBlockSettings() {
   const prefs = usePreferences();
@@ -124,6 +127,7 @@ export function SponsorBlockSettings() {
           </div>
         </section>
       ))}
+      <SegmentColors current={prefs.data?.sponsorBlockColors} />
     </div>
   );
 }

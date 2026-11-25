@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { ApiError, errorText } from "@/api/client";
 import { itemKey, reportProgress, setTags, useItem } from "@/api/library";
+import { useSponsorColors } from "@/api/preferences";
 import { LinkifiedText } from "@/components/LinkifiedText";
 import { EmptyState } from "@/components/ui/empty-state";
 import { notify } from "@/components/ui/sonner";
@@ -126,6 +127,7 @@ export function ItemPage({
   startAt?: number | null;
 }) {
   const item = useItem(entryId);
+  const colors = useSponsorColors();
   const client = useQueryClient();
   const [seek, setSeek] = useState<{ time: number } | null>(null);
   const navigate = useNavigate();
@@ -169,6 +171,7 @@ export function ItemPage({
             }
             autoPlay
             seek={seek}
+            sponsorColors={colors}
             {...reporter}
             onEnded={onEnded}
           />

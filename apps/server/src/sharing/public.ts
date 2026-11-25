@@ -104,7 +104,8 @@ const Chapters = z.array(Chapter);
 
 /**
  * One video of a link with its player's needs, every URL under the link. Its SponsorBlock segments
- * go by the link owner's setting: whoever opens it, signed in or not, sees it as its owner set it.
+ * go by the link owner's setting: whoever opens it, signed in or not, sees it as its owner set it;
+ * its highlight goes to everyone.
  */
 export async function publicItem(db: Db, code: string, entryId: string): Promise<PublicItem> {
   const e = await linkEntry(db, code, entryId);
@@ -118,6 +119,7 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
         "m.chapters",
         "m.webpage_url",
         "r.skip_segments",
+        "r.sponsor_highlight",
         "r.video_codec",
         "r.audio_codec",
         "r.video_codecs",
@@ -152,6 +154,7 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
       sponsorBlock,
       extra.video_codec === null,
     ),
+    sponsorHighlight: extra.sponsor_highlight,
     subtitles: subs.map((s) => ({ ...s, url: `${base}/subtitles/${s.id}` })),
     streamUrl: `${base}/stream`,
     fileUrl: e.allow_download ? `${base}/file` : null,

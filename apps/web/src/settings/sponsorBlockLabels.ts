@@ -7,6 +7,7 @@ export const SPONSORBLOCK_LABELS: Record<SponsorBlockCategory, string> = {
   outro: "Outro",
   selfpromo: "Self-promotion",
   preview: "Preview",
+  hook: "Hook or greeting",
   filler: "Filler",
   interaction: "Interaction reminder",
   music_offtopic: "Non-music section",

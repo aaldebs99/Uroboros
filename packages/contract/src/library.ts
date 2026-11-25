@@ -88,6 +88,11 @@ export const LibraryItem = LibraryEntry.extend({
   /** The file's SponsorBlock segments the caller shows or skips (Settings › SponsorBlock). */
   sponsorSegments: z.array(SponsorSegment),
   /**
+   * SponsorBlock's highlight, in seconds on the file's timeline: the moment people marked as what
+   * the video is for; null when it has none.
+   */
+  sponsorHighlight: z.number().nullable(),
+  /**
    * The caller's own downloaded YouTube video: they may fetch its SponsorBlock segments again
    * (`POST /api/library/{id}/skip-segments/refetch`).
    */

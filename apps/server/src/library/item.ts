@@ -35,6 +35,7 @@ export async function getItem(
       "m.uploaded_by",
       "e.rendition_id",
       "r.skip_segments",
+      "r.sponsor_highlight",
       "r.audio_codec",
       "r.video_codecs",
       "r.audio_codecs",
@@ -49,6 +50,7 @@ export async function getItem(
         uploaded_by: string | null;
         rendition_id: string;
         skip_segments: unknown;
+        sponsor_highlight: number | null;
         audio_codec: string | null;
       } & RenditionPlayback)
     | undefined;
@@ -73,6 +75,7 @@ export async function getItem(
     chapters: chapters.success ? chapters.data : [],
     // An audio file (no video stream; cover art isn't one) goes by the audio choice.
     sponsorSegments: sponsorSegmentsFor(row.skip_segments, sponsorBlock, row.video_codec === null),
+    sponsorHighlight: row.sponsor_highlight,
     sponsorSegmentsRefetchable: refetchable,
     subtitles: subs.map((s) => ({ ...s, url: `/api/library/${entryId}/subtitles/${s.id}` })),
     streamUrl: `/api/library/${entryId}/stream`,

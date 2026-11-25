@@ -158,10 +158,10 @@ describe("public links", () => {
   });
 
   it("public playback URLs stay under the code", async () => {
-    // No segments found yet (the SponsorBlock test below gives the film some).
+    // No segments or highlight found yet (the SponsorBlock test below gives the film some).
     await t.db
       .updateTable("renditions")
-      .set({ skip_segments: JSON.stringify([]) })
+      .set({ skip_segments: JSON.stringify([]), sponsor_highlight: null })
       .where("id", "=", film.renditionId)
       .execute();
     const code = await link({ entry_id: film.entryId });
@@ -171,25 +171,28 @@ describe("public links", () => {
     expect(item.playbackUrl).toBe(`/api/public/s/${code}/items/${film.entryId}/playback`);
     expect(item).toMatchObject({ videoCodecs: null, width: null, qualities: [] });
     expect(item.sponsorSegments).toEqual([]);
+    expect(item.sponsorHighlight).toBeNull();
   });
 
-  it("a public item plays by its owner's SponsorBlock setting, defaults until they choose", async () => {
+  it("a public item plays by its owner's SponsorBlock setting, defaults until they choose, with its highlight", async () => {
     const segments = [
       { start: 49.04, end: 69, category: "sponsor" },
       { start: 80, end: 90, category: "outro" },
     ];
     await t.db
       .updateTable("renditions")
-      .set({ skip_segments: JSON.stringify(segments) })
+      .set({ skip_segments: JSON.stringify(segments), sponsor_highlight: 30 })
       .where("id", "=", film.renditionId)
       .execute();
     const code = await link({ entry_id: film.entryId });
-    const read = async () =>
-      PublicItem.parse(await (await anon(`/api/public/s/${code}/items/${film.entryId}`)).json())
-        .sponsorSegments;
+    const full = async () =>
+      PublicItem.parse(await (await anon(`/api/public/s/${code}/items/${film.entryId}`)).json());
+    const read = async () => (await full()).sponsorSegments;
     expect(await read()).toEqual([
       { start: 49.04, end: 69, category: "sponsor", show: true, skip: true },
     ]);
+    // The highlight goes to whoever opens the link.
+    expect((await full()).sponsorHighlight).toBe(30);
     // The film has no video stream, so the owner's audio choice applies.
     await t.db
       .insertInto("user_preferences")

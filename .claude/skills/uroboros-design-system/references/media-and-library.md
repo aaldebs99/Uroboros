@@ -112,6 +112,16 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
   while pointed at (the pointed-at chapter 7px), chapters 2px apart. Unplayed is white at 20%,
   buffered white at 40%, the run up to the pointer white at 30%, and played the accent with a soft
   glow. The thumb is a 13px accent circle, shown on hover, drag or focus.
+- SponsorBlock's marks lie over the timeline (`SponsorSkip.tsx`, `player.css`): each shown
+  category's bands as thick as the bar, strong (85%) where playback jumps them and faint (40%)
+  where it only shows them, and the highlight a 4px full-strength mark. They are the one place a
+  colour comes from data rather than a token: the viewer's own (Settings › SponsorBlock), the
+  SponsorBlock extension's until they choose (`DEFAULT_SPONSORBLOCK_COLORS` in the contract), set
+  on the skin as `--uro-sb-<category>`.
+- **Jump to highlight** (`HighlightJump.tsx`): while playback is short of the highlight, a
+  `bg-overlay` pill in the player's top-right corner, 44px tall (36px from `md`), a `Sparkles`
+  icon in the highlight's colour beside the label. It comes and goes with the controls and keeps
+  the skin's gestures off its press.
 - Under the timeline, play, volume and the time sit at the left; captions, settings, cast,
   picture-in-picture and fullscreen sit at the right.
 - The settings menu's **Quality** submenu is ours (`library/QualityMenu.tsx`, in the slot the
