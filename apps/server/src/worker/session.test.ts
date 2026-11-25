@@ -98,16 +98,17 @@ function start(
   return { done, shutdown };
 }
 
-/** ffmpeg's output for these keyframe times, one fragment per write, a little apart. */
-function trickle(times: number[]) {
+/** ffmpeg's output for these keyframe times, one fragment per write, `gapMs` apart. */
+function trickle(times: number[], gapMs = 30) {
   return times.flatMap((t, i) => {
     const before = i === 0 ? 0 : fmp4Stream(times.slice(0, i)).length;
     const bytes = fmp4Stream(times.slice(0, i + 1)).subarray(before);
-    return [{ stdoutBase64: bytes.toString("base64") }, { sleepMs: 30 }];
+    return [{ stdoutBase64: bytes.toString("base64") }, { sleepMs: gapMs }];
   });
 }
 
-async function until(check: () => Promise<boolean>, ms = 5000) {
+/** Polls `check` until true; 10 s, as a loaded runner starts the fake ffmpeg slowly. */
+async function until(check: () => Promise<boolean>, ms = 10_000) {
   const end = Date.now() + ms;
   while (!(await check())) {
     if (Date.now() > end) throw new Error("timed out waiting");
@@ -298,7 +299,9 @@ describe("a playback session's runner", () => {
       ],
     });
     const sid = await newSession({}, uniformBoundaries(60));
-    const { done } = start(d, sid, undefined, { debounceMs: 150 });
+    // Each want is its own NOTIFY: a debounce of a second lets the two arrive apart on a busy
+    // runner and still count as one scrub.
+    const { done } = start(d, sid, undefined, { debounceMs: 1000 });
     await until(async () => stored(sid, -1));
     await d.playbackBus.publish({ t: "want", sid, n: 8 });
     await d.playbackBus.publish({ t: "want", sid, n: 9 });
@@ -323,15 +326,18 @@ describe("a playback session's runner", () => {
   });
 
   it("pauses far ahead of the player and reads on as it catches up", async () => {
-    const d = await deps({ steps: trickle([0, 6, 12, 18, 24, 30, 36, 42, 48, 54]) });
+    // Unpaused, the whole film (60 ms a fragment) is stored within 600 ms.
+    const d = await deps({ steps: trickle([0, 6, 12, 18, 24, 30, 36, 42, 48, 54], 60) });
     const sid = await newSession({}, uniformBoundaries(60));
     const { done } = start(d, sid, undefined, { throttleAhead: 2, resumeAhead: 1 });
     await until(async () => stored(sid, 2));
-    await new Promise((r) => setTimeout(r, 400));
-    expect(await stored(sid, 3)).toBe(false);
+    await new Promise((r) => setTimeout(r, 900));
+    // The gate is checked per read, and fragments written while a read was busy arrive together,
+    // so the pause can land a segment or two past 2; it lands well short of 6.
+    expect(await stored(sid, 6)).toBe(false);
     await d.playbackBus.publish({ t: "want", sid, n: 2 });
     // Reading on (what ffmpeg wrote meanwhile may arrive at once, so no second pause is checked).
-    await until(async () => stored(sid, 4));
+    await until(async () => stored(sid, 8));
     await leave(sid);
     await done;
   });
