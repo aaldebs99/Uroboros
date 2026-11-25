@@ -36,9 +36,14 @@ export async function cutListeners(db: Kysely<Database>): Promise<number> {
   return r.rows[0]?.cut ?? 0;
 }
 
-/** The next payload on `channel`, or a rejection after `ms`. */
+/**
+ * The next payload on `channel`, or a rejection after `ms`. Listening starts at the call, so take
+ * it before the action and await it after. A test that fails in between never awaits it, so its
+ * timeout is marked handled here rather than reported later as an unhandled rejection, which vitest
+ * may pin on another test. Awaiting it still throws.
+ */
 export function nextMessage(bus: PgBus, channel: Channel, ms = 5000): Promise<string> {
-  return new Promise((resolve, reject) => {
+  const next = new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => {
       off();
       reject(new Error(`no message on ${channel} within ${String(ms)} ms`));
@@ -49,4 +54,6 @@ export function nextMessage(bus: PgBus, channel: Channel, ms = 5000): Promise<st
       resolve(payload);
     });
   });
+  next.catch(() => undefined);
+  return next;
 }
