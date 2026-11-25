@@ -161,7 +161,12 @@ describe("making a copy without sponsors", () => {
     const run = exportProcessor(deps).process(job(copy.id));
     await expect.poll(async () => (await rowOf(copy.id))?.state, { timeout: 5000 }).toBe("running");
     await t.db.deleteFrom("exports").where("id", "=", copy.id).execute();
+    const removed = Date.now();
     await run;
+    // Stopped at the next progress line (1.5 s in), not after the fake's further 10 s, and no
+    // file was stored (a run that finished would store it, then delete it again).
+    expect(Date.now() - removed).toBeLessThan(6000);
+    expect(await deps.store.stat(exportKey(copy.id))).toBeNull();
     expect(await rowOf(copy.id)).toBeUndefined();
   });
 });
