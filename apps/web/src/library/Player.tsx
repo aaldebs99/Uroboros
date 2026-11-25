@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, type CSSProperties, type React
 
 import { readVolume, storeVolume } from "@/lib/playerPrefs";
 
+import { AudioArtwork } from "./AudioArtwork";
 import { centerCaptions } from "./captions";
 import { PlayerErrorWatch } from "./PlayerErrorWatch";
 import { PlayerHotkeys } from "./PlayerHotkeys";
@@ -47,6 +48,11 @@ export interface PlayerProps {
   settings?: ReactNode;
   /** The player failed (once per error): the page may play the video another way. */
   onError?: () => void;
+  /**
+   * A file with sound alone (no video stream): its thumbnail stands where the picture would be
+   * (AudioArtwork). Undefined for a video.
+   */
+  audio?: { thumbnailUrl: string | null };
 }
 
 /** The design system's tokens on the skin's styling hooks (docs: "Customize skins"). */
@@ -166,6 +172,7 @@ export function Player(p: PlayerProps) {
           className="uro-player overflow-hidden rounded-[0.75rem] bg-black"
           data-own-swipe=""
         >
+          {p.audio === undefined ? null : <AudioArtwork src={p.audio.thumbnailUrl} />}
           <Media
             ref={video}
             src={p.src}

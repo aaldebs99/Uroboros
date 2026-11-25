@@ -145,7 +145,10 @@ to a presigned URL when `UROBOROS_S3_PUBLIC_URL` is set; the CSP's `media-src` a
 and `GET /api/library/{id}/subtitles/{subId}` serves a WebVTT file. The web app plays it with
 Video.js 10 (`@videojs/react`, the Neutral video skin in the app's accent): subtitles are `<track>`s
 in its captions menu, chapters are a text track its time slider divides into sections, and the page
-also lists the chapters to jump to (`apps/web/src/library/Player.tsx`). The item's
+also lists the chapters to jump to (`apps/web/src/library/Player.tsx`). An audio file (no video
+stream, as Library › Audio counts it) shows its thumbnail where the picture would be, whole over a
+blurred copy of itself, or a music glyph when it has none; it lies behind the media element, so
+the controls and captions draw over it (`AudioArtwork.tsx`). The item's
 `sponsorSegments`, the file's SponsorBlock segments as the caller's setting has them, are bands on
 the timeline (strong where playback jumps them, faint where it only shows them), and playback jumps
 over a skipped one when it runs into it, without a toast; a segment the viewer seeks into plays out

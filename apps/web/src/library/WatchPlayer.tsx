@@ -29,6 +29,7 @@ export type PlayableItem = Pick<
   | "audioCodecs"
   | "qualities"
   | "playbackUrl"
+  | "thumbnailUrl"
 >;
 
 interface Choice {
@@ -83,6 +84,8 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
     sponsorSegments: item.sponsorSegments,
     subtitles: item.subtitles,
     settings,
+    // A file with sound alone shows its thumbnail where the picture would be.
+    ...(item.videoCodec === null ? { audio: { thumbnailUrl: item.thumbnailUrl } } : {}),
   };
   return (
     <div className="grid gap-1.5">
