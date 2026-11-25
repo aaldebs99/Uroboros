@@ -160,6 +160,58 @@ describe("manual playlists", () => {
     expect((await send(bob, "GET", `/api/library?playlist=${p.id}`)).status).toBe(404);
   });
 
+  it("moves an entry to a position, the end when past it, shifting the others", async () => {
+    const [a, b, c] = await entries(alice);
+    const p = await create(alice, "Moving", [a, b, c]);
+    const move = (entryId: string, position: number) =>
+      send(alice, "POST", `/api/playlists/${p.id}/items/${entryId}/move`, { position });
+    expect((await move(c, 0)).status).toBe(204);
+    expect(await order(alice, p.id)).toEqual([c, a, b]);
+    expect((await move(c, 1)).status).toBe(204);
+    expect(await order(alice, p.id)).toEqual([a, c, b]);
+    expect((await move(a, 99)).status).toBe(204);
+    expect(await order(alice, p.id)).toEqual([c, b, a]);
+    expect((await move(a, -1)).status).toBe(400);
+    // Not in the playlist, or a YouTube playlist.
+    const [outside] = await entries(alice);
+    expect((await move(outside, 0)).status).toBe(404);
+    const e = await seedEntry(testDb.db, alice.userId, { videoId: "yt-move-1" });
+    const sourceId = await youtubePlaylist(alice.userId, ["yt-move-1"]);
+    expect(
+      (
+        await send(alice, "POST", `/api/playlists/${sourceId}/items/${e.entryId}/move`, {
+          position: 0,
+        })
+      ).status,
+    ).toBe(409);
+    expect(await order(alice, p.id)).toEqual([c, b, a]);
+  });
+
+  it("another person can neither read nor change what a playlist holds", async () => {
+    const [a, b] = await entries(alice);
+    const [theirs] = await entries(bob);
+    const p = await create(alice, "Not yours", [a, b]);
+    const tries: [string, string, unknown?][] = [
+      ["POST", `/api/playlists/${p.id}/items`, { entryIds: [theirs] }],
+      ["PUT", `/api/playlists/${p.id}/items`, { entryIds: [theirs] }],
+      ["POST", `/api/playlists/${p.id}/items/${a}/move`, { position: 1 }],
+      ["DELETE", `/api/playlists/${p.id}/items/${a}`],
+      ["POST", `/api/playlists/${p.id}/copy`],
+    ];
+    for (const [method, path, body] of tries) {
+      expect([method, path, (await send(bob, method, path, body)).status]).toEqual([
+        method,
+        path,
+        404,
+      ]);
+    }
+    expect(await order(alice, p.id)).toEqual([a, b]);
+    const bobs = z
+      .array(PlaylistSummary)
+      .parse(await (await send(bob, "GET", "/api/playlists")).json());
+    expect(bobs.map((x) => x.name)).not.toContain("Not yours");
+  });
+
   it("deletes a playlist", async () => {
     const p = await create(alice, "Gone");
     expect((await send(alice, "DELETE", `/api/playlists/${p.id}`)).status).toBe(204);
