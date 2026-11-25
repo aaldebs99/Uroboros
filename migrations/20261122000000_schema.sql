@@ -292,14 +292,17 @@ CREATE TABLE subscriptions (
   -- NO ACTION, not RESTRICT: deleting an account removes its subscriptions and personal profiles
   -- in one statement, checked at its end.
   profile_id UUID NOT NULL REFERENCES format_profiles,
-  -- When checks run: every interval_minutes, or on a 5-field cron in cron_tz (one or the other).
+  -- When checks run: every interval_minutes, or on a 5-field cron in cron_tz (at most one); with
+  -- neither, only when the person asks (Manually).
   interval_minutes INTEGER CHECK (interval_minutes BETWEEN 1 AND 10080),
   cron TEXT CHECK (char_length(cron) BETWEEN 9 AND 120),
   cron_tz TEXT CHECK (char_length(cron_tz) BETWEEN 1 AND 64),
   enabled BOOLEAN NOT NULL DEFAULT true,
-  -- When the next scheduled check is due; null while paused.
+  -- When the next scheduled check is due; null while paused, and always for Manually.
   next_check_at TIMESTAMPTZ,
   notify BOOLEAN NOT NULL DEFAULT true,
+  -- Whether a check queues what passes (true) or leaves it `new`, for the person to pick.
+  auto_download BOOLEAN NOT NULL DEFAULT true,
   title_include TEXT,
   title_exclude TEXT,
   min_duration_s INTEGER CHECK (min_duration_s >= 0),
@@ -325,9 +328,10 @@ CREATE TABLE subscriptions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (user_id, extractor, source_id),
-  CHECK ((interval_minutes IS NULL) <> (cron IS NULL)),
+  CHECK (interval_minutes IS NULL OR cron IS NULL),
   CHECK ((cron IS NULL) = (cron_tz IS NULL)),
-  CHECK (next_check_at IS NULL OR enabled)
+  CHECK (next_check_at IS NULL OR enabled),
+  CHECK (next_check_at IS NULL OR interval_minutes IS NOT NULL OR cron IS NOT NULL)
 );
 CREATE INDEX subscriptions_due ON subscriptions (next_check_at) WHERE enabled;
 
@@ -429,7 +433,7 @@ CREATE TABLE subscription_items (
   title TEXT,
   url TEXT NOT NULL,
   seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  outcome TEXT NOT NULL CHECK (outcome IN ('queued', 'filtered', 'existing', 'waiting')),
+  outcome TEXT NOT NULL CHECK (outcome IN ('queued', 'new', 'filtered', 'existing', 'waiting')),
   reason TEXT,
   due_at TIMESTAMPTZ,
   download_id UUID REFERENCES downloads ON DELETE SET NULL,

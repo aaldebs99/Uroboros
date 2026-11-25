@@ -13,6 +13,12 @@ describe("schedule labels", () => {
     expect(intervalLabel(90)).toBe("Every 90 minutes");
   });
 
+  it("says a manual schedule is manual", () => {
+    expect(scheduleLabel({ schedule: { kind: "manual" }, lastCheckedAt: null })).toBe(
+      "manual · not checked yet",
+    );
+  });
+
   it("names a cron with its timezone", () => {
     const schedule = { kind: "cron", expression: "0 9 * * 1", timezone: "Europe/Berlin" } as const;
     expect(scheduleLabel({ schedule, lastCheckedAt: null })).toBe(

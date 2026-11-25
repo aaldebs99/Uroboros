@@ -23,7 +23,7 @@ const item = (subscriptionId: string, c: Candidate) => ({
   url: c.url,
 });
 
-function itemOf(subscriptionId: string, d: Decision): ItemRow {
+function itemOf(subscriptionId: string, d: Decision, autoDownload: boolean): ItemRow {
   const base = item(subscriptionId, d.c);
   switch (d.outcome) {
     case "existing":
@@ -33,7 +33,7 @@ function itemOf(subscriptionId: string, d: Decision): ItemRow {
     case "waiting":
       return { ...base, outcome: "waiting", reason: d.reason, due_at: d.dueAt };
     case "queue":
-      return { ...base, outcome: "queued" };
+      return { ...base, outcome: autoDownload ? "queued" : "new" };
   }
 }
 
@@ -80,28 +80,30 @@ async function stale(tx: Transaction<Database>, sub: SubscriptionRow): Promise<b
 /**
  * Records every decision and queues the passing videos in one transaction, then dispatches for the
  * person. Backfill (`backfill` keys) queues at priority 1, behind pasted links, and is not "new".
- * Returns the videos newly queued outside the backfill, for the notification, or "stale" (nothing
- * written) when the filters changed while the check ran.
+ * With auto-download off nothing is queued: a passing video is recorded `new`, for the person to
+ * pick. Returns the videos newly queued (or left new) outside the backfill, for the notification,
+ * or "stale" (nothing written) when the filters changed while the check ran.
  */
 export async function recordAndQueue(
   deps: WorkerDeps,
   sub: SubscriptionRow,
   decisions: Decision[],
   backfill: ReadonlySet<string>,
-): Promise<{ queuedNew: Candidate[] } | "stale"> {
-  const toQueue = decisions.filter((d) => d.outcome === "queue");
+): Promise<{ announce: Candidate[] } | "stale"> {
+  const toQueue = sub.auto_download ? decisions.filter((d) => d.outcome === "queue") : [];
   const profile = toQueue.length === 0 ? undefined : await getProfile(deps.db, sub.profile_id);
   if (toQueue.length > 0 && profile === undefined)
     throw new Error("the subscription's profile is gone");
   const result = await deps.db.transaction().execute(async (tx) => {
     if (await stale(tx, sub)) return "stale" as const;
     const rows: ItemRow[] = [];
-    const queuedNew: Candidate[] = [];
+    const announce: Candidate[] = [];
     const ids: string[] = [];
     for (const d of decisions) {
       const old = backfill.has(candidateKey(d.c));
-      const row = { ...itemOf(sub.id, d), backfill: old };
-      if (d.outcome === "queue" && profile !== undefined) {
+      const row = { ...itemOf(sub.id, d, sub.auto_download), backfill: old };
+      if (d.outcome === "queue" && !sub.auto_download && !old) announce.push(d.c);
+      if (d.outcome === "queue" && sub.auto_download && profile !== undefined) {
         const out = await queueDownload(tx, {
           userId: sub.user_id,
           requestId: null,
@@ -116,13 +118,13 @@ export async function recordAndQueue(
         row.download_id = out.downloadId;
         if (out.downloadId !== null) {
           ids.push(out.downloadId);
-          if (!old) queuedNew.push(d.c);
+          if (!old) announce.push(d.c);
         }
       }
       rows.push(row);
     }
     await upsertItems(tx, rows);
-    return { queuedNew, ids };
+    return { announce, ids };
   });
   if (result === "stale") return "stale";
   for (const downloadId of result.ids) {
@@ -133,5 +135,5 @@ export async function recordAndQueue(
     });
   }
   if (result.ids.length > 0) await dispatchFor(deps, sub.user_id);
-  return { queuedNew: result.queuedNew };
+  return { announce: result.announce };
 }

@@ -11,6 +11,7 @@ export type SubscriptionRow = Selectable<SubscriptionsTable>;
 export type ListedRow = SubscriptionRow & {
   profile_name: string;
   queued: string;
+  new: string;
   filtered: string;
   waiting: string;
 };
@@ -27,6 +28,7 @@ export function listedQuery(db: Kysely<Database>, userId: string) {
     .select([
       "p.name as profile_name",
       count("queued").as("queued"),
+      count("new").as("new"),
       count("filtered").as("filtered"),
       count("waiting").as("waiting"),
     ])
@@ -78,6 +80,7 @@ export function toSubscription(row: ListedRow): Subscription {
     schedule: scheduleOf(row),
     enabled: row.enabled,
     notify: row.notify,
+    autoDownload: row.auto_download,
     filters: {
       titleInclude: row.title_include,
       titleExclude: row.title_exclude,
@@ -98,6 +101,7 @@ export function toSubscription(row: ListedRow): Subscription {
     warning: row.warning,
     counts: {
       queued: Number(row.queued),
+      new: Number(row.new),
       filtered: Number(row.filtered),
       waiting: Number(row.waiting),
     },

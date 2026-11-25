@@ -238,6 +238,7 @@ export interface SubscriptionsTable {
   /** When the next scheduled check is due; null while paused. */
   next_check_at: Timestamp | null;
   notify: Defaulted<boolean>;
+  auto_download: Defaulted<boolean>;
   title_include: string | null;
   title_exclude: string | null;
   min_duration_s: number | null;
@@ -262,7 +263,7 @@ export interface SubscriptionsTable {
   updated_at: Defaulted<Date | string>;
 }
 
-export type ItemOutcomeValue = "queued" | "filtered" | "existing" | "waiting";
+export type ItemOutcomeValue = "queued" | "new" | "filtered" | "existing" | "waiting";
 
 /** `subscription_items`: what a subscription has seen, and what became of it. */
 export interface SubscriptionItemsTable {

@@ -83,6 +83,7 @@ export function DownloadBadge({
 
 const OUTCOME = {
   queued: { label: "Queued", tone: "success" },
+  new: { label: "New", tone: "primary" },
   filtered: { label: "Filtered", tone: "muted" },
   existing: { label: "Skipped", tone: "muted" },
   waiting: { label: "Waiting", tone: "warning" },

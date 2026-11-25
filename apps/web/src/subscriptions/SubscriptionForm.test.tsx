@@ -117,6 +117,26 @@ describe("SubscriptionForm", () => {
     });
   });
 
+  it("checks only when asked, and leaves new videos to pick, with no wait to choose", async () => {
+    const calls = newApi("channel");
+    await renderInRouter(<NewSubscriptionPage requestId={REQ} />);
+    await userEvent.click(await screen.findByRole("radio", { name: "Manually" }));
+    expect(screen.queryByLabelText("Check every")).not.toBeInTheDocument();
+    expect(screen.getByText(/Only when you press Check now/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Wait before downloading")).toBeInTheDocument();
+    const auto = screen.getByRole("switch", { name: "Download new videos automatically" });
+    expect(auto).toBeChecked();
+    await userEvent.click(auto);
+    expect(screen.queryByLabelText("Wait before downloading")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Subscribe" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "POST")?.body).toMatchObject({
+        schedule: { kind: "manual" },
+        autoDownload: false,
+      });
+    });
+  });
+
   it("hides newest backfill for playlists and shows Exclude Shorts", async () => {
     newApi("playlist");
     await renderInRouter(<NewSubscriptionPage requestId={REQ} />);
@@ -167,6 +187,29 @@ describe("SubscriptionForm", () => {
       "href",
       "/subscriptions",
     );
+  });
+
+  it("switches a subscription to manual checks without auto-download, sending only that", async () => {
+    const calls = fakeApi({
+      [`GET /api/subscriptions/${SUB_ID}`]: () => Response.json(subscriptionFixture()),
+      [`GET /api/subscriptions/${SUB_ID}/items`]: () =>
+        Response.json({ items: [], nextCursor: null }),
+      "GET /api/format-profiles": () => Response.json(profiles),
+      [`PATCH /api/subscriptions/${SUB_ID}`]: () => Response.json(subscriptionFixture()),
+    });
+    await renderInRouter(<SubscriptionPage subscriptionId={SUB_ID} />);
+    await userEvent.click(await screen.findByRole("radio", { name: "Manually" }));
+    expect(screen.getByText("Only when you press Check now.")).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("switch", { name: "Download new videos automatically" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({
+        schedule: { kind: "manual" },
+        autoDownload: false,
+      });
+    });
   });
 
   it("edits a subscription's filters", async () => {

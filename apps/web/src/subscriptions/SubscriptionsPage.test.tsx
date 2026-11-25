@@ -188,6 +188,32 @@ describe("SubscriptionPage", () => {
     expect(pill("stops-5")).toEqual(["Cancelled"]);
   });
 
+  it("offers Download beside a video left New for the person to pick", async () => {
+    const calls = fakeApi({
+      [`GET /api/subscriptions/${SUB_ID}`]: () =>
+        Response.json(subscriptionFixture({ autoDownload: false })),
+      [`GET /api/subscriptions/${SUB_ID}/items`]: () =>
+        Response.json({
+          items: [itemFixture({ videoId: "n1", title: "Fresh one", outcome: "new" })],
+          nextCursor: null,
+        }),
+      [`POST /api/subscriptions/${SUB_ID}/items/download`]: () =>
+        Response.json({ queued: 1, skipped: 0 }),
+      "GET /api/format-profiles": () => Response.json([]),
+    });
+    await renderInRouter(<SubscriptionPage subscriptionId={SUB_ID} />);
+    const activity = await screen.findByRole("list", { name: "Recent activity" });
+    const row = within(activity).getByText("Fresh one").closest("li") as HTMLElement;
+    expect(within(row).getByText("New")).toBeInTheDocument();
+    await userEvent.click(within(row).getByRole("button", { name: "Download Fresh one" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.path.endsWith("/items/download"))?.body).toEqual({
+        extractor: "youtube",
+        videoId: "n1",
+      });
+    });
+  });
+
   it("refreshes the activity when a running check finishes", async () => {
     let subCalls = 0;
     let itemCalls = 0;

@@ -35,7 +35,7 @@ function ItemTitle({ item }: { item: SubscriptionItem }) {
   );
 }
 
-/** What a subscription didn't download by itself: skipped, filtered or still waiting. */
+/** What a subscription didn't download by itself: skipped, filtered, new or still waiting. */
 const downloadable = (item: SubscriptionItem) => item.entryId === null && item.outcome !== "queued";
 
 /** Watch it in the library once it's there, or download one the subscription passed over. */

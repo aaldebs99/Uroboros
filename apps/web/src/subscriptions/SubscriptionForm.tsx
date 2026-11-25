@@ -10,16 +10,9 @@ import { Notice } from "@/components/ui/notice";
 import { SettingsGroup, SettingsRow } from "@/components/ui/settings-row";
 import { Switch } from "@/components/ui/switch";
 
-import { backfillWarning, type EveryUnit, type FormValues } from "./formValues";
+import { backfillWarning, type FormValues, type SectionProps, type SetValue } from "./formValues";
+import { When } from "./When";
 
-type Set = <K extends keyof FormValues>(key: K, value: FormValues[K]) => void;
-interface SectionProps {
-  v: FormValues;
-  set: Set;
-  kind: "channel" | "playlist";
-}
-
-const DELAYS = [0, 6, 12, 24, 48, 72] as const;
 const PATTERN_HELP = "Postgres regular expression, case-insensitive. \\b works as a word boundary.";
 
 function Check({
@@ -92,125 +85,6 @@ function What({ v, set, kind, tabs }: SectionProps & { tabs: string[] }) {
 }
 
 /** A radio row: the native control, its label beside it, at a full touch-target height. */
-function Choice({
-  name,
-  label,
-  checked,
-  onPick,
-}: {
-  name: string;
-  label: string;
-  checked: boolean;
-  onPick: () => void;
-}) {
-  return (
-    <label className="flex min-h-11 items-center gap-3">
-      <input
-        type="radio"
-        name={name}
-        className="size-4.5 accent-primary"
-        checked={checked}
-        onChange={onPick}
-      />
-      {label}
-    </label>
-  );
-}
-
-const UNITS: [EveryUnit, string][] = [
-  ["minutes", "Minutes"],
-  ["hours", "Hours"],
-  ["days", "Days"],
-];
-
-/** How often to check: every N minutes, hours or days, or on a cron in the browser's timezone. */
-function Schedule({ v, set }: SectionProps) {
-  return (
-    <fieldset className="grid gap-3">
-      <legend className="mb-1 text-sm font-medium">Check for new videos</legend>
-      <div className="flex flex-wrap gap-x-6">
-        <Choice
-          name="schedule"
-          label="Every"
-          checked={v.scheduleMode === "interval"}
-          onPick={() => {
-            set("scheduleMode", "interval");
-          }}
-        />
-        <Choice
-          name="schedule"
-          label="On a cron schedule"
-          checked={v.scheduleMode === "cron"}
-          onPick={() => {
-            set("scheduleMode", "cron");
-          }}
-        />
-      </div>
-      {v.scheduleMode === "interval" ? (
-        <div className="grid grid-cols-[minmax(0,8rem)_minmax(0,12rem)] gap-3">
-          <Field
-            label="Check every"
-            type="number"
-            min={1}
-            required
-            value={v.everyValue}
-            onChange={(e) => {
-              set("everyValue", e.target.value);
-            }}
-          />
-          <SelectField
-            label="Unit"
-            value={v.everyUnit}
-            onChange={(e) => {
-              set("everyUnit", e.target.value as EveryUnit);
-            }}
-          >
-            {UNITS.map(([unit, label]) => (
-              <option key={unit} value={unit}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
-        </div>
-      ) : (
-        <Field
-          label="Cron schedule"
-          mono
-          required
-          value={v.cron}
-          help={`Minute, hour, day of month, month, day of week, in ${v.timezone}. 0 9 * * * checks every day at 09:00; 0 */6 * * * every 6 hours.`}
-          onChange={(e) => {
-            set("cron", e.target.value);
-          }}
-        />
-      )}
-    </fieldset>
-  );
-}
-
-function When(props: SectionProps) {
-  const { v, set } = props;
-  return (
-    <SettingsRow label="When" wide>
-      <Schedule {...props} />
-      <SelectField
-        label="Wait before downloading"
-        help="SponsorBlock segments are submitted in the hours after a video goes up."
-        value={String(v.delayHours)}
-        onChange={(e) => {
-          set("delayHours", Number(e.target.value));
-        }}
-      >
-        {DELAYS.map((h) => (
-          <option key={h} value={h}>
-            {h === 0 ? "Don't wait" : `${String(h)} hours`}
-          </option>
-        ))}
-      </SelectField>
-    </SettingsRow>
-  );
-}
-
 function Filters({ v, set, kind }: SectionProps) {
   const field = (label: string, key: "titleInclude" | "titleExclude") => (
     <Field
@@ -372,7 +246,7 @@ export function SubscriptionForm({
 }) {
   const [v, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
-  const set: Set = (key, value) => {
+  const set: SetValue = (key, value) => {
     setValues((prev) => ({ ...prev, [key]: value }));
   };
   const submit = (event: SyntheticEvent<HTMLFormElement>) => {
@@ -387,7 +261,19 @@ export function SubscriptionForm({
     <form onSubmit={submit} className="grid gap-4">
       <SettingsGroup title="Settings">
         <What {...props} tabs={tabs} />
-        <When {...props} />
+        <SettingsRow
+          label="Auto-download"
+          description="Download new videos that pass the filters as soon as a check finds them. Off, they wait in Recent activity for you to pick."
+        >
+          <Switch
+            aria-label="Download new videos automatically"
+            checked={v.autoDownload}
+            onCheckedChange={(on) => {
+              set("autoDownload", on);
+            }}
+          />
+        </SettingsRow>
+        <When {...props} isNew={isNew} />
         <Filters {...props} />
         {isNew ? <Backfill {...props} /> : null}
         <Retention {...props} />

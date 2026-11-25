@@ -3,9 +3,10 @@ import { CronExpressionParser } from "cron-parser";
 import { ApiError } from "../api/errors.ts";
 
 /**
- * A subscription's check schedule (docs/automation.md): every N minutes, or a standard 5-field
- * cron in an IANA timezone. Both are held to the deployment's shortest interval
- * (`UROBOROS_MIN_CHECK_INTERVAL_MINUTES`), a cron by the gap between its next runs.
+ * A subscription's check schedule (docs/automation.md): every N minutes, a standard 5-field cron
+ * in an IANA timezone, or manual (no scheduled checks at all). The first two are held to the
+ * deployment's shortest interval (`UROBOROS_MIN_CHECK_INTERVAL_MINUTES`), a cron by the gap
+ * between its next runs.
  */
 
 /** Enough runs to catch a cron that bunches up somewhere in its day ("0,1 9 * * *"). */
@@ -62,28 +63,37 @@ function checkCron(expression: string, tz: string, min: number): void {
 
 /** Refuses a schedule that runs more often than `min` minutes, or a cron that doesn't parse. */
 export function checkSchedule(schedule: CheckSchedule, min: number): void {
-  if (schedule.kind === "interval") {
-    if (schedule.minutes < min) {
-      throw new ApiError("bad_request", `checks run at most every ${minutesText(min)}`);
-    }
-    return;
+  switch (schedule.kind) {
+    case "manual":
+      return;
+    case "interval":
+      if (schedule.minutes < min) {
+        throw new ApiError("bad_request", `checks run at most every ${minutesText(min)}`);
+      }
+      return;
+    case "cron":
+      checkCron(schedule.expression.trim(), schedule.timezone, min);
   }
-  checkCron(schedule.expression.trim(), schedule.timezone, min);
 }
 
-/** The columns a schedule is stored in: one kind set, the other null. */
+/** The columns a schedule is stored in: at most one kind set; neither for manual. */
 export function scheduleColumns(schedule: CheckSchedule): {
   interval_minutes: number | null;
   cron: string | null;
   cron_tz: string | null;
 } {
-  return schedule.kind === "interval"
-    ? { interval_minutes: schedule.minutes, cron: null, cron_tz: null }
-    : {
+  switch (schedule.kind) {
+    case "manual":
+      return { interval_minutes: null, cron: null, cron_tz: null };
+    case "interval":
+      return { interval_minutes: schedule.minutes, cron: null, cron_tz: null };
+    case "cron":
+      return {
         interval_minutes: null,
         cron: schedule.expression.trim().replace(/\s+/g, " "),
         cron_tz: schedule.timezone,
       };
+  }
 }
 
 export interface ScheduleRow {
@@ -97,7 +107,8 @@ export function scheduleOf(row: ScheduleRow): CheckSchedule {
   if (row.cron !== null) {
     return { kind: "cron", expression: row.cron, timezone: row.cron_tz ?? "UTC" };
   }
-  return { kind: "interval", minutes: row.interval_minutes ?? 0 };
+  if (row.interval_minutes !== null) return { kind: "interval", minutes: row.interval_minutes };
+  return { kind: "manual" };
 }
 
 /** The next tick of the row's cron after `after`, in its timezone. */
@@ -113,23 +124,25 @@ function nextCronTick(row: ScheduleRow, after: Date): Date {
 /**
  * When a schedule's first check is due, as it is created, changed or resumed: an interval counts
  * from the last check (a new one checks at once), never earlier than now; a cron waits for its
- * next tick.
+ * next tick; a manual schedule has none (null), so nothing ever falls due.
  */
-export function firstCheckAt(row: ScheduleRow, lastCheckedAt: Date | null, now: Date): Date {
+export function firstCheckAt(row: ScheduleRow, lastCheckedAt: Date | null, now: Date): Date | null {
   if (row.cron !== null) return nextCronTick(row, now);
+  if (row.interval_minutes === null) return null;
   if (lastCheckedAt === null) return now;
-  const due = lastCheckedAt.getTime() + (row.interval_minutes ?? 0) * 60_000;
+  const due = lastCheckedAt.getTime() + row.interval_minutes * 60_000;
   return new Date(Math.max(now.getTime(), due));
 }
 
 /**
  * When the check after one due at `due` is: the interval's next step after now, counted from the
  * due time so the schedule keeps its rhythm, skipping steps missed meanwhile (Djinn's `next_after`);
- * or the cron's next tick.
+ * or the cron's next tick; none (null) for a manual schedule.
  */
-export function nextCheckAfter(row: ScheduleRow, due: Date, now: Date): Date {
+export function nextCheckAfter(row: ScheduleRow, due: Date, now: Date): Date | null {
   if (row.cron !== null) return nextCronTick(row, now);
-  const step = Math.max(1, row.interval_minutes ?? 0) * 60_000;
+  if (row.interval_minutes === null) return null;
+  const step = Math.max(1, row.interval_minutes) * 60_000;
   const steps = Math.floor((now.getTime() - due.getTime()) / step) + 1;
   return new Date(due.getTime() + Math.max(1, steps) * step);
 }

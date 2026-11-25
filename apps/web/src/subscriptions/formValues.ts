@@ -15,7 +15,7 @@ import {
 export interface FormValues {
   feeds: string[];
   profileId: string;
-  /** Checks run every `everyValue` `everyUnit`, or on `cron` in `timezone`. */
+  /** Checks run every `everyValue` `everyUnit`, on `cron` in `timezone`, or only when asked. */
   scheduleMode: CheckSchedule["kind"];
   everyValue: string;
   everyUnit: EveryUnit;
@@ -34,9 +34,21 @@ export interface FormValues {
   keepLast: string;
   deleteWatchedAfterDays: string;
   notify: boolean;
+  /** Download what passes the filters; off, it waits in the activity as New. */
+  autoDownload: boolean;
 }
 
 export type EveryUnit = "minutes" | "hours" | "days";
+
+/** Sets one form value. */
+export type SetValue = <K extends keyof FormValues>(key: K, value: FormValues[K]) => void;
+
+/** What each section of the subscription form gets. */
+export interface SectionProps {
+  v: FormValues;
+  set: SetValue;
+  kind: "channel" | "playlist";
+}
 
 /** Minutes in one of each unit an interval is written in. */
 export const UNIT_MINUTES: Record<EveryUnit, number> = { minutes: 1, hours: 60, days: 1440 };
@@ -66,6 +78,7 @@ const DEFAULT_SCHEDULE = {
 } as const satisfies Partial<FormValues>;
 
 export function scheduleOf(v: FormValues): CheckSchedule {
+  if (v.scheduleMode === "manual") return { kind: "manual" };
   if (v.scheduleMode === "cron") {
     return { kind: "cron", expression: v.cron.trim(), timezone: v.timezone };
   }
@@ -75,14 +88,19 @@ export function scheduleOf(v: FormValues): CheckSchedule {
 }
 
 function scheduleFields(schedule: CheckSchedule) {
-  return schedule.kind === "interval"
-    ? { ...DEFAULT_SCHEDULE, ...everyOf(schedule.minutes), timezone: browserTimezone() }
-    : {
+  switch (schedule.kind) {
+    case "manual":
+      return { ...DEFAULT_SCHEDULE, scheduleMode: "manual" as const, timezone: browserTimezone() };
+    case "interval":
+      return { ...DEFAULT_SCHEDULE, ...everyOf(schedule.minutes), timezone: browserTimezone() };
+    case "cron":
+      return {
         ...DEFAULT_SCHEDULE,
         scheduleMode: "cron" as const,
         cron: schedule.expression,
         timezone: schedule.timezone,
       };
+  }
 }
 
 const text = (s: string): string | null => (s.trim() === "" ? null : s.trim());
@@ -139,6 +157,7 @@ const blank = {
   keepLast: "",
   deleteWatchedAfterDays: "",
   notify: true,
+  autoDownload: true,
 } as const satisfies Partial<FormValues>;
 
 /** A new subscription's starting point: the preview's ticked tabs and its profile. */
@@ -172,6 +191,7 @@ export function fromSubscription(sub: Subscription): FormValues {
     keepLast: textOf(sub.retention.keepLast),
     deleteWatchedAfterDays: textOf(sub.retention.deleteWatchedAfterDays),
     notify: sub.notify,
+    autoDownload: sub.autoDownload,
   };
 }
 
@@ -186,6 +206,7 @@ export function toCreateBody(v: FormValues, requestId: string): NewSubscriptionB
     backfill: backfillOf(v),
     retention: retentionOf(v),
     notify: v.notify,
+    autoDownload: v.autoDownload,
   };
 }
 
@@ -201,6 +222,7 @@ export function toPatch(v: FormValues, initial: FormValues): SubscriptionPatch {
   if (v.delayHours !== initial.delayHours) patch.delayHours = v.delayHours;
   if (!same(retentionOf(v), retentionOf(initial))) patch.retention = retentionOf(v);
   if (v.notify !== initial.notify) patch.notify = v.notify;
+  if (v.autoDownload !== initial.autoDownload) patch.autoDownload = v.autoDownload;
   return patch;
 }
 

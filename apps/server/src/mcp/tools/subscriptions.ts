@@ -61,7 +61,7 @@ export const subscriptionTools: Tool[] = [
     name: "create_subscription",
     title: "Subscribe",
     description:
-      "Follows a channel or playlist from a preview in state choosing: feeds names its groups to follow, profileId the format (list_profiles), schedule how often to check (an interval in minutes, or a cron in a timezone). New videos download as they appear; the first check runs at once.",
+      "Follows a channel or playlist from a preview in state choosing: feeds names its groups to follow, profileId the format (list_profiles), schedule how often to check (an interval in minutes, a cron in a timezone, or manual: only when check_subscription asks). New videos download as they appear unless autoDownload is false, which leaves them new in the activity for the person to pick; a scheduled subscription's first check runs at once.",
     input: NewSubscriptionBody,
     output: Subscription,
     write: true,
@@ -72,7 +72,7 @@ export const subscriptionTools: Tool[] = [
     name: "update_subscription",
     title: "Change a subscription",
     description:
-      "Changes a subscription: its feeds, format, schedule, filters, delay, retention or notifications; enabled false pauses it and true resumes it. A tighter retention deletes the videos it no longer keeps.",
+      "Changes a subscription: its feeds, format, schedule (manual stops scheduled checks), filters, delay, retention, notifications or autoDownload; enabled false pauses it and true resumes it. A tighter retention deletes the videos it no longer keeps.",
     input: McpUpdateSubscriptionInput,
     output: Subscription,
     write: true,

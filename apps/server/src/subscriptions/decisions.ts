@@ -95,7 +95,8 @@ async function decideOne(
 /**
  * Runs the filters over the videos past the backfill: title patterns in one Postgres query, then
  * each video's rules, probing (within the budget) those a filter cannot decide from the listing,
- * then the wait, which the backfill skips (old videos already have their SponsorBlock segments).
+ * then the wait, which the backfill skips (old videos already have their SponsorBlock segments),
+ * as does a subscription that doesn't download by itself (the person picks when).
  */
 export async function filterAll(
   deps: WorkerDeps,
@@ -117,7 +118,7 @@ export async function filterAll(
   const budget = { left: PROBE_BUDGET };
   for (const [i, c] of passing.entries()) {
     const verdict = await decideOne(deps, sub, c, ok[i] ?? true, budget, signal);
-    const delay = isBackfill(c) ? 0 : sub.delay_hours;
+    const delay = isBackfill(c) || !sub.auto_download ? 0 : sub.delay_hours;
     out.push(withDelay(verdict, delay, known.get(keyOf(c))?.seenAt ?? now, now));
   }
   return out;

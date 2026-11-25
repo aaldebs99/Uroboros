@@ -19,8 +19,8 @@ listing URL (a channel's tabs, or the playlist). A channel's main URL lists unde
 URL and through `/videos` is the same source.
 
 `POST /api/subscriptions` takes the request id, the tabs to follow, a format profile, a check
-interval, filters, a wait, what to do with the videos already there, retention and whether to
-notify. Each person follows a source once (a second is 409). `PATCH` edits everything but the
+schedule, filters, a wait, what to do with the videos already there, retention, whether to notify
+and whether to download what it finds by itself. Each person follows a source once (a second is 409). `PATCH` edits everything but the
 backfill choice; `DELETE` unsubscribes (below); `POST /{id}/check` checks now; `GET /{id}/items`
 pages through what the subscription saw, newest first. Everything is the caller's own: another
 person's subscription is 404, admins included.
@@ -45,8 +45,12 @@ one of:
   `cron-parser` and refused when any two of its next 200 runs are closer than the
   minimum interval, so `0,1 9 * * *` is as refused as `*/5 * * * *`. It first runs at its next
   time.
+- **Manually** (neither column set): never on its own. `next_check_at` stays null (a CHECK holds
+  it there), so the leader never queues it; **Check now** and **Download latest…** work as for any
+  enabled subscription. A new one still checks once at once, to take stock of what is there
+  (applying the backfill), so its activity starts from the day of subscribing.
 
-Pausing clears the next check and resuming sets it again. The subscriptions of a disabled or
+Pausing clears the next check and resuming sets it again (none for Manually). The subscriptions of a disabled or
 revoked account are never queued. The API's `nextCheckAt` is the column.
 
 Every replica consumes `automation`, two checks at a time, with a queue-wide limiter of one check
@@ -99,7 +103,18 @@ files the video as filtered: "unavailable" (removed, private), "age-restricted",
 With **wait before downloading**, a passing video waits until that many hours after Uroboros first
 saw it, then queues on the first check after that. It is for SponsorBlock: segments are submitted
 in the hours after a video goes up, and a brand-new video usually has none to skip. The backfill
-skips it, since old videos already have their segments.
+skips it, since old videos already have their segments, and so does a subscription with
+auto-download off: a video someone picks downloads when they pick it.
+
+### Auto-download
+
+`auto_download` (on by default; the API's `autoDownload`) is whether a check queues what passes.
+With it off a check queues nothing: a passing video, backfill included, is recorded `new` (a final
+outcome, like `queued`) with no download, and the person picks from **Recent activity**, where a
+New row has **Download** beside it. A check that leaves videos new outside the backfill still sends
+the "N new videos" notification. Turning it back on applies to what checks find from then on; the
+videos already left new stay so. **Download latest…** queues whatever the setting says, since it
+was asked for.
 
 ### Queueing
 
@@ -132,13 +147,13 @@ The **newest** backfill chosen when subscribing takes at most 50 of each tab as 
 
 The subscription page's **Recent activity** opens each video on its site (its title, in a new
 tab), offers **Watch** for one in the library, and **Download** beside one the subscription passed
-over (skipped, filtered or waiting): `POST /api/subscriptions/{id}/items/download {extractor,
+over (skipped, filtered, new or waiting): `POST /api/subscriptions/{id}/items/download {extractor,
 videoId}` queues that video in the subscription's format at a pasted link's priority, from the
 item's own link (no yt-dlp in the request), and the item turns `queued`. One already had or on its
 way counts as skipped. Each row's pill follows the video's download while it has one (Queued,
 Downloading, Downloaded, Failed or Cancelled, from the item's `downloadState`; a live change to that
 download fetches the list again), since `queued` records only the decision; otherwise it shows the
-decision itself (Skipped, Filtered, Waiting, or Queued for one already had or on its way).
+decision itself (Skipped, Filtered, Waiting, New, or Queued for one already had or on its way).
 
 ## SponsorBlock
 

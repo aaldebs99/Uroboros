@@ -22,6 +22,7 @@ export const subscriptionFixture = (over: Partial<Subscription> = {}): Subscript
   schedule: { kind: "interval", minutes: 360 },
   enabled: true,
   notify: true,
+  autoDownload: true,
   filters: {
     titleInclude: null,
     titleExclude: null,
@@ -40,7 +41,7 @@ export const subscriptionFixture = (over: Partial<Subscription> = {}): Subscript
   error: null,
   failures: 0,
   warning: null,
-  counts: { queued: 3, filtered: 1, waiting: 0 },
+  counts: { queued: 3, new: 0, filtered: 1, waiting: 0 },
   createdAt: "2026-11-20T10:00:00.000Z",
   ...over,
 });

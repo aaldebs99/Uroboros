@@ -67,13 +67,15 @@ export type Backfill = z.infer<typeof Backfill>;
 const Interval = z.number().int().min(1).max(MAX_CHECK_INTERVAL_MINUTES);
 
 /**
- * When a subscription is checked: every `minutes` (between the deployment's minimum and a week), or
+ * When a subscription is checked: every `minutes` (between the deployment's minimum and a week),
  * on a standard 5-field cron (minute hour day month weekday) in an IANA timezone, whose runs are
- * never closer together than the minimum. The server checks both.
+ * never closer together than the minimum (the server checks both), or `manual`: only when the
+ * person checks it.
  */
 export const CheckSchedule = z
   .discriminatedUnion("kind", [
     z.object({ kind: z.literal("interval"), minutes: Interval }),
+    z.object({ kind: z.literal("manual") }),
     z.object({
       kind: z.literal("cron"),
       expression: z.string().trim().min(9).max(120),
@@ -107,6 +109,8 @@ export const NewSubscriptionBody = z
     backfill: Backfill.default({ mode: "none", count: null }),
     retention: Retention.default({ keepLast: null, deleteWatchedAfterDays: null }),
     notify: z.boolean().default(true),
+    /** Download what passes the filters; false leaves it `new` in the activity, to pick. */
+    autoDownload: z.boolean().default(true),
   })
   .openapi("NewSubscriptionBody");
 export type NewSubscriptionBody = z.infer<typeof NewSubscriptionBody>;
@@ -131,6 +135,7 @@ export const SubscriptionPatch = z
     retention: Retention.optional(),
     enabled: z.boolean().optional(),
     notify: z.boolean().optional(),
+    autoDownload: z.boolean().optional(),
   })
   .refine((p) => Object.values(p).some((v) => v !== undefined), {
     message: "nothing to change",
@@ -156,12 +161,14 @@ export const Subscription = z
     schedule: CheckSchedule,
     enabled: z.boolean(),
     notify: z.boolean(),
+    /** Checks queue what passes the filters; false leaves it `new`, for the person to pick. */
+    autoDownload: z.boolean(),
     filters: SubscriptionFilters,
     delayHours: z.number().int(),
     backfill: Backfill,
     retention: Retention,
     lastCheckedAt: z.iso.datetime().nullable(),
-    /** When the scheduler fires next; null while paused. */
+    /** When the scheduler fires next; null while paused, and always for a manual schedule. */
     nextCheckAt: z.iso.datetime().nullable(),
     /** A check is running now. */
     checking: z.boolean(),
@@ -172,6 +179,8 @@ export const Subscription = z
     warning: z.string().nullable(),
     counts: z.object({
       queued: z.number().int(),
+      /** Videos a check left for the person to pick (auto-download off). */
+      new: z.number().int(),
       filtered: z.number().int(),
       waiting: z.number().int(),
     }),
@@ -180,8 +189,9 @@ export const Subscription = z
   .openapi("Subscription");
 export type Subscription = z.infer<typeof Subscription>;
 
+/** `new`: passed the filters, left for the person to pick because auto-download is off. */
 export const SubscriptionItemOutcome = z
-  .enum(["queued", "filtered", "existing", "waiting"])
+  .enum(["queued", "new", "filtered", "existing", "waiting"])
   .openapi("SubscriptionItemOutcome");
 export type SubscriptionItemOutcome = z.infer<typeof SubscriptionItemOutcome>;
 

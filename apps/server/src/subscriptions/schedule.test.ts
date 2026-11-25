@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { firstCheckAt, nextCheckAfter } from "./schedule.ts";
+import {
+  checkSchedule,
+  firstCheckAt,
+  nextCheckAfter,
+  scheduleColumns,
+  scheduleOf,
+} from "./schedule.ts";
 
 const hourly = { interval_minutes: 60, cron: null, cron_tz: null };
 const berlin = { interval_minutes: null, cron: "0 */6 * * *", cron_tz: "Europe/Berlin" };
+const manual = { interval_minutes: null, cron: null, cron_tz: null };
 const at = (iso: string) => new Date(iso);
 
 describe("firstCheckAt", () => {
@@ -42,5 +49,20 @@ describe("nextCheckAfter", () => {
     expect(nextCheckAfter(berlin, at("2026-11-23T11:00:00Z"), at("2026-11-23T11:00:01Z"))).toEqual(
       at("2026-11-23T17:00:00Z"),
     );
+  });
+});
+
+describe("a Manually schedule", () => {
+  it("is stored as neither an interval nor a cron, and read back as manual", () => {
+    expect(() => {
+      checkSchedule({ kind: "manual" }, 60);
+    }).not.toThrow();
+    expect(scheduleColumns({ kind: "manual" })).toEqual(manual);
+    expect(scheduleOf(manual)).toEqual({ kind: "manual" });
+  });
+
+  it("has no first check", () => {
+    expect(firstCheckAt(manual, null, at("2026-11-23T10:00:00Z"))).toBeNull();
+    expect(firstCheckAt(manual, at("2026-11-23T09:00:00Z"), at("2026-11-23T10:00:00Z"))).toBeNull();
   });
 });

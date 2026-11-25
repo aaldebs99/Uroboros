@@ -108,7 +108,11 @@ async function previewRequest(ctx: DownloadContext, userId: string, requestId: s
   return { req, kind, extractor: req.source_extractor, sourceId: req.source_id, tabs };
 }
 
-/** Subscribes the caller from a preview; its scheduler's first check runs at once. */
+/**
+ * Subscribes the caller from a preview; its first check runs at once: the scheduler's, or for a
+ * manual schedule a one-off that takes stock of what is there (and applies the backfill), so the
+ * activity starts from the day of subscribing.
+ */
 export async function createSubscription(
   ctx: DownloadContext,
   userId: string,
@@ -133,6 +137,7 @@ export async function createSubscription(
       ...scheduleColumns(body.schedule),
       next_check_at: firstCheckAt(scheduleColumns(body.schedule), null, new Date()),
       notify: body.notify,
+      auto_download: body.autoDownload,
       ...(await filterColumns(ctx, body.filters)),
       delay_hours: body.delayHours,
       backfill: body.backfill.mode,
@@ -143,6 +148,7 @@ export async function createSubscription(
     .returning("id")
     .executeTakeFirstOrThrow()
     .catch(refuseDuplicate);
+  if (body.schedule.kind === "manual") await checkNow(ctx.queues.automation, row.id);
   return present(await ownSubscription(ctx.db, userId, row.id));
 }
 
@@ -188,6 +194,7 @@ async function changes(
     ...(patch.enabled === undefined ? {} : { enabled: patch.enabled }),
     ...nextCheckChange(current, patch),
     ...(patch.notify === undefined ? {} : { notify: patch.notify }),
+    ...(patch.autoDownload === undefined ? {} : { auto_download: patch.autoDownload }),
     updated_at: new Date(),
   };
 }

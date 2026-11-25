@@ -166,8 +166,8 @@ async function runCheck(
   const { decisions, backfill } = await decideAll(deps, sub, fresh, known, signal);
   const result = await recordAndQueue(deps, sub, decisions, backfill);
   if (result === "stale") return "stale";
-  if (result.queuedNew.length > 0) {
-    const titles = result.queuedNew.map((c) => c.title ?? c.videoId);
+  if (result.announce.length > 0) {
+    const titles = result.announce.map((c) => c.title ?? c.videoId);
     await sendNotice(noticeDeps(deps), {
       userId: sub.user_id,
       kind: "subscriptions",

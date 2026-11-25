@@ -10,11 +10,16 @@ export function intervalLabel(minutes: number): string {
   return say(minutes, "minute");
 }
 
-/** "every 6 hours", or "on cron 0 9 * * 1 (Europe/Berlin)". */
+/** "every 6 hours", "on cron 0 9 * * 1 (Europe/Berlin)", or "manual" (only when asked). */
 function cadence(schedule: CheckSchedule): string {
-  return schedule.kind === "interval"
-    ? intervalLabel(schedule.minutes).toLowerCase()
-    : `on cron ${schedule.expression} (${schedule.timezone})`;
+  switch (schedule.kind) {
+    case "interval":
+      return intervalLabel(schedule.minutes).toLowerCase();
+    case "cron":
+      return `on cron ${schedule.expression} (${schedule.timezone})`;
+    case "manual":
+      return "manual";
+  }
 }
 
 /** "Channel · Videos, Live" or "Playlist". */
