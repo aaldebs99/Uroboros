@@ -1,8 +1,9 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { sql } from "kysely";
 import { pino } from "pino";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { apiConfig } from "../../test/apiConfig.ts";
+import { eventually } from "../../test/eventually.ts";
 import { silentProxy } from "../../test/silentProxy.ts";
 import { TestDb } from "../../test/testDb.ts";
 import type { Config } from "../config.ts";
@@ -22,11 +23,22 @@ afterAll(async () => {
   await testDb.close();
 });
 
+/** Every api a test started, closed afterwards even when the test failed first (close is idempotent). */
+const started: RunningApi[] = [];
+afterEach(async () => {
+  await Promise.all(started.splice(0).map((api) => api.close().catch(() => undefined)));
+});
+
 const config = (shutdownGraceMs: number): Config => apiConfig(testDb.url, { shutdownGraceMs });
 
-/** Starts the api and waits until it is ready, so test routes are served. */
+/**
+ * Starts the api and waits until it is ready, so test routes are served. The apis here share one
+ * database, so they retry the leader lock quickly: one closed mid-attempt can hold the lock a moment
+ * after its close() returns, and the next test's api must not wait out the 5 s default for it.
+ */
 async function ready(cfg: Config, opts: Parameters<typeof startApi>[2] = {}): Promise<RunningApi> {
-  const api = await startApi(cfg, logger, opts);
+  const api = await startApi(cfg, logger, { leaderRetryMs: 50, ...opts });
+  started.push(api);
   await api.attached;
   return api;
 }
@@ -69,7 +81,11 @@ describe("api shutdown", () => {
     const res = await inFlight;
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("done");
+    // The answered connection stays open for keep-alive (4 s client, 5 s server) unless the drain
+    // closes it once idle: it closes at once, well inside those.
+    const answered = Date.now();
     await expect(closed).resolves.toBeUndefined();
+    expect(Date.now() - answered).toBeLessThan(1500);
   });
 
   it("cuts a request that outlasts the grace period and reports the failed drain", async () => {
@@ -109,13 +125,13 @@ describe("api shutdown", () => {
   it("gives up leadership while the drain is still waiting on a request", async () => {
     const slow = slowRoute();
     const api = await ready(config(10_000), { configure: slow.configure });
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(api.leader.leading).toBe(true);
     });
     const inFlight = fetch(`http://127.0.0.1:${String(api.port)}/test/slow`);
     await slow.entered;
     const closed = api.close();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(api.leader.leading).toBe(false);
     });
     slow.release();
@@ -176,7 +192,7 @@ describe("hard exit", () => {
     void runUntilSignal(api, logger, { exit, hardExitSlackMs: 50 });
     const start = Date.now();
     process.emit("SIGTERM");
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(exit).toHaveBeenCalledWith(1);
     });
     expect(Date.now() - start).toBeGreaterThanOrEqual(140);
