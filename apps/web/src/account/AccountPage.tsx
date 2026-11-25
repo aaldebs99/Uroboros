@@ -70,7 +70,7 @@ export function AccountPage({ me }: { me: Me }) {
         <Section
           icon={Lock}
           title="Password"
-          description="Changing it signs out your other browsers."
+          description="Changing it signs out your other browsers. Your API tokens keep working; revoke them below if you need to."
         >
           <PasswordForm />
         </Section>

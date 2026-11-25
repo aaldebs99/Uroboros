@@ -20,6 +20,17 @@ import { deleteOtherSessions } from "./sessions.ts";
 
 const UNIQUE_VIOLATION = "23505";
 
+/**
+ * Signs a person out everywhere and revokes every API token they have: an admin's password reset
+ * and disabling an account are the steps taken after a compromise, so nothing made with a stolen
+ * session may outlive them (re-enabling brings nothing back). A person's own password change
+ * signs out their other sessions only (`accountRoutes.ts`).
+ */
+async function revokeAccess(db: Kysely<Database>, userId: string): Promise<void> {
+  await deleteOtherSessions(db, userId, null);
+  await db.deleteFrom("api_tokens").where("user_id", "=", userId).execute();
+}
+
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
   description,
   content: { "application/json": { schema } },
@@ -192,18 +203,22 @@ export function registerAdminUserRoutes(app: OpenAPIHono, ctx: AdminUserRoutesCo
     const target = await findUser(db, c.req.valid("param").id);
     const patch = c.req.valid("json");
     checkPatch(target, patch, principal.userId);
-    const row = await db
-      .updateTable("users")
-      .set({
-        ...(patch.role === undefined ? {} : { role: patch.role }),
-        ...(patch.displayName === undefined ? {} : { display_name: patch.displayName }),
-        ...(patch.disabled === undefined
-          ? {}
-          : { disabled_at: patch.disabled ? (target.disabled_at ?? new Date()) : null }),
-      })
-      .where("id", "=", target.id)
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    const disabling = patch.disabled === true && target.disabled_at === null;
+    const row = await db.transaction().execute(async (tx) => {
+      if (disabling) await revokeAccess(tx, target.id);
+      return tx
+        .updateTable("users")
+        .set({
+          ...(patch.role === undefined ? {} : { role: patch.role }),
+          ...(patch.displayName === undefined ? {} : { display_name: patch.displayName }),
+          ...(patch.disabled === undefined
+            ? {}
+            : { disabled_at: patch.disabled ? (target.disabled_at ?? new Date()) : null }),
+        })
+        .where("id", "=", target.id)
+        .returningAll()
+        .executeTakeFirstOrThrow();
+    });
     return c.json(view(row), 200);
   });
 
@@ -211,12 +226,15 @@ export function registerAdminUserRoutes(app: OpenAPIHono, ctx: AdminUserRoutesCo
     requireAdmin(currentPrincipal(c));
     const target = await findUser(db, c.req.valid("param").id);
     if (target.username === null) throw new ApiError("conflict", "not a local account");
-    await db
-      .updateTable("users")
-      .set({ password_hash: await hashPassword(c.req.valid("json").password) })
-      .where("id", "=", target.id)
-      .execute();
-    await deleteOtherSessions(db, target.id, null);
+    const hash = await hashPassword(c.req.valid("json").password);
+    await db.transaction().execute(async (tx) => {
+      await tx
+        .updateTable("users")
+        .set({ password_hash: hash })
+        .where("id", "=", target.id)
+        .execute();
+      await revokeAccess(tx, target.id);
+    });
     return c.body(null, 204);
   });
 

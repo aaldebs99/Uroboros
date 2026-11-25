@@ -46,6 +46,16 @@ describe("AccountPage", () => {
     expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
   });
 
+  it("says a password change leaves API tokens working, to be revoked below", async () => {
+    api();
+    await renderInRouter(<AccountPage me={local} />);
+    expect(
+      await screen.findByText(
+        "Changing it signs out your other browsers. Your API tokens keep working; revoke them below if you need to.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("says the current password is wrong without signing the user out", async () => {
     api({
       "GET /api/me": () => Response.json(local),

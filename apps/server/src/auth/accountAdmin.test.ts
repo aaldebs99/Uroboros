@@ -3,10 +3,12 @@ import { AdminUser, SessionView } from "@uroboros/contract";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
+import { mcpToken } from "../../test/mcp.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 import { hashPassword, verifyPassword } from "./passwords.ts";
 import { createSession, resolveSession } from "./sessions.ts";
+import { resolveToken } from "./tokens.ts";
 
 const logger = pino({ level: "silent" });
 const OLD = "the old password!";
@@ -97,6 +99,13 @@ describe("POST /api/me/password", () => {
     expect(await verifyPassword(await passwordOf(u.userId), NEW)).toBe(true);
     expect(await resolveSession(testDb.db, other.token)).toBeNull();
     expect(await resolveSession(testDb.db, u.token)).not.toBeNull();
+  });
+
+  it("keeps the person's API tokens: they are listed beside it to revoke", async () => {
+    const u = await localUser();
+    const secret = await mcpToken(testDb.db, u.userId, { scopes: ["api"] });
+    await send(u, "POST", "/api/me/password", { currentPassword: OLD, newPassword: NEW });
+    expect(await resolveToken(testDb.db, secret)).not.toBeNull();
   });
 
   it("409s for an SSO user", async () => {
@@ -233,6 +242,35 @@ describe("/api/admin/users", () => {
       (await send(admin, "POST", `/api/admin/users/${await ssoUser()}/password`, { password: NEW }))
         .status,
     ).toBe(409);
+  });
+
+  it("revokes every API token of a user whose password an admin resets", async () => {
+    const admin = await localUser("admin");
+    const target = await localUser();
+    const secret = await mcpToken(testDb.db, target.userId, { scopes: ["api", "mcp"] });
+    const keep = await mcpToken(testDb.db, admin.userId, { scopes: ["api"] });
+    await send(admin, "POST", `/api/admin/users/${target.userId}/password`, { password: NEW });
+    expect(await resolveToken(testDb.db, secret)).toBeNull();
+    expect(await resolveToken(testDb.db, keep)).not.toBeNull();
+  });
+
+  it("revokes a disabled user's tokens and sessions, so re-enabling brings none back", async () => {
+    const admin = await localUser("admin");
+    const target = await localUser();
+    const secret = await mcpToken(testDb.db, target.userId, { scopes: ["api"] });
+    await send(admin, "PATCH", `/api/admin/users/${target.userId}`, { disabled: true });
+    await send(admin, "PATCH", `/api/admin/users/${target.userId}`, { disabled: false });
+    expect(await resolveToken(testDb.db, secret)).toBeNull();
+    expect(await resolveSession(testDb.db, target.token)).toBeNull();
+  });
+
+  it("leaves tokens alone on a change that doesn't disable", async () => {
+    const admin = await localUser("admin");
+    const target = await localUser();
+    const secret = await mcpToken(testDb.db, target.userId, { scopes: ["api"] });
+    await send(admin, "PATCH", `/api/admin/users/${target.userId}`, { displayName: "Renamed" });
+    await send(admin, "PATCH", `/api/admin/users/${target.userId}`, { disabled: false });
+    expect(await resolveToken(testDb.db, secret)).not.toBeNull();
   });
 
   it("deletes local users only, and never itself or the bootstrap admin", async () => {

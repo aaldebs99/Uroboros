@@ -77,8 +77,11 @@ session's stored value, or it gets 403. Disabling or revoking a user stops their
 tokens on the next request. The leader deletes expired sessions and pending sign-ins hourly.
 
 People see their signed-in browsers on the Account page and can sign out one, or all but this one.
-Changing your password signs out your other sessions; an admin resetting it signs you out
-everywhere.
+Changing your password signs out your other sessions and keeps your API tokens (the Account page
+says so, above the list to revoke them from). An admin resetting it, or disabling the account,
+signs you out everywhere and deletes every API token you have, so nothing made with a stolen
+session outlives the steps taken after a compromise; re-enabling the account brings none of it
+back (`revokeAccess` in `auth/adminUserRoutes.ts`).
 
 ## API tokens
 
