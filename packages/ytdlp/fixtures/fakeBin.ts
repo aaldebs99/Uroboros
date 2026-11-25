@@ -14,6 +14,11 @@ export type Step =
   | { stdoutBase64: string }
   | { stderr: string }
   | { sleepMs: number }
+  /**
+   * Waits until this file exists (relative to the working directory, or absolute): a test's
+   * go-ahead, so a run lasts exactly until the test has done what it does meanwhile.
+   */
+  | { waitForFile: string }
   | { writeFile: string; content: string }
   /**
    * Copies the file named by the value after `copyArgFile` (joined with `name` when that value is
@@ -78,6 +83,10 @@ async function run(step: Step): Promise<void> {
   if ("stdoutBase64" in step) return writeBytes(step.stdoutBase64);
   if ("stderr" in step) return write(process.stderr, step.stderr);
   if ("sleepMs" in step) return sleep(step.sleepMs);
+  if ("waitForFile" in step) {
+    while (!existsSync(resolve(step.waitForFile))) await sleep(10);
+    return;
+  }
   if ("writeFile" in step) {
     writeFileSync(resolve(step.writeFile), fill(step.content));
     return;

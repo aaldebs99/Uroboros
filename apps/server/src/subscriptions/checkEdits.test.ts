@@ -1,7 +1,9 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
-import { insertSubscription, listing, sleep } from "../../test/listings.ts";
+import { eventually } from "../../test/eventually.ts";
+import { fakeGate } from "../../test/fakeGate.ts";
+import { insertSubscription, listing } from "../../test/listings.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import { RequeueError } from "../jobs/errors.ts";
@@ -38,6 +40,20 @@ const loose = {
 const row = (id: string) =>
   t.db.selectFrom("subscriptions").selectAll().where("id", "=", id).executeTakeFirstOrThrow();
 
+/** Waits until a check holds the subscription's lease: it has read the row it decides under. */
+const leased = (id: string) =>
+  eventually(async () => {
+    expect((await row(id)).lease_until).not.toBeNull();
+  });
+
+let gate: Awaited<ReturnType<typeof fakeGate>>;
+beforeEach(async () => {
+  gate = await fakeGate();
+});
+afterEach(async () => {
+  await gate.close();
+});
+
 describe("edits made while a check runs", () => {
   it("keeps tab edits made while a check runs", async () => {
     const u = await signedIn(t.db, { username: "edit-tabs" });
@@ -58,11 +74,13 @@ describe("edits made while a check runs", () => {
       .where("id", "=", id)
       .execute();
     const deps = await h.deps({
-      steps: [{ sleepMs: 600 }, { stdout: listing(videos, [{ id: "e0" }]) }],
+      steps: [gate.step, { stdout: listing(videos, [{ id: "e0" }]) }],
     });
     const running = checkProcessor(deps)({ data: { subscriptionId: id } });
-    await sleep(200);
+    running.catch(() => undefined);
+    await leased(id);
     await updateSubscription(h.ctx, u.userId, id, { feeds: ["Videos", "Live"] });
+    await gate.go();
     await running;
     const feeds = (await row(id)).feeds;
     expect(feeds.map((f) => f.name)).toEqual(["Videos", "Live"]);
@@ -81,11 +99,13 @@ describe("edits made while a check runs", () => {
       columns: { max_duration_s: 100 },
     });
     const deps = await h.deps({
-      steps: [{ sleepMs: 600 }, { stdout: listing(videos, [{ id: "f0", duration: 300 }]) }],
+      steps: [gate.step, { stdout: listing(videos, [{ id: "f0", duration: 300 }]) }],
     });
     const running = checkProcessor(deps)({ data: { subscriptionId: id } });
-    await sleep(200);
+    running.catch(() => undefined);
+    await leased(id);
     await updateSubscription(h.ctx, u.userId, id, { filters: loose });
+    await gate.go();
     // Stale: the job goes back to the queue, unspent, to run again under the new filters.
     await expect(running).rejects.toBeInstanceOf(RequeueError);
     const items = await t.db

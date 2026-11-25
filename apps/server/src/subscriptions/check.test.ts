@@ -2,13 +2,15 @@ import type { Scenario } from "@uroboros/ytdlp/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
+import { eventually } from "../../test/eventually.ts";
+import { fakeGate } from "../../test/fakeGate.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { FeedJson } from "../db/schema.ts";
 import { saveLogin } from "../siteLogins/store.ts";
 import { checkFailure, checkProcessor } from "./check.ts";
 import { PatternTimeout } from "./patterns.ts";
-import { listing, sleep, type ListedVideo } from "../../test/listings.ts";
+import { listing, type ListedVideo } from "../../test/listings.ts";
 import { takeLease } from "./lease.ts";
 
 let t: TestDb;
@@ -193,13 +195,26 @@ describe("subscription checks", () => {
   it("runs one of two concurrent checks", async () => {
     const u = await user();
     const id = await subscription(u.userId, [{ name: "Videos", url: videos }]);
-    const slow = { steps: [{ sleepMs: 400 }, { stdout: listing(videos, vids("x", 1)) }] };
-    const first = check(id, slow).then(() => "first");
-    await sleep(100);
-    const second = check(id, slow).then(() => "second");
-    expect(await Promise.race([first, second])).toBe("second");
-    await first;
-    expect(await items(id)).toEqual([{ video_id: "x0", outcome: "existing" }]);
+    const gate = await fakeGate();
+    try {
+      const held = { steps: [gate.step, { stdout: listing(videos, vids("x", 1)) }] };
+      let firstDone = false;
+      const first = check(id, held).then(() => {
+        firstDone = true;
+      });
+      first.catch(() => undefined);
+      // The first holds the lease, waiting on its fake; the second finds it taken and returns.
+      await eventually(async () => {
+        expect((await row(id)).lease_until).not.toBeNull();
+      });
+      await check(id, held);
+      expect(firstDone).toBe(false);
+      await gate.go();
+      await first;
+      expect(await items(id)).toEqual([{ video_id: "x0", outcome: "existing" }]);
+    } finally {
+      await gate.close();
+    }
   });
 
   it("skips a disabled owner", async () => {
@@ -303,7 +318,11 @@ describe("subscription checks", () => {
     const deps = await h.deps({ steps: [{ sleepMs: 3000 }, { stdout: listing(videos, []) }] });
     const stop = new AbortController();
     const running = checkProcessor(deps, stop.signal)({ data: { subscriptionId: id } });
-    await sleep(200);
+    // Cut once the check holds the lease, so it is the cut that leaves nothing behind, not a
+    // check that never began.
+    await eventually(async () => {
+      expect((await row(id)).lease_until).not.toBeNull();
+    });
     stop.abort();
     await running;
     const after = await row(id);
