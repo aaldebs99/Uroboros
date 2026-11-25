@@ -81,6 +81,7 @@ const choosingRequest = {
   errorKind: null,
   errorMessage: null,
   stderrTail: [],
+  selected: null,
   createdAt: T,
 };
 

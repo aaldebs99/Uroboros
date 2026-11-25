@@ -664,6 +664,20 @@
           },
           {
             "properties": {
+              "type": {
+                "enum": [
+                  "requests"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
               "entryId": {
                 "format": "uuid",
                 "type": "string"
@@ -774,6 +788,13 @@
             "format": "uuid",
             "type": "string"
           },
+          "selected": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
           "state": {
             "$ref": "#/components/schemas/RequestState"
           },
@@ -802,6 +823,7 @@
           "errorKind",
           "errorMessage",
           "stderrTail",
+          "selected",
           "createdAt"
         ],
         "type": "object"
@@ -2965,6 +2987,48 @@
         ],
         "type": "string"
       },
+      "ReadyPreview": {
+        "properties": {
+          "entries": {
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "playlist",
+              "channel"
+            ],
+            "type": "string"
+          },
+          "selected": {
+            "type": "integer"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "title",
+          "kind",
+          "entries",
+          "selected",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
       "RequestState": {
         "enum": [
           "probing",
@@ -3061,6 +3125,23 @@
         },
         "maxItems": 64,
         "type": "array"
+      },
+      "SelectionBody": {
+        "properties": {
+          "entryIds": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10000,
+            "type": "array"
+          }
+        },
+        "required": [
+          "entryIds"
+        ],
+        "type": "object"
       },
       "SessionState": {
         "enum": [
@@ -4705,6 +4786,29 @@
         ]
       }
     },
+    "/api/downloads/requests": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReadyPreview"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Previews waiting for a pick"
+          }
+        },
+        "summary": "The caller's pasted playlists and channels whose previews wait for a pick (a day from when each was ready), newest first",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
     "/api/downloads/requests/{id}": {
       "get": {
         "parameters": [
@@ -4812,6 +4916,70 @@
           }
         },
         "summary": "Queue the ticked entries of a playlist or channel preview",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/requests/{id}/selection": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Kept"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "An entry that is not in the preview"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such request, or its preview expired"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The request has no preview"
+          }
+        },
+        "summary": "Keep the entries picked so far in a preview, while it waits for the pick",
         "tags": [
           "downloads"
         ]

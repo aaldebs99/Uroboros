@@ -3,6 +3,7 @@ import { Bell } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
+import { downloadKeys } from "@/api/downloads";
 import { exportsKey } from "@/api/exports";
 import { useClearNotices, useMarkNoticesRead } from "@/api/notices";
 import { previewsKey } from "@/api/previews";
@@ -16,11 +17,12 @@ import { clearToastLog, useToastLog } from "@/lib/toastLog";
 import { ActivityPanel } from "./ActivityPanel";
 import { useActivity } from "./useActivity";
 
-/** "Notifications, 2 unread, 1 in progress". */
-export function bellLabel(unread: number, working: number): string {
+/** "Notifications, 2 unread, 1 ready to pick, 1 in progress". */
+export function bellLabel(unread: number, working: number, ready = 0): string {
   return [
     "Notifications",
     unread > 0 ? `${String(unread)} unread` : null,
+    ready > 0 ? `${String(ready)} ready to pick` : null,
     working > 0 ? `${String(working)} in progress` : null,
   ]
     .filter(Boolean)
@@ -36,7 +38,7 @@ export function bellLabel(unread: number, working: number): string {
  * notifications read up to the newest one shown; those stay marked as new until it closes.
  */
 export function NoticesButton() {
-  const { notices, unread, work } = useActivity();
+  const { notices, unread, ready, work } = useActivity();
   const toasts = useToastLog();
   const [open, setOpen] = useState(false);
   const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
@@ -50,11 +52,14 @@ export function NoticesButton() {
     for (const queryKey of [exportsKey, uploadsKey, subscriptionKeys.all, previewsKey]) {
       void client.invalidateQueries({ queryKey });
     }
+    void client.invalidateQueries({ queryKey: downloadKeys.ready, exact: true });
     setFresh(new Set(notices.filter((n) => !n.read).map((n) => n.id)));
     const newest = notices[0];
     if (unread > 0 && newest !== undefined) markRead.mutate(newest.createdAt);
   };
   const working = work.length;
+  // What waits on the person: the unread notifications and the previews waiting for a pick.
+  const badge = unread + ready.length;
   return (
     <ResponsivePanel
       title="Notifications"
@@ -64,7 +69,7 @@ export function NoticesButton() {
         <Button
           variant="ghost"
           size="icon"
-          aria-label={bellLabel(unread, working)}
+          aria-label={bellLabel(unread, working, ready.length)}
           className="relative rounded-full"
         >
           {working > 0 ? (
@@ -74,18 +79,19 @@ export function NoticesButton() {
             />
           ) : null}
           <Bell className="size-5" />
-          {unread > 0 ? (
+          {badge > 0 ? (
             <span
               aria-hidden
               className="absolute -top-0.5 -right-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-primary px-1 text-[0.6875rem] leading-none font-medium text-primary-foreground tabular-nums"
             >
-              {unread > 9 ? "9+" : unread}
+              {badge > 9 ? "9+" : badge}
             </span>
           ) : null}
         </Button>
       }
     >
       <ActivityPanel
+        ready={ready}
         work={work}
         notices={notices}
         fresh={fresh}

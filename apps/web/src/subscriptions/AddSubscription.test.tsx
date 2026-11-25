@@ -23,6 +23,7 @@ const request = (over: Record<string, unknown>) => ({
   errorKind: null,
   errorMessage: null,
   stderrTail: [],
+  selected: null,
   createdAt: "2026-11-23T08:00:00.000Z",
   ...over,
 });

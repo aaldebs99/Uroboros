@@ -1,11 +1,11 @@
 import type { DownloadRequest, PreviewEntry, PreviewGroup } from "@uroboros/contract";
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Film, Loader, Rss, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { errorText } from "@/api/client";
-import { queueSelection, useRequest } from "@/api/downloads";
+import { ApiError, errorText } from "@/api/client";
+import { downloadKeys, queueSelection, saveSelection, useRequest } from "@/api/downloads";
 import { RequestBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +19,64 @@ import { formatDuration } from "./format";
 
 function initiallyTicked(groups: PreviewGroup[]): Set<string> {
   return new Set(groups.filter((g) => g.ticked).flatMap((g) => g.entries.map((e) => e.id)));
+}
+
+/** How long the ticks rest before they are saved: one request for a burst of them. */
+const SAVE_AFTER_MS = 400;
+
+interface PendingPicks {
+  timer: number | undefined;
+  pending: string[] | null;
+}
+
+/** Sends the picks still waiting, if any, now. */
+function flushPicks(s: PendingPicks, id: string, client: QueryClient): void {
+  window.clearTimeout(s.timer);
+  const picked = s.pending;
+  s.pending = null;
+  if (picked === null) return;
+  saveSelection(id, picked).then(
+    () => client.invalidateQueries({ queryKey: downloadKeys.ready, exact: true }),
+    (err: unknown) => {
+      notify.error(`Couldn't save your picks: ${errorText(err)}`);
+    },
+  );
+}
+
+/**
+ * Saves the picks on the server a moment after the last change (docs/downloads.md), so the preview
+ * opens with them again from the bell, another tab or another device while it waits. The request's
+ * cached copy follows at once; closing the picker saves what was still waiting, and `cancel` drops
+ * it (queueing ends the preview, so there is nothing left to save to).
+ */
+function useSavedPicks(id: string) {
+  const client = useQueryClient();
+  const state = useRef<PendingPicks>({ timer: undefined, pending: null });
+  useEffect(() => {
+    const s = state.current;
+    return () => {
+      flushPicks(s, id, client);
+    };
+  }, [id, client]);
+  const flush = () => {
+    flushPicks(state.current, id, client);
+  };
+  return {
+    save: (picked: string[]) => {
+      client.setQueryData<DownloadRequest>(
+        downloadKeys.request(id),
+        (old) => old && { ...old, selected: picked },
+      );
+      const s = state.current;
+      s.pending = picked;
+      window.clearTimeout(s.timer);
+      s.timer = window.setTimeout(flush, SAVE_AFTER_MS);
+    },
+    cancel: () => {
+      window.clearTimeout(state.current.timer);
+      state.current.pending = null;
+    },
+  };
 }
 
 /** One entry: the whole row is the checkbox's label. Unticked rows fade. */
@@ -115,20 +173,27 @@ function GroupList({
 
 function Picker({ req, onDone }: { req: DownloadRequest; onDone: () => void }) {
   const client = useQueryClient();
-  const [ticked, setTicked] = useState(() => initiallyTicked(req.groups));
+  // The picks saved earlier, or (until the person changes anything) the groups' own ticks.
+  const [ticked, setTicked] = useState(() =>
+    req.selected === null ? initiallyTicked(req.groups) : new Set(req.selected),
+  );
   const [busy, setBusy] = useState(false);
+  const picks = useSavedPicks(req.id);
   const everyId = req.groups.flatMap((g) => g.entries.map((e) => e.id));
+  const change = (next: Set<string>) => {
+    setTicked(next);
+    picks.save(everyId.filter((id) => next.has(id)));
+  };
   const toggle = (ids: string[], on: boolean) => {
-    setTicked((old) => {
-      const next = new Set(old);
-      for (const id of ids) {
-        if (on) next.add(id);
-        else next.delete(id);
-      }
-      return next;
-    });
+    const next = new Set(ticked);
+    for (const id of ids) {
+      if (on) next.add(id);
+      else next.delete(id);
+    }
+    change(next);
   };
   const queue = async () => {
+    picks.cancel();
     setBusy(true);
     try {
       const chosen = everyId.filter((id) => ticked.has(id));
@@ -156,7 +221,7 @@ function Picker({ req, onDone }: { req: DownloadRequest; onDone: () => void }) {
           variant="quiet"
           size="compact"
           onClick={() => {
-            setTicked(allOn ? new Set() : new Set(everyId));
+            change(allOn ? new Set() : new Set(everyId));
           }}
         >
           {allOn ? "Select none" : "Select all"}
@@ -166,7 +231,7 @@ function Picker({ req, onDone }: { req: DownloadRequest; onDone: () => void }) {
             variant="quiet"
             size="compact"
             onClick={() => {
-              setTicked(new Set());
+              change(new Set());
             }}
           >
             Select none
@@ -211,7 +276,15 @@ function PanelBody({
   req: ReturnType<typeof useRequest>;
   data: DownloadRequest | undefined;
 }) {
-  if (req.isError) return <p className="text-destructive">{errorText(req.error)}</p>;
+  if (req.isError) {
+    // A preview waits a day for its pick, then goes (docs/downloads.md).
+    const gone = req.error instanceof ApiError && req.error.status === 404;
+    return (
+      <p className="text-destructive">
+        {gone ? "This preview expired. A preview waits a day for a pick." : errorText(req.error)}
+      </p>
+    );
+  }
   if (data === undefined || data.state === "probing") {
     return (
       <p className="flex items-center gap-2 text-muted-foreground">

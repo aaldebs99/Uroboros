@@ -29,6 +29,7 @@ export function toRequest(row: RequestRow): DownloadRequest {
     errorKind: kind.success ? kind.data : null,
     errorMessage: row.error_message,
     stderrTail: row.stderr_tail,
+    selected: row.selected,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -78,13 +79,17 @@ export async function createRequest(
   return toRequest(row);
 }
 
-/** A request the principal may see: their own (admins too: requests are personal); else 404. */
+/**
+ * A request the principal may see: their own (admins too: requests are personal); else 404. A
+ * preview past its day is gone already, though the sweeper deletes it only within the hour.
+ */
 export async function findRequest(db: Kysely<Database>, principal: Principal, id: string) {
   const row = await db
     .selectFrom("download_requests")
     .selectAll()
     .where("id", "=", id)
     .where("user_id", "=", principal.userId)
+    .where((eb) => eb.or([eb("state", "<>", "choosing"), eb("expires_at", ">", sql<Date>`now()`)]))
     .executeTakeFirst();
   if (row === undefined) throw new ApiError("not_found", "no such request");
   return row;
@@ -158,6 +163,10 @@ export async function queueSelection(
       downloadId,
       userId: req.user_id,
     });
+  }
+  // No longer waiting for a pick (a search's results stay open, but aren't listed as waiting).
+  if (req.intent === "download") {
+    await publishDownloadEvent(ctx.db, { kind: "requests", userId: req.user_id });
   }
   await dispatchFor(ctx, req.user_id);
   return { queued: result.queued, skipped: result.skipped };

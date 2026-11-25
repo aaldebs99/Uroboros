@@ -3,6 +3,7 @@ import {
   DownloadRequest,
   FormatProfile,
   QueueSelectionResult,
+  ReadyPreview,
   type DownloadProgress,
   type NewDownloadBody,
 } from "@uroboros/contract";
@@ -10,7 +11,7 @@ import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
-import { getJson, postJson, postNoContent } from "./client";
+import { getJson, postJson, postNoContent, putNoContent } from "./client";
 import { openStream } from "./liveEvents";
 
 export const downloadKeys = {
@@ -19,6 +20,8 @@ export const downloadKeys = {
   /** The caller's queued and running downloads, for the bell. */
   active: ["api", "downloads", "active"] as const,
   request: (id: string) => ["api", "downloads", "requests", id] as const,
+  /** The caller's pasted playlists and channels waiting for a pick, for the bell. */
+  ready: ["api", "downloads", "requests"] as const,
 };
 
 /** The format profiles anyone signed in may pick from; the default is flagged. */
@@ -53,6 +56,24 @@ export function useRequest(id: string | null) {
 /** Asks a worker to list YouTube's top videos for `query`: a request polled like a pasted link's. */
 export function searchYouTube(query: string): Promise<DownloadRequest> {
   return postJson("/api/downloads/search", DownloadRequest, { query });
+}
+
+/**
+ * The caller's pasted playlists and channels whose previews wait for a pick, for a day from when
+ * each was ready (docs/downloads.md); the stream's `requests` nudge says when they change.
+ */
+export function useReadyPreviews() {
+  return useQuery({
+    queryKey: downloadKeys.ready,
+    queryFn: ({ signal }) => getJson("/api/downloads/requests", z.array(ReadyPreview), { signal }),
+  });
+}
+
+/** Keeps the entries picked so far in a preview, so it opens with them again. */
+export function saveSelection(id: string, entryIds: string[]): Promise<void> {
+  return putNoContent(`/api/downloads/requests/${encodeURIComponent(id)}/selection`, {
+    entryIds,
+  });
 }
 
 export function queueSelection(id: string, entryIds: string[]) {

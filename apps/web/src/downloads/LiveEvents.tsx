@@ -35,6 +35,7 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
           for (const queryKey of [lists.list, lists.active, noticesKey, previewsKey]) {
             void client.invalidateQueries({ queryKey });
           }
+          void client.invalidateQueries({ queryKey: downloadKeys.ready, exact: true });
           return;
         }
         const event = message.event;
@@ -54,6 +55,10 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
             return;
           case "previews":
             void client.invalidateQueries({ queryKey: previewsKey });
+            return;
+          case "requests":
+            // Only the list: an open preview's own request is the picker's to keep.
+            void client.invalidateQueries({ queryKey: downloadKeys.ready, exact: true });
             return;
           case "skips":
             void client.invalidateQueries({ queryKey: itemKey(event.entryId) });

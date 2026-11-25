@@ -1,6 +1,6 @@
-import type { Download, Export, Notice } from "@uroboros/contract";
+import type { Download, Export, Notice, ReadyPreview } from "@uroboros/contract";
 
-/** Fixtures for the bell: a download, a copy and a notice, each overridable. */
+/** Fixtures for the bell: a download, a copy, a notice and a preview waiting for a pick. */
 
 const T = "2026-11-24T18:00:00.000Z";
 
@@ -50,5 +50,17 @@ export const noticeFixture = (over: Partial<Notice> = {}): Notice => ({
   path: "/library/0190a3f2-7c1e-7000-8000-0000000000e2",
   createdAt: T,
   read: false,
+  ...over,
+});
+
+/** A pasted playlist waiting for a pick, with 23.5 hours of its day left. */
+export const readyFixture = (over: Partial<ReadyPreview> = {}): ReadyPreview => ({
+  id: "0190a3f2-7c1e-7000-8000-0000000000b1",
+  url: "https://www.youtube.com/playlist?list=PL1",
+  title: "Blender Feature Demos",
+  kind: "playlist",
+  entries: 3,
+  selected: 2,
+  expiresAt: new Date(Date.now() + 23.5 * 3600_000).toISOString(),
   ...over,
 });

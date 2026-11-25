@@ -93,7 +93,7 @@ export const downloadTools: Tool[] = [
     name: "get_download_request",
     title: "Get a download request",
     description:
-      "A pasted link or YouTube search: probing while a worker reads it; then queued (a single video, now downloading), choosing (a playlist, channel or search whose groups list the videos to pick with queue_selection) or failed (with errorKind and errorMessage). waitSeconds waits for it to leave probing.",
+      "A pasted link or YouTube search: probing while a worker reads it; then queued (a single video, now downloading), choosing (a playlist, channel or search whose groups list the videos to pick with queue_selection; it waits a day from when it is ready, then is deleted) or failed (with errorKind and errorMessage). waitSeconds waits for it to leave probing.",
     input: McpRequestInput,
     output: DownloadRequest,
     run: async ({ requestId, waitSeconds }, { downloads, caller }, signal) =>

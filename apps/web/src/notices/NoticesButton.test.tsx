@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notify, Toaster } from "@/components/ui/sonner";
 import { LiveEventsProvider } from "@/downloads/LiveEvents";
-import { copyFixture, downloadFixture, noticeFixture } from "@/test/activity";
+import { copyFixture, downloadFixture, noticeFixture, readyFixture } from "@/test/activity";
 import { type Handler, fakeApi } from "@/test/fakeApi";
 import { renderInRouter } from "@/test/render";
 
@@ -67,6 +67,7 @@ describe("bellLabel", () => {
   it("says what is unread and in progress", () => {
     expect(bellLabel(0, 0)).toBe("Notifications");
     expect(bellLabel(2, 1)).toBe("Notifications, 2 unread, 1 in progress");
+    expect(bellLabel(0, 1, 2)).toBe("Notifications, 2 ready to pick, 1 in progress");
   });
 });
 
@@ -192,6 +193,40 @@ describe("NoticesButton", () => {
     expect(many).toHaveTextContent("Hover previews");
     expect(many).toHaveTextContent("Preview waiting");
     expect(within(many as HTMLElement).queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("lists previews waiting for a pick first, each opening its picker, and counts them on the badge", async () => {
+    const gone = readyFixture({
+      id: "0190a3f2-7c1e-7000-8000-0000000000b2",
+      title: "Gone already",
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+    });
+    api({ "GET /api/downloads/requests": () => Response.json([readyFixture(), gone]) });
+    await show();
+    const bell = await screen.findByRole("button", {
+      name: "Notifications, 1 unread, 1 ready to pick, 2 in progress",
+    });
+    expect(bell).toHaveTextContent("2");
+    await userEvent.click(bell);
+    const section = await screen.findByRole("region", { name: "Ready to pick" });
+    const row = within(section).getByRole("link", { name: /Blender Feature Demos/ });
+    expect(row).toHaveAttribute("href", `/downloads?request=${readyFixture().id}`);
+    expect(row).toHaveTextContent("Playlist · 2 of 3 picked · 23h left");
+    expect(screen.queryByText("Gone already")).not.toBeInTheDocument();
+    const sections = screen.getAllByRole("region").map((r) => r.getAttribute("aria-label"));
+    expect(sections.indexOf("Ready to pick")).toBeLessThan(sections.indexOf("In progress"));
+  });
+
+  it("fetches the previews waiting for a pick again when the stream says they changed", async () => {
+    let ready: unknown[] = [];
+    api({ "GET /api/downloads/requests": () => Response.json(ready) });
+    await show();
+    await screen.findByRole("button", { name: "Notifications, 1 unread, 2 in progress" });
+    ready = [readyFixture()];
+    act(() => {
+      FakeEventSource.last?.push({ type: "requests" });
+    });
+    expect(await screen.findByRole("button", { name: /1 ready to pick/ })).toBeInTheDocument();
   });
 
   it("lists this tab's toasts, whose action runs and closes the panel", async () => {

@@ -2,6 +2,7 @@ import { fixture } from "@uroboros/ytdlp/testing";
 import { YOUTUBE_SEARCH_RESULTS, type DownloadRequest } from "@uroboros/contract";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
+import { busFor, nextMessage } from "../../test/bus.ts";
 import { seededDefault } from "../../test/downloads.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
@@ -115,6 +116,33 @@ describe("probe", () => {
       source_extractor: "youtubetab",
       source_id: "PLa1F2ddGya_8NhFM-rx_xh5SlIGbHyrZZ",
     });
+  });
+
+  it("holds a preview a day from when it is ready, and tells the person's open tabs", async () => {
+    const id = await request("https://www.youtube.com/playlist?list=held");
+    // Pasted long ago: the day counts from the preview, not from the paste.
+    await testDb.db
+      .updateTable("download_requests")
+      .set({ expires_at: new Date(Date.now() + 60_000) })
+      .where("id", "=", id)
+      .execute();
+    const bus = await busFor(testDb.db);
+    try {
+      await bus.ready;
+      const nudge = nextMessage(bus, "uroboros_downloads");
+      await run(id, await h.deps({ steps: [{ stdout: await fixture("probe-playlist.json") }] }));
+      expect(JSON.parse(await nudge)).toEqual({ kind: "requests", userId: user.userId });
+    } finally {
+      await bus.close();
+    }
+    const row = await testDb.db
+      .selectFrom("download_requests")
+      .select("expires_at")
+      .where("id", "=", id)
+      .executeTakeFirstOrThrow();
+    const left = new Date(row.expires_at).getTime() - Date.now();
+    expect(left).toBeGreaterThan(23.9 * 3600_000);
+    expect(left).toBeLessThanOrEqual(24 * 3600_000);
   });
 
   it("groups a channel's main URL by tab, with only Videos ticked", async () => {

@@ -34,8 +34,21 @@ request handler.
      site refused is `login_failed`; both point to Settings › Logins ([site logins](#site-logins)).
      Credentials are always a person's own: the server has no account of its own to sign in with.
 3. `POST /api/downloads/requests/{id}/queue {entryIds}` turns the ticked entries into downloads.
-   Entries the person already has, or is already getting, are skipped and counted. A preview
-   nobody queues expires after a day (the leader's sweeper deletes it).
+   Entries the person already has, or is already getting, are skipped and counted. Until then the
+   preview **waits for its pick**, held a day from when it was ready (the probe sets `expires_at`
+   when it writes `choosing`, so a long probe doesn't eat into it):
+   - the picker saves the person's ticks as they change (`PUT /api/downloads/requests/{id}/selection
+     {entryIds}`, into `selected`; null until anything changed, when the groups' own ticks stand),
+     so the preview opens with them again from another tab or device;
+   - a pasted playlist or channel (`intent: "download"`, not a search's results or a link to
+     subscribe to) is listed by `GET /api/downloads/requests` with how many entries it has, how
+     many are picked and when it goes, and the bell shows it under "Ready to pick", counted on its
+     badge, until it is queued or its day is up. The probe, a saved pick and queueing publish
+     `{ kind: "requests", userId }` on `uroboros_downloads`, and the person's open tabs fetch the
+     list again. This is how a playlist added from the Ctrl+K palette (or the Download a link
+     dialog, which close while the link is still being looked at) is found again;
+   - past its day it reads as gone at once (404, so the picker says it expired), and the leader's
+     sweeper deletes it within the hour.
 4. Queueing a download (`queueDownload` in `src/downloads/dispatch.ts`) snapshots the profile's
    arguments and revision on the row. If the rendition is already stored, the download is `done`
    at once and a library entry is added; otherwise it waits as `queued`.

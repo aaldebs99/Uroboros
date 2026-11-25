@@ -76,6 +76,29 @@ const eventsRoute = createRoute({
   },
 });
 
+/**
+ * A nudge about the viewer's own things (their notifications, pasted links waiting for a pick,
+ * hover previews being made, a SponsorBlock refetch), even on an admin's everyone view; null when
+ * it is someone else's.
+ */
+function personal(
+  e: Exclude<InternalEvent, { kind: "state" | "progress" }>,
+  userId: string,
+): Event | null {
+  switch (e.kind) {
+    case "notice":
+      return e.userId === userId ? { type: "notice" } : null;
+    case "requests":
+      return e.userId === userId ? { type: "requests" } : null;
+    case "previews":
+      return e.userIds.includes(userId) ? { type: "previews" } : null;
+    case "skips":
+      return e.userId === userId
+        ? { type: "skips", entryId: e.entryId, found: e.found, error: e.error }
+        : null;
+  }
+}
+
 /** Turns internal events into the caller's stream messages, tracking which fetches they wait on. */
 function translator(
   ctx: DownloadContext,
@@ -88,15 +111,7 @@ function translator(
         ? { type: "progress", fetchKey: e.fetchKey, progress: e.progress }
         : null;
     }
-    // A person's own list, even on an admin's everyone view.
-    if (e.kind === "notice") return e.userId === viewer.userId ? { type: "notice" } : null;
-    if (e.kind === "previews")
-      return e.userIds.includes(viewer.userId) ? { type: "previews" } : null;
-    if (e.kind === "skips") {
-      return e.userId === viewer.userId
-        ? { type: "skips", entryId: e.entryId, found: e.found, error: e.error }
-        : null;
-    }
+    if (e.kind !== "state") return personal(e, viewer.userId);
     if (!viewer.all && e.userId !== viewer.userId) return null;
     const [download] = await toDownloads(
       ctx,

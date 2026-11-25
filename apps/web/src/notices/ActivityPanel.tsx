@@ -1,4 +1,4 @@
-import type { Notice } from "@uroboros/contract";
+import type { Notice, ReadyPreview } from "@uroboros/contract";
 import { Bell } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -6,6 +6,7 @@ import type { LoggedToast } from "@/lib/toastLog";
 
 import { NoticeRows } from "./NoticeRows";
 import { PanelLink } from "./PanelLink";
+import { ReadyRows } from "./ReadyRows";
 import { ToastRows } from "./ToastRows";
 import { WorkRows } from "./WorkRows";
 import type { WorkItem } from "./work";
@@ -31,10 +32,12 @@ function Section({
 }
 
 /**
- * The bell's panel: "In progress", "Notifications" and "Earlier in this tab", each shown only with
- * something in it, under a header whose Clear empties the notifications and the toasts.
+ * The bell's panel: "Ready to pick", "In progress", "Notifications" and "Earlier in this tab", each
+ * shown only with something in it, under a header whose Clear empties the notifications and the
+ * toasts (what waits for a pick goes only once queued, or after its day).
  */
 export function ActivityPanel({
+  ready,
   work,
   notices,
   fresh,
@@ -42,6 +45,7 @@ export function ActivityPanel({
   onClear,
   onClose,
 }: {
+  ready: readonly ReadyPreview[];
   work: readonly WorkItem[];
   notices: readonly Notice[];
   fresh: ReadonlySet<string>;
@@ -49,7 +53,7 @@ export function ActivityPanel({
   onClear: () => void;
   onClose: () => void;
 }) {
-  const empty = work.length + notices.length + toasts.length === 0;
+  const empty = ready.length + work.length + notices.length + toasts.length === 0;
   return (
     <div className="grid">
       <div className="flex min-h-12 items-center justify-between gap-3 py-1 pr-2 pl-4">
@@ -76,6 +80,11 @@ export function ActivityPanel({
         </div>
       ) : (
         <div className="grid border-t border-border">
+          {ready.length > 0 ? (
+            <Section title="Ready to pick">
+              <ReadyRows ready={ready} onNavigate={onClose} />
+            </Section>
+          ) : null}
           {work.length > 0 ? (
             <Section
               title="In progress"

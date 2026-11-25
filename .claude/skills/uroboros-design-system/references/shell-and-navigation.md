@@ -127,26 +127,29 @@ opens it too.
 
 The bell (`notices/NoticesButton.tsx`) sits between Add and the avatar at every width.
 
-- **The button:** a 40px ghost icon button with a 20px `Bell`. Unread notifications show as a
-  count pill at its top right (`bg-primary text-primary-foreground`, 18px tall, "9+" past nine).
-  While anything is in progress a 2px ring (`border-primary/25 border-t-primary`) turns around it;
-  under reduced motion it stands still. The label says both: "Notifications, 2 unread, 1 in
-  progress".
+- **The button:** a 40px ghost icon button with a 20px `Bell`. What waits on the person (unread
+  notifications and previews ready to pick) shows as a count pill at its top right (`bg-primary
+  text-primary-foreground`, 18px tall, "9+" past nine). While anything is in progress a 2px ring
+  (`border-primary/25 border-t-primary`) turns around it; under reduced motion it stands still.
+  The label says each: "Notifications, 2 unread, 1 ready to pick, 1 in progress".
 - **The panel:** `components/ui/responsive-panel.tsx`, a Radix popover from `md` up
   (`w-[min(25rem,calc(100vw-2rem))]`, scrolling inside `max-h-[min(36rem,calc(100dvh-5rem))]`, no
   padding) and the phone's bottom sheet below. A header row holds "Notifications" (16/700) and a
   text pill **Clear**.
 - **Sections**, each under a hairline with a 12/500 muted heading, shown only with rows:
-  1. **In progress**, with a "See all" link to Downloads: queued and running downloads with their
+  1. **Ready to pick**: pasted playlists and channels whose previews wait for the person, newest
+     first: a `ListChecks` glyph, the title at 500 (two lines), and a muted "Playlist · 12 of 30
+     picked · 23h left". A row opens the picker on Downloads and goes once queued or after its day.
+  2. **In progress**, with a "See all" link to Downloads: queued and running downloads with their
      live progress, uploads, copies being made, subscriptions being checked and the person's hover
      previews being made (one `Film` row however many: a video's title, or "Hover previews" with
      "N videos left", no bar), five at most, then "and N more". A row is a 36px `bg-raised` glyph circle, a one-line title, the state's
      [badge](feedback-and-containers.md#status-badges) with a muted detail, and the 8px glowing
      bar (`components/ui/progress-bar.tsx`) when there is a real percentage.
-  2. **Notifications**, newest first: a kind glyph (`Download`, `Share2`, `Rss`, `Users`), the
+  3. **Notifications**, newest first: a kind glyph (`Download`, `Share2`, `Rss`, `Users`), the
      title at 500 (two lines), the body muted (two lines), the time muted. One that was unread
      when the panel opened carries an 8px `bg-primary` dot and an sr-only "Unread".
-  3. **Earlier in this tab**: this tab's toasts with their tone icon, title, detail and time, and
+  4. **Earlier in this tab**: this tab's toasts with their tone icon, title, detail and time, and
      their action as a compact text pill.
 - Rows lead somewhere and fill `bg-accent` on hover and focus, like the palette's. Following one
   closes the panel.

@@ -7,6 +7,8 @@ import {
   NewSearchBody,
   QueueSelectionBody,
   QueueSelectionResult,
+  ReadyPreview,
+  SelectionBody,
 } from "@uroboros/contract";
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
@@ -19,6 +21,7 @@ import {
   toRequest,
   youtubeSearchUrl,
 } from "./requests.ts";
+import { listReady, saveSelection } from "./ready.ts";
 import { downloadRows, toDownloads } from "./serialize.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
@@ -68,6 +71,29 @@ const getRequestRoute = createRoute({
   summary: "A pasted link: probing, its preview, or why it failed",
   request: { params: idParams },
   responses: { 200: json(DownloadRequest, "The request"), 404: error("No such request") },
+});
+
+const readyRoute = createRoute({
+  method: "get",
+  path: "/api/downloads/requests",
+  tags: ["downloads"],
+  summary:
+    "The caller's pasted playlists and channels whose previews wait for a pick (a day from when each was ready), newest first",
+  responses: { 200: json(z.array(ReadyPreview), "Previews waiting for a pick") },
+});
+
+const selectionRoute = createRoute({
+  method: "put",
+  path: "/api/downloads/requests/{id}/selection",
+  tags: ["downloads"],
+  summary: "Keep the entries picked so far in a preview, while it waits for the pick",
+  request: { params: idParams, ...body(SelectionBody) },
+  responses: {
+    204: { description: "Kept" },
+    400: error("An entry that is not in the preview"),
+    404: error("No such request, or its preview expired"),
+    409: error("The request has no preview"),
+  },
 });
 
 const queueRoute = createRoute({
@@ -150,6 +176,20 @@ export function registerDownloadRoutes(app: OpenAPIHono, ctx: DownloadContext | 
   app.openapi(getRequestRoute, async (c) => {
     const row = await findRequest(need(ctx).db, currentPrincipal(c), c.req.valid("param").id);
     return c.json(toRequest(row), 200);
+  });
+
+  app.openapi(readyRoute, async (c) => {
+    return c.json(await listReady(need(ctx).db, currentPrincipal(c).userId), 200);
+  });
+
+  app.openapi(selectionRoute, async (c) => {
+    await saveSelection(
+      need(ctx).db,
+      currentPrincipal(c),
+      c.req.valid("param").id,
+      c.req.valid("json").entryIds,
+    );
+    return c.body(null, 204);
   });
 
   app.openapi(queueRoute, async (c) => {

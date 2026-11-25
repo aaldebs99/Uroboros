@@ -197,10 +197,40 @@ export const DownloadRequest = z
     errorMessage: z.string().nullable(),
     /** A failed probe's last stderr lines from yt-dlp, redacted, for a Details disclosure. */
     stderrTail: z.array(z.string()),
+    /**
+     * The entries the person picked in the preview so far (`PUT .../selection`), kept while it
+     * waits for them; null until they change anything, when the groups' own ticks stand.
+     */
+    selected: z.array(z.string()).nullable(),
     createdAt: z.iso.datetime(),
   })
   .openapi("DownloadRequest");
 export type DownloadRequest = z.infer<typeof DownloadRequest>;
+
+/** The entries picked so far in a preview, saved as the person ticks them. */
+export const SelectionBody = z
+  .object({ entryIds: z.array(z.string().min(1).max(256)).max(10_000) })
+  .openapi("SelectionBody");
+export type SelectionBody = z.infer<typeof SelectionBody>;
+
+/**
+ * A pasted playlist or channel whose preview waits for the person to pick from it, for a day from
+ * when it was ready (docs/downloads.md): the bell lists these.
+ */
+export const ReadyPreview = z
+  .object({
+    id: Id,
+    url: z.string(),
+    title: z.string().nullable(),
+    kind: z.enum(["playlist", "channel"]),
+    /** How many entries the preview lists, and how many are picked (the saved ones, or the ticked groups'). */
+    entries: z.number().int(),
+    selected: z.number().int(),
+    /** When it is deleted unless queued. */
+    expiresAt: z.iso.datetime(),
+  })
+  .openapi("ReadyPreview");
+export type ReadyPreview = z.infer<typeof ReadyPreview>;
 
 export const QueueSelectionBody = z
   .object({ entryIds: z.array(z.string().min(1).max(256)).min(1).max(10_000) })
@@ -264,6 +294,8 @@ export const DownloadEvent = z
     z.object({ type: z.literal("notice") }),
     /** The caller's hover previews being made changed (docs/library.md): fetch them again. */
     z.object({ type: z.literal("previews") }),
+    /** The caller's pasted links waiting for a pick changed (one is ready, or went): fetch them again. */
+    z.object({ type: z.literal("requests") }),
     /**
      * How the caller's SponsorBlock refetch of an entry went (docs/automation.md#sponsorblock):
      * `found` segments to skip now, or why it failed (`error`, and `found` null). Fetch the entry

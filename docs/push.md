@@ -90,7 +90,9 @@ download.
 - **Live.** Filing a notice publishes `{ kind: "notice", userId }` on `uroboros_downloads`, and the
   event stream (`GET /api/downloads/events`, [downloads.md](downloads.md#live-progress)) sends that
   person a `notice` event, on which the web app fetches the list again.
-- **The panel.** Besides the notifications, it shows what is in progress (queued and running
+- **The panel.** Besides the notifications, it lists the pasted playlists and channels whose
+  previews wait for a pick under "Ready to pick", first and counted on the badge until queued or a
+  day after each was ready ([downloads.md](downloads.md#flow)), and what is in progress (queued and running
   downloads with their live progress, uploads, copies being made, subscriptions being checked, and
   the person's hover previews being made) and this tab's toasts with their actions, kept in memory
   (`apps/web/src/lib/toastLog.ts`). Opening it dismisses the toasts on screen and marks the

@@ -306,6 +306,8 @@ export interface DownloadRequestsTable {
   stderr_tail: Defaulted<string[]>;
   source_extractor: string | null;
   source_id: string | null;
+  /** The entries picked in the preview so far; null until the person changes anything. */
+  selected: string[] | null;
   created_at: Created;
   expires_at: Defaulted<Date | string>;
   noticed_at: Timestamp | null;

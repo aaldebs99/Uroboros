@@ -168,6 +168,22 @@ describe("GET /api/downloads/events", () => {
     expect(events).toEqual([{ type: "notice" }]);
   });
 
+  it("nudges only its person, an admin's everyone view included, when their previews waiting for a pick change", async () => {
+    const [a, b] = [
+      await user(),
+      await signedIn(testDb.db, { username: `ssereq${String(++n)}`, role: "admin" }),
+    ];
+    const events = await collect(
+      await app(b).request("/api/downloads/events?all=true"),
+      async () => {
+        await publishDownloadEvent(testDb.db, { kind: "requests", userId: a.userId });
+        await publishDownloadEvent(testDb.db, { kind: "requests", userId: b.userId });
+      },
+      (e) => e.length >= 1,
+    );
+    expect(events).toEqual([{ type: "requests" }]);
+  });
+
   it("nudges only the people who have a video when its preview is queued", async () => {
     const [a, b] = [await user(), await user()];
     const [first, second] = [

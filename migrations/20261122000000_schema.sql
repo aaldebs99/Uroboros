@@ -377,7 +377,12 @@ CREATE TABLE download_requests (
   -- A playlist's own id, so queueing it records the playlist (docs/library.md).
   source_extractor TEXT,
   source_id TEXT,
+  -- The entries the person picked in the preview so far; NULL until they change anything, when
+  -- the groups' own ticks stand.
+  selected TEXT[],
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- A preview waiting for a pick is held a day from when it is ready (the probe sets it), then
+  -- swept; until then, past it, it reads as gone.
   expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + interval '1 day',
   -- When its Ready or Failed notification went out; cleared when a download of it is queued
   -- again, so the next time nothing is pending it notifies once more (docs/sharing.md).

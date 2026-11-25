@@ -1,5 +1,5 @@
 import { YOUTUBE_SEARCH_RESULTS, type PreviewEntry, type PreviewGroup } from "@uroboros/contract";
-import type { Selectable } from "kysely";
+import { sql, type Selectable } from "kysely";
 import { probe, type PlaylistEntry, type PlaylistInfo, type VideoInfo } from "@uroboros/ytdlp";
 import { dispatchFor, queueDownload } from "../downloads/dispatch.ts";
 import { toDownloadError } from "../downloads/errors.ts";
@@ -13,6 +13,9 @@ import { mediaVideoId } from "../library/mediaKey.ts";
 import { upsertMedia } from "./media.ts";
 
 const PROBE_TIMEOUT_MS = 120_000;
+
+/** A preview waits a day for its pick from when it is ready, not from the paste (docs/downloads.md). */
+const HELD_A_DAY = sql<Date>`now() + interval '1 day'`;
 
 type Deps = WorkerDeps;
 type RequestRow = Selectable<DownloadRequestsTable>;
@@ -187,6 +190,7 @@ async function preview(
       kind,
       title: info.title,
       entries: JSON.stringify(groups),
+      expires_at: HELD_A_DAY,
       ...sourceOf(info, req.url, kind === "channel", groups),
     })
     .where("id", "=", req.id)
@@ -212,6 +216,7 @@ async function searchPreview(deps: Deps, req: { id: string; url: string }): Prom
       kind: "playlist",
       title: info.title,
       entries: JSON.stringify([results]),
+      expires_at: HELD_A_DAY,
     })
     .where("id", "=", req.id)
     .execute();
@@ -245,8 +250,13 @@ async function resolve(deps: Deps, req: ProbedRequest): Promise<void> {
   // The requester's own logins, for this probe and a channel's tab probes.
   const signedIn = await withLoginsOf(deps, req.user_id);
   const info = await probe(req.url, { ...ytdlpOptions(signedIn), extraArgs: previewArgs(deps) });
-  if (info.kind !== "video") await preview(signedIn, req, info);
-  else if (req.intent === "subscribe") await refuseVideo(deps, req.id);
+  if (info.kind !== "video") {
+    await preview(signedIn, req, info);
+    // A pasted playlist or channel now waits for the person to pick from it: the bell lists it.
+    if (req.intent === "download") {
+      await publishDownloadEvent(deps.db, { kind: "requests", userId: req.user_id });
+    }
+  } else if (req.intent === "subscribe") await refuseVideo(deps, req.id);
   else await queueVideo(signedIn, req, info);
 }
 
