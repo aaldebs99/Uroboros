@@ -171,11 +171,10 @@ nothing to do. A failed migration is logged and the process exits 1 without ever
 the replicas of the previous build keep serving. A database ahead of the build (a rollback) is
 logged as a warning and the server starts anyway. The job consumers start only once the
 migrations ran, so no job runs against an older schema. `mise run migrate` applies them by
-hand, failing fast when the server cannot be reached. Until the first release the whole schema is
-one file, `migrations/20261122000000_schema.sql`, edited in place; after changing it, delete the
-local database (`mise run docker:down`, then `docker volume rm uroboros_postgres-data`), because
-the runner refuses a file whose checksum changed after it was applied. From the first release on,
-changes are new files made with `mise run migration:new <snake_case_name>`.
+hand, failing fast when the server cannot be reached. `migrations/20261122000000_schema.sql` is the
+schema as first released (0.1.0); every change since is a new file made with
+`mise run migration:new <snake_case_name>`, and a committed migration is never edited (the runner
+refuses a file whose checksum changed after it was applied).
 
 `GET /api/health` is liveness: it checks nothing and answers 200 `{"status":"ok"}` while the
 process is up. `GET /api/ready` is readiness: 503 `{"status":"starting"}` until the migrations ran,

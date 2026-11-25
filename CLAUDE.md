@@ -225,14 +225,11 @@ that cannot run in a transaction, such as `CREATE INDEX CONCURRENTLY`, are not s
 plain `CREATE INDEX` while the table is small, and add runner support before the first table
 large enough to need one.
 
-**Pre-release: one schema file, edited in place.** There are no deployed databases yet, so the whole
-schema lives in `migrations/20261122000000_schema.sql` and schema changes edit that file. Do not add
-migration files or expand/contract steps until the user says otherwise. After changing it, reset
-local databases: `mise run docker:down`, then `docker volume rm uroboros_postgres-data` (tests build
-a fresh database every run). From the first release on, the rules below apply: migrations are
+**Schema changes are new migrations.** Since 0.1.0 the schema is never edited in place:
+`migrations/20261122000000_schema.sql` is the released baseline, and every change is a new file
 named `<YYYYMMDDHHMMSS>_<logical_name>.sql` (a real UTC creation datetime plus a descriptive
-snake_case name, never sequential numbers), created with `mise run migration:new <name>`, and a
-shipped migration is never edited.
+snake_case name, never sequential numbers), created with `mise run migration:new <name>`. A
+migration is never edited once committed; fix it with another.
 
 **yt-dlp is the only downloader.** Never youtube-dl, youtube-dlc or another fork, and no
 downloader setting or fallback. Only the job consumers spawn yt-dlp and ffmpeg (never a request
