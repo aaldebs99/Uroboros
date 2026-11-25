@@ -29,7 +29,6 @@ function renderAt(path: string) {
     "GET /api/me/tokens": () => Response.json({ mcp: { enabled: true }, tokens: [] }),
     "GET /api/me/preferences": () =>
       Response.json({
-        hidePlaylistVideos: false,
         sponsorBlock: DEFAULT_SPONSORBLOCK,
         sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
       }),

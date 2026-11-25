@@ -48,6 +48,8 @@ export interface LibraryFilters {
   watched?: boolean;
   /** Only videos in one of the caller's playlists, of either kind (true), or in none (false). */
   inPlaylist?: boolean;
+  /** Only videos one of the caller's playlists hides from the library (true), or none hides (false). */
+  hidden?: boolean;
   /** Only the files with a picture (video), or only those with sound alone (audio). */
   kind?: LibraryKind;
   sort?: LibrarySort;

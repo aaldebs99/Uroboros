@@ -31,6 +31,8 @@ export interface LibraryFilters {
   watched?: boolean | undefined;
   /** Only the entries in one of the owner's playlists, of either kind (true), or in none (false). */
   inPlaylist?: boolean | undefined;
+  /** Only the entries one of the owner's playlists hides from the library (true), or none hides (false). */
+  hidden?: boolean | undefined;
   /** Only the files with a picture (video), or only those without (audio). */
   kind?: LibraryKind | undefined;
   sort?: LibrarySort | undefined;
@@ -129,26 +131,27 @@ function linkFilter(qb: Base, link: string): Base {
 /**
  * The entries in one of the owner's playlists (`listed`), or in none: one they made
  * (`playlist_items`), or a YouTube one they have (`user_sources`), which lists videos by extractor
- * and id. Both lookups are on an index: `playlist_items_entry_idx` and `source_items`' key.
+ * and id. With `hiding`, only the playlists that keep their videos out of the library count
+ * (docs/library.md "Hidden playlists"). Both lookups are on an index: `playlist_items_entry_idx`
+ * and `source_items`' key.
  */
-function playlistFilter(qb: Base, listed: boolean): Base {
+function playlistFilter(qb: Base, listed: boolean, hiding = false): Base {
   return qb.where((eb) => {
+    const made = eb
+      .selectFrom("playlist_items as pi")
+      .innerJoin("playlists as p", "p.id", "pi.playlist_id")
+      .select("pi.entry_id")
+      .whereRef("pi.entry_id", "=", "e.id");
+    const youtube = eb
+      .selectFrom("user_sources as us")
+      .innerJoin("source_items as si", "si.source_id", "us.source_id")
+      .select("si.video_id")
+      .whereRef("us.user_id", "=", "e.user_id")
+      .whereRef("si.extractor", "=", "m.extractor")
+      .whereRef("si.video_id", "=", "m.video_id");
     const inAny = eb.or([
-      eb.exists(
-        eb
-          .selectFrom("playlist_items as pi")
-          .select("pi.entry_id")
-          .whereRef("pi.entry_id", "=", "e.id"),
-      ),
-      eb.exists(
-        eb
-          .selectFrom("user_sources as us")
-          .innerJoin("source_items as si", "si.source_id", "us.source_id")
-          .select("si.video_id")
-          .whereRef("us.user_id", "=", "e.user_id")
-          .whereRef("si.extractor", "=", "m.extractor")
-          .whereRef("si.video_id", "=", "m.video_id"),
-      ),
+      eb.exists(hiding ? made.where("p.hide_from_library", "=", true) : made),
+      eb.exists(hiding ? youtube.where("us.hide_from_library", "=", true) : youtube),
     ]);
     return listed ? inAny : eb.not(inAny);
   });
@@ -173,6 +176,7 @@ function filtered(qb: Base, f: LibraryFilters): Base {
   if (f.watched !== undefined)
     out = out.where(sql<boolean>`coalesce(wp.watched, false) = ${f.watched}`);
   if (f.inPlaylist !== undefined) out = playlistFilter(out, f.inPlaylist);
+  if (f.hidden !== undefined) out = playlistFilter(out, f.hidden, true);
   if (f.kind !== undefined)
     out = out.where("r.video_codec", f.kind === "audio" ? "is" : "is not", null);
   return out;

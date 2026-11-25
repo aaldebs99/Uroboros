@@ -14,7 +14,6 @@ afterEach(() => {
 
 const D = ["interaction", "selfpromo", "sponsor"];
 const prefs = {
-  hidePlaylistVideos: false,
   sponsorBlock: DEFAULT_SPONSORBLOCK,
   sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
 };

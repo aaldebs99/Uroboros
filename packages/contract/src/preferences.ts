@@ -85,8 +85,6 @@ export const DEFAULT_SPONSORBLOCK_COLORS: SponsorBlockColors = frozen({
  */
 export const Preferences = z
   .object({
-    /** Library › Videos leaves out the videos in any of their playlists (docs/library.md). */
-    hidePlaylistVideos: z.boolean(),
     /** Which SponsorBlock segments their player shows and skips. */
     sponsorBlock: SponsorBlockSettings,
     /** The colors their player draws SponsorBlock's segments and highlight in. */

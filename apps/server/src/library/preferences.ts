@@ -58,15 +58,14 @@ function changedColors(colors: SponsorBlockColors): Partial<SponsorBlockColors> 
   );
 }
 
-/** A person's preferences (docs/library.md "Hide playlist videos"); no row means the defaults. */
+/** A person's preferences (docs/automation.md#sponsorblock); no row means the defaults. */
 export async function getPreferences(db: Kysely<Database>, userId: string): Promise<Preferences> {
   const row = await db
     .selectFrom("user_preferences")
-    .select(["hide_playlist_videos", "sponsorblock_colors", ...SPONSORBLOCK_COLUMNS])
+    .select(["sponsorblock_colors", ...SPONSORBLOCK_COLUMNS])
     .where("user_id", "=", userId)
     .executeTakeFirst();
   return {
-    hidePlaylistVideos: row?.hide_playlist_videos ?? false,
     sponsorBlock: sponsorBlockFrom(row),
     sponsorBlockColors: colorsFrom(row?.sponsorblock_colors),
   };
@@ -97,9 +96,6 @@ export async function updatePreferences(
   const sb = patch.sponsorBlock;
   const colors = patch.sponsorBlockColors;
   const columns = {
-    ...(patch.hidePlaylistVideos === undefined
-      ? {}
-      : { hide_playlist_videos: patch.hidePlaylistVideos }),
     ...(sb === undefined
       ? {}
       : {

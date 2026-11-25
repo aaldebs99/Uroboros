@@ -22,6 +22,11 @@ export const PlaylistSummary = z
     url: z.string().nullable(),
     /** Last changed (manual) or queued (YouTube). */
     updatedAt: z.iso.datetime(),
+    /**
+     * The caller keeps its videos out of Library › Videos and Audio (docs/library.md "Hidden
+     * playlists"); a YouTube playlist's is each person's own.
+     */
+    hideFromLibrary: z.boolean(),
   })
   .openapi("PlaylistSummary");
 export type PlaylistSummary = z.infer<typeof PlaylistSummary>;
@@ -46,6 +51,10 @@ export const PlaylistPatch = z
   .object({ name: PlaylistName.optional(), description: Description.optional() })
   .openapi("PlaylistPatch");
 export type PlaylistPatch = z.infer<typeof PlaylistPatch>;
+
+/** `PUT /api/playlists/{id}/hidden`: whether the playlist keeps its videos out of the library. */
+export const PlaylistHiddenBody = z.object({ hidden: z.boolean() }).openapi("PlaylistHiddenBody");
+export type PlaylistHiddenBody = z.infer<typeof PlaylistHiddenBody>;
 
 /** Entries of the caller's library, in order; no duplicates. */
 export const PlaylistItemsBody = z.object({ entryIds: EntryIds }).openapi("PlaylistItemsBody");

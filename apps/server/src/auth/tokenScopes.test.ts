@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { NewApiToken, TokenList } from "@uroboros/contract";
 import { pino } from "pino";
@@ -128,10 +129,16 @@ describe("API token scopes", () => {
       const res = await app.request("/api/me/preferences", {
         method,
         headers: { ...bearer(t.secret), "content-type": "application/json" },
-        body: JSON.stringify({ hidePlaylistVideos: true }),
+        body: JSON.stringify({}),
       });
       expect([method, res.status]).toEqual([method, 403]);
     }
+    const hide = await app.request(`/api/playlists/${randomUUID()}/hidden`, {
+      method: "PUT",
+      headers: { ...bearer(t.secret), "content-type": "application/json" },
+      body: JSON.stringify({ hidden: true }),
+    });
+    expect(hide.status).toBe(403);
   });
 
   it("refuse even an admin's full token on every route a token must never reach", async () => {

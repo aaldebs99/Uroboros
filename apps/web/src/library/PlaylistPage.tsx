@@ -1,6 +1,15 @@
 import type { PlaylistDetail } from "@uroboros/contract";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Copy, ExternalLink, ListOrdered, Pencil, Play, SearchX, Trash2 } from "lucide-react";
+import {
+  Copy,
+  ExternalLink,
+  EyeOff,
+  ListOrdered,
+  Pencil,
+  Play,
+  SearchX,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -9,6 +18,7 @@ import {
   copyPlaylist,
   deletePlaylist,
   playlistFilters,
+  setPlaylistHidden,
   usePlaylist,
   usePlaylistAction,
 } from "@/api/playlists";
@@ -22,6 +32,7 @@ import { notify } from "@/components/ui/sonner";
 
 import { ShareButton } from "../sharing/ShareDialog";
 import { LibraryGrid } from "./LibraryGrid";
+import { playlistMeta } from "./playlistMeta";
 import { PlaylistDialog } from "./PlaylistDialog";
 import { PlaylistEditor } from "./PlaylistEditor";
 
@@ -33,6 +44,41 @@ function PlayAll({ playlistId, first }: { playlistId: string; first: string | un
       <Link to="/library/$entryId" params={{ entryId: first }} search={{ list: playlistId }}>
         <Play aria-hidden /> Play all
       </Link>
+    </Button>
+  );
+}
+
+/**
+ * Hide from library, for either kind: the playlist's videos stay out of Library › Videos and Audio
+ * until it is pressed again (docs/library.md "Hidden playlists").
+ */
+function HideFromLibrary({ playlist }: { playlist: PlaylistDetail }) {
+  const hide = usePlaylistAction(setPlaylistHidden);
+  const hidden = playlist.hideFromLibrary;
+  return (
+    <Button
+      variant="secondary"
+      aria-pressed={hidden}
+      disabled={hide.isPending}
+      onClick={() => {
+        hide.mutate(
+          { id: playlist.id, hidden: !hidden },
+          {
+            onSuccess: () => {
+              notify.success(
+                hidden
+                  ? "Its videos show in your library again."
+                  : "Its videos are hidden from your library.",
+              );
+            },
+            onError: (error) => {
+              notify.error(errorText(error));
+            },
+          },
+        );
+      }}
+    >
+      <EyeOff aria-hidden /> Hide from library
     </Button>
   );
 }
@@ -187,6 +233,7 @@ function PlaylistActions({
         id={playlist.id}
         title={playlist.name}
       />
+      <HideFromLibrary playlist={playlist} />
       {playlist.kind === "manual" ? (
         <ManualActions playlist={playlist} editing={editing} onEditing={onEditing} />
       ) : (
@@ -195,8 +242,6 @@ function PlaylistActions({
     </div>
   );
 }
-
-const kindLabel = (p: PlaylistDetail) => (p.kind === "youtube" ? "From YouTube" : "Playlist");
 
 /**
  * One playlist, of either kind: its videos in order, Play all, and its own actions. A manual
@@ -222,7 +267,7 @@ export function PlaylistPage({ playlistId }: { playlistId: string }) {
       <PageHeader
         showTitle
         title={p?.name ?? "Playlist"}
-        description={p === undefined ? undefined : `${kindLabel(p)} · ${String(p.count)} videos`}
+        description={p === undefined ? undefined : playlistMeta(p)}
         action={
           p === undefined ? undefined : (
             <PlaylistActions playlist={p} editing={editing} onEditing={setEditing} />

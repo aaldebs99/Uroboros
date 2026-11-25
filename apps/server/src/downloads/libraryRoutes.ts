@@ -79,6 +79,14 @@ const libraryQuery = z.object({
       description:
         "true: only videos in one of the caller's playlists (a YouTube one they have, or their own); false: only videos in none",
     }),
+  hidden: z
+    .enum(["true", "false"])
+    .optional()
+    .openapi({
+      param: { name: "hidden", in: "query" },
+      description:
+        "false: leave out the videos one of the caller's playlists hides from the library (PUT /api/playlists/{id}/hidden), as Library › Videos and Audio do; true: only those",
+    }),
   kind: LibraryKind.optional().openapi({
     param: { name: "kind", in: "query" },
     description:
@@ -237,11 +245,12 @@ export function registerLibraryRoutes(
 ): void {
   // Literal paths first, so they are never taken for an entry id.
   app.openapi(listRoute, async (c) => {
-    const { watched, inPlaylist, ...rest } = c.req.valid("query");
+    const { watched, inPlaylist, hidden, ...rest } = c.req.valid("query");
     const page = await listLibraryPage(db, currentPrincipal(c).userId, {
       ...rest,
       ...(watched === undefined ? {} : { watched: watched === "true" }),
       ...(inPlaylist === undefined ? {} : { inPlaylist: inPlaylist === "true" }),
+      ...(hidden === undefined ? {} : { hidden: hidden === "true" }),
     });
     return c.json(page, 200);
   });

@@ -10,6 +10,7 @@ import {
   NewPlaylistBody,
   NewUploadBody,
   PeopleShareBody,
+  PlaylistHiddenBody,
   PlaylistItemsBody,
   PlaylistMoveBody,
   PreferencesPatch,
@@ -149,10 +150,21 @@ describe("tags and preferences", () => {
   });
 
   it("a preferences patch may change one thing alone", () => {
-    expect(PreferencesPatch.parse({ hidePlaylistVideos: true })).toEqual({
-      hidePlaylistVideos: true,
+    const none = { show: [], skip: [] };
+    expect(PreferencesPatch.parse({ sponsorBlock: { video: none, audio: none } })).toEqual({
+      sponsorBlock: { video: none, audio: none },
     });
-    expect(ok(PreferencesPatch, { hidePlaylistVideos: "yes" })).toBe(false);
+    expect(ok(PreferencesPatch, { sponsorBlock: "all" })).toBe(false);
+  });
+
+  it("a preferences patch no longer carries Hide playlist videos, now each playlist's own", () => {
+    expect(PreferencesPatch.parse({ hidePlaylistVideos: true })).toEqual({});
+  });
+
+  it("a playlist is hidden from the library or not, nothing else", () => {
+    expect(PlaylistHiddenBody.parse({ hidden: true })).toEqual({ hidden: true });
+    expect(ok(PlaylistHiddenBody, { hidden: "yes" })).toBe(false);
+    expect(ok(PlaylistHiddenBody, {})).toBe(false);
   });
 });
 

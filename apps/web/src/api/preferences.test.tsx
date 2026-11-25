@@ -16,7 +16,6 @@ afterEach(() => {
 describe("changing the SponsorBlock setting", () => {
   it("fetches an open item again, so its player shows and skips by the new setting", async () => {
     const prefs = {
-      hidePlaylistVideos: false,
       sponsorBlock: DEFAULT_SPONSORBLOCK,
       sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
     };

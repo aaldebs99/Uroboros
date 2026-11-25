@@ -1,14 +1,13 @@
 import { getRouteApi, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { LibraryKind } from "@uroboros/contract";
 
-import type { LibraryFilters } from "@/api/library";
 import { ChannelPage } from "@/library/ChannelPage";
 import { ItemPage } from "@/library/ItemPage";
-import { LibraryPage } from "@/library/LibraryPage";
+import { LibraryPage, type LibraryViewFilters } from "@/library/LibraryPage";
 import { PlaylistPage } from "@/library/PlaylistPage";
 import type { PlayQueue } from "@/library/UpNext";
 
-function filtersFrom(searchStr: string): LibraryFilters {
+function filtersFrom(searchStr: string): LibraryViewFilters {
   const p = new URLSearchParams(searchStr);
   const text = (k: string) => {
     const v = p.get(k);
@@ -21,6 +20,7 @@ function filtersFrom(searchStr: string): LibraryFilters {
     ...text("tag"),
     ...(sort === "uploaded" || sort === "title" || sort === "duration" ? { sort } : {}),
     ...(watched === "true" || watched === "false" ? { watched: watched === "true" } : {}),
+    ...(p.get("showHidden") === "true" ? { showHidden: true } : {}),
   };
 }
 

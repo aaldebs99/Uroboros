@@ -110,6 +110,7 @@ export {
   PlaylistDetail,
   PlaylistItemsBody,
   PlaylistKind,
+  PlaylistHiddenBody,
   PlaylistMoveBody,
   PlaylistName,
   PlaylistPatch,

@@ -2355,6 +2355,17 @@
           }
         ]
       },
+      "PlaylistHiddenBody": {
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "hidden"
+        ],
+        "type": "object"
+      },
       "PlaylistItemsBody": {
         "properties": {
           "entryIds": {
@@ -2417,6 +2428,9 @@
             "nullable": true,
             "type": "string"
           },
+          "hideFromLibrary": {
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "type": "string"
@@ -2443,15 +2457,13 @@
           "count",
           "coverThumbnailUrl",
           "url",
-          "updatedAt"
+          "updatedAt",
+          "hideFromLibrary"
         ],
         "type": "object"
       },
       "Preferences": {
         "properties": {
-          "hidePlaylistVideos": {
-            "type": "boolean"
-          },
           "sponsorBlock": {
             "$ref": "#/components/schemas/SponsorBlockSettings"
           },
@@ -2460,7 +2472,6 @@
           }
         },
         "required": [
-          "hidePlaylistVideos",
           "sponsorBlock",
           "sponsorBlockColors"
         ],
@@ -2468,9 +2479,6 @@
       },
       "PreferencesPatch": {
         "properties": {
-          "hidePlaylistVideos": {
-            "type": "boolean"
-          },
           "sponsorBlock": {
             "$ref": "#/components/schemas/SponsorBlockSettings"
           },
@@ -6217,6 +6225,20 @@
             }
           },
           {
+            "description": "false: leave out the videos one of the caller's playlists hides from the library (PUT /api/playlists/{id}/hidden), as Library › Videos and Audio do; true: only those",
+            "in": "query",
+            "name": "hidden",
+            "required": false,
+            "schema": {
+              "description": "false: leave out the videos one of the caller's playlists hides from the library (PUT /api/playlists/{id}/hidden), as Library › Videos and Audio do; true: only those",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "description": "video: only files with a picture; audio: only files with sound alone, such as an audio-only download",
             "in": "query",
             "name": "kind",
@@ -8591,6 +8613,50 @@
           }
         },
         "summary": "Save as my playlist: a manual copy of the caller's videos from a playlist, in its order",
+        "tags": [
+          "playlists"
+        ]
+      }
+    },
+    "/api/playlists/{id}/hidden": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistHiddenBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such playlist"
+          }
+        },
+        "summary": "Keep a playlist's videos out of the library (GET /api/library?hidden=false), or let them back; of either kind, for the caller alone",
         "tags": [
           "playlists"
         ]

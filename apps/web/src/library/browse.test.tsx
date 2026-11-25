@@ -175,6 +175,7 @@ describe("library browsing", () => {
       count: 14,
       coverThumbnailUrl: null,
       updatedAt: "2026-11-22T10:00:00.000Z",
+      hideFromLibrary: false,
     };
     const urls = api({
       "/api/playlists": () => [playlist],

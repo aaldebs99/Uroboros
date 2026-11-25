@@ -28,6 +28,10 @@ order.
   listed and leaves the others, so a listing cut at `UROBOROS_MAX_PLAYLIST_ENTRIES` never drops the
   tail. Channel subscriptions record nothing.
 
+`PUT /api/playlists/{id}/hidden` keeps a playlist of either kind out of the library, or lets it
+back, for the caller alone (a YouTube one on their own `user_sources` row); `hideFromLibrary` says
+which ([library.md](library.md#hidden-playlists)).
+
 `POST /api/playlists/{id}/copy` is **Save as my playlist**: a manual playlist of the person's
 videos from either kind, in its order. On the watch page, `?list={id}` plays a playlist in order:
 Up next replaces the suggestions and the end of a video opens the next.

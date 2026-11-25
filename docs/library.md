@@ -19,7 +19,9 @@ public links in [sharing.md](sharing.md).
   caller has) and `playlist` (one of the caller's manual playlists); another person's playlist is
   404, and `source` with `playlist` is 400.
 - `inPlaylist`: `true` keeps only the videos in one of the caller's playlists, of either kind, and
-  `false` only those in none (see [Hide playlist videos](#hide-playlist-videos)).
+  `false` only those in none.
+- `hidden`: `false` leaves out the videos one of the caller's playlists hides from the library, and
+  `true` keeps only those (see [Hidden playlists](#hidden-playlists)).
 - `kind`: `video` keeps only the files with a picture and `audio` only those with sound alone (see
   [Videos and audio](#videos-and-audio)).
 - `sort`: `added` (newest first; the default), `uploaded`, `title`, `duration`, `relevance` (best
@@ -116,18 +118,29 @@ row until it is fetched). A YouTube playlist shows only to the people who have i
 not recorded. People also make playlists of their own; `GET /api/playlists` lists both kinds
 ([sharing.md](sharing.md)).
 
-### Hide playlist videos
+### Hidden playlists
 
-Library › Videos has a **Hide playlist videos** chip after All, Unwatched and Watched, and Library ›
-Audio the same chip as **Hide playlist audio**: one setting for both views. It is off by
-default, and it is kept on the person's account, so it follows them to every device:
-`GET /api/me/preferences` answers their `Preferences` (`user_preferences`, no row meaning the
-defaults), and `PATCH` changes only the fields it names. While it is on, the page asks for
-`inPlaylist=false`, its searches and tag filters too, and an empty page says "Nothing outside your
-playlists." with a way to Playlists. A video counts as a playlist video when it is in one of the
-person's own playlists (`playlist_items`) or in a YouTube playlist they have (`user_sources` with
-`source_items`, by extractor and video id); another person's playlist never hides it. Channel and
-playlist pages, the search palette and API callers that don't ask for `inPlaylist` are unaffected.
+Each playlist the person has, one they made or a YouTube one, has a **Hide from library** button in
+its header (`PUT /api/playlists/{id}/hidden` with `{ hidden }`; `hideFromLibrary` on a
+`PlaylistSummary`). Pressed, its videos stay out of Library › Videos and Audio, and its page and its
+tile on Playlists say "Hidden from library". A new playlist starts shown, and hiding one doesn't
+move it in the list. A manual playlist hides for its owner (`playlists.hide_from_library`); a
+YouTube playlist, which everyone who queued it shares, hides for each person apart
+(`user_sources.hide_from_library`), and another person's playlist never hides anything of theirs.
+A video is hidden when any of the person's playlists that hide holds it (a manual one by entry, a
+YouTube one by extractor and video id), whatever other playlists it is in.
+
+Library › Videos and Audio ask for `hidden=false`, tag and watched filters included. While one of
+the person's playlists hides, the chip row has a **Show hidden** chip after All, Unwatched and
+Watched, off on every visit and kept in the address (`?showHidden=true`), which asks for everything;
+when hiding leaves a view empty, the page says "Everything here is hidden by its playlists." with a
+button that does the same. A search finds hidden videos too, and so do playlist and channel pages,
+the search palette, Up next, Shared and API callers that don't ask for `hidden`.
+
+This replaced an account-wide **Hide playlist videos** chip (0.1.0), which hid every playlist's
+videos: the migration that brought the per-playlist setting marked every playlist of whoever had
+that chip on as hidden, so their library stayed as it was. `user_preferences.hide_playlist_videos`
+is read no more, and goes in a later release.
 
 ### SponsorBlock
 

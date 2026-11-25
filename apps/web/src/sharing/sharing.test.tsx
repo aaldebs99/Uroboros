@@ -300,6 +300,7 @@ describe("Shared", () => {
             coverThumbnailUrl: null,
             url: null,
             updatedAt: "2026-11-23T10:00:00.000Z",
+            hideFromLibrary: false,
             description: null,
           },
           { status: 201 },

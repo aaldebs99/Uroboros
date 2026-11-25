@@ -3,6 +3,7 @@ import {
   ApiErrorBody,
   NewPlaylistBody,
   PlaylistDetail,
+  PlaylistHiddenBody,
   PlaylistItemsBody,
   PlaylistMoveBody,
   PlaylistPatch,
@@ -20,6 +21,7 @@ import {
   moveItem,
   removeItem,
   replaceItems,
+  setPlaylistHidden,
   updatePlaylist,
 } from "./store.ts";
 
@@ -74,6 +76,16 @@ const patchRoute = createRoute({
     404: error("No such playlist"),
     409: youtube,
   },
+});
+
+const hiddenRoute = createRoute({
+  method: "put",
+  path: "/api/playlists/{id}/hidden",
+  tags: ["playlists"],
+  summary:
+    "Keep a playlist's videos out of the library (GET /api/library?hidden=false), or let them back; of either kind, for the caller alone",
+  request: { params: z.object({ id }), ...body(PlaylistHiddenBody) },
+  responses: { 204: done, 404: error("No such playlist") },
 });
 
 const deleteRoute = createRoute({
@@ -157,6 +169,10 @@ export function registerPlaylistRoutes(app: OpenAPIHono, db: Kysely<Database>): 
   app.openapi(patchRoute, async (c) =>
     c.json(await updatePlaylist(db, me(c), c.req.valid("param").id, c.req.valid("json")), 200),
   );
+  app.openapi(hiddenRoute, async (c) => {
+    await setPlaylistHidden(db, me(c), c.req.valid("param").id, c.req.valid("json").hidden);
+    return c.body(null, 204);
+  });
   app.openapi(deleteRoute, async (c) => {
     await deletePlaylist(db, me(c), c.req.valid("param").id);
     return c.body(null, 204);

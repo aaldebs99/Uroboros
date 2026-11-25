@@ -3,6 +3,7 @@ import type { ColumnType, Generated } from "kysely";
 /** `user_preferences`: how a person likes the app; no row means the defaults. Kept apart from schema.ts. */
 export interface UserPreferencesTable {
   user_id: string;
+  /** Read no more: playlists hide one by one (`hide_from_library`); a later release drops it. */
   hide_playlist_videos: Generated<boolean>;
   /** Settings › SponsorBlock: the categories shown and skipped, for videos and audio apart. */
   sponsorblock_video_show: Generated<string[]>;

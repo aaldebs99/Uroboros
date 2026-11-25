@@ -7,7 +7,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { deleteJson, getJson, patchJson, postJson, postNoContent } from "./client";
+import { deleteJson, getJson, patchJson, postJson, postNoContent, putNoContent } from "./client";
 import type { LibraryFilters } from "./library";
 
 const playlistsKey = ["api", "playlists"] as const;
@@ -52,6 +52,9 @@ export const createPlaylist = (body: NewPlaylistBody) =>
 export const updatePlaylist = ({ id, patch }: { id: string; patch: PlaylistPatch }) =>
   patchJson(path(id), PlaylistDetail, patch);
 export const deletePlaylist = (id: string) => deleteJson(path(id));
+/** Keeps the playlist's videos out of Library › Videos and Audio, or lets them back (docs/library.md). */
+export const setPlaylistHidden = ({ id, hidden }: { id: string; hidden: boolean }) =>
+  putNoContent(`${path(id)}/hidden`, { hidden });
 export const copyPlaylist = (id: string) => postJson(`${path(id)}/copy`, PlaylistDetail);
 export const appendToPlaylist = ({ id, entryIds }: { id: string; entryIds: string[] }) =>
   postNoContent(`${path(id)}/items`, { entryIds });

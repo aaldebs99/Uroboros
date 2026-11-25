@@ -373,6 +373,8 @@ export interface UserSourcesTable {
   user_id: string;
   source_id: string;
   queued_at: Created;
+  /** This person keeps the playlist's videos out of Library › Videos and Audio (docs/library.md). */
+  hide_from_library: Generated<boolean>;
 }
 
 export interface SourceItemsTable {
@@ -403,6 +405,8 @@ export interface PlaylistsTable {
   user_id: string;
   name: string;
   description: string | null;
+  /** Its videos stay out of Library › Videos and Audio (docs/library.md "Hidden playlists"). */
+  hide_from_library: Generated<boolean>;
   created_at: Created;
   updated_at: Defaulted<Date | string>;
 }

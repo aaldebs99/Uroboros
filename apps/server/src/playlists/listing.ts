@@ -25,6 +25,7 @@ interface Row {
   updated: Date;
   count: string;
   cover: string | null;
+  hidden: boolean;
 }
 
 function toDetail(kind: PlaylistKind, r: Row): PlaylistDetail {
@@ -36,6 +37,7 @@ function toDetail(kind: PlaylistKind, r: Row): PlaylistDetail {
     coverThumbnailUrl: thumb(r.cover),
     url: r.url,
     updatedAt: r.updated.toISOString(),
+    hideFromLibrary: r.hidden,
     description: r.description,
   };
 }
@@ -50,6 +52,7 @@ function manualRows(db: Kysely<Database>, userId: string) {
       "p.description",
       sql<null>`NULL::text`.as("url"),
       sql<Date>`p.updated_at`.as("updated"),
+      "p.hide_from_library as hidden",
       sql<string>`(SELECT count(*) FROM playlist_items pi WHERE pi.playlist_id = p.id)`.as("count"),
       sql<string | null>`(
         SELECT pi.entry_id || '|' || m.thumbnail_key FROM playlist_items pi
@@ -79,6 +82,7 @@ function youtubeRows(db: Kysely<Database>, userId: string) {
       sql<null>`NULL::text`.as("description"),
       "s.url",
       sql<Date>`us.queued_at`.as("updated"),
+      "us.hide_from_library as hidden",
       sql<string>`(SELECT count(DISTINCT e.id) ${mine})`.as("count"),
       sql<
         string | null

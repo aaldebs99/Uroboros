@@ -11,6 +11,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { Toaster } from "@/components/ui/sonner";
 import { fakeApi } from "@/test/fakeApi";
 import { renderInRouter } from "@/test/render";
 
@@ -90,6 +91,7 @@ const summary = (over: Record<string, unknown>) => ({
   coverThumbnailUrl: null,
   url: null,
   updatedAt: "2026-11-23T10:00:00.000Z",
+  hideFromLibrary: false,
   ...over,
 });
 const detail = (over: Record<string, unknown>) => ({ description: null, ...summary(over) });
@@ -247,5 +249,69 @@ describe("playlists", () => {
     await waitFor(() => {
       expect(calls.some((c) => c.path === `/api/library/${id(2)}`)).toBe(true);
     });
+  });
+});
+
+describe("hiding a playlist from the library", () => {
+  it("hides a manual playlist's videos, and says what it did", async () => {
+    const calls = fakeApi({
+      [`GET /api/playlists/${MANUAL}`]: () => Response.json(detail({})),
+      "GET /api/library": () => page(1),
+      [`PUT /api/playlists/${MANUAL}/hidden`]: ok,
+    });
+    await renderInRouter(
+      <>
+        <Toaster />
+        <PlaylistPage playlistId={MANUAL} />
+      </>,
+    );
+    const toggle = await screen.findByRole("button", { name: "Hide from library" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(toggle);
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ hidden: true });
+    });
+    expect(await screen.findByText("Its videos are hidden from your library.")).toBeInTheDocument();
+  });
+
+  it("shows a hidden playlist's videos again, and says it is hidden until then", async () => {
+    const calls = fakeApi({
+      [`GET /api/playlists/${YOUTUBE}`]: () =>
+        Response.json(
+          detail({ id: YOUTUBE, kind: "youtube", name: "Shorts", hideFromLibrary: true }),
+        ),
+      "GET /api/library": () => page(1),
+      [`PUT /api/playlists/${YOUTUBE}/hidden`]: ok,
+    });
+    await renderInRouter(
+      <>
+        <Toaster />
+        <PlaylistPage playlistId={YOUTUBE} />
+      </>,
+    );
+    expect(
+      await screen.findByText("From YouTube · 2 videos · Hidden from library"),
+    ).toBeInTheDocument();
+    const toggle = screen.getByRole("button", { name: "Hide from library" });
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(toggle);
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ hidden: false });
+    });
+    expect(await screen.findByText("Its videos show in your library again.")).toBeInTheDocument();
+  });
+
+  it("marks a hidden playlist's tile on Playlists", async () => {
+    fakeApi({
+      "GET /api/playlists": () =>
+        Response.json([summary({ hideFromLibrary: true }), summary({ id: YOUTUBE, name: "Kept" })]),
+    });
+    await renderInRouter(<PlaylistsPage />);
+    const hidden = (await screen.findByText("Road trip")).closest("li") as HTMLElement;
+    expect(
+      within(hidden).getByText("Playlist · 2 videos · Hidden from library"),
+    ).toBeInTheDocument();
+    const shown = screen.getByText("Kept").closest("li") as HTMLElement;
+    expect(within(shown).queryByText(/Hidden from library/)).toBeNull();
   });
 });

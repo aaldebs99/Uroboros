@@ -1,10 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DEFAULT_SPONSORBLOCK, DEFAULT_SPONSORBLOCK_COLORS } from "@uroboros/contract";
 import { toast } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Toaster } from "@/components/ui/sonner";
 import { fakeApi } from "@/test/fakeApi";
 import { renderInRouter } from "@/test/render";
 
@@ -38,32 +36,35 @@ afterEach(() => {
   toast.dismiss();
 });
 
-/** The account's preferences and a library that records the `inPlaylist` each page was asked with. */
-function serveHiding(hide: boolean, entries: unknown[] = [entry]) {
+/**
+ * The person's playlists, one hiding its videos from the library or none, and a library that
+ * records the `hidden` each page was asked with.
+ */
+function serveHidden(hiding: boolean, entries: unknown[] = [entry]) {
   const asked: (string | null)[] = [];
-  const calls = fakeApi({
-    "GET /api/me/preferences": () =>
-      Response.json({
-        hidePlaylistVideos: hide,
-        sponsorBlock: DEFAULT_SPONSORBLOCK,
-        sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
-      }),
-    // The only change these tests make is turning it on.
-    "PATCH /api/me/preferences": () =>
-      Response.json({
-        hidePlaylistVideos: true,
-        sponsorBlock: DEFAULT_SPONSORBLOCK,
-        sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
-      }),
+  fakeApi({
+    "GET /api/playlists": () =>
+      Response.json([
+        {
+          id: "0190a3f2-7c1e-7000-8000-0000000000d1",
+          kind: "manual",
+          name: "Music",
+          count: 3,
+          coverThumbnailUrl: null,
+          url: null,
+          updatedAt: "2026-11-23T10:00:00.000Z",
+          hideFromLibrary: hiding,
+        },
+      ]),
     "GET /api/library": (_init, url) => {
-      asked.push(url.searchParams.get("inPlaylist"));
+      asked.push(url.searchParams.get("hidden"));
       return Response.json({ entries, nextCursor: null });
     },
   });
-  return { asked, calls };
+  return { asked };
 }
 
-const hideChip = () => screen.getByRole("button", { name: "Hide playlist videos" });
+const showHiddenChip = () => screen.queryByRole("button", { name: "Show hidden" });
 
 describe("LibraryPage", () => {
   it("leaves the profile out of an upload's meta line", async () => {
@@ -197,60 +198,68 @@ describe("LibraryPage", () => {
     expect(calls.filter((c) => c.path === "/api/library")).toEqual([]);
   });
 
-  it("leaves out playlist videos from the first page while the account says so", async () => {
-    const { asked } = serveHiding(true);
+  it("leaves out what a hiding playlist holds", async () => {
+    const { asked } = serveHidden(true);
     await renderInRouter(<LibraryPage />);
     expect(await screen.findByText("Big Buck Bunny")).toBeInTheDocument();
-    expect(hideChip()).toHaveAttribute("aria-pressed", "true");
     expect(asked).toEqual(["false"]);
   });
 
-  it("saves the choice to the account when the chip is pressed", async () => {
-    const { asked, calls } = serveHiding(false);
+  it("offers Show hidden only while one of the person's playlists hides", async () => {
+    serveHidden(false);
+    const { unmount } = await renderInRouter(<LibraryPage />);
+    await screen.findByText("Big Buck Bunny");
+    expect(showHiddenChip()).toBeNull();
+    unmount();
+    serveHidden(true);
     await renderInRouter(<LibraryPage />);
+    expect(await screen.findByRole("button", { name: "Show hidden" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("puts Show hidden in the filters, which then ask for everything", async () => {
+    serveHidden(true);
+    const onFilters = vi.fn();
+    const { unmount } = await renderInRouter(
+      <LibraryPage filters={{ watched: false }} onFilters={onFilters} />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Show hidden" }));
+    expect(onFilters).toHaveBeenLastCalledWith({ watched: false, showHidden: true });
+    unmount();
+    const { asked } = serveHidden(true);
+    await renderInRouter(<LibraryPage filters={{ showHidden: true }} />);
+    expect(await screen.findByRole("button", { name: "Show hidden" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(asked).toEqual([null]);
+  });
+
+  it("finds hidden videos in a search", async () => {
+    const { asked } = serveHidden(true);
+    await renderInRouter(<LibraryPage filters={{ q: "bunny" }} />);
     await screen.findByText("Big Buck Bunny");
     expect(asked).toEqual([null]);
-    await userEvent.click(hideChip());
-    expect(hideChip()).toHaveAttribute("aria-pressed", "true");
-    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ hidePlaylistVideos: true });
-    await waitFor(() => {
-      expect(asked.at(-1)).toBe("false");
-    });
   });
 
-  it("puts the chip back and says why when the account refuses the change", async () => {
-    const refuse = fakeApi({
-      "GET /api/me/preferences": () =>
-        Response.json({
-          hidePlaylistVideos: false,
-          sponsorBlock: DEFAULT_SPONSORBLOCK,
-          sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
-        }),
-      "PATCH /api/me/preferences": () =>
-        Response.json({ code: "unavailable", message: "starting" }, { status: 503 }),
-      "GET /api/library": () => Response.json({ entries: [entry], nextCursor: null }),
-    });
-    await renderInRouter(
-      <>
-        <Toaster />
-        <LibraryPage />
-      </>,
-    );
-    await screen.findByText("Big Buck Bunny");
-    await userEvent.click(hideChip());
-    expect(await screen.findByText(/server is not ready/)).toBeInTheDocument();
-    expect(hideChip()).toHaveAttribute("aria-pressed", "false");
-    expect(refuse.some((c) => c.method === "PATCH")).toBe(true);
-  });
-
-  it("points at Playlists when hiding their videos leaves none", async () => {
-    serveHiding(true, []);
+  it("no longer has the account-wide Hide playlist videos chip", async () => {
+    serveHidden(true);
     await renderInRouter(<LibraryPage />);
-    expect(await screen.findByText("Nothing outside your playlists.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to Playlists" })).toHaveAttribute(
-      "href",
-      "/library/playlists",
-    );
+    await screen.findByText("Big Buck Bunny");
+    expect(screen.queryByRole("button", { name: /Hide playlist/ })).toBeNull();
+  });
+
+  it("says when its playlists hide everything, and shows it on request", async () => {
+    serveHidden(true, []);
+    const onFilters = vi.fn();
+    await renderInRouter(<LibraryPage onFilters={onFilters} />);
+    expect(
+      await screen.findByText("Everything here is hidden by its playlists."),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show hidden videos" }));
+    expect(onFilters).toHaveBeenLastCalledWith({ showHidden: true });
   });
 
   it("points an empty library at Downloads", async () => {
@@ -268,25 +277,13 @@ describe("LibraryPage's Videos and Audio views", () => {
   /** A library that records the `kind` each page was asked with. */
   function serveKinds(entries: unknown[] = [entry]) {
     const kinds: (string | null)[] = [];
-    const calls = fakeApi({
-      "GET /api/me/preferences": () =>
-        Response.json({
-          hidePlaylistVideos: false,
-          sponsorBlock: DEFAULT_SPONSORBLOCK,
-          sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
-        }),
-      "PATCH /api/me/preferences": () =>
-        Response.json({
-          hidePlaylistVideos: true,
-          sponsorBlock: DEFAULT_SPONSORBLOCK,
-          sponsorBlockColors: DEFAULT_SPONSORBLOCK_COLORS,
-        }),
+    fakeApi({
       "GET /api/library": (_init, url) => {
         kinds.push(url.searchParams.get("kind"));
         return Response.json({ entries, nextCursor: null });
       },
     });
-    return { kinds, calls };
+    return { kinds };
   }
 
   it("asks for the videos alone on Videos", async () => {
@@ -310,15 +307,6 @@ describe("LibraryPage's Videos and Audio views", () => {
     expect(kinds).toEqual([null]);
   });
 
-  it("calls the chip Hide playlist audio on Audio, and saves the same setting", async () => {
-    const { calls } = serveKinds();
-    await renderInRouter(<LibraryPage kind="audio" />);
-    await screen.findByText("Big Buck Bunny");
-    expect(screen.queryByRole("button", { name: "Hide playlist videos" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Hide playlist audio" }));
-    expect(calls.find((c) => c.method === "PATCH")?.body).toEqual({ hidePlaylistVideos: true });
-  });
-
   it("says when there is no audio yet", async () => {
     serveKinds([]);
     await renderInRouter(<LibraryPage kind="audio" />);
@@ -330,10 +318,13 @@ describe("LibraryPage's Videos and Audio views", () => {
     );
   });
 
-  it("says how to see playlist audio when hiding it leaves none", async () => {
-    serveHiding(true, []);
+  it("leaves out hidden audio too, and offers to show it when that leaves none", async () => {
+    const { asked } = serveHidden(true, []);
     await renderInRouter(<LibraryPage kind="audio" />);
-    expect(await screen.findByText("Nothing outside your playlists.")).toBeInTheDocument();
-    expect(screen.getByText(/Turn off Hide playlist audio/)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Everything here is hidden by its playlists."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show hidden audio" })).toBeInTheDocument();
+    expect(asked).toEqual(["false"]);
   });
 });

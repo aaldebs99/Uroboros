@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 
 import { PlaylistDialog } from "./PlaylistDialog";
+import { playlistMeta } from "./playlistMeta";
 import { tileGrid, tileMeta, tileTitle } from "./VideoTile";
 import { ViewTabs } from "./ViewTabs";
 
@@ -53,9 +54,7 @@ function PlaylistTile({ source }: { source: PlaylistSummary }) {
         </div>
         <span className="grid gap-0.5">
           <span className={tileTitle}>{source.name}</span>
-          <span className={tileMeta}>
-            {source.kind === "youtube" ? "From YouTube" : "Playlist"} · {source.count} videos
-          </span>
+          <span className={tileMeta}>{playlistMeta(source)}</span>
         </span>
       </Link>
     </li>

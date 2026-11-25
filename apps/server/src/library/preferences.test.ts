@@ -56,27 +56,39 @@ const patch = (s: SignedIn, body: unknown) =>
 
 describe("a person's preferences", () => {
   it("start at the defaults", async () => {
-    expect(await read(alice)).toEqual({
-      hidePlaylistVideos: false,
-      sponsorBlock: SB_DEFAULT,
-      sponsorBlockColors: COLORS,
-    });
+    expect(await read(alice)).toEqual({ sponsorBlock: SB_DEFAULT, sponsorBlockColors: COLORS });
   });
 
   it("save what a patch changes, answer them all, and stay the person's own", async () => {
-    const res = await patch(alice, { hidePlaylistVideos: true });
+    const mine = { ...COLORS, sponsor: "#123456" };
+    const res = await patch(alice, { sponsorBlockColors: mine });
     expect(res.status).toBe(200);
-    expect(Preferences.parse(await res.json()).hidePlaylistVideos).toBe(true);
-    expect((await read(alice)).hidePlaylistVideos).toBe(true);
-    expect((await read(bob)).hidePlaylistVideos).toBe(false);
+    expect(Preferences.parse(await res.json()).sponsorBlockColors).toEqual(mine);
+    expect((await read(alice)).sponsorBlockColors).toEqual(mine);
+    expect((await read(bob)).sponsorBlockColors).toEqual(COLORS);
     // An empty patch changes nothing.
-    expect(Preferences.parse(await (await patch(alice, {})).json()).hidePlaylistVideos).toBe(true);
-    await patch(alice, { hidePlaylistVideos: false });
-    expect((await read(alice)).hidePlaylistVideos).toBe(false);
+    expect(Preferences.parse(await (await patch(alice, {})).json()).sponsorBlockColors).toEqual(
+      mine,
+    );
+    await patch(alice, { sponsorBlockColors: COLORS });
+    expect((await read(alice)).sponsorBlockColors).toEqual(COLORS);
   });
 
   it("refuse a value of the wrong kind (400)", async () => {
-    expect((await patch(alice, { hidePlaylistVideos: "yes" })).status).toBe(400);
+    expect((await patch(alice, { sponsorBlock: "all" })).status).toBe(400);
+  });
+
+  it("no longer take Hide playlist videos, which playlists now do one by one", async () => {
+    const gina = await signedIn(t.db, { username: "pfgina" });
+    const res = await patch(gina, { hidePlaylistVideos: true });
+    expect(res.status).toBe(200);
+    expect(await res.json()).not.toHaveProperty("hidePlaylistVideos");
+    const row = await t.db
+      .selectFrom("user_preferences")
+      .select("hide_playlist_videos")
+      .where("user_id", "=", gina.userId)
+      .executeTakeFirst();
+    expect(row?.hide_playlist_videos ?? false).toBe(false);
   });
 });
 
@@ -85,9 +97,10 @@ describe("a person's SponsorBlock choices (docs/automation.md#sponsorblock)", ()
     expect((await read(bob)).sponsorBlock).toEqual(SB_DEFAULT);
   });
 
-  it("patch alone, sorted and de-duplicated, keeping hidePlaylistVideos", async () => {
+  it("patch alone, sorted and de-duplicated, keeping the colors", async () => {
     const carol = await signedIn(t.db, { username: "pfcarol" });
-    await patch(carol, { hidePlaylistVideos: true });
+    const colors = { ...COLORS, intro: "#abcdef" };
+    await patch(carol, { sponsorBlockColors: colors });
     const res = await patch(carol, {
       sponsorBlock: {
         video: { show: ["sponsor", "intro", "sponsor"], skip: [] },
@@ -96,17 +109,16 @@ describe("a person's SponsorBlock choices (docs/automation.md#sponsorblock)", ()
     });
     expect(res.status).toBe(200);
     const want = {
-      hidePlaylistVideos: true,
       sponsorBlock: {
         video: { show: ["intro", "sponsor"], skip: [] },
         audio: { show: D, skip: ["sponsor"] },
       },
-      sponsorBlockColors: COLORS,
+      sponsorBlockColors: colors,
     };
     expect(Preferences.parse(await res.json())).toEqual(want);
     expect(await read(carol)).toEqual(want);
-    // Turning hidePlaylistVideos off leaves the SponsorBlock choices alone.
-    await patch(carol, { hidePlaylistVideos: false });
+    // Changing the colors back leaves the SponsorBlock choices alone.
+    await patch(carol, { sponsorBlockColors: COLORS });
     expect((await read(carol)).sponsorBlock).toEqual(want.sponsorBlock);
   });
 
@@ -150,14 +162,15 @@ describe("a person's SponsorBlock colors (docs/automation.md#sponsorblock)", () 
 
   it("patch alone, lower-cased, keeping only the changed ones, and reset to SponsorBlock's", async () => {
     const erin = await signedIn(t.db, { username: "pferin" });
-    await patch(erin, { hidePlaylistVideos: true });
+    const choice = { video: { show: ["intro"], skip: [] }, audio: SB_DEFAULT.audio };
+    await patch(erin, { sponsorBlock: choice });
     const res = await patch(erin, {
       sponsorBlockColors: { ...COLORS, sponsor: "#FF0000", poi_highlight: "#00Aa00" },
     });
     expect(res.status).toBe(200);
     const want = { ...COLORS, sponsor: "#ff0000", poi_highlight: "#00aa00" };
     expect(Preferences.parse(await res.json()).sponsorBlockColors).toEqual(want);
-    expect(await read(erin)).toMatchObject({ hidePlaylistVideos: true, sponsorBlockColors: want });
+    expect(await read(erin)).toMatchObject({ sponsorBlock: choice, sponsorBlockColors: want });
     expect(await stored(erin)).toEqual({ sponsor: "#ff0000", poi_highlight: "#00aa00" });
     // Back to SponsorBlock's: nothing left to keep.
     await patch(erin, { sponsorBlockColors: COLORS });

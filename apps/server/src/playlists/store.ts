@@ -116,6 +116,36 @@ export async function updatePlaylist(
   return getPlaylist(db, userId, id);
 }
 
+/**
+ * Whether one of the caller's playlists keeps its videos out of Library › Videos and Audio
+ * (docs/library.md "Hidden playlists"): a manual playlist for its owner, a YouTube playlist on the
+ * caller's own `user_sources` row, so for them alone. It isn't a change to the playlist: its place
+ * in the list stays. Another person's is 404.
+ */
+export async function setPlaylistHidden(
+  db: Kysely<Database>,
+  userId: string,
+  id: string,
+  hidden: boolean,
+): Promise<void> {
+  const done =
+    (await db
+      .updateTable("playlists")
+      .set({ hide_from_library: hidden })
+      .where("id", "=", id)
+      .where("user_id", "=", userId)
+      .executeTakeFirst()
+      .then((r) => r.numUpdatedRows > 0n)) ||
+    (await db
+      .updateTable("user_sources")
+      .set({ hide_from_library: hidden })
+      .where("source_id", "=", id)
+      .where("user_id", "=", userId)
+      .executeTakeFirst()
+      .then((r) => r.numUpdatedRows > 0n));
+  if (!done) throw new ApiError("not_found", "no such playlist");
+}
+
 export async function deletePlaylist(db: Kysely<Database>, userId: string, id: string) {
   await db.transaction().execute(async (tx) => {
     await lockManual(tx, userId, id);

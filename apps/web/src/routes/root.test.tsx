@@ -36,26 +36,29 @@ async function renderAt(
   return router;
 }
 
+/** What every page of the shell asks for. */
+const SHELL = {
+  "/api/info": () => Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
+  "/api/me": () =>
+    Response.json({
+      id: "0190a3f2-7c1e-7000-8000-000000000001",
+      displayName: "Alice",
+      email: null,
+      role: "member",
+      method: "local",
+      isBootstrap: false,
+    }),
+  "/api/me/push": () =>
+    Response.json({ enabled: false, publicKey: null, devices: [], maxDevices: 10 }),
+  "/api/subscriptions": () => Response.json([]),
+  "/api/notices": () => Response.json({ notices: [], unread: 0 }),
+  "/api/downloads?active=true": () => Response.json([]),
+  "/api/uploads": () => Response.json([]),
+  "/api/exports": () => Response.json([]),
+};
+
 beforeEach(() => {
-  stubApi({
-    "/api/info": () => Response.json({ name: "uroboros", version: "0.0.0", publicBaseUrl: null }),
-    "/api/me": () =>
-      Response.json({
-        id: "0190a3f2-7c1e-7000-8000-000000000001",
-        displayName: "Alice",
-        email: null,
-        role: "member",
-        method: "local",
-        isBootstrap: false,
-      }),
-    "/api/me/push": () =>
-      Response.json({ enabled: false, publicKey: null, devices: [], maxDevices: 10 }),
-    "/api/subscriptions": () => Response.json([]),
-    "/api/notices": () => Response.json({ notices: [], unread: 0 }),
-    "/api/downloads?active=true": () => Response.json([]),
-    "/api/uploads": () => Response.json([]),
-    "/api/exports": () => Response.json([]),
-  });
+  stubApi(SHELL);
 });
 
 afterEach(() => {
@@ -117,7 +120,37 @@ describe("app shell", () => {
       "aria-current",
       "page",
     );
-    expect(await screen.findByRole("button", { name: "Hide playlist audio" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Unwatched" })).toBeInTheDocument();
+  });
+
+  it("keeps Show hidden in the address, and drops it when pressed again", async () => {
+    stubApi({
+      ...SHELL,
+      "/api/playlists": () =>
+        Response.json([
+          {
+            id: "0190a3f2-7c1e-7000-8000-0000000000d1",
+            kind: "manual",
+            name: "Music",
+            count: 3,
+            coverThumbnailUrl: null,
+            url: null,
+            updatedAt: "2026-11-23T10:00:00.000Z",
+            hideFromLibrary: true,
+          },
+        ]),
+    });
+    const router = await renderAt("/?showHidden=true");
+    const chip = await screen.findByRole("button", { name: "Show hidden" });
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(chip);
+    await waitFor(() => {
+      expect(router.state.location.searchStr).toBe("");
+    });
+    expect(screen.getByRole("button", { name: "Show hidden" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("navigating to /subscriptions shows the subscriptions", async () => {

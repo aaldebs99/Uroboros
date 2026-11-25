@@ -1,15 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { SEARCH_MIN_CHARS, type LibraryKind } from "@uroboros/contract";
-import { Download, Library, ListVideo, Music, SearchX } from "lucide-react";
+import { Download, Eye, EyeOff, Library, Music, SearchX } from "lucide-react";
 
-import { errorText } from "@/api/client";
 import type { LibraryFilters } from "@/api/library";
-import { usePreferences, useUpdatePreferences } from "@/api/preferences";
+import { usePlaylists } from "@/api/playlists";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
-import { notify } from "@/components/ui/sonner";
 
 import { Chip, ChipRow, FilterChip } from "./Chips";
 import { LibraryGrid } from "./LibraryGrid";
@@ -28,38 +26,47 @@ const WATCHED = [
   { label: "Watched", value: true },
 ] as const;
 
-function without(f: LibraryFilters, key: keyof LibraryFilters): LibraryFilters {
+/** A library view's filters: what the grid asks for, and Show hidden, kept in the URL but never sent. */
+export interface LibraryViewFilters extends LibraryFilters {
+  showHidden?: true;
+}
+
+function without(f: LibraryViewFilters, key: keyof LibraryViewFilters): LibraryViewFilters {
   const { [key]: _gone, ...rest } = f;
   return rest;
 }
 
 /**
- * What the grid asks for: the view's kind, except in a search, which finds both on either view, and
- * nothing in the person's playlists while they hide those.
+ * What the grid asks for: the view's kind, and nothing a playlist hides from the library unless Show
+ * hidden is on (docs/library.md "Hidden playlists"); a search finds both kinds, hidden or not.
  */
-function gridFilters(filters: LibraryFilters, kind: LibraryKind, hide: boolean): LibraryFilters {
-  return {
-    ...filters,
-    ...(filters.q === undefined ? { kind } : {}),
-    ...(hide ? { inPlaylist: false } : {}),
-  };
+function gridFilters(
+  { showHidden, ...filters }: LibraryViewFilters,
+  kind: LibraryKind,
+): LibraryFilters {
+  if (filters.q !== undefined) return filters;
+  return { ...filters, kind, ...(showHidden === true ? {} : { hidden: false }) };
 }
 
-/** The chip that hides what is in the person's playlists, named for the view. */
-const HIDE_LABEL: Record<LibraryKind, string> = {
-  video: "Hide playlist videos",
-  audio: "Hide playlist audio",
-};
+/** Whether one of the person's playlists keeps its videos out of the library. */
+function useSomeHidden(): boolean {
+  return usePlaylists().data?.some((p) => p.hideFromLibrary) ?? false;
+}
 
-/** What an empty page says: a filter left nothing, hiding playlist videos did, or there's nothing yet. */
+/**
+ * What an empty page says: a filter left nothing, the playlists that hide their videos hid
+ * everything (`hiding`), or there's nothing yet.
+ */
 function EmptyLibrary({
   kind,
   narrowed,
   hiding,
+  onShowHidden,
 }: {
   kind: LibraryKind;
   narrowed: boolean;
   hiding: boolean;
+  onShowHidden: () => void;
 }) {
   if (narrowed) {
     return (
@@ -71,20 +78,18 @@ function EmptyLibrary({
   if (hiding) {
     return (
       <EmptyState
-        icon={ListVideo}
-        title="Nothing outside your playlists."
+        icon={EyeOff}
+        title="Everything here is hidden by its playlists."
         action={
-          <Button asChild>
-            <Link to="/library/playlists">
-              <ListVideo aria-hidden />
-              Go to Playlists
-            </Link>
+          <Button onClick={onShowHidden}>
+            <Eye aria-hidden />
+            {kind === "audio" ? "Show hidden audio" : "Show hidden videos"}
           </Button>
         }
       >
         {kind === "audio"
-          ? "Turn off Hide playlist audio to see all your audio here."
-          : "Turn off Hide playlist videos to see every video here."}
+          ? "A playlist's Hide from library keeps its audio out of here."
+          : "A playlist's Hide from library keeps its videos out of here."}
       </EmptyState>
     );
   }
@@ -111,8 +116,8 @@ function EmptyLibrary({
 
 /**
  * Library › Videos or Library › Audio: what the person has downloaded of that kind, searchable and
- * filterable (docs/library.md); a search shows both kinds. The account's Hide playlist videos
- * leaves out what is in their playlists, once it is known.
+ * filterable (docs/library.md); a search shows both kinds. What a playlist hides from the library
+ * stays out unless Show hidden is on, which the chip row offers while one of their playlists hides.
  */
 export function LibraryPage({
   kind = "video",
@@ -120,13 +125,15 @@ export function LibraryPage({
   onFilters = () => undefined,
 }: {
   kind?: LibraryKind;
-  filters?: LibraryFilters;
+  filters?: LibraryViewFilters;
   /** The route keeps the filters in the URL. */
-  onFilters?: (f: LibraryFilters) => void;
+  onFilters?: (f: LibraryViewFilters) => void;
 }) {
-  const prefs = usePreferences();
-  const update = useUpdatePreferences();
-  const hide = prefs.data?.hidePlaylistVideos ?? false;
+  const someHidden = useSomeHidden();
+  const showHidden = filters.showHidden === true;
+  const toggleHidden = () => {
+    onFilters(showHidden ? without(filters, "showHidden") : { ...filters, showHidden: true });
+  };
   const narrowed =
     filters.q !== undefined || filters.tag !== undefined || filters.watched !== undefined;
   // The server searches only from 3 characters (docs/library.md "Search"): fewer is not sent.
@@ -154,21 +161,11 @@ export function LibraryPage({
               {w.label}
             </Chip>
           ))}
-          <Chip
-            pressed={hide}
-            onClick={() => {
-              update.mutate(
-                { hidePlaylistVideos: !hide },
-                {
-                  onError: (err) => {
-                    notify.error(errorText(err));
-                  },
-                },
-              );
-            }}
-          >
-            {HIDE_LABEL[kind]}
-          </Chip>
+          {someHidden || showHidden ? (
+            <Chip pressed={showHidden} onClick={toggleHidden}>
+              Show hidden
+            </Chip>
+          ) : null}
           {filters.q === undefined ? null : (
             <FilterChip
               label={`“${filters.q}”`}
@@ -218,10 +215,15 @@ export function LibraryPage({
         </EmptyState>
       ) : (
         <LibraryGrid
-          filters={gridFilters(filters, kind, hide)}
-          // A failed read of the preferences counts as off rather than holding the page.
-          enabled={!prefs.isPending}
-          empty={<EmptyLibrary kind={kind} narrowed={narrowed} hiding={hide} />}
+          filters={gridFilters(filters, kind)}
+          empty={
+            <EmptyLibrary
+              kind={kind}
+              narrowed={narrowed}
+              hiding={someHidden && !showHidden}
+              onShowHidden={toggleHidden}
+            />
+          }
         />
       )}
     </section>
