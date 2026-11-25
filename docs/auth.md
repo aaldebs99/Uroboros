@@ -75,7 +75,8 @@ is not stored).
 ## Sessions and CSRF
 
 A session is a random 32-byte token in the `uroboros_session` cookie (`HttpOnly`,
-`SameSite=Strict`, `Path=/`, `Secure` when the public URL is https); only its SHA-256 is stored, in
+`SameSite=Strict`, `Path=/`, `Secure` when the public URL is https or the sign-in itself came over
+https, by its own scheme or a trusted proxy's `X-Forwarded-Proto`); only its SHA-256 is stored, in
 Postgres, so any replica can resolve it. Lifetime is fixed at `UROBOROS_SESSION_TTL_HOURS` (720),
 with no sliding expiry. `last_seen_at` is written at most once a minute. Every non-GET request that
 uses the cookie must send `X-Uroboros-CSRF` equal to the readable `uroboros_csrf` cookie and to the

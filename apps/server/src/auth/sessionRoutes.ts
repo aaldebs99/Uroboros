@@ -14,7 +14,7 @@ import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import type { AuthConfig } from "./config.ts";
-import { clearAuthCookies, setAuthCookies } from "./cookies.ts";
+import { clearAuthCookies, secureCookiesFor, setAuthCookies } from "./cookies.ts";
 import { failureKeys, type Limiter } from "./limiter.ts";
 import { DUMMY_HASH, verifyPassword } from "./passwords.ts";
 import { createSession, deleteSession } from "./sessions.ts";
@@ -83,6 +83,9 @@ export interface SessionRoutesContext {
   endSessionUrl: (userId: string) => Promise<string | null>;
 }
 
+const secureFor = (c: Context, ctx: SessionRoutesContext) =>
+  secureCookiesFor(c, { configured: ctx.secureCookies, trustProxy: ctx.settings.trustProxy });
+
 /**
  * The client address for the per-IP limit. Behind a trusted proxy it is `X-Forwarded-For`'s last
  * entry, the one that proxy added: entries to its left came from the client, and a proxy that
@@ -147,7 +150,7 @@ export function registerSessionRoutes(app: OpenAPIHono, ctx: SessionRoutesContex
       token: session.token,
       csrf: session.csrf,
       maxAgeSeconds: ctx.settings.sessionTtlHours * 3600,
-      secure: ctx.secureCookies,
+      secure: secureFor(c, ctx),
     });
     return c.body(null, 204);
   });
@@ -158,7 +161,7 @@ export function registerSessionRoutes(app: OpenAPIHono, ctx: SessionRoutesContex
       throw new ApiError("bad_request", "an API token has no session to sign out of");
     }
     await deleteSession(ctx.db, principal.sessionHash);
-    clearAuthCookies(c, ctx.secureCookies);
+    clearAuthCookies(c, secureFor(c, ctx));
     return c.json({ endSessionUrl: await ctx.endSessionUrl(principal.userId) }, 200);
   });
 

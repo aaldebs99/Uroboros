@@ -20,6 +20,21 @@ export function setAuthCookies(
   setCookie(c, CSRF_COOKIE, opts.csrf, { ...base, httpOnly: false });
 }
 
+/**
+ * Whether cookies set on this response are `Secure`: always behind an https public URL, and
+ * otherwise whenever the request itself arrived over https, its own scheme or, behind a trusted
+ * proxy, `X-Forwarded-Proto`'s last entry (the one that proxy set). An operator who puts TLS in
+ * front without setting the public URL then still never has the session cookie sent in the clear.
+ */
+export function secureCookiesFor(
+  c: Context,
+  opts: { configured: boolean; trustProxy: boolean },
+): boolean {
+  if (opts.configured || new URL(c.req.url).protocol === "https:") return true;
+  const proto = opts.trustProxy ? c.req.header("x-forwarded-proto")?.split(",").at(-1) : undefined;
+  return proto?.trim().toLowerCase() === "https";
+}
+
 export function clearAuthCookies(c: Context, secure: boolean): void {
   deleteCookie(c, SESSION_COOKIE, { path: "/", secure });
   deleteCookie(c, CSRF_COOKIE, { path: "/", secure });

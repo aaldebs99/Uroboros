@@ -103,6 +103,14 @@ describe("local sign-in", () => {
     expect(cookies(res).raw.every((h) => /Secure/.test(h))).toBe(true);
   });
 
+  it("marks cookies Secure when a trusted proxy says the request came over https", async () => {
+    const proto = { "x-forwarded-proto": "https" };
+    const trusted = await login(app({ trustProxy: true }), "alice", PASSWORD, proto);
+    expect(cookies(trusted).raw.every((h) => /Secure/.test(h))).toBe(true);
+    const untrusted = await login(app({ trustProxy: false }), "alice", PASSWORD, proto);
+    expect(cookies(untrusted).raw.some((h) => /Secure/.test(h))).toBe(false);
+  });
+
   it("matches the username case-insensitively and trims it", async () => {
     expect((await login(app(), "  Alice ", PASSWORD)).status).toBe(204);
   });
