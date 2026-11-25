@@ -25,7 +25,14 @@ describe("subscriptions contract", () => {
       backfill: { mode: "none", count: null },
       retention: { keepLast: null, deleteWatchedAfterDays: null },
       notify: true,
+      autoDownload: true,
     });
+  });
+
+  it("takes a manual schedule, with nothing else to it", () => {
+    expect(
+      NewSubscriptionBody.parse({ ...minimal, schedule: { kind: "manual" } }).schedule,
+    ).toEqual({ kind: "manual" });
   });
 
   it("refuses newest backfill without a count", () => {
