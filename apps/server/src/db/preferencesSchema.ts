@@ -4,4 +4,9 @@ import type { Generated } from "kysely";
 export interface UserPreferencesTable {
   user_id: string;
   hide_playlist_videos: Generated<boolean>;
+  /** Settings › SponsorBlock: the categories shown and skipped, for videos and audio apart. */
+  sponsorblock_video_show: Generated<string[]>;
+  sponsorblock_video_skip: Generated<string[]>;
+  sponsorblock_audio_show: Generated<string[]>;
+  sponsorblock_audio_skip: Generated<string[]>;
 }

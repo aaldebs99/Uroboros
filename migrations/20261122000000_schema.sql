@@ -734,7 +734,17 @@ CREATE TABLE notification_prefs (
 CREATE TABLE user_preferences (
   user_id UUID PRIMARY KEY REFERENCES users ON DELETE CASCADE,
   -- Library › Videos leaves out the videos in any of their playlists (docs/library.md).
-  hide_playlist_videos BOOLEAN NOT NULL DEFAULT false
+  hide_playlist_videos BOOLEAN NOT NULL DEFAULT false,
+  -- Settings › SponsorBlock (docs/automation.md#sponsorblock): the categories whose segments the
+  -- player shows on the timeline and those it skips, for videos and for audio files apart.
+  sponsorblock_video_show TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
+    CHECK (sponsorblock_video_show <@ ARRAY['sponsor','intro','outro','selfpromo','preview','filler','interaction','music_offtopic']),
+  sponsorblock_video_skip TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
+    CHECK (sponsorblock_video_skip <@ ARRAY['sponsor','intro','outro','selfpromo','preview','filler','interaction','music_offtopic']),
+  sponsorblock_audio_show TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
+    CHECK (sponsorblock_audio_show <@ ARRAY['sponsor','intro','outro','selfpromo','preview','filler','interaction','music_offtopic']),
+  sponsorblock_audio_skip TEXT[] NOT NULL DEFAULT '{interaction,selfpromo,sponsor}'
+    CHECK (sponsorblock_audio_skip <@ ARRAY['sponsor','intro','outro','selfpromo','preview','filler','interaction','music_offtopic'])
 );
 
 -- A video's keyframe times in seconds from the file's start, sorted: where a playback session that

@@ -2448,10 +2448,14 @@
         "properties": {
           "hidePlaylistVideos": {
             "type": "boolean"
+          },
+          "sponsorBlock": {
+            "$ref": "#/components/schemas/SponsorBlockSettings"
           }
         },
         "required": [
-          "hidePlaylistVideos"
+          "hidePlaylistVideos",
+          "sponsorBlock"
         ],
         "type": "object"
       },
@@ -2459,6 +2463,9 @@
         "properties": {
           "hidePlaylistVideos": {
             "type": "boolean"
+          },
+          "sponsorBlock": {
+            "$ref": "#/components/schemas/SponsorBlockSettings"
           }
         },
         "type": "object"
@@ -3544,6 +3551,44 @@
           "music_offtopic"
         ],
         "type": "string"
+      },
+      "SponsorBlockChoice": {
+        "properties": {
+          "show": {
+            "items": {
+              "$ref": "#/components/schemas/SponsorBlockCategory"
+            },
+            "maxItems": 16,
+            "type": "array"
+          },
+          "skip": {
+            "items": {
+              "$ref": "#/components/schemas/SponsorBlockCategory"
+            },
+            "maxItems": 16,
+            "type": "array"
+          }
+        },
+        "required": [
+          "show",
+          "skip"
+        ],
+        "type": "object"
+      },
+      "SponsorBlockSettings": {
+        "properties": {
+          "audio": {
+            "$ref": "#/components/schemas/SponsorBlockChoice"
+          },
+          "video": {
+            "$ref": "#/components/schemas/SponsorBlockChoice"
+          }
+        },
+        "required": [
+          "video",
+          "audio"
+        ],
+        "type": "object"
       },
       "Subscription": {
         "properties": {
