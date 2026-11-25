@@ -216,10 +216,20 @@ title (24/700) with the muted description under it, the action at the trailing e
 under the title when narrow), and a hairline rule under the header (`pb-3.5 border-b
 border-border`). A page holding a single list doesn't repeat the list's own heading.
 
-A detail page reached from a list (a subscription, a group, a channel, a playlist, a shared
-playlist, a new subscription) has a **back link** above its title, `components/ui/back-link.tsx`: a
-compact quiet button at the left margin (`-ml-3.5`, so its arrow lines up with the text) with an
-`ArrowLeft` and the list's name ("← Subscriptions", "← Groups", "← Channels", "← Playlists", "←
-Shared"), a router `Link` to the list rather than `history.back()`, so it works from a deep link
-too. It shows in the page's loading and error states as well. The watch page has none, as on
-YouTube: it is opened from too many places for one of them to be "back".
+## Back link
+
+**Every detail page has one.** A detail page is a page about one thing that a list leads to: a
+subscription, a group, a channel, a playlist, a shared playlist, a new subscription. It starts with
+`BackLink` (`components/ui/back-link.tsx`) above its title, a compact quiet button at the left
+margin (`-ml-3.5`, so its arrow lines up with the text) with an `ArrowLeft` and the list's name
+("← Subscriptions", "← Groups", "← Channels", "← Playlists", "← Shared"). It is a router `Link` to
+the list rather than `history.back()`, so it works from a deep link too. It leaves 0.75rem to the
+title in a `gap-6` section; in a `gap-8` one, pass `-mb-5`.
+
+It shows in every state the page has: loading, an error, a thing that is gone, and the page
+itself. Wrap the states in one frame that holds the link (`SharedPlaylistPage`'s `Frame`,
+`NewSubscriptionFrame`) rather than returning an early branch without it. A new detail page adds
+its list's route to `BackLink`'s `to` union and a test that the link is there in its error state.
+
+The watch page is the one exception, as on YouTube: it is opened from too many places for one of
+them to be "back". A public link (`/s/$code`) has no list behind it, so it has none either.
