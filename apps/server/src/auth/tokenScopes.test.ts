@@ -9,7 +9,7 @@ import { createApp } from "../api/app.ts";
 const logger = pino({ level: "silent" });
 
 let testDb: TestDb;
-/** MCP off, as without `UROBOROS_MCP_ENABLED`. */
+/** MCP off, as with `UROBOROS_MCP_ENABLED=false`. */
 let app: OpenAPIHono;
 /** The same server with MCP on. */
 let mcpOn: OpenAPIHono;
@@ -18,7 +18,7 @@ let n = 0;
 beforeAll(async () => {
   testDb = await TestDb.create();
   const deps = { db: testDb.db, version: "t", logger, auth: { secureCookies: false } };
-  app = createApp(deps, { webDist: null });
+  app = createApp(deps, { webDist: null, mcpEnabled: false });
   mcpOn = createApp(deps, { webDist: null, mcpEnabled: true });
 });
 afterAll(async () => {

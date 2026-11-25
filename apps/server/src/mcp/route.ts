@@ -22,7 +22,7 @@ export interface McpDeps {
   downloads: DownloadContext | undefined;
   logger: Logger;
   version: string;
-  /** `UROBOROS_MCP_ENABLED`, read at start: off (the default), `/api/mcp` answers 404. */
+  /** `UROBOROS_MCP_ENABLED`, read at start (on unless false): off, `/api/mcp` answers 404. */
   enabled?: boolean | undefined;
 }
 
@@ -85,7 +85,7 @@ export function registerMcpRoute(app: OpenAPIHono, deps: McpDeps): void {
   });
 
   app.on(["GET", "POST", "DELETE"], MCP_PATH, async (c) => {
-    if (deps.enabled !== true) {
+    if (deps.enabled === false) {
       throw new ApiError("not_found", "the MCP server is off");
     }
     const principal = currentPrincipal(c);

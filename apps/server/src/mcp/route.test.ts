@@ -13,14 +13,17 @@ const logger = pino({ level: "silent" });
 
 let testDb: TestDb;
 let app: OpenAPIHono;
-/** The same server with MCP off, as without `UROBOROS_MCP_ENABLED`. */
+/** The same server with MCP off, as with `UROBOROS_MCP_ENABLED=false`. */
 let off: OpenAPIHono;
 let secret: string;
 
 beforeAll(async () => {
   testDb = await TestDb.create();
   app = createApp({ db: testDb.db, version: "9.9.9", logger }, { webDist: null, mcpEnabled: true });
-  off = createApp({ db: testDb.db, version: "9.9.9", logger }, { webDist: null });
+  off = createApp(
+    { db: testDb.db, version: "9.9.9", logger },
+    { webDist: null, mcpEnabled: false },
+  );
   secret = await mcpToken(testDb.db, await insertUser(testDb.db, { username: "mcproute" }));
 });
 afterAll(async () => {

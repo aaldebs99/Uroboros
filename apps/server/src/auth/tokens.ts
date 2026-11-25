@@ -138,7 +138,7 @@ async function insertToken(tx: Transaction<Database>, t: NewToken) {
 export function registerTokenRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
-  { mcpEnabled = false }: { mcpEnabled?: boolean | undefined } = {},
+  { mcpEnabled = true }: { mcpEnabled?: boolean | undefined } = {},
 ): void {
   app.openapi(listRoute, async (c) => {
     const { userId } = currentPrincipal(c);

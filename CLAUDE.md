@@ -113,7 +113,7 @@ refused on `/api/admin`, `/api/me/tokens`, `/api/me/password`, `/api/me/sessions
 `/api/me/push` and `/api/me/site-logins`. A token's scopes say what it reaches (`api` the REST
 API, `mcp` the MCP server at `/api/mcp`, which takes tokens only, never the cookie), and a
 read-only one gets 403 on every REST write (`checkTokenReach` in `auth/guard.ts`). The MCP server
-(`docs/mcp.md`) is off unless `UROBOROS_MCP_ENABLED` is true (read at start); its tools call the REST routes' service functions and act as a member. Local passwords are argon2id on Node's built-in `crypto.argon2`; failed sign-ins
+(`docs/mcp.md`) is on unless `UROBOROS_MCP_ENABLED` is false (read at start); its tools call the REST routes' service functions and act as a member. Local passwords are argon2id on Node's built-in `crypto.argon2`; failed sign-ins
 are counted in Postgres (an unlogged table) so the limit holds across replicas. OIDC uses `openid-client` with PKCE S256
 and checks ID-token signatures against the provider's JWKS; the claims sync redeems refresh tokens
 under the `URO_OSYN` advisory lock, one replica at a time. An account is local or SSO, never both;

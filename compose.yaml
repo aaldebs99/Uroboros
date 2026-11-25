@@ -71,7 +71,7 @@ x-server-env: &server-env
   UROBOROS_OIDC_GROUPS_CLAIM: ${UROBOROS_OIDC_GROUPS_CLAIM:-}
   UROBOROS_OIDC_AUTO_CREATE: ${UROBOROS_OIDC_AUTO_CREATE:-}
   UROBOROS_OIDC_SYNC_INTERVAL_SECS: ${UROBOROS_OIDC_SYNC_INTERVAL_SECS:-}
-  # The MCP server at /api/mcp (docs/mcp.md): off unless true. Read at start.
+  # The MCP server at /api/mcp (docs/mcp.md): on unless false. Read at start.
   UROBOROS_MCP_ENABLED: ${UROBOROS_MCP_ENABLED:-}
   UROBOROS_PUSH_MAX_DEVICES: ${UROBOROS_PUSH_MAX_DEVICES:-}
   # The largest request body /api/* accepts (default 65536 bytes).

@@ -299,11 +299,11 @@ describe("loadConfig transcoding", () => {
 });
 
 describe("loadConfig MCP server", () => {
-  it("keeps the MCP server off unless UROBOROS_MCP_ENABLED is true", () => {
-    expect(loadConfig(base).mcpEnabled).toBe(false);
-    expect(loadConfig({ ...base, UROBOROS_MCP_ENABLED: "" }).mcpEnabled).toBe(false);
-    expect(loadConfig({ ...base, UROBOROS_MCP_ENABLED: "false" }).mcpEnabled).toBe(false);
+  it("runs the MCP server unless UROBOROS_MCP_ENABLED is false", () => {
+    expect(loadConfig(base).mcpEnabled).toBe(true);
+    expect(loadConfig({ ...base, UROBOROS_MCP_ENABLED: "" }).mcpEnabled).toBe(true);
     expect(loadConfig({ ...base, UROBOROS_MCP_ENABLED: "true" }).mcpEnabled).toBe(true);
+    expect(loadConfig({ ...base, UROBOROS_MCP_ENABLED: "false" }).mcpEnabled).toBe(false);
   });
 
   it("names UROBOROS_MCP_ENABLED when it is neither true nor false", () => {

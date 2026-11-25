@@ -46,8 +46,8 @@ export interface Config {
    */
   secretsKey: Buffer | null;
   /**
-   * Whether the MCP server answers at `/api/mcp` (`UROBOROS_MCP_ENABLED`, off by default; docs/mcp.md),
-   * read at start. Off, `/api/mcp` answers 404 and no token can be made for MCP.
+   * Whether the MCP server answers at `/api/mcp` (`UROBOROS_MCP_ENABLED`, on unless false;
+   * docs/mcp.md), read at start. Off, `/api/mcp` answers 404 and no token can be made for MCP.
    */
   mcpEnabled: boolean;
 }
@@ -344,7 +344,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       generatePreviews: e.UROBOROS_GENERATE_PREVIEWS !== "false",
     },
     secretsKey: e.UROBOROS_SECRETS_KEY ?? null,
-    mcpEnabled: e.UROBOROS_MCP_ENABLED === "true",
+    mcpEnabled: e.UROBOROS_MCP_ENABLED !== "false",
   };
 }
 

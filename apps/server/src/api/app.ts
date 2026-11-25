@@ -145,7 +145,7 @@ export interface AppOptions {
   mediaOrigins?: string[];
   /** `UROBOROS_PUBLIC_BASE_URL`: absolute links in public link previews (else the request's origin). */
   publicBaseUrl?: string | null;
-  /** `UROBOROS_MCP_ENABLED`: whether `/api/mcp` answers and tokens may be made for it. Default off. */
+  /** `UROBOROS_MCP_ENABLED`: whether `/api/mcp` answers and tokens may be made for it. Default on. */
   mcpEnabled?: boolean;
 }
 
