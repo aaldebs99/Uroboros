@@ -202,7 +202,9 @@ supported yet; use a plain `CREATE INDEX` while the table is small.
 Postgres and one RustFS with testcontainers, migrates a `uroboros_template` database and freezes
 it as a template; each test clones it into its own database, so tests never share rows. Set
 `UROBOROS_TEST_DATABASE_URL` and `UROBOROS_TEST_S3_URL` (RustFS with the dev keys) to use servers you provide instead,
-which is what CI does.
+which is what CI does. `mise run test:coverage` runs the same suite with V8 coverage: a summary
+in the terminal and an HTML report in `coverage/`, for finding code no test reaches. It is a
+report, not a gate.
 
 ## Downloads and storage
 

@@ -9,5 +9,20 @@ export default defineConfig({
       "packages/*/vitest.config.ts",
       "tools/*/vitest.config.ts",
     ],
+    // `mise run test:coverage`: a report of what the suite runs, never a gate.
+    coverage: {
+      provider: "v8",
+      include: ["apps/*/src/**/*.{ts,tsx}", "packages/*/src/**/*.ts", "tools/*/src/**/*.ts"],
+      exclude: [
+        "**/*.test.{ts,tsx}",
+        "**/*.d.ts",
+        "**/generated/**",
+        "apps/web/src/test/**",
+        "packages/ytdlp/src/testFake.ts",
+        "tools/ratchet/src/testRepo.ts",
+      ],
+      reporter: ["text-summary", "html"],
+      reportsDirectory: "coverage",
+    },
   },
 });

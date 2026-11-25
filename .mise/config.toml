@@ -376,6 +376,12 @@ description = "Every vitest project (needs Docker for the server's Postgres and 
 depends = ["install"]
 run = "pnpm vitest run"
 
+# Not a gate (not in [tasks.ci]): a report to find what no test reaches.
+[tasks."test:coverage"]
+description = "Every vitest project with V8 coverage: a summary here, the HTML report in coverage/"
+depends = ["install"]
+run = "pnpm vitest run --coverage"
+
 # ── The aggregate gate ────────────────────────────────────────────────────────────────────────
 
 [tasks.ci]

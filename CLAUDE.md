@@ -42,7 +42,7 @@ The web UI follows the `uroboros-design-system` skill (`.claude/skills/uroboros-
 | `lint`, `check:types`                                              | eslint (type-aware, zero warnings); tsc over every package                     |
 | `lint:workflows`, `lint:shell`, `lint:renovate`                    | actionlint + zizmor; shellcheck; Renovate's validator                          |
 | `check:lock`, `check:audit`, `check:licenses`, `check:gen`         | lockfile drift; `pnpm audit` (high); licence allowlist; OpenAPI drift          |
-| `test`                                                             | every vitest project (Docker for Postgres and RustFS)                          |
+| `test`, `test:coverage`                                            | every vitest project (Docker for Postgres and RustFS); with a coverage report  |
 | `ratchet`, `ratchet:{lines,complexity,suppressions,pixels,pins}`   | forward-only gates (`docs/ratchets.md`); `ratchet:test` tests them             |
 | `gen`, `gen:login-sites`                                           | regenerate `api/openapi.json`; the sites yt-dlp logs in to (from the image)    |
 | `migrate`, `migration:new <name>`                                  | apply migrations by hand (every replica does on start); create a new migration |
