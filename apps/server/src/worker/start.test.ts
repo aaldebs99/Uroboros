@@ -124,6 +124,59 @@ describe("startWorker", () => {
     expect(cut.signal.aborted).toBe(true);
   });
 
+  it("cuts 5 s before the grace runs out, not sooner, and never a job that ended first", async () => {
+    let cutAt = 0;
+    const cut = new AbortController();
+    const w = await startWorker({
+      logger: silent,
+      // The cut comes at 5600 - 5000 = 600 ms into the close.
+      shutdownGraceMs: 5600,
+      consumers: consumers(
+        () =>
+          new Promise<void>((resolve) => {
+            cut.signal.addEventListener("abort", () => {
+              resolve();
+            });
+          }),
+        () => {
+          cutAt = Date.now();
+          cut.abort();
+        },
+      ),
+    });
+    await add("long");
+    await running();
+    const closing = Date.now();
+    await w.close();
+    expect(cutAt - closing).toBeGreaterThanOrEqual(550);
+    expect(cutAt - closing).toBeLessThan(3000);
+
+    // A job that ends well before the cut is left to finish: nothing is cut.
+    let cuts = 0;
+    let release: () => void = () => undefined;
+    const quick = await startWorker({
+      logger: silent,
+      shutdownGraceMs: 5600,
+      consumers: consumers(
+        () =>
+          new Promise<void>((resolve) => {
+            release = resolve;
+          }),
+        () => {
+          cuts++;
+        },
+      ),
+    });
+    await add("short");
+    await running();
+    const closed = quick.close();
+    release();
+    await closed;
+    // Past the moment the cut would have come.
+    await new Promise((r) => setTimeout(r, 800));
+    expect(cuts).toBe(0);
+  });
+
   it("gives up a start whose consumers are still preparing when it is aborted", async () => {
     const abort = new AbortController();
     const starting = startWorker({
