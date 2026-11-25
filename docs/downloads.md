@@ -17,8 +17,9 @@ request handler.
      extractor reports the site's id, but yt-dlp's generic extractor (a link it has no extractor
      for) reports the file or page name, which anyone can give a file of their own. So a generic
      video's id also carries a hash of its link (`meeting~<16 hex>`, `src/library/mediaKey.ts`),
-     in previews and subscription listings too: two people's `…/meeting.mp4` links never share
-     a file, and the same link is still the same video;
+     in previews and subscription listings too, and a generic page's playlist (`sources`) the
+     same way: two people's `…/meeting.mp4` links never share a file, two `…/videos.html` pages
+     never share a playlist, and the same link is still the same video;
    - a **playlist** becomes `choosing`, with one preview group, every entry ticked;
    - a **channel's main URL** lists its tabs, each becoming a group (Videos ticked, Shorts and
      Live unticked): current yt-dlp nests every tab's entries in the root listing, which is then

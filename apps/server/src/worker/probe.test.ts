@@ -366,4 +366,23 @@ describe("a link yt-dlp has no extractor for", () => {
     expect(entries.length).toBeGreaterThan(0);
     for (const e of entries) expect(e.id).toMatch(/~[0-9a-f]{16}$/);
   });
+
+  it("names a page's playlist after its link, so same-named pages stay apart", async () => {
+    const listing = JSON.parse(await fixture("probe-playlist.json")) as Record<string, unknown>;
+    const stdout = JSON.stringify({ ...listing, id: "videos", extractor_key: "Generic" });
+    const sourceOf = async (page: string) => {
+      const id = await request(page);
+      await run(id, await h.deps({ steps: [{ stdout }] }));
+      return testDb.db
+        .selectFrom("download_requests")
+        .select(["source_extractor", "source_id"])
+        .where("id", "=", id)
+        .executeTakeFirstOrThrow();
+    };
+    const mine = await sourceOf("https://files.example/videos.html");
+    const theirs = await sourceOf("https://evil.example/videos.html");
+    expect(mine.source_extractor).toBe("generic");
+    expect(mine.source_id).toMatch(/^videos~[0-9a-f]{16}$/);
+    expect(theirs.source_id).not.toBe(mine.source_id);
+  });
 });

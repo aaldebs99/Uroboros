@@ -156,9 +156,11 @@ async function queueVideo(
  * extractor (as `sources` does); a channel takes its videos' extractor, so its key matches the
  * library's channel page (`youtube`, not `youtubetab`).
  */
-function sourceOf(info: PlaylistInfo, channel: boolean, groups: PreviewGroup[]) {
+function sourceOf(info: PlaylistInfo, url: string, channel: boolean, groups: PreviewGroup[]) {
   const listing = (info.extractorKey ?? "generic").toLowerCase();
-  if (!channel) return { source_extractor: listing, source_id: info.id };
+  // A page's playlist is named like a page's video: a generic one carries its link's hash.
+  if (!channel)
+    return { source_extractor: listing, source_id: mediaVideoId(listing, info.id, url) };
   const videos = groups
     .flatMap((g) => g.entries)
     .at(0)
@@ -185,7 +187,7 @@ async function preview(
       kind,
       title: info.title,
       entries: JSON.stringify(groups),
-      ...sourceOf(info, kind === "channel", groups),
+      ...sourceOf(info, req.url, kind === "channel", groups),
     })
     .where("id", "=", req.id)
     .execute();
