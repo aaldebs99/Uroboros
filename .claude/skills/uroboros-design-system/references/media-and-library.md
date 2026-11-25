@@ -69,9 +69,11 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   with reduced motion), under the duration badge. Its controls sit over it: a sound button
   (`VolumeX`/`Volume2`) and, below it, a captions button (`Captions`/`CaptionsOff`, only with
   subtitles) in the top right, each a 32px `bg-overlay` circle with a 44px hit area and
-  `aria-pressed`, and a scrub bar along the bottom edge (the watched bar's 4px track, 6px on
-  hover, played in `bg-primary`) that takes the watched bar's place while it plays. A press on a
-  control never opens the video. It stops at the end, when the mouse leaves, another tile starts
+  `aria-pressed`, and a scrub bar that takes the watched bar's place while it plays: a 2rem band
+  along the bottom with the bar raised inside it (`px-3 pb-2.5`; the watched bar's 4px track,
+  6px with a 12px `bg-primary` knob while hovered or dragged, played in `bg-primary`), pressed to
+  seek and dragged to scrub. The wheel steps a second at a time. A press on a control never opens
+  the video. It stops at the end, when the mouse leaves, another tile starts
   one, the tile scrolls away or a touch lands elsewhere. One plays at a time. It is never the
   player, so it reports no progress. The rows (suggestions, Up next, the playlist editor, the
   palette) have none: a hover there means picking. Sound alone (`hasVideo` false) has none.

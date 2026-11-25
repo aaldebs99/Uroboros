@@ -56,6 +56,12 @@ beforeEach(() => {
   restoreTracks = withTextTracks();
   Element.prototype.setPointerCapture = vi.fn();
   Element.prototype.releasePointerCapture = vi.fn();
+  // A drag seeks once a frame; here the frame comes at once.
+  vi.stubGlobal("requestAnimationFrame", (run: FrameRequestCallback) => {
+    run(0);
+    return 0;
+  });
+  vi.stubGlobal("cancelAnimationFrame", () => undefined);
 });
 afterEach(() => {
   restoreTracks();
@@ -93,7 +99,20 @@ function tile() {
     fireEvent.pointerLeave(surface, { pointerType: "mouse" });
     await flush();
   };
-  return { start, stop };
+  return { start, stop, surface };
+}
+
+/** The preview playing a 100 s video, its scrub track 200px wide from x = 0. */
+async function playing100() {
+  serve({ previewUrl: STORED });
+  const t = tile();
+  await t.start();
+  const v = video() as HTMLVideoElement;
+  Object.defineProperty(v, "duration", { configurable: true, get: () => 100 });
+  fireEvent(v, new Event("durationchange"));
+  const track = document.querySelector("[data-scrub-track]") as HTMLElement;
+  track.getBoundingClientRect = () => ({ left: 0, width: 200 }) as DOMRect;
+  return { ...t, v, bar: document.querySelector("[data-scrub-bar]") as HTMLElement };
 }
 
 const video = () => document.querySelector<HTMLVideoElement>("video[data-preview-video]");
@@ -149,17 +168,43 @@ describe("a tile's preview player", () => {
     expect(screen.queryByRole("button", { name: "Preview captions", hidden: true })).toBeNull();
   });
 
-  it("seeks where the scrub bar is pressed, without opening the video", async () => {
-    serve({ previewUrl: STORED });
-    await tile().start();
-    const v = video() as HTMLVideoElement;
-    Object.defineProperty(v, "duration", { configurable: true, get: () => 100 });
-    fireEvent(v, new Event("durationchange"));
-    const bar = document.querySelector("[data-scrub-bar]") as HTMLElement;
-    bar.getBoundingClientRect = () => ({ left: 0, width: 200 }) as DOMRect;
-    fireEvent.pointerDown(bar, { clientX: 50, pointerId: 1, pointerType: "mouse" });
+  it("seeks where the scrub bar is pressed and follows a drag, without opening the video", async () => {
+    const { v, bar } = await playing100();
+    const at = (clientX: number) => ({ clientX, pointerId: 1, pointerType: "mouse", buttons: 1 });
+    // Kept from the browser: no link drag, no text selection.
+    expect(fireEvent.pointerDown(bar, at(50))).toBe(false);
     expect(v.currentTime).toBe(25);
+    fireEvent.pointerMove(bar, at(150));
+    expect(v.currentTime).toBe(75);
+    fireEvent.pointerUp(bar, at(150));
+    fireEvent.pointerMove(bar, { ...at(20), buttons: 0 });
+    expect(v.currentTime).toBe(75);
+    expect(fireEvent(bar, new Event("dragstart", { bubbles: true, cancelable: true }))).toBe(false);
     expect(click(bar)).toBe(false);
+    expect(document.querySelector("[data-preview]")).not.toBeNull();
+  });
+
+  it("steps a second per wheel notch, back or forward, instead of scrolling the page", async () => {
+    const { v, surface } = await playing100();
+    v.currentTime = 10;
+    expect(fireEvent.wheel(surface, { deltaY: 100 })).toBe(false);
+    expect(v.currentTime).toBe(11);
+    fireEvent.wheel(surface, { deltaY: -100 });
+    expect(v.currentTime).toBe(10);
+    // Firefox counts lines.
+    fireEvent.wheel(surface, { deltaY: 3, deltaMode: 1 });
+    expect(v.currentTime).toBe(11);
+    // A trackpad's small nudges add up to a step.
+    fireEvent.wheel(surface, { deltaY: 40 });
+    expect(v.currentTime).toBe(11);
+    fireEvent.wheel(surface, { deltaY: 60 });
+    expect(v.currentTime).toBe(12);
+  });
+
+  it("leaves the wheel to scroll the page until the preview plays", () => {
+    serve({ previewUrl: STORED });
+    const { surface } = tile();
+    expect(fireEvent.wheel(surface, { deltaY: 100 })).toBe(true);
   });
 
   it("never reports watch progress or touches the player's volume", async () => {

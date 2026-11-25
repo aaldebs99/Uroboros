@@ -12,6 +12,7 @@ import {
 import { readSubtitleLang } from "@/lib/playerPrefs";
 import { cn } from "@/lib/utils";
 
+import { centerCaptions } from "./captions";
 import { PreviewControls } from "./PreviewControls";
 import { pickPreviewSubtitle } from "./previewSource";
 import { previewSound, setPreviewSound } from "./previewSound";
@@ -59,6 +60,23 @@ interface Times {
 
 const finite = (n: number) => (Number.isFinite(n) ? n : 0);
 
+/** How far a wheel moves the pointer before a pixel-counting wheel (a trackpad) steps a second. */
+const WHEEL_PIXELS_PER_STEP = 100;
+
+/**
+ * Seconds a wheel event steps, down forward and up back: one per notch of a wheel that counts
+ * lines or pages, and one per 100 units of delta a pixel-counting one reports (`carry` holds the rest).
+ */
+export function wheelStep(
+  e: Pick<WheelEvent, "deltaY" | "deltaMode">,
+  carry: number,
+): { seconds: number; carry: number } {
+  if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return { seconds: Math.sign(e.deltaY), carry: 0 };
+  const total = carry + e.deltaY;
+  const seconds = Math.trunc(total / WHEEL_PIXELS_PER_STEP);
+  return { seconds, carry: total - seconds * WHEEL_PIXELS_PER_STEP };
+}
+
 function timesOf(v: HTMLVideoElement): Times {
   const ranges = v.buffered;
   return {
@@ -102,6 +120,34 @@ export function PreviewFrame({
       void Promise.resolve(v.play()).catch(() => undefined);
     });
   }, [src]);
+
+  // Captions across the middle, whatever side the file pins them to.
+  useEffect(() => {
+    const v = video.current;
+    return v === null ? undefined : centerCaptions(v);
+  }, [subtitles]);
+
+  // The wheel steps through the video instead of scrolling the page, while the preview plays.
+  useEffect(() => {
+    const v = video.current;
+    const surface = v?.closest<HTMLElement>("[data-previewing]");
+    if (v == null || surface == null) return;
+    let carry = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      const step = wheelStep(e, carry);
+      carry = step.carry;
+      const duration = finite(v.duration);
+      if (step.seconds === 0 || duration <= 0) return;
+      v.currentTime = Math.min(duration, Math.max(0, v.currentTime + step.seconds));
+      setTimes(timesOf(v));
+    };
+    surface.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      surface.removeEventListener("wheel", onWheel);
+    };
+  }, []);
 
   // The picked track shows while captions are on.
   useEffect(() => {

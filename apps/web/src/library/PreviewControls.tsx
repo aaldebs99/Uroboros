@@ -1,5 +1,12 @@
 import { Captions, CaptionsOff, Volume2, VolumeX } from "lucide-react";
-import { useRef, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 
 /**
  * A preview's controls over the playing tile (docs/library.md "Hover previews"): sound and, below
@@ -46,9 +53,14 @@ function ControlButton({
   );
 }
 
-const percent = (part: number, whole: number) =>
-  `${String(whole > 0 ? Math.min(100, (part / whole) * 100) : 0)}%`;
+const percent = (fraction: number) => `${String(Math.min(1, Math.max(0, fraction)) * 100)}%`;
 
+/**
+ * The scrub bar: a 2rem band along the tile's bottom with the bar raised inside it, so a pointer
+ * a little low is still on the tile. A press seeks there and a drag follows the pointer, which the
+ * bar captures (the tile keeps playing even past its edge); one seek a frame, the knob ahead of
+ * it. The browser's own link drag and text selection are kept out.
+ */
 function ScrubBar({
   at,
   duration,
@@ -60,39 +72,74 @@ function ScrubBar({
   buffered: number;
   onSeek: (fraction: number) => void;
 }) {
-  const bar = useRef<HTMLDivElement>(null);
+  const track = useRef<HTMLDivElement>(null);
+  /** The pointer dragging the bar, if one is. */
+  const dragging = useRef<number | null>(null);
+  const frame = useRef(0);
+  /** Where a drag has the knob, ahead of the video catching up. */
+  const [dragAt, setDragAt] = useState<number | null>(null);
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(frame.current);
+    },
+    [],
+  );
   const seekTo = (clientX: number) => {
-    const box = bar.current?.getBoundingClientRect();
+    const box = track.current?.getBoundingClientRect();
     if (box === undefined || box.width <= 0) return;
-    onSeek(Math.min(1, Math.max(0, (clientX - box.left) / box.width)));
+    const fraction = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
+    setDragAt(fraction);
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      onSeek(fraction);
+    });
   };
+  const end = (e: PointerEvent<HTMLDivElement>) => {
+    keep(e);
+    if (dragging.current !== e.pointerId) return;
+    dragging.current = null;
+    setDragAt(null);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+  const played = dragAt ?? (duration > 0 ? at / duration : 0);
   return (
     <div
-      ref={bar}
       data-scrub-bar
+      data-dragging={dragAt === null ? undefined : ""}
       onPointerDown={(e) => {
+        e.preventDefault();
         keep(e);
+        dragging.current = e.pointerId;
         e.currentTarget.setPointerCapture(e.pointerId);
         seekTo(e.clientX);
       }}
       onPointerMove={(e) => {
-        if (e.buttons > 0) seekTo(e.clientX);
+        if (dragging.current === e.pointerId) seekTo(e.clientX);
       }}
-      onPointerUp={(e) => {
-        keep(e);
-        e.currentTarget.releasePointerCapture(e.pointerId);
+      onPointerUp={end}
+      onPointerCancel={end}
+      onDragStart={(e) => {
+        e.preventDefault();
       }}
       onClick={own}
-      className="group/scrub pointer-events-auto absolute inset-x-0 bottom-0 z-10 flex h-3 cursor-pointer items-end"
+      className="group/scrub pointer-events-auto absolute inset-x-0 bottom-0 z-10 flex h-8 cursor-pointer touch-none items-end px-3 pb-2.5 select-none"
     >
-      <div className="relative h-1 w-full bg-white/35 transition-[height] group-hover/scrub:h-1.5 motion-reduce:transition-none">
+      <div
+        ref={track}
+        data-scrub-track
+        className="relative h-1 w-full rounded-full bg-white/35 transition-[height] group-hover/scrub:h-1.5 group-data-[dragging]/scrub:h-1.5 motion-reduce:transition-none"
+      >
         <div
-          className="absolute inset-y-0 left-0 bg-white/50"
-          style={{ width: percent(buffered, duration) }}
+          className="absolute inset-y-0 left-0 rounded-full bg-white/50"
+          style={{ width: percent(duration > 0 ? buffered / duration : 0) }}
         />
         <div
-          className="absolute inset-y-0 left-0 bg-primary"
-          style={{ width: percent(at, duration) }}
+          className="absolute inset-y-0 left-0 rounded-full bg-primary"
+          style={{ width: percent(played) }}
+        />
+        <div
+          className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary opacity-0 transition-opacity group-hover/scrub:opacity-100 group-data-[dragging]/scrub:opacity-100 motion-reduce:transition-none"
+          style={{ left: percent(played) }}
         />
       </div>
     </div>

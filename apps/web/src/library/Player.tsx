@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, type CSSProperties, type React
 
 import { readVolume, storeVolume } from "@/lib/playerPrefs";
 
+import { centerCaptions } from "./captions";
 import { PlayerErrorWatch } from "./PlayerErrorWatch";
 import { PlayerHotkeys } from "./PlayerHotkeys";
 import { SponsorSkip } from "./SponsorSkip";
@@ -117,6 +118,11 @@ export function Player(p: PlayerProps) {
     v.volume = saved.volume;
     v.muted = saved.muted;
   }, []);
+  // Captions across the middle, whatever side the file pins them to.
+  useEffect(() => {
+    const v = video.current;
+    return v === null ? undefined : centerCaptions(v);
+  }, [p.subtitles]);
   // Start once per video: resume at the saved position, then play. At once if the metadata is
   // already in (it can load before React's listeners attach), otherwise when it arrives.
   useEffect(() => {

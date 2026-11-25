@@ -95,6 +95,15 @@ describe("Player subtitles", () => {
     expect(readSubtitleLang()).toBe("en");
   });
 
+  it("centres captions that come pinned to the left, once they load", () => {
+    const { byLang } = renderWith(enFr);
+    const el = byLang("en");
+    const cue = { align: "start", position: 0, size: 100, line: "auto" };
+    Object.assign(el.track, { cues: [cue] });
+    el.dispatchEvent(new Event("load"));
+    expect(cue).toMatchObject({ align: "center", position: "auto", size: 100 });
+  });
+
   it("leaves the remembered language alone on a video without subtitles", () => {
     storeSubtitleLang("fr");
     const { changed } = renderWith([]);
