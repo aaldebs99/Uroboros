@@ -113,7 +113,9 @@ describe("historyMentions", () => {
     r.commit("a.md", "2\n");
     const shallow = mkdtempSync(join(tmpdir(), "forge-history-shallow-"));
     roots.push(shallow);
+    // Without the developer's own git config, as every other git call here.
     execFileSync("git", ["clone", "-q", "--depth", "1", `file://${r.root}`, shallow], {
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" },
       stdio: "ignore",
     });
     expect(() => historyMentions(shallow, LABEL)).toThrow(/shallow/);
