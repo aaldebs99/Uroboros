@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 
-export type XhrAnswer = { status: number; body?: string };
+/** A status and body, or `"network-error"` for a request that never got an answer. */
+export type XhrAnswer = { status: number; body?: string } | "network-error";
 export type XhrHandler = (
   method: string,
   path: string,
@@ -38,6 +39,10 @@ export function fakeXhr(handler: XhrHandler = () => ({ status: 204 })) {
       calls.push({ method: this.method, path: this.path, size: body.size, headers: this.headers });
       void Promise.resolve(handler(this.method, this.path, body)).then((answer) => {
         if (this.aborted) return;
+        if (answer === "network-error") {
+          this.onerror?.();
+          return;
+        }
         this.upload.onprogress?.({ loaded: body.size, lengthComputable: true });
         this.status = answer.status;
         this.responseText = answer.body ?? "";

@@ -14,8 +14,10 @@ import {
   errorText,
   getJson,
   postJson,
+  putBytesWithProgress,
   setUnauthorizedHandler,
 } from "./client";
+import { fakeXhr } from "@/test/fakeXhr";
 
 function respondWith(response: Response) {
   vi.stubGlobal(
@@ -230,5 +232,73 @@ describe("auth plumbing", () => {
     );
     await expect(getJson("/api/me/push", z.unknown())).rejects.toThrow();
     expect(handler).toHaveBeenCalledOnce();
+  });
+});
+
+describe("putBytesWithProgress (an upload's parts)", () => {
+  const part = new Blob(["0123456789"], { type: "video/mp4" });
+  afterEach(() => {
+    document.cookie = "uroboros_csrf=; max-age=0; path=/";
+    setUnauthorizedHandler(null);
+  });
+
+  it("sends the CSRF header and the part's type, and hears the bytes go", async () => {
+    document.cookie = "uroboros_csrf=abc123; path=/";
+    const sent = fakeXhr();
+    const progress: number[] = [];
+    await putBytesWithProgress("/api/uploads/u/parts/1", part, {
+      onProgress: (n) => progress.push(n),
+    });
+    expect(sent).toEqual([
+      {
+        method: "PUT",
+        path: "/api/uploads/u/parts/1",
+        size: 10,
+        headers: expect.objectContaining({
+          "X-Uroboros-CSRF": "abc123",
+          "Content-Type": "video/mp4",
+        }) as Record<string, string>,
+      },
+    ]);
+    expect(progress).toEqual([10]);
+  });
+
+  it("tells the registered handler about a 401, and rejects with the typed error", async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    fakeXhr(() => ({
+      status: 401,
+      body: JSON.stringify({ code: "unauthorized", message: "sign in required" }),
+    }));
+    const error: unknown = await putBytesWithProgress("/api/uploads/u/parts/1", part).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).code).toBe("unauthorized");
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a failed part with the server's error, and a lost network as a TypeError", async () => {
+    fakeXhr(() => ({
+      status: 409,
+      body: JSON.stringify({ code: "conflict", message: "that part is already stored" }),
+    }));
+    const refused: unknown = await putBytesWithProgress("/api/uploads/u/parts/1", part).catch(
+      (e: unknown) => e,
+    );
+    expect(refused).toMatchObject({ code: "conflict" });
+    fakeXhr(() => "network-error");
+    await expect(putBytesWithProgress("/api/uploads/u/parts/1", part)).rejects.toThrow(TypeError);
+  });
+
+  it("rejects as an AbortError when cancelled before or during the send", async () => {
+    fakeXhr(() => new Promise(() => undefined));
+    await expect(
+      putBytesWithProgress("/api/uploads/u/parts/1", part, { signal: AbortSignal.abort() }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    const stop = new AbortController();
+    const sending = putBytesWithProgress("/api/uploads/u/parts/1", part, { signal: stop.signal });
+    stop.abort();
+    await expect(sending).rejects.toMatchObject({ name: "AbortError" });
   });
 });
