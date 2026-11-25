@@ -172,6 +172,94 @@ describe("asking for a copy without sponsors", () => {
   });
 });
 
+describe("a copy's cuts follow its person's SponsorBlock setting (docs/automation.md#sponsorblock)", () => {
+  /** `who` skips `skip` (and shows nothing else) in videos and audio files alike. */
+  async function skipping(who: SignedIn, skip: string[]) {
+    const columns = {
+      sponsorblock_video_show: skip,
+      sponsorblock_video_skip: skip,
+      sponsorblock_audio_show: skip,
+      sponsorblock_audio_skip: skip,
+    };
+    await t.db
+      .insertInto("user_preferences")
+      .values({ user_id: who.userId, ...columns })
+      .onConflict((oc) => oc.column("user_id").doUpdateSet(columns))
+      .execute();
+  }
+  const STORED = [
+    { start: 10, end: 20, category: "sponsor" },
+    { start: 30, end: 40, category: "intro" },
+  ];
+  const cutsOf = async (id: string) =>
+    (await t.db.selectFrom("exports").select("cuts").where("id", "=", id).executeTakeFirstOrThrow())
+      .cuts;
+
+  it("cuts the segments the requester skips, not every stored one", async () => {
+    const me = await user();
+    await skipping(me, ["sponsor"]);
+    const e = await entryWith(me, STORED);
+    const made = Export.parse(
+      await (await post(app(me), `/api/library/${e.entryId}/export`)).json(),
+    );
+    expect(await cutsOf(made.id)).toEqual([{ start: 10, end: 20 }]);
+  });
+
+  it("gives two people with different settings different copies of one entry", async () => {
+    const [owner, friend] = [await user(), await user()];
+    await skipping(owner, ["sponsor"]);
+    await skipping(friend, ["intro"]);
+    const e = await entryWith(owner, STORED);
+    const share = await t.db
+      .insertInto("shares")
+      .values({ owner_id: owner.userId, entry_id: e.entryId, mode: "people" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await t.db
+      .insertInto("share_people")
+      .values({ share_id: share.id, user_id: friend.userId })
+      .execute();
+    const mine = Export.parse(
+      await (await post(app(owner), `/api/library/${e.entryId}/export`)).json(),
+    );
+    const theirs = Export.parse(
+      await (await post(app(friend), `/api/library/${e.entryId}/export`)).json(),
+    );
+    expect(await cutsOf(mine.id)).toEqual([{ start: 10, end: 20 }]);
+    expect(await cutsOf(theirs.id)).toEqual([{ start: 30, end: 40 }]);
+  });
+
+  it("stops being current when its person's setting changes", async () => {
+    const me = await user();
+    await skipping(me, ["sponsor"]);
+    const e = await entryWith(me, STORED);
+    const made = Export.parse(
+      await (await post(app(me), `/api/library/${e.entryId}/export`)).json(),
+    );
+    expect(made.current).toBe(true);
+    await skipping(me, ["intro", "sponsor"]);
+    const list = z.array(Export).parse(await (await app(me).request("/api/exports")).json());
+    expect(list.find((c) => c.id === made.id)?.current).toBe(false);
+  });
+
+  it("refuses an entry with nothing its person skips (400)", async () => {
+    const me = await user();
+    const e = await entryWith(me, [{ start: 30, end: 40, category: "intro" }]);
+    expect((await post(app(me), `/api/library/${e.entryId}/export`)).status).toBe(400);
+  });
+
+  it("clips a segment past the file's end, and refuses cuts covering the whole file", async () => {
+    const me = await user();
+    const past = await entryWith(me, [{ start: 90, end: 150, category: "sponsor" }]);
+    const made = Export.parse(
+      await (await post(app(me), `/api/library/${past.entryId}/export`)).json(),
+    );
+    expect(await cutsOf(made.id)).toEqual([{ start: 90, end: 100 }]);
+    const whole = await entryWith(me, [{ start: 0, end: 100, category: "sponsor" }]);
+    expect((await post(app(me), `/api/library/${whole.entryId}/export`)).status).toBe(400);
+  });
+});
+
 describe("a copy once made", () => {
   async function finished(me: SignedIn) {
     const e = await entryWith(me);

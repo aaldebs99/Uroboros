@@ -1,13 +1,14 @@
-import type { Export } from "@uroboros/contract";
+import type { Export, SponsorBlockSettings } from "@uroboros/contract";
 import { sql, type Kysely, type Selectable } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
 import type { ExportsTable } from "../db/exportsSchema.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { ApiError } from "../api/errors.ts";
-import { StoredSegments } from "../library/sponsorSegments.ts";
+import { sponsorBlockOf } from "../library/preferences.ts";
+import { skippedSegments } from "../library/sponsorSegments.ts";
 import { visibleEntry } from "../sharing/access.ts";
-import { cutSeconds, keptRanges, mergeCuts, type Span } from "./cuts.ts";
+import { cutSeconds, mergeCuts, type Span } from "./cuts.ts";
 
 /**
  * Copies to save (docs/transcoding.md "Saving without SponsorBlock segments"): a person asks for a
@@ -28,14 +29,32 @@ type Described = ExportRow & {
   video_id: string;
   duration: number | null;
   skip_segments: unknown;
+  video_codec: string | null;
 };
+
+/**
+ * The spans a copy for someone with `settings` cuts: the file's segments they skip (by the audio
+ * choice for a file without video), merged as the player joins them.
+ */
+function cutsFor(
+  r: { skip_segments: unknown; video_codec: string | null; duration: number | null },
+  settings: SponsorBlockSettings,
+): Span[] {
+  return mergeCuts(skippedSegments(r.skip_segments, settings, r.video_codec === null), r.duration);
+}
 
 const iso = (d: Date) => d.toISOString();
 
-/** Whether a copy's cuts are those the file's segments make now (a refetch can change them). */
-function isCurrent(spans: readonly Span[], row: Described): boolean {
-  const segments = StoredSegments.safeParse(row.skip_segments);
-  const now = mergeCuts(segments.success ? segments.data : [], row.duration);
+/**
+ * Whether a copy's cuts are those its person would get now: a refetch can change the file's
+ * segments, and they can change what they skip.
+ */
+function isCurrent(
+  spans: readonly Span[],
+  row: Described,
+  settings: SponsorBlockSettings,
+): boolean {
+  const now = cutsFor(row, settings);
   return (
     now.length === spans.length &&
     now.every((c, i) => {
@@ -45,8 +64,8 @@ function isCurrent(spans: readonly Span[], row: Described): boolean {
   );
 }
 
-/** The copy as its person sees it. */
-export function describeExport(row: Described): Export {
+/** The copy as its person (whose SponsorBlock setting is `settings`) sees it. */
+export function describeExport(row: Described, settings: SponsorBlockSettings): Export {
   const cuts = Spans.safeParse(row.cuts);
   const spans = cuts.success ? cuts.data : [];
   const cut = cutSeconds(spans);
@@ -64,7 +83,7 @@ export function describeExport(row: Described): Export {
     cutSeconds: cut,
     createdAt: iso(row.created_at),
     fileUrl: row.state === "done" ? `/api/exports/${row.id}/file` : null,
-    current: isCurrent(spans, row),
+    current: isCurrent(spans, row, settings),
   };
 }
 
@@ -79,17 +98,22 @@ function described(db: Kysely<Database>) {
       "m.title",
       "m.video_id",
       "r.skip_segments",
+      "r.video_codec",
       sql<number | null>`coalesce(r.duration, m.duration)`.as("duration"),
     ]);
 }
 
 /** The caller's copies, newest first. */
 export async function listExports(db: Kysely<Database>, userId: string): Promise<Export[]> {
-  const rows = await described(db)
-    .where("x.user_id", "=", userId)
-    .orderBy("x.created_at", "desc")
-    .execute();
-  return rows.map(describeExport);
+  const [rows, settings] = await Promise.all([
+    described(db)
+      .where("x.user_id", "=", userId)
+      .orderBy("x.created_at", "desc")
+      .orderBy("x.id", "desc")
+      .execute(),
+    sponsorBlockOf(db, userId),
+  ]);
+  return rows.map((row) => describeExport(row, settings));
 }
 
 /** One of the caller's copies; anyone else's is 404. */
@@ -103,7 +127,7 @@ export async function ownExport(db: Kysely<Database>, userId: string, id: string
 }
 
 /**
- * Asks for a copy of an entry the caller sees without its SponsorBlock segments. The same entry
+ * Asks for a copy of an entry the caller sees without the SponsorBlock segments they skip. The same entry
  * with the same cuts already queued, running or done is answered with that copy (`created` false);
  * a failed one is made again, in its own row (reset and queued).
  */
@@ -118,15 +142,18 @@ export async function createExport(
     .innerJoin("media as m", "m.id", "r.media_id")
     .select([
       "r.skip_segments",
+      "r.video_codec",
       sql<number | null>`coalesce(r.duration, m.duration)`.as("duration"),
     ])
     .where("r.id", "=", entry.rendition_id)
     .executeTakeFirstOrThrow();
-  const segments = StoredSegments.safeParse(r.skip_segments);
-  const cuts = mergeCuts(segments.success ? segments.data : [], r.duration);
-  if (cuts.length === 0) throw new ApiError("bad_request", "this video has no segments to cut");
-  if (keptRanges(cuts).every((k) => k.end !== null && k.end <= k.start)) {
-    throw new ApiError("bad_request", "the segments cover the whole video");
+  const settings = await sponsorBlockOf(ctx.db, userId);
+  const cuts = cutsFor(r, settings);
+  if (cuts.length === 0)
+    throw new ApiError("bad_request", "nothing in this file is skipped to cut");
+  // The last kept range runs to the file's end, so a known length tells whether anything is left.
+  if (r.duration !== null && cutSeconds(cuts) >= r.duration) {
+    throw new ApiError("bad_request", "the skipped segments cover the whole file");
   }
   const json = JSON.stringify(cuts satisfies Span[]);
   const id = await ctx.db.transaction().execute(async (tx) => {
@@ -162,7 +189,10 @@ export async function createExport(
     );
     return { id: copyId, created: true };
   });
-  return { created: id.created, export: describeExport(await ownExport(ctx.db, userId, id.id)) };
+  return {
+    created: id.created,
+    export: describeExport(await ownExport(ctx.db, userId, id.id), settings),
+  };
 }
 
 /** Puts a failed copy back in the queue, as new. */
