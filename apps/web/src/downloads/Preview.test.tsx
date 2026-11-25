@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -48,6 +48,7 @@ const show = () =>
   );
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -67,14 +68,21 @@ describe("a preview's picks", () => {
       [`PUT /api/downloads/requests/${ID}/selection`]: () => new Response(null, { status: 204 }),
     });
     show();
-    await userEvent.click(await screen.findByRole("checkbox", { name: "Video v1" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Video s1" }));
+    const v1 = await screen.findByRole("checkbox", { name: "Video v1" });
     const saves = () => calls.filter((c) => c.method === "PUT");
-    await waitFor(() => {
-      expect(saves()).toHaveLength(1);
-    });
-    expect(saves()[0]?.body).toEqual({ entryIds: ["v2", "s1"] });
-    await new Promise((r) => setTimeout(r, 600));
+    // The clock is the test's from here: two real clicks could land either side of the 400 ms
+    // debounce on a slow runner.
+    vi.useFakeTimers();
+    fireEvent.click(v1);
+    await vi.advanceTimersByTimeAsync(300);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Video s1" }));
+    await vi.advanceTimersByTimeAsync(399);
+    expect(saves()).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(saves()).toEqual([
+      expect.objectContaining({ method: "PUT", body: { entryIds: ["v2", "s1"] } }),
+    ]);
+    await vi.advanceTimersByTimeAsync(5000);
     expect(saves()).toHaveLength(1);
   });
 
