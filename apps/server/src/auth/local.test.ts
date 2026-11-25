@@ -135,7 +135,7 @@ describe("local sign-in", () => {
     expect(ratio).toBeLessThan(2);
   });
 
-  it("locks a username after 5 failures in 15 minutes, shared across app instances", async () => {
+  it("locks a username after 5 failures from one address in 15 minutes, shared across app instances", async () => {
     const make = () =>
       createApp(
         {
@@ -153,6 +153,16 @@ describe("local sign-in", () => {
     const locked = await login(two, "alice", PASSWORD);
     expect(locked.status).toBe(429);
     expect(await locked.json()).toMatchObject({ code: "too_many_requests" });
+  });
+
+  it("doesn't let one address's failures lock the account out from another", async () => {
+    const a = app({ trustProxy: true });
+    const attacker = { "x-forwarded-for": "203.0.113.50" };
+    for (let i = 0; i < 6; i++) await login(a, "alice", "wrong password!", attacker);
+    expect((await login(a, "alice", PASSWORD, attacker)).status).toBe(429);
+    expect((await login(a, "alice", PASSWORD, { "x-forwarded-for": "203.0.113.51" })).status).toBe(
+      204,
+    );
   });
 
   it("lets at most 5 guesses through when they arrive at once", async () => {

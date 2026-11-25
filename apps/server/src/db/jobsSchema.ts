@@ -45,9 +45,12 @@ export interface DownloadProgressTable {
   expires_at: Timestamp;
 }
 
-/** `signin_failures`: failed sign-ins in their window, per username or client IP (unlogged). */
+/**
+ * `signin_failures`: failed sign-ins in their window, per username from one client IP
+ * (`user_ip`, value `name|ip`), per username and per client IP (unlogged).
+ */
 export interface SigninFailuresTable {
-  kind: "user" | "ip";
+  kind: "user_ip" | "user" | "ip";
   value: string;
   failures: number;
   expires_at: Timestamp;

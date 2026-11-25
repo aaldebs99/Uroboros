@@ -45,10 +45,13 @@ dev:server` pass a dev-only `admin` / `admin` with that opt-out unless the shell
 password and an unknown username answer the same 401, in about the same time (an unknown name is
 verified against a dummy hash). Attempts are counted in **Postgres** (the unlogged
 `signin_failures` table, [jobs.md](jobs.md)), so the limit holds across replicas (Djinn counts per
-process): 5 failures per username and 30 per client IP within 15 minutes, then 429. Each attempt is
-counted before the password is checked, in one statement, so
-a burst of parallel guesses cannot all slip past the check; a good sign-in takes its attempt back
-off and clears the username's count. The client IP is the last `X-Forwarded-For` entry (the one
+process), each within 15 minutes, then 429: 5 failures per username from one client IP, 100 per
+username from every address together, and 30 per client IP. Counting a username per address means
+a stranger's guesses lock only the stranger's address, never the person signing in from their own
+(Uroboros used to lock the username itself, so six requests from anyone locked an account out);
+the 100 bound a guesser spread over many addresses. Each attempt is counted before the password
+is checked, in one statement, so a burst of parallel guesses cannot all slip past the check; a
+good sign-in takes its attempt back off the address and clears the username's counts. The client IP is the last `X-Forwarded-For` entry (the one
 the proxy in front added; entries to its left came from the client) only when
 `UROBOROS_TRUST_PROXY` is true (compose sets it, since the replicas sit behind Caddy). A disabled account answers 403, only after the right password.
 

@@ -15,7 +15,7 @@ import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import type { AuthConfig } from "./config.ts";
 import { clearAuthCookies, setAuthCookies } from "./cookies.ts";
-import type { FailureKey, Limiter } from "./limiter.ts";
+import { failureKeys, type Limiter } from "./limiter.ts";
 import { DUMMY_HASH, verifyPassword } from "./passwords.ts";
 import { createSession, deleteSession } from "./sessions.ts";
 
@@ -106,10 +106,7 @@ async function signIn(
   body: LocalLoginBody,
 ): Promise<string> {
   const username = body.username.trim().toLowerCase();
-  const keys: FailureKey[] = [
-    { kind: "user", value: username },
-    { kind: "ip", value: clientIp(c, ctx.settings.trustProxy) },
-  ];
+  const keys = failureKeys(username, clientIp(c, ctx.settings.trustProxy));
   if (await ctx.limiter.attempt(keys)) {
     throw new ApiError("too_many_requests", "too many failed sign-ins; try again in a few minutes");
   }

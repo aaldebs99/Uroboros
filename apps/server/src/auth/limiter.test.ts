@@ -14,7 +14,8 @@ afterEach(async () => {
   await t.close();
 });
 
-const user: FailureKey = { kind: "user", value: "alice" };
+const user: FailureKey = { kind: "user_ip", value: "alice|203.0.113.1" };
+const account: FailureKey = { kind: "user", value: "alice" };
 const ip: FailureKey = { kind: "ip", value: "203.0.113.1" };
 
 async function failures(k: FailureKey): Promise<number | undefined> {
@@ -28,11 +29,22 @@ async function failures(k: FailureKey): Promise<number | undefined> {
 }
 
 describe("the sign-in limiter", () => {
-  it("allows 5 failures per username in a window, then refuses", async () => {
+  it("allows 5 failures per username from one address in a window, then refuses", async () => {
     const limiter = createLimiter(t.db);
-    for (let i = 0; i < 5; i++) expect(await limiter.attempt([user, ip])).toBe(false);
-    expect(await limiter.attempt([user, ip])).toBe(true);
+    for (let i = 0; i < 5; i++) expect(await limiter.attempt([user, account, ip])).toBe(false);
+    expect(await limiter.attempt([user, account, ip])).toBe(true);
     expect(await failures(ip)).toBe(6);
+    expect(await failures(account)).toBe(6);
+  });
+
+  it("allows 100 failures per username across addresses, then refuses", async () => {
+    const limiter = createLimiter(t.db);
+    const from = (n: number): FailureKey[] => [
+      { kind: "user_ip", value: `alice|198.51.100.${String(n % 25)}` },
+      account,
+    ];
+    for (let i = 0; i < 100; i++) expect(await limiter.attempt(from(i))).toBe(false);
+    expect(await limiter.attempt(from(100))).toBe(true);
   });
 
   it("starts a fresh window after 15 minutes", async () => {
@@ -43,12 +55,13 @@ describe("the sign-in limiter", () => {
     expect(await failures(user)).toBe(1);
   });
 
-  it("clears the username and takes one attempt off the IP on a good sign-in", async () => {
+  it("clears the username's counts and takes one attempt off the IP on a good sign-in", async () => {
     const limiter = createLimiter(t.db);
-    await limiter.attempt([user, ip]);
-    await limiter.attempt([user, ip]);
-    await limiter.succeeded([user, ip]);
+    await limiter.attempt([user, account, ip]);
+    await limiter.attempt([user, account, ip]);
+    await limiter.succeeded([user, account, ip]);
     expect(await failures(user)).toBeUndefined();
+    expect(await failures(account)).toBeUndefined();
     expect(await failures(ip)).toBe(1);
   });
 
@@ -71,7 +84,7 @@ describe("the sign-in limiter", () => {
   it("sweeps expired windows", async () => {
     const limiter = createLimiter(t.db);
     await limiter.attempt([user, ip]);
-    await sql`UPDATE signin_failures SET expires_at = now() - interval '1 second' WHERE kind = 'user'`.execute(
+    await sql`UPDATE signin_failures SET expires_at = now() - interval '1 second' WHERE kind = 'user_ip'`.execute(
       t.db,
     );
     expect(await sweepExpiredFailures(t.db)).toBe(1);
