@@ -57,14 +57,17 @@ fail() {
     FAILED=1
 }
 
-# check <description> <command...>: ok when the command succeeds.
+# check <description> <command...>: ok when the command succeeds. A failure shows the end of what
+# the command said, so a release's log says why.
 check() {
     local description="$1"
     shift
-    if "$@" > /dev/null 2>&1; then
+    local out
+    if out=$("$@" 2>&1); then
         pass "${description}"
     else
         fail "${description}"
+        printf '%s\n' "${out}" | tail -n 20 | sed 's/^/      /'
     fi
 }
 
@@ -90,33 +93,35 @@ api_fetch() {
         });" "$1"
 }
 
+# The helpers below run here, under pipefail: grep reads all its input (never -q, which stops at
+# the first match), or the command feeding it can die of SIGPIPE and fail a check that matched.
 ready_ok() {
-    api_fetch /api/ready | grep -qF '{"status":"ok","failing":[]}'
+    api_fetch /api/ready | grep -F '{"status":"ok","failing":[]}' > /dev/null
 }
 
 live_ok() {
-    api_fetch /api/health | grep -qF '{"status":"ok"}'
+    api_fetch /api/health | grep -F '{"status":"ok"}' > /dev/null
 }
 
 logged() {
-    docker logs "${SERVER}" 2>&1 | grep -qF "\"msg\":\"$1\""
+    docker logs "${SERVER}" 2>&1 | grep -F "\"msg\":\"$1\"" > /dev/null
 }
 
 # logged_version <tool>: the startup log has a "tool version" line for the tool.
 logged_version() {
-    docker logs "${SERVER}" 2>&1 | grep -F '"tool version"' | grep -qF "\"tool\":\"$1\""
+    docker logs "${SERVER}" 2>&1 | grep -F '"tool version"' | grep -F "\"tool\":\"$1\"" > /dev/null
 }
 
 openapi_ok() {
-    api_fetch /api/openapi.json | grep -q '"openapi"'
+    api_fetch /api/openapi.json | grep '"openapi"' > /dev/null
 }
 
 docs_bundle_ok() {
-    api_fetch /api/docs/swagger-ui-bundle.js | sed -n 1p | grep -q '^200 text/javascript'
+    api_fetch /api/docs/swagger-ui-bundle.js | sed -n 1p | grep '^200 text/javascript' > /dev/null
 }
 
 deep_link_is_html() {
-    api_fetch /some/deep/link | sed -n 1p | grep -q 'text/html'
+    api_fetch /some/deep/link | sed -n 1p | grep 'text/html' > /dev/null
 }
 
 # in_image <sh -c script>: runs a script in a fresh container, prints its first line.

@@ -9,9 +9,11 @@ IMAGE="${1:-uroboros:local}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "${HERE}/../.." && pwd)"
 OUT="${ROOT}/packages/contract/src/generated/loginSites.ts"
+# The script goes in on stdin rather than as a bind mount: where the Docker daemon is a sidecar (the
+# forge's *-dind runners), a mounted path is looked up on the daemon's side, which hasn't the file.
 run() {
-    docker run --rm --network none -v "${HERE}/login-sites.py:/gen/login-sites.py:ro" \
-        --entrypoint /opt/yt-dlp/bin/python3 "${IMAGE}" -I /gen/login-sites.py
+    docker run --rm -i --network none --entrypoint /opt/yt-dlp/bin/python3 "${IMAGE}" -I - \
+        < "${HERE}/login-sites.py"
 }
 if [ "${2:-}" = "--print" ]; then
     run
