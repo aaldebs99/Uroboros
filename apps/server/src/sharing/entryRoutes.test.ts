@@ -42,10 +42,17 @@ beforeAll(async () => {
   const src = join(await mkdtemp(join(tmpdir(), "uroboros-share-src-")), "f");
   await writeFile(src, "0123456789");
   await store.put("shared.mp4", src, "video/mp4");
+  await store.put("thumbs/shared.jpg", src, "image/jpeg");
   alice = await signedIn(t.db, { username: "seralice" });
   bob = await signedIn(t.db, { username: "serbob" });
   carol = await signedIn(t.db, { username: "sercarol" });
   shared = await seedEntry(t.db, alice.userId, { title: "Shared film", storageKey: "shared.mp4" });
+  // A real thumbnail, so a stranger's 404 on it is the share check and not a missing image.
+  await t.db
+    .updateTable("media")
+    .set({ thumbnail_key: "thumbs/shared.jpg" })
+    .where("id", "=", shared.mediaId)
+    .execute();
   await t.db
     .updateTable("library_entries")
     .set({ kept: true })
@@ -144,6 +151,7 @@ describe("a video shared with people", () => {
   });
 
   it("is 404 to anyone it was not shared with", async () => {
+    expect((await send(bob, "GET", `/api/library/${shared.entryId}/thumbnail`)).status).toBe(200);
     for (const [method, path] of [
       ["GET", ""],
       ["GET", "/stream"],

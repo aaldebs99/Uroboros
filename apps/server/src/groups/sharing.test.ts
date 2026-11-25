@@ -95,6 +95,13 @@ describe("sharing with a group", () => {
     expect(await sees(ben, e.entryId)).toBe(true);
     const withMe = await send(ann, "GET", "/api/shared");
     expect(((await withMe.json()) as unknown[]).length).toBe(0);
+    const members = async () =>
+      (
+        (await (await send(ann, "GET", `/api/shares/entry/${e.entryId}`)).json()) as {
+          people: { people: { members?: number }[] };
+        }
+      ).people.people[0]?.members;
+    expect(await members()).toBe(3);
     await t.db
       .updateTable("users")
       .set({ disabled_at: new Date() })

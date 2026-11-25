@@ -3,6 +3,7 @@ import { SiteLogins, SiteLoginView } from "@uroboros/contract";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
+import { mcpToken } from "../../test/mcp.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 import { loginsForFetch, loginsOf } from "./forJobs.ts";
@@ -125,12 +126,20 @@ describe("site logins", () => {
     expect(await loginsOf(testDb.db, OTHER_KEY, u.userId)).toEqual([]);
   });
 
-  it("refuses an API token", async () => {
+  it("refuses the person's own API token, reading or saving", async () => {
     const u = await signedIn(testDb.db, { username: "sl7" });
-    const res = await app.request("/api/me/site-logins", {
-      headers: { authorization: `Bearer ${"a".repeat(64)}` },
+    const headers = {
+      authorization: `Bearer ${await mcpToken(testDb.db, u.userId, { scopes: ["api"] })}`,
+    };
+    // The token itself works elsewhere: the refusal is this path's.
+    expect((await app.request("/api/me", { headers })).status).toBe(200);
+    expect((await app.request("/api/me/site-logins", { headers })).status).toBe(403);
+    const saved = await app.request("/api/me/site-logins/vimeo", {
+      method: "PUT",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({ username: "a", password: "bbbb" }),
     });
-    expect(res.status).toBe(403);
+    expect(saved.status).toBe(403);
     expect((await list(app, u)).logins).toEqual([]);
   });
 });
