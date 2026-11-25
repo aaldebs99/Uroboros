@@ -156,8 +156,7 @@ channel ([jobs.md](jobs.md)).
 ## Format profiles
 
 yt-dlp presets (`format_profiles`, `src/downloads/profiles.ts`): a format selector, a container to
-merge into, or audio-only with an audio format, SponsorBlock categories to get rid of, and extra arguments
-from the wrapper's allowlist (each value checked against its flag's pattern, and the pacing ones
+merge into, or audio-only with an audio format, and extra arguments from the wrapper's allowlist (each value checked against its flag's pattern, and the pacing ones
 bounded: `--limit-rate` at least 100K, retries at most 50, sleeps at most 300 s, and no
 `--throttled-rate`, whose re-extraction loop sleeps again on every pass. The floor still lets a
 download of more than about 2 GB, or one from a slow server, run into the 6-hour fetch timeout,
@@ -168,17 +167,14 @@ again, with the server's own subtitle arguments, when the job runs; its one extr
 profile and revision, so editing a profile makes new downloads fetch a fresh file instead of
 reusing one made with the old arguments; files already in libraries stay.
 
-- **Built-ins** (`user_id` null) are everyone's to start with. All but the archive get rid of
-  SponsorBlock's `sponsor`, `selfpromo` and `interaction` segments: the video ones keep them for
-  the player to skip, the audio ones cut them out ([automation.md](automation.md#sponsorblock)):
+- **Built-ins** (`user_id` null) are everyone's to start with. None of them marks or cuts
+  SponsorBlock segments: what a person's player shows and skips is their own setting, Settings ›
+  SponsorBlock ([automation.md](automation.md#sponsorblock)):
   - "Best available" (the default), "Best up to 1080p (MP4)" and "Up to 720p (MP4)", the smaller
     one for phones and tight storage;
   - "Audio only (Opus)";
-  - "Music (MP3)": VBR best (`--audio-quality=0`) with metadata and cover art embedded, also
-    cutting `music_offtopic` (the non-music sections of a music video);
-  - "Podcasts (M4A)": AAC with metadata and chapters embedded;
-  - "Archive (MKV, uncut)": the best quality in MKV with subtitles, chapters, metadata and cover
-    embedded, and nothing cut.
+  - "Music (MP3)": VBR best (`--audio-quality=0`) with metadata and cover art embedded;
+  - "Podcasts (M4A)": AAC with metadata and chapters embedded.
 
   A person may change them, for themselves alone (`src/downloads/profileEdits.ts`): editing one
   makes it a profile of their own (copy-on-write: a new row, the built-in hidden from them in
@@ -230,8 +226,8 @@ thumbnail. Removing a library entry deletes the row only; the reaper deletes a f
 has referenced it for a day ([automation.md](automation.md#the-reaper)).
 
 Pasted links and new uploads dispatch before a subscription's backfill (`downloads.priority`), and
-a format profile can skip SponsorBlock segments in videos and cut them from audio files
-([automation.md](automation.md#sponsorblock)).
+every YouTube download keeps its SponsorBlock segments for each person's player to show or skip by
+their own setting ([automation.md](automation.md#sponsorblock)).
 
 ## JavaScript challenges
 

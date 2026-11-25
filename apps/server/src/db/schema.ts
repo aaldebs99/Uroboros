@@ -131,7 +131,6 @@ export interface FormatProfilesTable {
   audio_only: Defaulted<boolean>;
   audio_format: string | null;
   extra_args: Defaulted<string[]>;
-  sponsorblock_remove: Defaulted<string[]>;
   is_default: Defaulted<boolean>;
   revision: string;
   created_at: Created;

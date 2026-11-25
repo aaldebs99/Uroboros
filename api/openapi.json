@@ -1025,12 +1025,6 @@
           },
           "revision": {
             "type": "string"
-          },
-          "sponsorblockRemove": {
-            "items": {
-              "$ref": "#/components/schemas/SponsorBlockCategory"
-            },
-            "type": "array"
           }
         },
         "required": [
@@ -1041,7 +1035,6 @@
           "audioOnly",
           "audioFormat",
           "extraArgs",
-          "sponsorblockRemove",
           "builtIn",
           "isDefault",
           "revision"
@@ -1080,13 +1073,6 @@
             "maxLength": 64,
             "minLength": 1,
             "type": "string"
-          },
-          "sponsorblockRemove": {
-            "items": {
-              "$ref": "#/components/schemas/SponsorBlockCategory"
-            },
-            "maxItems": 16,
-            "type": "array"
           }
         },
         "type": "object"
@@ -1917,14 +1903,6 @@
             "maxLength": 64,
             "minLength": 1,
             "type": "string"
-          },
-          "sponsorblockRemove": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/SponsorBlockCategory"
-            },
-            "maxItems": 16,
-            "type": "array"
           }
         },
         "required": [

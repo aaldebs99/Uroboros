@@ -187,7 +187,6 @@ describe("schema: downloads, media and profiles", () => {
   it("seeds the built-in profiles with Best available as default", async () => {
     expect(await profiles()).toEqual(
       [
-        "Archive (MKV, uncut)",
         "Audio only (Opus)",
         "Best available",
         "Best up to 1080p (MP4)",
@@ -202,22 +201,12 @@ describe("schema: downloads, media and profiles", () => {
     );
   });
 
-  it("seeds the built-ins' SponsorBlock cuts: the usual three, music's non-music too, none for the archive", async () => {
-    const rows = await t.db
-      .selectFrom("format_profiles")
-      .select(["name", "sponsorblock_remove"])
-      .where("user_id", "is", null)
-      .execute();
-    const usual = ["interaction", "selfpromo", "sponsor"];
-    for (const row of rows) {
-      const expected =
-        row.name === "Music (MP3)"
-          ? ["interaction", "music_offtopic", "selfpromo", "sponsor"]
-          : row.name === "Archive (MKV, uncut)"
-            ? []
-            : usual;
-      expect(row.sponsorblock_remove, row.name).toEqual(expected);
-    }
+  it("seeds no SponsorBlock categories on profiles: they are each person's setting", async () => {
+    const columns = await sql<{ column_name: string }>`
+      SELECT column_name FROM information_schema.columns WHERE table_name = 'format_profiles'`.execute(
+      t.db,
+    );
+    expect(columns.rows.map((c) => c.column_name)).not.toContain("sponsorblock_remove");
   });
 
   it("allows one default format profile", async () => {

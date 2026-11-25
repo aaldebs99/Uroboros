@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { SponsorBlockCategory, type FormatProfile } from "@uroboros/contract";
+import type { FormatProfile } from "@uroboros/contract";
 import { sql, type ExpressionBuilder, type Kysely, type Selectable } from "kysely";
 import type { Database, FormatProfilesTable } from "../db/schema.ts";
 
@@ -10,11 +10,6 @@ export interface ProfileArgs {
   audioOnly: boolean;
   audioFormat: string | null;
   extraArgs: string[];
-  /**
-   * SponsorBlock categories cut from the file, sorted. Optional: downloads queued before profiles
-   * had categories snapshotted none.
-   */
-  sponsorblockRemove?: string[];
 }
 
 /**
@@ -23,31 +18,14 @@ export interface ProfileArgs {
  * schema file are this function's output (the test pins them).
  */
 export function profileRevision(args: ProfileArgs): string {
-  const cut = [...(args.sponsorblockRemove ?? [])].sort();
-  // Only when non-empty, so profiles without categories keep the revisions they had.
   const canonical = JSON.stringify({
     format: args.format,
     mergeFormat: args.mergeFormat,
     audioOnly: args.audioOnly,
     audioFormat: args.audioFormat,
     extraArgs: args.extraArgs,
-    ...(cut.length === 0 ? {} : { sponsorblockRemove: cut }),
   });
   return createHash("sha256").update(canonical).digest("hex").slice(0, 12);
-}
-
-/**
- * How a profile's SponsorBlock categories reach yt-dlp. An audio file has them cut out: every audio
- * packet starts a part cleanly. A video keeps them, marked as chapters, and the player skips them:
- * yt-dlp cuts by stream copy, so each kept part would restart at the keyframe before its cut, and
- * the removed segment's last seconds would pile up on one timestamp and play out of sync
- * (docs/automation.md#sponsorblock).
- */
-function sponsorBlockArgs(args: ProfileArgs): string[] {
-  const categories = [...(args.sponsorblockRemove ?? [])].sort();
-  if (categories.length === 0) return [];
-  const verb = args.audioOnly ? "remove" : "mark";
-  return [`--sponsorblock-${verb}=${categories.join(",")}`];
 }
 
 /** Extra arguments that cut a file or trim it, so its times are no longer the video's. */
@@ -61,7 +39,10 @@ export function shiftsTimeline(extraArgs: readonly string[]): boolean {
   return extraArgs.some((a) => TIMELINE_MOVERS.some((f) => a === f || a.startsWith(`${f}=`)));
 }
 
-/** The yt-dlp format selector and extra arguments a profile runs with. */
+/**
+ * The yt-dlp format selector and extra arguments a profile runs with. No SponsorBlock flags: the
+ * server asks SponsorBlock itself, so files stay whole (docs/automation.md#sponsorblock).
+ */
 export function ytdlpArgsFor(args: ProfileArgs): { format: string; extraArgs: string[] } {
   const shape =
     args.audioOnly && args.audioFormat !== null
@@ -71,13 +52,7 @@ export function ytdlpArgsFor(args: ProfileArgs): { format: string; extraArgs: st
         : [`--merge-output-format=${args.mergeFormat}`];
   return {
     format: args.format,
-    extraArgs: [
-      ...shape,
-      "--write-thumbnail",
-      "--convert-thumbnails=jpg",
-      ...sponsorBlockArgs(args),
-      ...args.extraArgs,
-    ],
+    extraArgs: [...shape, "--write-thumbnail", "--convert-thumbnails=jpg", ...args.extraArgs],
   };
 }
 
@@ -90,12 +65,8 @@ export function argsOf(row: ProfileRow): ProfileArgs {
     audioOnly: row.audio_only,
     audioFormat: row.audio_format,
     extraArgs: row.extra_args,
-    sponsorblockRemove: row.sponsorblock_remove,
   };
 }
-
-const isCategory = (c: string): c is SponsorBlockCategory =>
-  SponsorBlockCategory.safeParse(c).success;
 
 /** The profile as `viewer` sees it: whether it is their default (`defaultId`) is theirs alone. */
 export function toProfile(row: ProfileRow, defaultId: string | null): FormatProfile {
@@ -103,7 +74,6 @@ export function toProfile(row: ProfileRow, defaultId: string | null): FormatProf
     id: row.id,
     name: row.name,
     ...argsOf(row),
-    sponsorblockRemove: row.sponsorblock_remove.filter(isCategory),
     builtIn: row.user_id === null,
     isDefault: row.id === defaultId,
     revision: row.revision,

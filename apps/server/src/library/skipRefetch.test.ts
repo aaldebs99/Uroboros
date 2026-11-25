@@ -100,9 +100,12 @@ describe("refetching an entry's SponsorBlock segments", () => {
     expect((await item(me, e.entryId)).sponsorSegmentsRefetchable).toBe(true);
   });
 
-  it("is offered on an audio download too, and on one whose profile skipped nothing", async () => {
+  it("is offered on an audio download too, and on one whose extra arguments keep its times", async () => {
     const me = await user();
-    for (const args of [{ audioOnly: true, audioFormat: "opus" }, { sponsorblockRemove: [] }]) {
+    for (const args of [
+      { audioOnly: true, audioFormat: "opus" },
+      { extraArgs: ["--embed-chapters"] },
+    ]) {
       const e = await seedDownloadedEntry(t.db, me.userId, { args });
       expect((await refetch(me, e.entryId)).status).toBe(202);
       expect((await item(me, e.entryId)).sponsorSegmentsRefetchable).toBe(true);

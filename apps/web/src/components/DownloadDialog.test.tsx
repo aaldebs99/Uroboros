@@ -22,7 +22,6 @@ function profile(id: string, name: string, isDefault: boolean): FormatProfile {
     audioOnly: false,
     audioFormat: null,
     extraArgs: [],
-    sponsorblockRemove: [],
     builtIn: true,
     isDefault,
     revision: "1",

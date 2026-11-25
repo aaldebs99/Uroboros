@@ -26,7 +26,6 @@ function checked(args: ProfileArgs): ProfileArgs {
     return {
       ...args,
       extraArgs: normalizeExtraArgs(args.extraArgs),
-      sponsorblockRemove: [...new Set(args.sponsorblockRemove ?? [])].sort(),
     };
   } catch (err) {
     throw new ApiError("bad_request", err instanceof Error ? err.message : String(err));
@@ -63,7 +62,6 @@ function argColumns(args: ProfileArgs) {
     audio_only: args.audioOnly,
     audio_format: args.audioFormat,
     extra_args: args.extraArgs,
-    sponsorblock_remove: args.sponsorblockRemove ?? [],
     revision: profileRevision(args),
   };
 }
@@ -80,7 +78,6 @@ export async function createProfile(
     audioOnly: b.audioOnly,
     audioFormat: b.audioFormat,
     extraArgs: b.extraArgs,
-    sponsorblockRemove: b.sponsorblockRemove,
   });
   await checkName(db, userId, b.name);
   return db
@@ -148,7 +145,6 @@ export async function editProfile(
     audioOnly: patch.audioOnly ?? old.audioOnly,
     audioFormat: patch.audioFormat === undefined ? old.audioFormat : patch.audioFormat,
     extraArgs: patch.extraArgs ?? old.extraArgs,
-    sponsorblockRemove: patch.sponsorblockRemove ?? old.sponsorblockRemove ?? [],
   });
   const name = patch.name ?? current.name;
   await checkName(db, userId, name, id);

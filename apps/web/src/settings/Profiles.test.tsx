@@ -18,7 +18,6 @@ const profile = (n: number, name: string, over: Partial<FormatProfile> = {}): Fo
   audioOnly: false,
   audioFormat: null,
   extraArgs: [],
-  sponsorblockRemove: ["sponsor"],
   builtIn: true,
   isDefault: false,
   revision: "r",
@@ -65,16 +64,15 @@ describe("FormatProfiles", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Copy Best available" }));
     const dialog = screen.getByRole("dialog", { name: "Copy Best available" });
     expect(within(dialog).getByLabelText("Name")).toHaveValue("Best available (copy)");
+    // SponsorBlock is each person's setting now, never a profile's.
+    expect(within(dialog).queryByRole("group", { name: /SponsorBlock/ })).toBeNull();
     await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
     const posted = calls.find((c) => c.method === "POST")?.body as Record<string, unknown>;
-    expect(posted).toMatchObject({
-      name: "Best available (copy)",
-      format: "bv*+ba/b",
-      sponsorblockRemove: ["sponsor"],
-    });
+    expect(posted).toMatchObject({ name: "Best available (copy)", format: "bv*+ba/b" });
+    expect(posted).not.toHaveProperty("sponsorblockRemove");
   });
 
   it("edits a built-in like any other (the server makes it the person's own)", async () => {

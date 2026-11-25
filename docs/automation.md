@@ -157,30 +157,42 @@ decision itself (Skipped, Filtered, Waiting, New, or Queued for one already had 
 
 ## SponsorBlock
 
-The categories to get rid of (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`, `filler`,
-`interaction`, `music_offtopic`) live in the format profile, which already says what shapes a file:
-its owner ticks them in the profile editor. The built-ins, and a new profile in the editor until its
-owner changes it, take `sponsor`, `selfpromo` and `interaction`. The categories join the profile's
-revision only when there are any (so profiles without them kept their revisions), and the file is
-shared by everyone using the profile and revision. What happens to the segments depends on the file
-(`ytdlpArgsFor`, `src/downloads/profiles.ts`):
+What a person's player does with SponsorBlock's segments is their own setting, Settings ›
+SponsorBlock (`user_preferences`, `GET`/`PATCH /api/me/preferences`): for videos and for audio
+files apart, which categories (`sponsor`, `intro`, `outro`, `selfpromo`, `preview`, `filler`,
+`interaction`, `music_offtopic`) it shows as bands on the timeline and which it skips, either
+without the other. Until they choose, both show and skip `sponsor`, `selfpromo` and `interaction`.
+Format profiles carry no categories, and no file is marked or cut for anyone:
 
-- **A video keeps them** and the player skips them. Downloads run `--sponsorblock-mark=<categories>`,
-  which embeds them as chapters ("[SponsorBlock]: Sponsor") by a stream-copy remux. The fetch reads
-  the segments yt-dlp found from the `.info.json` (`sponsorblock_chapters`) into
-  `renditions.skip_segments` (`src/worker/skipSegments.ts`: the profile's categories, SponsorBlock's
-  "skip" action). The item and public-link routes hand them out as `skipSegments`, and the web player
-  draws them as bands on the timeline and jumps over one, without a toast, when playback runs into
-  its start (`apps/web/src/library/SponsorSkip.tsx`). Only playback skips: a segment the viewer seeks
-  into plays out (seeking back to a skipped one's start is how to watch it), and a jump of more than 2 s between two looks counts as a seek. Cutting a video is what yt-dlp's
-  `--sponsorblock-remove` would do, but it cuts by stream copy: each kept part must restart at the
-  keyframe before its cut point, so up to one keyframe interval of the removed segment (several
-  seconds on YouTube's AV1) comes along. Those packets land before the part's start, the muxer
-  stacks them on one timestamp, and the browser plays their audio over the next scene, out of sync
-  from then on. A whole file also keeps `media.chapters` on its timeline.
-- **An audio file has them cut out**: audio-only profiles run `--sponsorblock-remove=<categories>`.
-  Every audio packet starts a part cleanly, so the cut is exact, and a music player that knows
-  nothing of SponsorBlock never plays them. Its rendition has no `skip_segments`.
+- **Every YouTube file keeps every category's segments.** After a download the fetch asks
+  SponsorBlock's API itself (`src/sponsorblock/client.ts`, `src/worker/fetchSegments.ts`) for the
+  video's segments, by the first four hex digits of its id's SHA-256 as yt-dlp does, so SponsorBlock
+  never learns which video it was, and stores their "skip" action's segments on the rendition
+  (`renditions.skip_segments`), the same for everyone who has the file. Nothing goes through yt-dlp,
+  so the file has no SponsorBlock chapters and nothing cut. A lookup that fails stores none and the
+  download stands; its owner can fetch them again (below). Other sites have none: SponsorBlock knows
+  YouTube's alone.
+- **Each route resolves them for one person** (`src/library/sponsorSegments.ts`). The item route
+  hands out `sponsorSegments` by the caller's setting, their own entry or one shared with them, and
+  a public link's item by its owner's, whoever opens it. A file without a video stream (cover art
+  isn't one) goes by the audio choice. Each segment says whether it is shown (`show`) and skipped
+  (`skip`); one neither shown nor skipped is left out.
+- **The player** draws the shown ones as bands on the timeline (lighter where playback doesn't
+  jump them) and jumps over a skipped one, without a toast, when playback runs into its start
+  (`apps/web/src/library/SponsorSkip.tsx`), audio and video alike. Only playback skips: a segment
+  the viewer seeks into plays out (seeking back to a skipped one's start is how to watch it), and a
+  jump of more than 2 s between two looks counts as a seek.
+- **Files cut by their own profile keep none.** A profile whose extra arguments cut or trim the file
+  (`--sponsorblock-remove`, `--remove-chapters`, `--download-sections`) moves its timeline, so
+  SponsorBlock's times would point at the wrong moments in it: such a file stores no segments and
+  can't be refetched.
+
+Cutting a stored video by stream copy, as yt-dlp's `--sponsorblock-remove` does, would leave each
+kept part to restart at the keyframe before its cut point, so up to one keyframe interval of the
+removed segment (several seconds on YouTube's AV1) would come along. Those packets land before the
+part's start, the muxer stacks them on one timestamp, and the browser plays their audio over the
+next scene, out of sync from then on. So files stay whole, and a clean file is a copy made on
+request (below). A whole file also keeps `media.chapters` on its timeline.
 
 **Fetching them again.** The segments a download stored are SponsorBlock's at that moment, and
 people keep submitting them, most of all in a video's first days, just when a subscription fetches
@@ -197,14 +209,15 @@ event on the live stream tells the person who asked what came of it, counting th
 own setting shows or skips: the web app fetches the entry again and toasts the segments found, none
 yet, or the failure.
 
-To save a video to a device without its segments, the item page's Save offers a copy re-encoded
-without them, cut exactly and in sync
+To save a file to a device without the segments its person skips, the item page's Save offers a
+copy re-encoded without them, cut exactly and in sync
 ([transcoding.md](transcoding.md#saving-without-sponsorblock-segments)).
 
-Exact cuts in the stored video need a re-encode too: extra arguments `--sponsorblock-remove=…
+Exact cuts in the stored file need a re-encode too: extra arguments `--sponsorblock-remove=…
 --force-keyframes-at-cuts` do that, with ffmpeg's default encoder for the container, slowly and at
-a cost in quality. `--remove-chapters` and `--download-sections` cut by stream copy too, with the
-same keyframe limit, unless `--force-keyframes-at-cuts` comes with them.
+a cost in quality, and the file then keeps no segments (above). `--remove-chapters` and
+`--download-sections` cut by stream copy too, with the same keyframe limit, unless
+`--force-keyframes-at-cuts` comes with them.
 
 ## Unsubscribing
 

@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
-import { profileRevision, shiftsTimeline, ytdlpArgsFor } from "./profiles.ts";
+import { argsOf, profileRevision, shiftsTimeline, ytdlpArgsFor } from "./profiles.ts";
 
 const logger = pino({ level: "silent" });
 let testDb: TestDb;
@@ -49,10 +49,9 @@ const patch = (id: string, json: unknown, s: SignedIn = member) =>
   send(s, "PATCH", `/api/format-profiles/${id}`, json);
 
 describe("format profiles", () => {
-  it("seeds built-ins whose revisions profileRevision reproduces, listed for everyone", async () => {
+  it("seeds the six built-ins, whose revisions profileRevision reproduces, listed for everyone", async () => {
     const builtIns = (await list()).filter((p) => p.builtIn);
     expect(builtIns.map((p) => p.name)).toEqual([
-      "Archive (MKV, uncut)",
       "Audio only (Opus)",
       "Best available",
       "Best up to 1080p (MP4)",
@@ -85,23 +84,9 @@ describe("format profiles", () => {
     expect(reformatted.revision).not.toBe(p.revision);
   });
 
-  it("changes the revision when SponsorBlock categories are added, not when they are reordered", async () => {
-    const p = FormatProfile.parse(await (await create()).json());
-    expect(p.sponsorblockRemove).toEqual([]);
-    const cut = FormatProfile.parse(
-      await (await patch(p.id, { sponsorblockRemove: ["sponsor", "intro", "sponsor"] })).json(),
-    );
-    expect(cut.sponsorblockRemove).toEqual(["intro", "sponsor"]);
-    expect(cut.revision).not.toBe(p.revision);
-    const reordered = FormatProfile.parse(
-      await (await patch(p.id, { sponsorblockRemove: ["intro", "sponsor"] })).json(),
-    );
-    expect(reordered.revision).toBe(cut.revision);
-    expect(reordered.revision).toBe(profileRevision(reordered));
-  });
-
-  it("refuses an unknown SponsorBlock category (400)", async () => {
-    expect((await create({ sponsorblockRemove: ["poi_highlight"] })).status).toBe(400);
+  it("carries no SponsorBlock categories: each person's setting decides (Settings › SponsorBlock)", async () => {
+    const p = FormatProfile.parse(await (await create({ sponsorblockRemove: ["sponsor"] })).json());
+    expect(p).not.toHaveProperty("sponsorblockRemove");
   });
 
   it("refuses deleting a profile in use, and deletes an unused one", async () => {
@@ -158,7 +143,7 @@ describe("shiftsTimeline", () => {
 });
 
 describe("ytdlpArgsFor", () => {
-  it("runs the Music built-in as best-quality MP3 with its cover, cutting non-music sections", async () => {
+  it("runs the Music built-in as best-quality MP3 with its cover", async () => {
     const music = (await list()).find((p) => p.name === "Music (MP3)");
     expect(music).toBeDefined();
     if (music === undefined) return;
@@ -169,7 +154,6 @@ describe("ytdlpArgsFor", () => {
         "--audio-format=mp3",
         "--write-thumbnail",
         "--convert-thumbnails=jpg",
-        "--sponsorblock-remove=interaction,music_offtopic,selfpromo,sponsor",
         "--audio-quality=0",
         "--embed-metadata",
         "--embed-thumbnail",
@@ -211,32 +195,15 @@ describe("ytdlpArgsFor", () => {
     ]);
   });
 
-  it("marks a video's SponsorBlock segments for the player to skip, and cuts an audio file's", () => {
-    const base = { format: "b", mergeFormat: null, audioOnly: false, audioFormat: null };
-    const video = ytdlpArgsFor({
-      ...base,
-      extraArgs: [],
-      sponsorblockRemove: ["sponsor", "intro"],
-    }).extraArgs;
-    // A stream-copied cut desyncs a video (each part restarts at a keyframe); marking cuts nothing.
-    expect(video).toContain("--sponsorblock-mark=intro,sponsor");
-    expect(video.join(" ")).not.toMatch(/sponsorblock-remove/);
-    expect(
-      ytdlpArgsFor({
-        ...base,
-        audioOnly: true,
-        audioFormat: "opus",
-        extraArgs: [],
-        sponsorblockRemove: ["sponsor"],
-      }).extraArgs,
-    ).toContain("--sponsorblock-remove=sponsor");
-    expect(ytdlpArgsFor({ ...base, extraArgs: [], sponsorblockRemove: [] }).extraArgs).toEqual([
-      "--write-thumbnail",
-      "--convert-thumbnails=jpg",
-    ]);
-    // A download queued before profiles had categories snapshotted none.
-    expect(ytdlpArgsFor({ ...base, extraArgs: [] }).extraArgs.join(" ")).not.toMatch(
-      /sponsorblock/,
-    );
+  it("passes no SponsorBlock flags: the server asks SponsorBlock itself, so files stay whole", async () => {
+    const rows = await testDb.db
+      .selectFrom("format_profiles")
+      .selectAll()
+      .where("user_id", "is", null)
+      .execute();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(ytdlpArgsFor(argsOf(row)).extraArgs.join(" "), row.name).not.toMatch(/sponsorblock/);
+    }
   });
 });
