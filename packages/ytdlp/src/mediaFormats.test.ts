@@ -134,6 +134,33 @@ describe("a downloaded or stored file is only ever read as a media container", (
   });
 });
 
+describe("the media containers", () => {
+  it("cover what a profile or a site legitimately gives: AIFF, WMV/WMA, MPEG and raw audio", () => {
+    const formats = MEDIA_FORMATS.split(",");
+    for (const f of [
+      "aiff",
+      "asf",
+      "mpeg",
+      "mpegvideo",
+      "ac3",
+      "eac3",
+      "dts",
+      "w64",
+      "wv",
+      "caf",
+      "amr",
+    ]) {
+      expect(formats, f).toContain(f);
+    }
+  });
+
+  it("never include a format that opens other files or URLs", () => {
+    for (const f of ["dash", "hls", "concat", "webm_dash_manifest", "image2", "ffmetadata"]) {
+      expect(MEDIA_FORMATS.split(","), f).not.toContain(f);
+    }
+  });
+});
+
 describe("yt-dlp's own ffmpeg steps", () => {
   const ppa = (argv: readonly string[]) =>
     new Map(
