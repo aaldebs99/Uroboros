@@ -117,6 +117,7 @@ const noOidcProvider: OidcProvider = {
     adminGroups: [],
     groupsClaim: "groups",
     syncIntervalSecs: 0,
+    autoCreate: false,
     redirectUrl: "",
   },
   ready: () => false,

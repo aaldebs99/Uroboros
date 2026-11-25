@@ -78,6 +78,7 @@ describe("SignIn", () => {
     ["unavailable", "Authentik isn't reachable right now. Try again in a moment."],
     ["failed", "Sign-in didn't work. Try again."],
     ["disabled", "This account is disabled. Ask an admin."],
+    ["unregistered", "There's no Uroboros account for you yet. Ask an admin to let you in."],
   ])("explains auth_error=%s", async (code, text) => {
     window.history.replaceState(null, "", `/?auth_error=${code}`);
     stub({ local: true, oidc: { displayName: "Authentik", ready: true } });

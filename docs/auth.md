@@ -17,7 +17,10 @@ sign-in and by the claims sync: membership in any of `UROBOROS_OIDC_ADMIN_GROUPS
 `authentik Admins`) makes them an admin. Admins cannot override an SSO user's role. A local user's
 role is set by an admin. The provider's groups decide only this role: sharing with a group means
 one of the groups people make in Uroboros ([sharing.md](sharing.md#groups)). Admission is the provider's job: anyone the provider lets through gets an
-account on first sign-in (just-in-time), as in Djinn.
+account on first sign-in (just-in-time), as in Djinn, unless `UROBOROS_OIDC_AUTO_CREATE` is
+false: then only existing SSO accounts sign in, and a new identity is sent back with
+`auth_error=unregistered` and no account is made. Admitting someone new then means turning it on
+while they sign in once; a fresh install with it off and local login off lets nobody in.
 
 Local accounts are created, renamed, given a role, disabled, re-enabled, reset and deleted in
 Admin › Users. SSO accounts can be disabled but not deleted: deleting one would only bring it back
@@ -59,7 +62,7 @@ compares the binding in constant time, exchanges the code with `client_secret_ba
 the ID token: issuer, audience, expiry (30 s leeway), nonce, and its **signature against the
 provider's JWKS** (openid-client's non-repudiation checks are on; by default it skips signatures on
 token-endpoint responses). Failures send the browser to
-`/?auth_error=expired|cancelled|unavailable|failed|disabled`, which the sign-in page explains. The
+`/?auth_error=expired|cancelled|unavailable|failed|disabled|unregistered`, which the sign-in page explains. The
 return path is same-origin only.
 
 Signing out deletes the session; an SSO user's browser then goes to the provider's end-session

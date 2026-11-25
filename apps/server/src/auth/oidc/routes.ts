@@ -16,7 +16,7 @@ import type { OidcProvider } from "./provider.ts";
 const BINDING_COOKIE = "uroboros_oidc";
 const BINDING_PATH = "/api/auth/oidc";
 
-type AuthError = "expired" | "cancelled" | "unavailable" | "failed" | "disabled";
+type AuthError = "expired" | "cancelled" | "unavailable" | "failed" | "disabled" | "unregistered";
 
 const loginRoute = createRoute({
   method: "get",
@@ -78,14 +78,25 @@ async function finish(
   const claims = (tokens.claims() ?? {}) as Record<string, unknown> & { iss: string; sub: string };
   const groups = groupsFrom(claims, ctx.provider.settings.groupsClaim);
   const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
-  const user = await upsertOidcUser(ctx.db, {
-    issuer: claims.iss,
-    subject: claims.sub,
-    displayName: (str(claims.name) ?? str(claims.preferred_username) ?? claims.sub).slice(0, 128),
-    email: str(claims.email),
-    groups,
-    role: roleFor(groups, ctx.provider.settings.adminGroups),
-  });
+  const user = await upsertOidcUser(
+    ctx.db,
+    {
+      issuer: claims.iss,
+      subject: claims.sub,
+      displayName: (str(claims.name) ?? str(claims.preferred_username) ?? claims.sub).slice(0, 128),
+      email: str(claims.email),
+      groups,
+      role: roleFor(groups, ctx.provider.settings.adminGroups),
+    },
+    { create: ctx.provider.settings.autoCreate },
+  );
+  if (user === null) {
+    ctx.logger.info(
+      { issuer: claims.iss, subject: claims.sub },
+      "oidc sign-in turned away: no account, and UROBOROS_OIDC_AUTO_CREATE is false",
+    );
+    return { error: "unregistered" };
+  }
   if (user.disabled) return { error: "disabled" };
   // No refresh token this time: an older one must not linger, or the sync would redeem a token the
   // provider may already have dropped and revoke a user who just signed in.

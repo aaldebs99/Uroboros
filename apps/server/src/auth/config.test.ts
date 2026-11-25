@@ -121,8 +121,18 @@ describe("auth config", () => {
       adminGroups: ["authentik Admins"],
       groupsClaim: "groups",
       syncIntervalSecs: 900,
+      autoCreate: true,
       redirectUrl: "https://uro.example/api/auth/oidc/callback",
     });
+  });
+
+  it("creates SSO accounts at first sign-in unless UROBOROS_OIDC_AUTO_CREATE is false", () => {
+    const autoCreate = (value: string) =>
+      loadConfig({ ...base, ...oidc, UROBOROS_OIDC_AUTO_CREATE: value }).auth.oidc?.autoCreate;
+    expect(autoCreate("")).toBe(true);
+    expect(autoCreate("true")).toBe(true);
+    expect(autoCreate("false")).toBe(false);
+    expect(() => autoCreate("no")).toThrow(/UROBOROS_OIDC_AUTO_CREATE must be true or false/);
   });
 
   it("needs all OIDC variables or none", () => {

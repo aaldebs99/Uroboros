@@ -31,6 +31,7 @@ const oidcConfig = (): OidcConfig => ({
   adminGroups: ["authentik Admins"],
   groupsClaim: "groups",
   syncIntervalSecs: 900,
+  autoCreate: true,
   redirectUrl: `${BASE}/api/auth/oidc/callback`,
 });
 
@@ -39,7 +40,7 @@ function makeApp(p: OidcProvider): OpenAPIHono {
     sessionTtlHours: 1,
     trustProxy: false,
     local: { enabled: true, bootstrap: null },
-    oidc: oidcConfig(),
+    oidc: p.settings,
   };
   return createApp(
     {
@@ -276,6 +277,74 @@ describe("OIDC sign-in", () => {
     expect(`${url.origin}${url.pathname}`).toBe(`${idp.issuer}/end-session`);
     expect(url.searchParams.get("client_id")).toBe(CLIENT_ID);
     expect(url.searchParams.get("post_logout_redirect_uri")).toBe(`${BASE}/`);
+  });
+});
+
+describe("with UROBOROS_OIDC_AUTO_CREATE off", () => {
+  let closed: OpenAPIHono;
+  const stopClosed = new AbortController();
+
+  beforeAll(async () => {
+    const p = createOidcProvider(
+      { ...oidcConfig(), autoCreate: false },
+      { logger, fetch: idp.fetch },
+    );
+    p.start(stopClosed.signal);
+    await vi.waitFor(
+      () => {
+        expect(p.ready()).toBe(true);
+      },
+      { timeout: 10_000 },
+    );
+    closed = makeApp(p);
+  });
+  afterAll(() => {
+    stopClosed.abort();
+  });
+
+  async function signInClosed(person: Person): Promise<Response> {
+    const b = await begin(closed);
+    const code = idp.authorize(b.location, person);
+    return callback(`code=${code}&state=${b.state}`, b.binding, closed);
+  }
+
+  const account = (sub: string) =>
+    testDb.db
+      .selectFrom("users")
+      .select(["display_name", "role", "last_login_at"])
+      .where("oidc_subject", "=", sub)
+      .execute();
+
+  it("turns a new identity away without making an account or a session", async () => {
+    const res = await signInClosed({ sub: "u-stranger", groups: ["authentik Admins"] });
+    expect(errorOf(res)).toBe("unregistered");
+    expect(setCookies(res).has("uroboros_session")).toBe(false);
+    expect(await account("u-stranger")).toEqual([]);
+  });
+
+  it("still signs in an existing SSO account and refreshes it", async () => {
+    await signIn({ sub: "u-known", name: "Kay", groups: [] });
+    await testDb.db
+      .updateTable("users")
+      .set({ last_login_at: null })
+      .where("oidc_subject", "=", "u-known")
+      .execute();
+    const res = await signInClosed({ sub: "u-known", name: "Kay B", groups: ["authentik Admins"] });
+    expect(errorOf(res)).toBeNull();
+    expect(setCookies(res).has("uroboros_session")).toBe(true);
+    const [row] = await account("u-known");
+    expect(row).toMatchObject({ display_name: "Kay B", role: "admin" });
+    expect(row?.last_login_at).not.toBeNull();
+  });
+
+  it("still calls a disabled account disabled", async () => {
+    await signIn({ sub: "u-gone" });
+    await testDb.db
+      .updateTable("users")
+      .set({ disabled_at: new Date() })
+      .where("oidc_subject", "=", "u-gone")
+      .execute();
+    expect(errorOf(await signInClosed({ sub: "u-gone" }))).toBe("disabled");
   });
 });
 

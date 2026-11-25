@@ -28,6 +28,7 @@ const oidc = (): OidcConfig => ({
   adminGroups: ["authentik Admins"],
   groupsClaim: "groups",
   syncIntervalSecs: 900,
+  autoCreate: true,
   redirectUrl: "https://uro.example/api/auth/oidc/callback",
 });
 
@@ -66,14 +67,20 @@ beforeEach(() => {
 
 /** An SSO user whose claims are stale and who holds a working refresh token. */
 async function staleUser(sub: string, groups: string[] = [], ageMs = 3_600_000): Promise<string> {
-  const { id } = await upsertOidcUser(testDb.db, {
-    issuer: idp.issuer,
-    subject: sub,
-    displayName: sub,
-    email: null,
-    groups,
-    role: groups.includes("authentik Admins") ? "admin" : "member",
-  });
+  const made = await upsertOidcUser(
+    testDb.db,
+    {
+      issuer: idp.issuer,
+      subject: sub,
+      displayName: sub,
+      email: null,
+      groups,
+      role: groups.includes("authentik Admins") ? "admin" : "member",
+    },
+    { create: true },
+  );
+  if (made === null) throw new Error(`no account was made for ${sub}`);
+  const { id } = made;
   await testDb.db
     .updateTable("users")
     .set({ claims_synced_at: new Date(Date.now() - ageMs) })
@@ -139,14 +146,18 @@ describe("claims sync", () => {
     idp.refuseRefresh(true);
     await runSyncPass(deps());
     expect((await user(id)).revoked_at).not.toBeNull();
-    await upsertOidcUser(testDb.db, {
-      issuer: idp.issuer,
-      subject: sub,
-      displayName: sub,
-      email: null,
-      groups: [],
-      role: "member",
-    });
+    await upsertOidcUser(
+      testDb.db,
+      {
+        issuer: idp.issuer,
+        subject: sub,
+        displayName: sub,
+        email: null,
+        groups: [],
+        role: "member",
+      },
+      { create: true },
+    );
     expect((await user(id)).revoked_at).toBeNull();
   });
 

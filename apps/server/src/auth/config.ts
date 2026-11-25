@@ -27,6 +27,8 @@ export interface OidcConfig {
   groupsClaim: string;
   /** How old an SSO user's claims may get before the sync refreshes them; 0 turns sync off. */
   syncIntervalSecs: number;
+  /** Make an account at someone's first sign-in; off, only existing SSO accounts sign in. */
+  autoCreate: boolean;
   /** `<public base URL>/api/auth/oidc/callback`. */
   redirectUrl: string;
 }
@@ -70,6 +72,7 @@ export const authEnvSchema = z.object({
   UROBOROS_OIDC_DISPLAY_NAME: optional,
   UROBOROS_OIDC_ADMIN_GROUPS: optional,
   UROBOROS_OIDC_GROUPS_CLAIM: optional,
+  UROBOROS_OIDC_AUTO_CREATE: flag("UROBOROS_OIDC_AUTO_CREATE", true),
   UROBOROS_OIDC_SYNC_INTERVAL_SECS: z.preprocess(
     (v) => (v === "" || v === undefined ? String(DEFAULT_SYNC_INTERVAL_SECS) : v),
     z
@@ -190,6 +193,7 @@ export function toAuthConfig(env: AuthEnv, publicBaseUrl: string | undefined): A
             .filter((g) => g !== ""),
           groupsClaim: env.UROBOROS_OIDC_GROUPS_CLAIM ?? "groups",
           syncIntervalSecs: env.UROBOROS_OIDC_SYNC_INTERVAL_SECS,
+          autoCreate: env.UROBOROS_OIDC_AUTO_CREATE,
           redirectUrl: `${publicBaseUrl}/api/auth/oidc/callback`,
         }
       : null;

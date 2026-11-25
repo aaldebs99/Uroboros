@@ -16,6 +16,7 @@ const AUTH_ERRORS: Record<string, (provider: string) => string> = {
   unavailable: (provider) => `${provider} isn't reachable right now. Try again in a moment.`,
   failed: () => "Sign-in didn't work. Try again.",
   disabled: () => "This account is disabled. Ask an admin.",
+  unregistered: () => "There's no Uroboros account for you yet. Ask an admin to let you in.",
 };
 
 function authErrorFromUrl(provider: string): string | null {

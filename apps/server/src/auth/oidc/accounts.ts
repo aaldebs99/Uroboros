@@ -24,14 +24,16 @@ export interface OidcIdentity {
 }
 
 /**
- * Finds or creates the account for an OIDC identity. A disabled account is reported without being
- * touched; otherwise profile, groups and role are refreshed, the revocation cleared and the
- * sign-in stamped.
+ * Finds the account for an OIDC identity, or creates it when `create` is set
+ * (UROBOROS_OIDC_AUTO_CREATE); null when there is none and `create` is off. A disabled account is
+ * reported without being touched; otherwise profile, groups and role are refreshed, the
+ * revocation cleared and the sign-in stamped.
  */
 export async function upsertOidcUser(
   db: Kysely<Database>,
   identity: OidcIdentity,
-): Promise<{ id: string; disabled: boolean }> {
+  { create }: { create: boolean },
+): Promise<{ id: string; disabled: boolean } | null> {
   const existing = await db
     .selectFrom("users")
     .select(["id", "disabled_at"])
@@ -53,6 +55,7 @@ export async function upsertOidcUser(
     await db.updateTable("users").set(fields).where("id", "=", existing.id).execute();
     return { id: existing.id, disabled: false };
   }
+  if (!create) return null;
   const row = await db
     .insertInto("users")
     .values({ ...fields, oidc_issuer: identity.issuer, oidc_subject: identity.subject })
