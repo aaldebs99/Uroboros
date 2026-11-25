@@ -44,10 +44,16 @@ describe("a job worker whose listener was cut", () => {
       // The poll is a minute away: only the reconnect's resync can find the job in time.
       pollMs: 60_000,
     });
-    expect(await cutListeners(t.db)).toBe(1);
-    await new JobQueue(t.db, "probe").add("probe", { n: 1 });
+    // One job first, so the worker is past its start-up claim and resting on its poll.
+    const q = new JobQueue(t.db, "probe");
+    await q.add("probe", { n: 0 });
     await eventually(() => {
-      expect(seen).toEqual([1]);
+      expect(seen).toEqual([0]);
+    });
+    expect(await cutListeners(t.db)).toBe(1);
+    await q.add("probe", { n: 1 });
+    await eventually(() => {
+      expect(seen).toEqual([0, 1]);
     });
   });
 });
