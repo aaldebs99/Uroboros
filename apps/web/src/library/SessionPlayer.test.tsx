@@ -133,6 +133,11 @@ describe("SessionPlayer", () => {
       expect(calls.filter((c) => c.method === "POST")).toHaveLength(2);
     });
     expect(calls.filter((c) => c.method === "POST")[1]?.body).toMatchObject({ start: 50 });
+    // The new one is gone too, within 30 s of the last restart: it says so rather than loop.
+    expect(
+      await screen.findByText(/couldn't be played: the playback session ended/),
+    ).toBeInTheDocument();
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(2);
   });
 
   it("starts again at the current position when the player fails", async () => {
@@ -147,6 +152,13 @@ describe("SessionPlayer", () => {
       expect(calls.filter((c) => c.method === "POST")).toHaveLength(2);
     });
     expect(calls.filter((c) => c.method === "POST")[1]?.body).toMatchObject({ start: 50 });
+    // A second failure within 30 s of that restart shows, with no third session.
+    await screen.findByTestId("player");
+    lastOnError?.();
+    expect(
+      await screen.findByText(/couldn't be played: the player could not play it/),
+    ).toBeInTheDocument();
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(2);
   });
 
   it("stops its session when it goes", async () => {
@@ -164,15 +176,25 @@ describe("SessionPlayer", () => {
   });
 
   it("keeps playing while its session moves to another replica (queued again after running)", async () => {
+    // The first poll's "queued" is held until the player has played: answered before that, it is
+    // a session that never ran, and the race between the two remounted the player now and then.
+    let played: () => void = () => undefined;
+    const hasPlayed = new Promise<void>((resolve) => {
+      played = resolve;
+    });
     let polls = 0;
     fakeApi({
       [`POST ${base}`]: () => Response.json(session(), { status: 201 }),
-      [`GET ${url}`]: () => Response.json(++polls === 1 ? session({ state: "queued" }) : session()),
+      [`GET ${url}`]: async () => {
+        await hasPlayed;
+        return Response.json(++polls === 1 ? session({ state: "queued" }) : session());
+      },
     });
     mounts.count = 0;
     renderWithQuery(<SessionPlayer {...props} />);
     await screen.findByTestId("player");
     lastOnTime?.(44, 120);
+    played();
     await waitFor(
       () => {
         expect(polls).toBeGreaterThanOrEqual(2);
