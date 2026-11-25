@@ -162,10 +162,10 @@ services:
     # write.
     tmpfs:
       - /tmp/uroboros-work:mode=1777
-    # Above the stop budget: the 25 s job grace (alongside the 20 s HTTP drain), 2 s for cut
-    # connections, 2 s cleanup and 2 s hard-exit slack (31 s at most), so compose does not
+    # Above the stop budget: the 25 s job grace (alongside the 20 s HTTP drain), 15 s for cut
+    # connections, 15 s cleanup and 2 s hard-exit slack (57 s at most), so compose does not
     # SIGKILL a replica mid-drain (the default is 10 s).
-    stop_grace_period: 35s
+    stop_grace_period: 60s
     healthcheck:
       # /api/ready is 503 until the replica has migrated, then 200 (degraded too, so a database
       # blip does not restart the replicas).

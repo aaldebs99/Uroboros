@@ -82,8 +82,8 @@ advisory lock key lives in `src/shared/lockKeys.ts`: a role is 8 ASCII bytes, a 
 `lockKey(namespace4, resource)`. Shutdown gives up leadership and stops taking jobs, drains HTTP
 (`UROBOROS_SHUTDOWN_GRACE_MS`, 20 s) alongside the running jobs (25 s; a download still running 5 s
 before that is cut and moved back to the queue, recording nothing and spending no attempt), bounds
-the close of cut connections and the cleanup at 2 s each, and exits 1 on its own 2 s past that
-budget; compose's `stop_grace_period` (35 s) covers it.
+the close of cut connections and the cleanup at 15 s each (`CLEANUP_MS`), and exits 1 on its own
+2 s past that budget; compose's `stop_grace_period` (60 s) covers it.
 Every variable the code reads is in README's Configuration table; process code reads the
 environment only through the loaders in `apps/server/src/config.ts` (the test setup is the
 exception). Queries go through Kysely. A migration is a new file in

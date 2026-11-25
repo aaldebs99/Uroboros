@@ -94,7 +94,7 @@ services:
     volumes:
       - media:/media
     # Lets a running download finish or move to another replica when the container stops.
-    stop_grace_period: 35s
+    stop_grace_period: 60s
 
 volumes:
   postgres-data:
