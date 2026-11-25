@@ -157,6 +157,10 @@ describe("library browsing", () => {
     });
     await renderInRouter(<ChannelPage channelKey={KEY} />);
     expect(await screen.findByRole("heading", { name: "Blender" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Channels" })).toHaveAttribute(
+      "href",
+      "/library/channels",
+    );
     await screen.findByText("Video 1");
     expect(libraryCalls(urls)[0]?.searchParams.get("channel")).toBe(KEY);
   });

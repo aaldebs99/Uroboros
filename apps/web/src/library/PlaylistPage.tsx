@@ -13,6 +13,7 @@ import {
   usePlaylistAction,
 } from "@/api/playlists";
 import { LinkifiedText } from "@/components/LinkifiedText";
+import { BackLink } from "@/components/ui/back-link";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -205,10 +206,19 @@ const kindLabel = (p: PlaylistDetail) => (p.kind === "youtube" ? "From YouTube" 
 export function PlaylistPage({ playlistId }: { playlistId: string }) {
   const playlist = usePlaylist(playlistId);
   const [editing, setEditing] = useState(false);
-  if (playlist.isError) return <p className="text-destructive">{errorText(playlist.error)}</p>;
+  const back = <BackLink to="/library/playlists">Playlists</BackLink>;
+  if (playlist.isError) {
+    return (
+      <section className="grid w-full grid-cols-1 gap-6">
+        {back}
+        <p className="text-destructive">{errorText(playlist.error)}</p>
+      </section>
+    );
+  }
   const p = playlist.data;
   return (
     <section className="grid w-full grid-cols-1 gap-6">
+      {back}
       <PageHeader
         showTitle
         title={p?.name ?? "Playlist"}

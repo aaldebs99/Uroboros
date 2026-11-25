@@ -1,6 +1,6 @@
 import { getRouteApi, useRouterState } from "@tanstack/react-router";
 
-import { NewSubscriptionPage } from "@/subscriptions/NewSubscriptionPage";
+import { NewSubscriptionFrame, NewSubscriptionPage } from "@/subscriptions/NewSubscriptionPage";
 import { SubscriptionPage } from "@/subscriptions/SubscriptionPage";
 
 const subscriptionRoute = getRouteApi("/subscriptions/$subscriptionId");
@@ -22,7 +22,9 @@ export function NewSubscriptionRoute() {
   const searchStr = useRouterState({ select: (s) => s.location.searchStr });
   const requestId = new URLSearchParams(searchStr).get("request");
   return requestId === null ? (
-    <p className="text-muted-foreground">Paste a channel or playlist link to subscribe to it.</p>
+    <NewSubscriptionFrame>
+      <p className="text-muted-foreground">Paste a channel or playlist link to subscribe to it.</p>
+    </NewSubscriptionFrame>
   ) : (
     <NewSubscriptionPage requestId={requestId} />
   );

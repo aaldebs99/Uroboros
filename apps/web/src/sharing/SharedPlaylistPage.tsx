@@ -1,11 +1,13 @@
 import type { LibraryEntry } from "@uroboros/contract";
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { Copy, Play, SearchX, Share2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { ApiError, errorText } from "@/api/client";
 import { saveShared, useSharedDetail, useSharedPages } from "@/api/sharing";
 import { usePlaylistAction } from "@/api/playlists";
 import { LinkifiedText } from "@/components/LinkifiedText";
+import { BackLink } from "@/components/ui/back-link";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -57,6 +59,16 @@ function SaveCopy({ shareId }: { shareId: string }) {
   );
 }
 
+/** The page's frame, whatever the share comes to: the way back to Shared above it. */
+function Frame({ children }: { children: ReactNode }) {
+  return (
+    <section className="grid w-full grid-cols-1 gap-6">
+      <BackLink to="/shared">Shared</BackLink>
+      {children}
+    </section>
+  );
+}
+
 /**
  * A playlist someone shared with the person: its videos in the owner's order, Play all, and Save
  * as my playlist. A shared video opens its watch page; a share that ended says so.
@@ -67,20 +79,32 @@ export function SharedPlaylistPage({ shareId }: { shareId: string }) {
   if (detail.isError) {
     if (detail.error instanceof ApiError && detail.error.status === 404) {
       return (
-        <EmptyState icon={Share2} title="This is no longer shared with you">
-          Whoever shared it stopped, or the link expired.
-        </EmptyState>
+        <Frame>
+          <EmptyState icon={Share2} title="This is no longer shared with you">
+            Whoever shared it stopped, or the link expired.
+          </EmptyState>
+        </Frame>
       );
     }
-    return <p className="text-destructive">{errorText(detail.error)}</p>;
+    return (
+      <Frame>
+        <p className="text-destructive">{errorText(detail.error)}</p>
+      </Frame>
+    );
   }
   const d = detail.data;
-  if (d === undefined) return <div aria-busy="true" className="h-40" />;
+  if (d === undefined) {
+    return (
+      <Frame>
+        <div aria-busy="true" className="h-40" />
+      </Frame>
+    );
+  }
   if (d.kind === "entry") return <Navigate to="/library/$entryId" params={{ entryId: d.id }} />;
   const entries = pages.data?.pages.flatMap((p) => p.entries) ?? [];
   const first = entries[0];
   return (
-    <section className="grid w-full grid-cols-1 gap-6">
+    <Frame>
       <PageHeader
         showTitle
         title={d.title}
@@ -127,6 +151,6 @@ export function SharedPlaylistPage({ shareId }: { shareId: string }) {
           </Button>
         </div>
       ) : null}
-    </section>
+    </Frame>
   );
 }

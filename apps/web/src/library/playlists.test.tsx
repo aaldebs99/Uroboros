@@ -152,6 +152,16 @@ describe("playlists", () => {
     expect(screen.queryByRole("button", { name: "Save as my playlist" })).not.toBeInTheDocument();
   });
 
+  it("leads back to Playlists, even when the playlist can't be shown", async () => {
+    fakeApi({});
+    await renderInRouter(<PlaylistPage playlistId={MANUAL} />);
+    expect(await screen.findByText("not found")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Playlists" })).toHaveAttribute(
+      "href",
+      "/library/playlists",
+    );
+  });
+
   it("offers Save as my playlist on a YouTube playlist, and no editing", async () => {
     const calls = fakeApi({
       [`GET /api/playlists/${YOUTUBE}`]: () =>

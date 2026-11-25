@@ -90,5 +90,19 @@ describe("Add subscription", () => {
     });
     await renderInRouter(<NewSubscriptionPage requestId={REQ} />);
     expect(await screen.findByText(/That's a single video/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Subscriptions" })).toHaveAttribute(
+      "href",
+      "/subscriptions",
+    );
+  });
+
+  it("leads back to Subscriptions while the link is looked at", async () => {
+    fakeApi({ [`GET /api/downloads/requests/${REQ}`]: () => Response.json(request({})) });
+    await renderInRouter(<NewSubscriptionPage requestId={REQ} />);
+    expect(await screen.findByText(/Looking at the link/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Subscriptions" })).toHaveAttribute(
+      "href",
+      "/subscriptions",
+    );
   });
 });

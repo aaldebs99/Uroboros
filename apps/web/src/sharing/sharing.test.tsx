@@ -305,6 +305,7 @@ describe("Shared", () => {
     await renderInRouter(<SharedPlaylistPage shareId={SHARE} />);
     expect(await screen.findByText("Video 2")).toBeInTheDocument();
     expect(screen.getByText(/Shared by Alice/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Shared" })).toHaveAttribute("href", "/shared");
     await userEvent.click(screen.getByRole("button", { name: "Save as my playlist" }));
     await waitFor(() => {
       expect(calls.some((c) => c.path.endsWith("/save"))).toBe(true);
@@ -315,6 +316,7 @@ describe("Shared", () => {
     fakeApi({});
     await renderInRouter(<SharedPlaylistPage shareId={SHARE} />);
     expect(await screen.findByText("This is no longer shared with you")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Shared" })).toHaveAttribute("href", "/shared");
   });
 });
 

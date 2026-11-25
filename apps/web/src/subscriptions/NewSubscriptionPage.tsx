@@ -2,10 +2,12 @@ import type { DownloadErrorKind, DownloadRequest } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { LoaderCircle } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { errorText } from "@/api/client";
 import { useRequest } from "@/api/downloads";
 import { createSubscription, subscriptionKeys } from "@/api/subscriptions";
+import { BackLink } from "@/components/ui/back-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { notify } from "@/components/ui/sonner";
 import { DOWNLOAD_ERROR_TEXT } from "@/downloads/errorText";
@@ -28,6 +30,16 @@ function NotSubscribable({ request }: { request: DownloadRequest }) {
   );
 }
 
+/** The page's frame in every state: the way back to Subscriptions above it. */
+export function NewSubscriptionFrame({ children }: { children: ReactNode }) {
+  return (
+    <section className="grid w-full gap-6">
+      <BackLink to="/subscriptions">Subscriptions</BackLink>
+      {children}
+    </section>
+  );
+}
+
 /**
  * `/subscriptions/new?request=<id>`: subscribe to the channel or playlist a pasted link shows,
  * waiting here while it is looked at (Subscriptions › Add subscription comes straight here).
@@ -37,22 +49,34 @@ export function NewSubscriptionPage({ requestId }: { requestId: string }) {
   const client = useQueryClient();
   const navigate = useNavigate();
   const data = req.data;
-  if (req.isError) return <p className="text-destructive">{errorText(req.error)}</p>;
+  if (req.isError) {
+    return (
+      <NewSubscriptionFrame>
+        <p className="text-destructive">{errorText(req.error)}</p>
+      </NewSubscriptionFrame>
+    );
+  }
   if (data === undefined || data.state === "probing") {
     return (
-      <p className="flex items-center gap-2 text-muted-foreground">
-        <LoaderCircle className="size-4 animate-spin" aria-hidden /> Looking at the link… a big
-        channel can take a minute.
-      </p>
+      <NewSubscriptionFrame>
+        <p className="flex items-center gap-2 text-muted-foreground">
+          <LoaderCircle className="size-4 animate-spin" aria-hidden /> Looking at the link… a big
+          channel can take a minute.
+        </p>
+      </NewSubscriptionFrame>
     );
   }
   const kind = data.kind;
   if (data.state !== "choosing" || (kind !== "channel" && kind !== "playlist")) {
-    return <NotSubscribable request={data} />;
+    return (
+      <NewSubscriptionFrame>
+        <NotSubscribable request={data} />
+      </NewSubscriptionFrame>
+    );
   }
   const title = data.title ?? data.url;
   return (
-    <section className="grid w-full gap-6">
+    <NewSubscriptionFrame>
       <PageHeader
         showTitle
         title={`Subscribe to ${title}`}
@@ -75,6 +99,6 @@ export function NewSubscriptionPage({ requestId }: { requestId: string }) {
           }
         }}
       />
-    </section>
+    </NewSubscriptionFrame>
   );
 }
