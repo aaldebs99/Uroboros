@@ -87,7 +87,9 @@ B's tinted box:
 ```
 
 The tone follows the meaning: warning, destructive, success, or primary for information. A notice
-stays until its condition is gone.
+stays until its condition is gone. It may carry one or two actions in a row under its text
+(`Notice`'s `actions`, default-size buttons so they are 44px to touch), as the installed app's
+offer of notifications does with Turn on and Not now.
 
 ## Empty states
 

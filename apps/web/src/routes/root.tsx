@@ -22,6 +22,7 @@ import { usePaletteShortcut } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 import { isWatchPage } from "@/nav";
 import { NoticesButton } from "@/notices/NoticesButton";
+import { PushNudge } from "@/push/PushNudge";
 import { usePushSync } from "@/push/usePushSync";
 import { UploadDialog } from "@/uploads/UploadDialog";
 import { UploadProvider } from "@/uploads/UploadProvider";
@@ -50,7 +51,8 @@ export function RootLayout() {
  * the navigation's room to the player and opens it as a drawer instead. Below `md`: a slim bar
  * (menu, brand, search, "+", the bell, avatar), the navigation as a drawer that the menu opens or a
  * finger drags in from anywhere, and the bottom tabs. Ctrl+K (⌘K), or the phone's search button,
- * opens the search palette. It also mends this browser's push subscription once per launch.
+ * opens the search palette. It also mends this browser's push subscription once per launch, and in
+ * the installed app offers notifications once (`PushNudge`).
  * Uploads in progress and the live event stream live in the shell, so they go on while the person
  * moves around the app.
  */
@@ -169,6 +171,9 @@ function ShellFrame({ me }: { me: Me }) {
       )}
       {/* A watch page keeps YouTube's narrower 1.5rem margins, giving the player the room. */}
       <main className={cn("px-4 py-6", watching ? "md:p-6" : "md:px-8 md:py-8")}>
+        {/* The installed app's one offer of notifications; never over the player, and not on
+            Settings › Notifications, whose own button offers the same. */}
+        {watching || pathname === "/settings" ? null : <PushNudge />}
         <Outlet />
       </main>
       <TabBar onDownload={openDownload} onUpload={openUpload} />

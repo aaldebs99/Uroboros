@@ -188,12 +188,25 @@ withdrawn. It never asks for permission, which needs a tap.
 
 ## The Settings section
 
-Settings, Notifications, shows the state and the one action that fits it. With push off on the
-server it says so. Otherwise it offers Turn on notifications, whose tap asks for permission,
-subscribes and registers this browser; or it says why it cannot: an iPhone or iPad outside the
-installed app (iOS 16.4 and later push only to the Home Screen app), a browser without Web Push, or
-notifications blocked in the browser's settings. Below that is the list of devices, this one
-marked, each with when it was last reached, Send test (the outcome is a toast) and Turn off.
+Settings, Notifications, shows the state and the one action that fits it. Until this browser is one
+of the person's devices it shows Turn on notifications, whose tap asks for permission, subscribes
+and registers this browser. The button is there even when it can't work, disabled and described by
+the reason beside it: push off on the server, an iPhone or iPad outside the installed app (iOS 16.4
+and later push only to the Home Screen app), a browser without Web Push, or notifications blocked in
+the browser's settings. Below that is the list of devices, this one marked, each with when it was
+last reached, Send test (the outcome is a toast) and Turn off.
+
+## Asking in the installed app
+
+The installed app offers notifications once (`apps/web/src/push/PushNudge.tsx`): a banner above
+the page, "Get notified when downloads finish", with Turn on and Not now. It shows while the
+browser's permission is still undecided (`default`), the server pushes, and this device hasn't
+answered it before (`localStorage`, `uroboros.pushAsked`); either button ends it for good here,
+whatever the browser's prompt then says. It is a banner rather than the browser's own prompt
+because browsers ask only from a tap (Safari requires one, and Chrome quiets prompts that come
+unasked), so its Turn on is that tap. A browser tab never shows it, nor does a watch page (it would
+push the player down) or Settings › Notifications (its own button offers the same). Turning
+notifications on in Settings meanwhile settles the permission, and the banner goes.
 
 Not here yet, and deliberately: Djinn's presence reporting (pushing only when no copy of the app is
 on screen), which matters for chat replies and not for downloads.

@@ -99,11 +99,12 @@ afterEach(() => {
 });
 
 describe("MyNotifications", () => {
-  it("says when the server does not push", async () => {
+  it("says when the server does not push, beside a button that can't be pressed", async () => {
     pushBrowser("default");
     show(view({ enabled: false, publicKey: null }));
-    expect(await screen.findByText(/notifications are off on this server/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /turn on/i })).not.toBeInTheDocument();
+    const button = await screen.findByRole("button", { name: "Turn on notifications" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(/notifications are off on this server/i);
   });
 
   it("offers to turn notifications on", async () => {
@@ -157,18 +158,21 @@ describe("MyNotifications", () => {
     userAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 18_4 like Mac OS X) AppleWebKit/605.1.15");
     show(view());
     expect(await screen.findByText(/Add to Home Screen/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /turn on/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Turn on notifications" })).toBeDisabled();
   });
 
   it("says when the browser cannot be pushed to", async () => {
     show(view());
-    expect(await screen.findByText(/can't receive notifications/i)).toBeInTheDocument();
+    const button = await screen.findByRole("button", { name: "Turn on notifications" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(/can't receive notifications/i);
   });
 
   it("says when notifications are blocked", async () => {
     pushBrowser("denied");
     show(view());
     expect(await screen.findByText(/blocked for Uroboros/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Turn on notifications" })).toBeDisabled();
   });
 
   it("lists devices, marks this one, and offers no second turn-on", async () => {

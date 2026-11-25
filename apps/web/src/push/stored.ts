@@ -49,3 +49,22 @@ export function markTurnedOffHere(on: boolean): void {
     // Storage refused: Settings just shows the plain "Turn on" button.
   }
 }
+
+const ASKED_KEY = "uroboros.pushAsked";
+
+/** Whether the installed app already offered this device notifications (`PushNudge`). */
+export function pushAsked(): boolean {
+  try {
+    return localStorage.getItem(ASKED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markPushAsked(): void {
+  try {
+    localStorage.setItem(ASKED_KEY, "1");
+  } catch {
+    // Storage refused: the offer just comes back on the next launch.
+  }
+}

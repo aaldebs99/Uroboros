@@ -1,16 +1,16 @@
 import type { PushDevice, PushTestOutcome, PushView } from "@uroboros/contract";
-import { useQueryClient } from "@tanstack/react-query";
 import { BellRing, Loader, Smartphone } from "lucide-react";
-import { useState } from "react";
+import { useId } from "react";
 
-import { errorText, queryKeys } from "@/api/client";
-import { registerDevice, useDeleteDevice, usePush, useTestPush } from "@/api/push";
+import { errorText } from "@/api/client";
+import { useDeleteDevice, usePush, useTestPush } from "@/api/push";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { notify } from "@/components/ui/sonner";
-import { bodyOf, currentSubscription, deviceLabel, pushSupported, subscribe } from "@/push/browser";
+import { pushSupported } from "@/push/browser";
 import { isInstalled, isIos } from "@/push/installed";
-import { markTurnedOffHere, storeDevice, storedDevice, turnedOffHere } from "@/push/stored";
+import { storeDevice, storedDevice, turnedOffHere } from "@/push/stored";
+import { useTurnOnPush } from "@/push/useTurnOnPush";
 
 /** What a test notification's outcome means to the person, said as a toast. */
 const TEST_SAID: Record<PushTestOutcome, { text: string; ok: boolean }> = {
@@ -101,31 +101,26 @@ function DeviceRow({ device, here }: { device: PushDevice; here: boolean }) {
   );
 }
 
-/** Turns notifications on for this browser, from the tap the permission prompt needs. */
-function TurnOn({ publicKey, label }: { publicKey: string; label: string }) {
-  const client = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const turnOn = async () => {
-    setBusy(true);
-    try {
-      const subscription = (await currentSubscription()) ?? (await subscribe(publicKey));
-      if (!subscription) {
-        notify.info("Notifications weren't allowed, so nothing changed.");
-        return;
-      }
-      const device = await registerDevice(bodyOf(subscription, deviceLabel()));
-      storeDevice({ id: device.id, endpoint: subscription.endpoint });
-      markTurnedOffHere(false);
-      await client.invalidateQueries({ queryKey: queryKeys.myPush });
-    } catch (error) {
-      notify.error(`Could not turn on notifications: ${errorText(error)}`);
-    } finally {
-      setBusy(false);
-    }
-  };
+/**
+ * The turn-on button. It is always there while this browser isn't on: when it can't work (push off
+ * on the server, or a blocker) it is disabled and described by the reason beside it.
+ */
+function TurnOnButton({
+  label,
+  busy = false,
+  disabled = false,
+  describedBy,
+  onClick,
+}: {
+  label: string;
+  busy?: boolean;
+  disabled?: boolean;
+  describedBy?: string;
+  onClick?: () => void;
+}) {
   return (
     <div>
-      <Button disabled={busy} onClick={() => void turnOn()}>
+      <Button disabled={disabled || busy} aria-describedby={describedBy} onClick={onClick}>
         {busy ? <Loader className="animate-spin" aria-hidden /> : <BellRing aria-hidden />}
         {busy ? "Turning on…" : label}
       </Button>
@@ -133,36 +128,46 @@ function TurnOn({ publicKey, label }: { publicKey: string; label: string }) {
   );
 }
 
+/** Turns notifications on for this browser, from the tap the permission prompt needs. */
+function TurnOn({ publicKey, label }: { publicKey: string; label: string }) {
+  const { busy, turnOn } = useTurnOnPush(publicKey);
+  return <TurnOnButton label={label} busy={busy} onClick={() => void turnOn()} />;
+}
+
 /** The section once the devices have loaded. */
 function Notifications({ view }: { view: PushView }) {
+  const reason = useId();
   if (!view.enabled || view.publicKey === null) {
     return (
-      <p className="text-muted-foreground">
-        Notifications are off on this server. An operator turns them on by giving Uroboros its
-        public https address (UROBOROS_PUBLIC_BASE_URL).
-      </p>
+      <div className="space-y-4">
+        <p id={reason} className="text-muted-foreground">
+          Notifications are off on this server. An operator turns them on by giving Uroboros its
+          public https address (UROBOROS_PUBLIC_BASE_URL).
+        </p>
+        <TurnOnButton label="Turn on notifications" disabled describedBy={reason} />
+      </div>
     );
   }
   const stored = storedDevice();
   const hereOn = stored !== null && view.devices.some((device) => device.id === stored.id);
   const blocked = hereOn ? null : blocker();
   const offElsewhere = !hereOn && turnedOffHere();
+  const label = offElsewhere ? "Turn on here" : "Turn on notifications";
   return (
     <div className="space-y-4">
       {blocked ? (
-        <Notice tone="warning" title="Notifications can't turn on here">
+        <Notice id={reason} tone="warning" title="Notifications can't turn on here">
           {blocked}
         </Notice>
       ) : null}
       {offElsewhere && !blocked ? (
         <p className="text-muted-foreground">Turned off from another device.</p>
       ) : null}
-      {!hereOn && !blocked ? (
-        <TurnOn
-          publicKey={view.publicKey}
-          label={offElsewhere ? "Turn on here" : "Turn on notifications"}
-        />
-      ) : null}
+      {hereOn ? null : blocked ? (
+        <TurnOnButton label={label} disabled describedBy={reason} />
+      ) : (
+        <TurnOn publicKey={view.publicKey} label={label} />
+      )}
       {view.devices.length > 0 ? (
         <ul
           aria-label="Devices with notifications"
