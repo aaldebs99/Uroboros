@@ -1,4 +1,4 @@
-import type { LibraryPageEntry, PreviewEntry } from "@uroboros/contract";
+import { type LibraryPageEntry, type PreviewEntry, WebLink } from "@uroboros/contract";
 
 /** One row the palette's arrow keys move through and Enter chooses. */
 export type PaletteOption =
@@ -15,10 +15,24 @@ export interface PaletteSection {
   options: PaletteOption[];
 }
 
-/** The text as a link to download (trimmed), or null when it is words to search for. */
+/**
+ * How a link typed without `https://` starts: a host with a dot and a letters-only top-level
+ * domain, then a path (`twitch.tv/channel`), or a host from `www.`. A word with a dot in it
+ * (`node.js`, `youtube.com`) stays words to search for.
+ */
+const BARE_LINK = /^(?:[^/:]+\.[a-z]{2,}(?::\d+)?\/|www\.[^/:]+\.[a-z]{2,}(?:[:/?#]|$))/i;
+
+/**
+ * The text as a link to download (trimmed, `https://` added when it had no scheme), or null when
+ * it is words to search for.
+ */
 export function asLink(text: string): string | null {
   const trimmed = text.trim();
-  return /^https?:\/\/\S+$/i.test(trimmed) && URL.canParse(trimmed) ? trimmed : null;
+  if (/\s/.test(trimmed) || !(/^https?:\/\//i.test(trimmed) || BARE_LINK.test(trimmed))) {
+    return null;
+  }
+  const link = WebLink.safeParse(trimmed);
+  return link.success ? link.data : null;
 }
 
 /** What the palette knows so far about the text in its field. */

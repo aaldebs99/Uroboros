@@ -52,7 +52,7 @@ afterEach(() => {
 });
 
 describe("Add subscription", () => {
-  it("posts the link as a subscription and goes straight to its settings page", async () => {
+  it("posts the link (https:// added) as a subscription and goes straight to its settings page", async () => {
     const calls = fakeApi({
       ...shell,
       "POST /api/downloads": () => Response.json(request({}), { status: 202 }),
@@ -71,7 +71,7 @@ describe("Add subscription", () => {
     const dialog = screen.getByRole("dialog", { name: "Add a subscription" });
     await userEvent.type(
       within(dialog).getByLabelText("Channel or playlist link"),
-      "https://www.youtube.com/@LinusTechTips",
+      "www.youtube.com/@LinusTechTips",
     );
     await userEvent.click(within(dialog).getByRole("button", { name: "Continue" }));
     await waitFor(() => {

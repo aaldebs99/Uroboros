@@ -138,6 +138,37 @@ describe("DownloadsPage", () => {
     });
   });
 
+  it("adds https:// to a pasted link without it, and refuses what isn't a web link", async () => {
+    const calls = api({
+      "POST /api/downloads": () =>
+        Response.json(
+          { ...choosingRequest, state: "probing", kind: null, groups: [] },
+          { status: 202 },
+        ),
+      [`GET /api/downloads/requests/${choosingRequest.id}`]: () =>
+        Response.json({ ...choosingRequest, state: "queued", kind: "video", groups: [] }),
+    });
+    renderWithQuery(
+      <LiveEventsProvider>
+        <DownloadsPage me={member} requestId={null} />
+      </LiveEventsProvider>,
+    );
+    const link = await screen.findByLabelText("Link");
+    await userEvent.type(link, "file:///etc/passwd");
+    await userEvent.click(screen.getByRole("button", { name: "Download" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Paste a web link.");
+    expect(calls.filter((c) => c.method === "POST")).toEqual([]);
+
+    await userEvent.clear(link);
+    await userEvent.type(link, "youtube.com/watch?v=a");
+    await userEvent.click(screen.getByRole("button", { name: "Download" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "POST" && c.path === "/api/downloads")?.body).toEqual({
+        url: "https://youtube.com/watch?v=a",
+      });
+    });
+  });
+
   it("previews a channel by tab, Shorts unticked, and queues exactly the ticked videos", async () => {
     const calls = api({
       [`GET /api/downloads/requests/${choosingRequest.id}`]: () => Response.json(choosingRequest),

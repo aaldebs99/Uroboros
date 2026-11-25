@@ -69,7 +69,7 @@ function QuickDownloadForm({ initialUrl, onDone }: { initialUrl: string; onDone:
       ...(profileId === "" ? {} : { profileId }),
     });
     if (!body.success) {
-      download.fail("Paste an http or https link.");
+      download.fail("Paste a web link.");
       return;
     }
     download.start(body.data);
