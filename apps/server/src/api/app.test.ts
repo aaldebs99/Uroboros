@@ -290,3 +290,19 @@ describe("spa", () => {
     expect((await app().request("/library/abc")).status).toBe(404);
   });
 });
+
+describe("the request log", () => {
+  it("leaves out public share codes, the only secret behind a public link", async () => {
+    const lines: { path?: string; msg?: string }[] = [];
+    const capture = pino(
+      { level: "info" },
+      { write: (line: string) => lines.push(JSON.parse(line) as { path?: string }) },
+    );
+    const a = app({ logger: capture });
+    await a.request("/api/public/s/Zm9vYmFyYmF6cXV4MTIzNA/items/x/stream");
+    await a.request("/s/Zm9vYmFyYmF6cXV4MTIzNA");
+    await a.request("/api/health");
+    const paths = lines.filter((l) => l.msg === "request").map((l) => l.path);
+    expect(paths).toEqual(["/api/public/s/…/items/x/stream", "/s/…", "/api/health"]);
+  });
+});

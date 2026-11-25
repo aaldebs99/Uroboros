@@ -3,6 +3,7 @@ import type { ApiErrorBody, ApiErrorCode } from "@uroboros/contract";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { Logger } from "pino";
+import { loggedPath } from "./logPath.ts";
 
 /** Thrown from handlers; rendered as an `ApiErrorBody` with the status for its code. */
 export class ApiError extends Error {
@@ -52,7 +53,7 @@ export function errorHandler(logger: Logger) {
       const mapped = fromHttpException(err.status);
       if (mapped !== null) return errorResponse(c, ...mapped);
     }
-    logger.error({ err, path: c.req.path }, "unhandled error");
+    logger.error({ err, path: loggedPath(c.req.path) }, "unhandled error");
     return errorResponse(c, "internal", "internal error");
   };
 }

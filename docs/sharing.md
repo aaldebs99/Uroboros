@@ -53,7 +53,8 @@ The sign-in provider's groups (`users.groups`) decide only the admin role ([auth
 
 **By public link**: a code of 128 random bits in base64url, stored as it is so the owner can copy
 the link again at any time. Turning the link off deletes it; turning it on again makes a new code,
-so an old copy never comes back. **Allow downloads** decides whether the page offers the file: it
+so an old copy never comes back. The request log records a link's path with `…` in place of its
+code (`src/api/logPath.ts`), so reading the logs opens no link. **Allow downloads** decides whether the page offers the file: it
 is a button, not a lock, since anyone who can play a video can save its stream.
 
 **Who may see an entry** (`src/sharing/access.ts`): its owner, or a viewer reached by a live share

@@ -51,6 +51,7 @@ import { checkHealth, healthRoute, readyRoute } from "./health.ts";
 import { infoRoute } from "./info.ts";
 import { registerPushRoutes } from "./push.ts";
 import { apiBodyLimit, DEFAULT_BODY_LIMIT_BYTES, securityHeaders } from "./security.ts";
+import { loggedPath } from "./logPath.ts";
 import { createSpaHandler } from "./spa.ts";
 
 export interface Deps {
@@ -233,7 +234,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     logger.info(
       {
         method: c.req.method,
-        path: c.req.path,
+        path: loggedPath(c.req.path),
         status: c.res.status,
         ms: Math.round(performance.now() - start),
       },
