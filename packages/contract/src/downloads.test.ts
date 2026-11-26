@@ -79,6 +79,7 @@ describe("downloads contract", () => {
       error: null,
       total: null,
       highlight: false,
+      quiet: false,
     });
   });
 

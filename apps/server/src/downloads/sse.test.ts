@@ -295,6 +295,7 @@ describe("GET /api/downloads/events", () => {
         error: "yt-dlp failed",
         total: null,
         highlight: false,
+        quiet: false,
       },
     ]);
   });

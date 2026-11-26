@@ -205,6 +205,8 @@ export interface RenditionsTable {
   skip_segments: ColumnType<unknown, string | undefined, string>;
   /** SponsorBlock's highlight, in seconds on the file's timeline; null when it has none. */
   sponsor_highlight: ColumnType<number | null, number | null | undefined, number | null>;
+  /** When its owner's opening it last asked for a quiet SponsorBlock refresh (once an hour at most). */
+  skips_refreshed_at: Timestamp | null;
   orphaned_at: Timestamp | null;
   created_at: Created;
 }

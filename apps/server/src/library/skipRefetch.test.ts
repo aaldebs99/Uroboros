@@ -9,7 +9,7 @@ import { liveJobs } from "../../test/jobs.ts";
 import { seedDownloadedEntry, seedEntry, seedProfileless } from "../../test/library.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
-import { latestDownload, skipsJobKey } from "./skipRefetch.ts";
+import { latestDownload, quietSkipsJobKey, skipsJobKey } from "./skipRefetch.ts";
 
 const logger = pino({ level: "silent" });
 let t: TestDb;
@@ -30,6 +30,8 @@ const app = (s: SignedIn): OpenAPIHono =>
 const user = () => signedIn(t.db, { username: `sr${String(++n)}` });
 const refetch = (s: SignedIn, entryId: string) =>
   app(s).request(`/api/library/${entryId}/skip-segments/refetch`, { method: "POST" });
+const refresh = (s: SignedIn, entryId: string) =>
+  app(s).request(`/api/library/${entryId}/skip-segments/refresh`, { method: "POST" });
 const item = async (s: SignedIn, entryId: string) =>
   LibraryItem.parse(await (await app(s).request(`/api/library/${entryId}`)).json());
 const skipsJobs = async () => (await liveJobs(t.db, "probe")).filter((j) => j.name === "skips");
@@ -121,5 +123,47 @@ describe("refetching an entry's SponsorBlock segments", () => {
       return rows.map((r) => String(r["QUERY PLAN"])).join("\n");
     });
     expect(plan).toContain("downloads_rendition_idx");
+  });
+});
+
+describe("refreshing an entry's SponsorBlock segments quietly, as its page opens", () => {
+  const quietJobs = async (entryId: string) =>
+    (await skipsJobs()).filter((j) => j.key === quietSkipsJobKey(entryId));
+
+  it("queues a quiet probe job at most once an hour per file", async () => {
+    const me = await user();
+    const e = await seedDownloadedEntry(t.db, me.userId);
+    expect((await refresh(me, e.entryId)).status).toBe(202);
+    // Opened again (another tab, a reload) within the hour: nothing new.
+    expect((await refresh(me, e.entryId)).status).toBe(204);
+    const jobs = await quietJobs(e.entryId);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.data).toEqual({ entryId: e.entryId, userId: me.userId, quiet: true });
+    // An hour on, it is due again.
+    await t.db
+      .updateTable("renditions")
+      .set({ skips_refreshed_at: sql<Date>`now() - interval '61 minutes'` })
+      .where("id", "=", e.renditionId)
+      .execute();
+    expect((await refresh(me, e.entryId)).status).toBe(202);
+  });
+
+  it("does nothing for a video with no segments to fetch, and is 404 for someone else's entry", async () => {
+    const [me, other] = [await user(), await user()];
+    const upload = await seedProfileless(t.db, me.userId, { uploadedBy: me.userId });
+    expect((await refresh(me, upload.entryId)).status).toBe(204);
+    expect(await quietJobs(upload.entryId)).toEqual([]);
+    const theirs = await seedDownloadedEntry(t.db, other.userId);
+    expect((await refresh(me, theirs.entryId)).status).toBe(404);
+    expect(await quietJobs(theirs.entryId)).toEqual([]);
+  });
+
+  it("leaves Refetch its own job, so asking still says how it went", async () => {
+    const me = await user();
+    const e = await seedDownloadedEntry(t.db, me.userId);
+    expect((await refresh(me, e.entryId)).status).toBe(202);
+    expect((await refetch(me, e.entryId)).status).toBe(202);
+    expect(await quietJobs(e.entryId)).toHaveLength(1);
+    expect((await skipsJobs()).filter((j) => j.key === skipsJobKey(e.entryId))).toHaveLength(1);
   });
 });

@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { ApiError } from "../api/errors.ts";
 import type { Database } from "../db/schema.ts";
 import { ownEntry } from "../downloads/library.ts";
@@ -12,6 +12,10 @@ import type { DownloadQueues } from "../downloads/queues.ts";
 
 /** One refetch per entry at a time: a second ask while one is live adds none. */
 export const skipsJobKey = (entryId: string): string => `skips:${entryId}`;
+/** The quiet refresh's own key, so a Refetch asked meanwhile still runs and says how it went. */
+export const quietSkipsJobKey = (entryId: string): string => `skips-quiet:${entryId}`;
+/** How often opening a file refreshes its segments, at most. */
+export const QUIET_REFRESH_EVERY_S = 60 * 60;
 
 /** What a refetch asks SponsorBlock about: the YouTube video the file is of. */
 export interface RefetchSource {
@@ -72,4 +76,46 @@ export async function requestSkipsRefetch(
     { entryId: entry.id, userId },
     { key: skipsJobKey(entry.id), attempts: 1 },
   );
+}
+
+/**
+ * The quiet refresh as the caller opens their own entry's page: when the file's segments can be
+ * fetched and none was asked for in the last hour, claims the file's turn (`skips_refreshed_at`, so
+ * two pages opening together queue one) and queues a quiet `skips` job with it. Answers whether it
+ * queued one; 404 for anyone else's entry.
+ */
+export async function requestQuietRefresh(
+  db: Kysely<Database>,
+  probe: DownloadQueues["probe"] | undefined,
+  userId: string,
+  entryId: string,
+): Promise<boolean> {
+  const entry = await ownEntry(db, userId, entryId);
+  if (probe === undefined || (await refetchSource(db, entry.rendition_id)) === null) return false;
+  return db.transaction().execute(async (tx) => {
+    const claimed = await tx
+      .updateTable("renditions")
+      .set({ skips_refreshed_at: sql<Date>`now()` })
+      .where("id", "=", entry.rendition_id)
+      .where((eb) =>
+        eb.or([
+          eb("skips_refreshed_at", "is", null),
+          eb(
+            "skips_refreshed_at",
+            "<",
+            sql<Date>`now() - make_interval(secs => ${QUIET_REFRESH_EVERY_S})`,
+          ),
+        ]),
+      )
+      .returning("id")
+      .executeTakeFirst();
+    if (claimed === undefined) return false;
+    await probe.add(
+      "skips",
+      { entryId: entry.id, userId, quiet: true },
+      { key: quietSkipsJobKey(entry.id), attempts: 1 },
+      tx,
+    );
+    return true;
+  });
 }

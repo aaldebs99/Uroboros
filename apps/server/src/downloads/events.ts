@@ -27,6 +27,8 @@ export type InternalEvent =
       total?: number | null;
       /** Whether the file has a highlight now; absent from a replica of the release before. */
       highlight?: boolean;
+      /** A refresh as the entry's page opened: fetch it again, but no toast. */
+      quiet?: boolean;
     };
 
 /** How long the latest progress of a fetch is kept for page loads. */

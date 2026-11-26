@@ -323,8 +323,9 @@ export const DownloadEvent = z
      * How the caller's SponsorBlock refetch of an entry went (docs/automation.md#sponsorblock):
      * `found` segments the caller's setting shows or skips now, of the `total` SponsorBlock has in
      * any category, and whether the file has a `highlight`; or why it failed (`error`, and `found`
-     * and `total` null). Fetch the entry again. A replica of the release before sends neither
-     * `total` nor `highlight`.
+     * and `total` null). Fetch the entry again. A `quiet` one is a refresh as the entry's page
+     * opened (docs/automation.md#sponsorblock), sent only when something changed: no toast. A
+     * replica of the release before sends neither `total`, `highlight` nor `quiet`.
      */
     z.object({
       type: z.literal("skips"),
@@ -333,6 +334,7 @@ export const DownloadEvent = z
       error: z.string().nullable(),
       total: z.number().int().min(0).nullable().default(null),
       highlight: z.boolean().default(false),
+      quiet: z.boolean().default(false),
     }),
   ])
   .openapi("DownloadEvent");

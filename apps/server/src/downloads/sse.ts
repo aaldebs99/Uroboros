@@ -101,6 +101,7 @@ function personal(
             error: e.error,
             total: e.total ?? null,
             highlight: e.highlight ?? false,
+            quiet: e.quiet ?? false,
           }
         : null;
   }

@@ -235,6 +235,17 @@ highlight), or, when it found none, whether SponsorBlock has no segments for the
 (pointing at Settings › SponsorBlock), or the failure. A replica of the release before sends only
 the count, which reads as no segments at all.
 
+Opening such a video refreshes its segments quietly too: the item page posts
+`POST /api/library/{id}/skip-segments/refresh` (the owner's own entry, 404 for anyone else's),
+which queues a quiet `skips` job (key `skips-quiet:<entryId>`, apart from Refetch's, so a Refetch
+asked meanwhile still runs and says how it went) and answers 202, or 204 when the file's segments
+can't be fetched or one was asked for in the last hour. The hour is per file
+(`renditions.skips_refreshed_at`), claimed by the request that queues the job, so pages opening
+together queue one (`requestQuietRefresh`, `src/library/skipRefetch.ts`). The job puts what it
+finds on the file as Refetch does, but its `skips` event goes out only when the segments or the
+highlight changed, marked `quiet`: the page fetches the entry again and shows no toast. A failure
+is only logged.
+
 To save a file to a device without the segments its person skips, the item page's Save offers a
 copy re-encoded without them, cut exactly and in sync
 ([transcoding.md](transcoding.md#saving-without-sponsorblock-segments)).
