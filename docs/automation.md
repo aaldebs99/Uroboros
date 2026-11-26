@@ -201,7 +201,9 @@ those. Format profiles carry no categories, and no file is marked or cut for any
   wrong part. When SponsorBlock has several, the most-voted wins. Every route hands it out as
   `sponsorHighlight`, whatever the person's setting. The player marks it on the timeline in its
   color and, while playback is short of it, offers Jump to highlight in its top corner, coming
-  and going with the controls (`apps/web/src/library/HighlightJump.tsx`).
+  and going with the controls (`apps/web/src/library/HighlightJump.tsx`). Enter does the same,
+  in the player and page-wide like its other shortcuts, except on a focused button or link (which
+  Enter presses), in a field, or while the focus is in a dialog, a menu or a list.
 - **Files cut by their own profile keep none.** A profile whose extra arguments cut or trim the file
   (`--sponsorblock-remove`, `--remove-chapters`, `--download-sections`) moves its timeline, so
   SponsorBlock's times would point at the wrong moments in it: such a file stores no segments and

@@ -196,7 +196,7 @@ describe("Player keyboard", () => {
    * Renders the player at `at` seconds of a 100 s video, beside `page` (the rest of the watch page),
    * and a way to press a key on it.
    */
-  async function playerAt(at: number, page: ReactNode = null) {
+  async function playerAt(at: number, page: ReactNode = null, highlight: number | null = null) {
     const restore = withMetadata();
     const duration = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "duration");
     Object.defineProperty(HTMLMediaElement.prototype, "duration", {
@@ -205,7 +205,7 @@ describe("Player keyboard", () => {
     });
     const { container } = render(
       <>
-        <Player {...base} autoPlay={false} />
+        <Player {...base} autoPlay={false} sponsorHighlight={highlight} />
         {page}
       </>,
     );
@@ -226,7 +226,12 @@ describe("Player keyboard", () => {
       restore();
       if (duration) Object.defineProperty(HTMLMediaElement.prototype, "duration", duration);
     };
-    return { video, press, cleanup };
+    /** The viewer seeking back to `t` (jsdom fires no `seeked` itself). */
+    const seekTo = (t: number) => {
+      video.currentTime = t;
+      fireEvent(video, new Event("seeked"));
+    };
+    return { video, skin, press, seekTo, cleanup };
   }
 
   it("seeks 5 s with the arrows, overriding the skin's 10 s", async () => {
@@ -304,6 +309,73 @@ describe("Player keyboard", () => {
       press("l", inDialog);
       press("ArrowRight", inDialog);
       expect(video.currentTime).toBe(50);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("jumps to the highlight and plays with Enter, in the player and page-wide", async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    const { video, press, seekTo, cleanup } = await playerAt(10, <p>The description</p>, 60);
+    try {
+      press("Enter");
+      expect(video.currentTime).toBe(60);
+      await vi.waitFor(() => {
+        expect(play).toHaveBeenCalled();
+      });
+      seekTo(10);
+      press("Enter", screen.getByText("The description"));
+      expect(video.currentTime).toBe(60);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("leaves Enter alone past the highlight and without one", async () => {
+    const past = await playerAt(70, null, 60);
+    try {
+      past.press("Enter");
+      expect(past.video.currentTime).toBe(70);
+    } finally {
+      past.cleanup();
+    }
+    const none = await playerAt(10);
+    try {
+      none.press("Enter");
+      expect(none.video.currentTime).toBe(10);
+    } finally {
+      none.cleanup();
+    }
+  });
+
+  it("leaves Enter to a field, a dialog and a focused button", async () => {
+    const { video, skin, press, cleanup } = await playerAt(
+      10,
+      <>
+        <input aria-label="Add a tag" />
+        <div role="dialog" tabIndex={-1} aria-label="Share">
+          A dialog
+        </div>
+      </>,
+      60,
+    );
+    try {
+      press("Enter", screen.getByLabelText("Add a tag"));
+      expect(video.currentTime).toBe(10);
+      const dialog = screen.getByRole("dialog", { name: "Share" });
+      act(() => {
+        dialog.focus();
+      });
+      press("Enter", dialog);
+      expect(video.currentTime).toBe(10);
+      // Enter on one of the player's own buttons presses that button instead.
+      const button = skin.querySelector("button");
+      if (button === null) throw new Error("no button in the player");
+      act(() => {
+        button.focus();
+      });
+      press("Enter", button);
+      expect(video.currentTime).toBe(10);
     } finally {
       cleanup();
     }
