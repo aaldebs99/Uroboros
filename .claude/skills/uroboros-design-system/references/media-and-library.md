@@ -98,6 +98,9 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   else in it becomes markup. Playlist descriptions and a public link's do the same.
 - The player has no `title` (it is `aria-label`led, so no tooltip hangs over the picture) and no
   focus ring of its own: it takes the focus for its shortcuts, and its controls keep theirs.
+- What the player says about itself goes over the picture, never in a page toast: a small
+  `bg-overlay` pill, as Jump to highlight (top right) and the skip notice (bottom right, the whole
+  pill its Unskip button, `SkipNotice`) are, riding above the control bar while it shows.
 - The columns follow the page's width (`@container`, two columns from `@6xl`); on a narrower page
   the suggestions stack under the details.
 - The suggestions are "From your library" rows, one per row however wide the column (beside the

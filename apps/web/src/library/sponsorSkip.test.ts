@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { SponsorBlockCategory, SponsorSegment } from "@uroboros/contract";
 
-import { bandTitle, shownSpans, skipSpans, spanReached, timelineCues } from "./sponsorSkip";
+import {
+  bandTitle,
+  shownSpans,
+  skippedTitle,
+  skipSpans,
+  spanReached,
+  timelineCues,
+} from "./sponsorSkip";
 
 /** A segment shown and skipped, as the defaults have the usual categories. */
 const both = (start: number, end: number, category: SponsorBlockCategory): SponsorSegment => ({
@@ -120,6 +127,23 @@ describe("spanReached", () => {
   it("reaches a span that starts the video from just before 0", () => {
     const intro = skipSpans([both(0, 8, "intro")]);
     expect(spanReached(intro, -0.001, 0.25)?.end).toBe(8);
+  });
+
+  it("passes over a span the viewer unskipped", () => {
+    expect(spanReached(spans, 48.9, 49.15, new Set([49.04]))).toBeUndefined();
+    expect(spanReached(spans, 48.9, 49.15, new Set([10]))?.end).toBe(69);
+  });
+});
+
+describe("skippedTitle", () => {
+  it("names what was skipped", () => {
+    expect(skippedTitle({ start: 0, end: 1, categories: ["sponsor"] })).toBe("Skipped sponsor");
+    expect(skippedTitle({ start: 0, end: 1, categories: ["selfpromo", "sponsor"] })).toBe(
+      "Skipped self-promotion and sponsor",
+    );
+    expect(
+      skippedTitle({ start: 0, end: 1, categories: ["sponsor", "intro", "music_offtopic"] }),
+    ).toBe("Skipped sponsor, intro and non-music section");
   });
 });
 

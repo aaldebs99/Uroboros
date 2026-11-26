@@ -119,7 +119,7 @@ function tryPlay(v: HTMLVideoElement): void {
  * Video.js 10 (the Neutral video skin, in the app's accent, with a timeline styled after YouTube's
  * in player.css): keyboard and touch controls (PlayerHotkeys adds 5 s arrows and frame steps, and
  * HighlightJump Enter for the highlight), a captions menu for the subtitle tracks, chapters on the
- * timeline, SponsorBlock segments skipped (SponsorSkip), resume, seek, autoplay, and the volume and
+ * timeline, SponsorBlock segments skipped with a notice to unskip (SponsorSkip), resume, seek, autoplay, and the volume and
  * mute remembered in this browser. Subtitles stay off until the viewer turns them on; then the same
  * language is remembered in this browser too (useSubtitlePref).
  */
@@ -192,9 +192,6 @@ export function Player(p: PlayerProps) {
     <VideoPlayer>
       <SettingsMenuSlot.Provider value={p.settings ?? null}>
         {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
-        {segments.length === 0 && highlight === null ? null : (
-          <SponsorSkip video={video} segments={segments} highlight={highlight} />
-        )}
         {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
           navigation drawer (components/useDrawerDrag.ts). */}
         <NeutralVideoSkin
@@ -237,6 +234,9 @@ export function Player(p: PlayerProps) {
             ))}
           </Media>
           <PlayerHotkeys video={video} />
+          {segments.length === 0 && highlight === null ? null : (
+            <SponsorSkip video={video} segments={segments} highlight={highlight} />
+          )}
           {highlight === null ? null : <HighlightJump video={video} at={highlight} onJump={jump} />}
           <PlayerErrorWatch onError={report} />
         </NeutralVideoSkin>

@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, within } from "@testing-library/react";
 import type { SponsorSegment } from "@uroboros/contract";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -58,6 +58,9 @@ function renderPlayer(segments: SponsorSegment[] = DEFAULT_SEGMENTS) {
     </>,
   );
   const video = container.querySelector("video") as HTMLVideoElement;
+  const player = container.querySelector(".uro-player") as HTMLElement;
+  /** The player's own notice of what it skipped (not a page toast). */
+  const notice = () => within(player).getByRole("status", { name: "SponsorBlock" });
   /** Playback moving on to `t` (a `timeupdate`). */
   const playTo = (t: number) => {
     video.currentTime = t;
@@ -68,21 +71,22 @@ function renderPlayer(segments: SponsorSegment[] = DEFAULT_SEGMENTS) {
     video.currentTime = t;
     fireEvent(video, new Event("seeked"));
   };
-  return { video, playTo, seekTo };
+  return { video, notice, playTo, seekTo };
 }
 
 describe("SponsorSkip", () => {
-  it("jumps over a segment playback runs into without a toast, and a seek back watches it", async () => {
-    const { video, playTo, seekTo } = renderPlayer();
+  it("jumps over a segment playback runs into, saying so in the player rather than a toast, and a seek back watches it", async () => {
+    const { video, notice, playTo, seekTo } = renderPlayer();
     seekTo(48);
     playTo(48.5);
     expect(video.currentTime).toBe(48.5);
+    expect(notice()).toHaveTextContent("");
     playTo(49.1);
     expect(video.currentTime).toBe(69);
+    expect(notice()).toHaveTextContent("Skipped sponsor");
     // Long enough for a toast to have rendered.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(document.querySelector("[data-sonner-toast]")).toBeNull();
-    expect(screen.queryByText(/Skipped/)).toBeNull();
     // Seeking back to its start plays the segment through.
     seekTo(49.04);
     playTo(49.3);
@@ -144,5 +148,95 @@ describe("SponsorSkip", () => {
     seekTo(48.5);
     playTo(49.2);
     expect(video.currentTime).toBe(69);
+  });
+
+  it("goes back and plays a segment through when the notice is pressed, and never skips it again in this view", () => {
+    const { video, notice, playTo, seekTo } = renderPlayer();
+    seekTo(48);
+    playTo(48.5);
+    playTo(49.1);
+    expect(video.currentTime).toBe(69);
+    fireEvent.click(within(notice()).getByRole("button", { name: "Skipped sponsor Unskip" }));
+    expect(video.currentTime).toBe(49.04);
+    expect(notice()).toHaveTextContent("");
+    playTo(49.3);
+    playTo(50);
+    expect(video.currentTime).toBe(50);
+    // Played into again from before it, it plays.
+    seekTo(48);
+    playTo(48.5);
+    playTo(49.1);
+    expect(video.currentTime).toBe(49.1);
+  });
+
+  it("names every category of overlapping segments it jumped at once", () => {
+    const { notice, playTo, seekTo } = renderPlayer();
+    seekTo(77.5);
+    playTo(77.8);
+    expect(notice()).toHaveTextContent("Skipped self-promotion and sponsor");
+  });
+});
+
+describe("the skip notice", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const wait = (ms: number) => {
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+  };
+
+  it("leaves 4 s after the skip", () => {
+    const { notice, playTo, seekTo } = renderPlayer();
+    seekTo(48.5);
+    playTo(49.1);
+    wait(3999);
+    expect(notice()).toHaveTextContent("Skipped sponsor");
+    wait(1);
+    expect(notice()).toHaveTextContent("");
+  });
+
+  it("stays while the pointer is on it, then leaves 4 s after it goes", () => {
+    const { notice, playTo, seekTo } = renderPlayer();
+    seekTo(48.5);
+    playTo(49.1);
+    const unskip = within(notice()).getByRole("button", { name: "Skipped sponsor Unskip" });
+    fireEvent.pointerEnter(unskip);
+    wait(10_000);
+    expect(notice()).toHaveTextContent("Skipped sponsor");
+    fireEvent.pointerLeave(unskip);
+    wait(3999);
+    expect(notice()).toHaveTextContent("Skipped sponsor");
+    wait(1);
+    expect(notice()).toHaveTextContent("");
+  });
+
+  it("stays while it has the focus", () => {
+    const { notice, playTo, seekTo } = renderPlayer();
+    seekTo(48.5);
+    playTo(49.1);
+    act(() => {
+      within(notice()).getByRole("button", { name: "Skipped sponsor Unskip" }).focus();
+    });
+    wait(10_000);
+    expect(notice()).toHaveTextContent("Skipped sponsor");
+  });
+
+  it("gives way to the next skip, which gets its own 4 s", () => {
+    const { notice, playTo, seekTo } = renderPlayer();
+    seekTo(48.5);
+    playTo(49.1);
+    wait(3000);
+    seekTo(77.5);
+    playTo(77.8);
+    expect(notice()).toHaveTextContent("Skipped self-promotion and sponsor");
+    wait(3999);
+    expect(notice()).toHaveTextContent("Skipped self-promotion and sponsor");
+    wait(1);
+    expect(notice()).toHaveTextContent("");
   });
 });
