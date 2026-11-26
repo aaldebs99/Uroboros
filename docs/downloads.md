@@ -354,10 +354,16 @@ yt-dlp's netrc machine names, generated into `packages/contract/src/generated/lo
 while the committed list differs from the image's yt-dlp, so a yt-dlp bump regenerates it.
 
 - **At rest:** one `site_logins` row per person and site. The password is sealed with AES-256-GCM
-  under `UROBOROS_SECRETS_KEY` (`src/secrets/seal.ts`; nonce, ciphertext and tag, with the owner
-  and site as additional data) and never leaves the server. Without the key saving is off (409)
-  and the jobs use no logins; a changed key leaves old rows unreadable, listed as such for their
-  owner to enter again. There is no key rotation.
+  (`src/secrets/seal.ts`; nonce, ciphertext and tag, with the owner and site as additional data)
+  and never leaves the server. Without `UROBOROS_SECRETS_KEY` saving is off (409) and the jobs use
+  no logins; a changed key leaves old rows unreadable, listed as such for their owner to enter
+  again. There is no key rotation.
+- **The key:** `UROBOROS_SECRETS_KEY` is any passphrase of 8 or more characters, stretched into the
+  32-byte key with argon2id (19 MiB, 2 passes, a fixed salt; `src/secrets/key.ts`) once when a
+  process starts. The stretching makes each guess slow, but a short passphrase is still only as
+  safe as it is hard to guess for someone holding a copy of the database, so use
+  `openssl rand -hex 32`. A value in the older form, 32 bytes of standard base64 (44 characters
+  ending in `=`), is used as the key itself, so the logins saved under it keep opening.
 - **Whose logins a run uses:** a probe signs in with the requester's logins (a channel's tab
   probes too), and a subscription's listing and full probes with its owner's (`withLoginsOf`,
   `src/worker/logins.ts`). A fetch is shared, so right before each attempt it takes, per site, the

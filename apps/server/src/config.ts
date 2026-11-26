@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authEnvProblems, authEnvSchema, toAuthConfig, type AuthConfig } from "./auth/config.ts";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
 import { vapidPairProblem } from "./push/keys.ts";
+import { secretsKeyFrom } from "./secrets/key.ts";
 import {
   storageEnvProblems,
   storageEnvSchema,
@@ -41,8 +42,8 @@ export interface Config {
   /** The job consumers' settings (probe, download, notify): yt-dlp, scratch space, concurrency. */
   worker: WorkerSettings;
   /**
-   * `UROBOROS_SECRETS_KEY`, the 32-byte key saved site logins are sealed with
-   * (`src/secrets/seal.ts`); null leaves saving logins off.
+   * The 32-byte key saved site logins are sealed with (`src/secrets/seal.ts`), made from the
+   * `UROBOROS_SECRETS_KEY` passphrase (`src/secrets/key.ts`); null leaves saving logins off.
    */
   secretsKey: Buffer | null;
   /**
@@ -244,14 +245,14 @@ const workerEnvSchema = z.object({
   ),
 });
 
-/** 32 random bytes in standard base64, as `openssl rand -base64 32` prints them. */
+/** Any passphrase of 8 or more characters, made into the 32-byte key by `secretsKeyFrom`. */
 const secretsKey = z
   .string()
-  .regex(
-    /^[A-Za-z0-9+/]{43}=$/,
-    "UROBOROS_SECRETS_KEY must be 32 random bytes in base64 (openssl rand -base64 32)",
+  .min(
+    8,
+    "UROBOROS_SECRETS_KEY must be at least 8 characters (openssl rand -hex 32 makes a strong one)",
   )
-  .transform((value) => Buffer.from(value, "base64"))
+  .transform(secretsKeyFrom)
   .optional();
 
 const configSchema = z
