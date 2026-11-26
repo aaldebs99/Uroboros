@@ -32,6 +32,10 @@ public links in [sharing.md](sharing.md).
 
 Each entry carries the caller's progress and tags, and the key of its channel page.
 
+The web app fetches its lists again when a download of the caller's finishes or an upload of theirs
+is filed, over the live stream it already holds ([downloads.md](downloads.md#live-progress)), so a
+new video shows up on an open library page without a reload.
+
 ### Search
 
 A search finds substrings, as Djinn's does: `ILIKE '%…%'` through `pg_trgm` trigram GIN indexes, so

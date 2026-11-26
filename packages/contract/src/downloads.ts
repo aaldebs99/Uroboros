@@ -331,6 +331,11 @@ export const DownloadEvent = z
     /** The caller's pasted links waiting for a pick changed (one is ready, or went): fetch them again. */
     z.object({ type: z.literal("requests") }),
     /**
+     * An upload of the caller's was filed (docs/uploads.md): their library changed, fetch its lists
+     * again. A finished download says so by its `state` event instead.
+     */
+    z.object({ type: z.literal("library") }),
+    /**
      * How the caller's SponsorBlock refetch of an entry went (docs/automation.md#sponsorblock):
      * `found` segments the caller's setting shows or skips now, of the `total` SponsorBlock has in
      * any category, and whether the file has a `highlight`; or why it failed (`error`, and `found`

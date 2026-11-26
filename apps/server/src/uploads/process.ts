@@ -1,5 +1,6 @@
 import { ffprobe, grabFrame } from "@uroboros/ytdlp";
 import { sql } from "kysely";
+import { publishDownloadEvent } from "../downloads/events.ts";
 import type { UploadJob } from "../downloads/queues.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import type { Processor } from "../jobs/queues.ts";
@@ -185,6 +186,8 @@ async function fileUpload(deps: WorkerDeps, id: string, signal: AbortSignal): Pr
       .execute();
     await tx.deleteFrom("upload_parts").where("upload_id", "=", id).execute();
     if (deps.generatePreviews) await queuePreview(deps, up.media_id, tx);
+    // Its person's open pages fetch their library's lists again (sent as the filing commits).
+    await publishDownloadEvent(tx, { kind: "library", userId: up.user_id });
     return true;
   });
   if (!filed && frameKey !== null) await deps.store.delete(frameKey);

@@ -67,6 +67,7 @@ describe("downloads contract", () => {
       }).type,
     ).toBe("progress");
     expect(DownloadEvent.parse({ type: "removed", id: download.id }).type).toBe("removed");
+    expect(DownloadEvent.parse({ type: "library" })).toEqual({ type: "library" });
     expect(() => DownloadEvent.parse({ type: "nope" })).toThrow();
   });
 

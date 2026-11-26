@@ -17,6 +17,8 @@ export type InternalEvent =
   | { kind: "notice"; userId: string }
   | { kind: "previews"; userIds: string[] }
   | { kind: "requests"; userId: string }
+  /** An upload of the person's was filed: their library changed. */
+  | { kind: "library"; userId: string }
   | {
       kind: "skips";
       userId: string;

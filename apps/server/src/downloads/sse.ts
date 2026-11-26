@@ -78,8 +78,8 @@ const eventsRoute = createRoute({
 
 /**
  * A nudge about the viewer's own things (their notifications, pasted links waiting for a pick,
- * hover previews being made, a SponsorBlock refetch), even on an admin's everyone view; null when
- * it is someone else's.
+ * hover previews being made, an upload filed, a SponsorBlock refetch), even on an admin's everyone
+ * view; null when it is someone else's.
  */
 function personal(
   e: Exclude<InternalEvent, { kind: "state" | "progress" }>,
@@ -90,6 +90,8 @@ function personal(
       return e.userId === userId ? { type: "notice" } : null;
     case "requests":
       return e.userId === userId ? { type: "requests" } : null;
+    case "library":
+      return e.userId === userId ? { type: "library" } : null;
     case "previews":
       return e.userIds.includes(userId) ? { type: "previews" } : null;
     case "skips":

@@ -1,8 +1,11 @@
 import { FakeRun, fixture } from "@uroboros/ytdlp/testing";
 import { VideoInfo } from "@uroboros/ytdlp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { testBus } from "../../test/bus.ts";
+import { eventually } from "../../test/eventually.ts";
 import { insertUser } from "../../test/users.ts";
 import { TestDb } from "../../test/testDb.ts";
+import { publishDownloadEvent } from "../downloads/events.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import type { Job } from "../jobs/queues.ts";
@@ -167,6 +170,40 @@ describe("the upload job", () => {
     expect(await queuedData<PreviewJob>(t.db, "preview")).toContainEqual({
       mediaId: up.media_id,
     });
+  });
+
+  it("tells its person's open pages that their library changed, and nothing of an upload that fails", async () => {
+    const bus = testBus(t);
+    await bus.ready;
+    try {
+      const heard: unknown[] = [];
+      bus.on("uroboros_downloads", (p) => heard.push(JSON.parse(p)));
+      const filed = await received("uppjobev1");
+      await uploadProcessor({ ...deps, generatePreviews: false }).process(job(filed));
+      const { user_id: owner } = await uploadRow(filed);
+      await eventually(() => {
+        expect(heard).toContainEqual({ kind: "library", userId: owner });
+      });
+
+      const failed = await received("uppjobev2");
+      const audio = {
+        ...deps,
+        ffprobe: await fake({ steps: [{ stdout: JSON.stringify(AUDIO_ONLY) }] }),
+      };
+      await expect(uploadProcessor(audio).process(job(failed))).rejects.toBeInstanceOf(
+        UnrecoverableError,
+      );
+      const { user_id: other } = await uploadRow(failed);
+      if (other === null) throw new Error("the failed upload has no person");
+      // Anything the failure sent comes before this, on the same channel.
+      await publishDownloadEvent(t.db, { kind: "notice", userId: other });
+      await eventually(() => {
+        expect(heard).toContainEqual({ kind: "notice", userId: other });
+      });
+      expect(heard).not.toContainEqual({ kind: "library", userId: other });
+    } finally {
+      await bus.close();
+    }
   });
 
   it("queues no hover preview when they are off", async () => {
