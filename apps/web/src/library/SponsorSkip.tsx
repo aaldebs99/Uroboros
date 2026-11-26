@@ -1,16 +1,20 @@
 import type { SponsorSegment } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
-import { useEffect, useMemo, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
-import { skipSpans, spanReached, timelineCues } from "./sponsorSkip";
+import { SkipNotice, type SkipNoticeContent } from "./SkipNotice";
+import { rearmUnskipped, skippedTitle, skipSpans, spanReached, timelineCues } from "./sponsorSkip";
 
 /**
  * The file's SponsorBlock segments as the person's setting has them (Settings › SponsorBlock,
  * docs/automation.md#sponsorblock), and its highlight: the shown segments drawn as bands on the
  * timeline and the highlight as a mark (a metadata track labelled "skip", which the patched skin's
  * time slider draws, each in its category's color; `timelineCues`), and the skipped segments
- * jumped over without a word when playback runs into one. A segment the viewer seeks into plays
- * out, so seeking back to one's start watches it: only playing up to a segment's start skips it.
+ * jumped over when playback runs into one, with a notice in the player ("Skipped sponsor",
+ * SkipNotice) whose Unskip goes back and plays that one through, skipping it again only after a
+ * seek lands 5 s or more before it. A segment the viewer seeks into plays out, so seeking back to
+ * one's start watches it too: only playing up to a segment's start skips it. Rendered inside the
+ * skin, so the notice sits over the picture.
  */
 export function SponsorSkip({
   video,
@@ -32,6 +36,13 @@ export function SponsorSkip({
     [segments, highlight],
   );
   useCreateTextTrack(track);
+  const [notice, setNotice] = useState<SkipNoticeContent | null>(null);
+  /** The spans (by start) the viewer unskipped: played through until a seek lands 5 s before. */
+  const undone = useRef(new Set<number>());
+  const told = useRef(0);
+  const dismiss = useCallback(() => {
+    setNotice(null);
+  }, []);
   useEffect(() => {
     const v = video.current;
     if (v === null || spans.length === 0) return;
@@ -40,6 +51,7 @@ export function SponsorSkip({
     let last = v.currentTime === 0 ? -0.001 : v.currentTime;
     const onSeeked = () => {
       last = v.currentTime;
+      rearmUnskipped(undone.current, last);
     };
     const onTime = () => {
       const now = v.currentTime;
@@ -47,19 +59,31 @@ export function SponsorSkip({
         last = now;
         return;
       }
-      const span = spanReached(spans, last, now);
+      const span = spanReached(spans, last, now, undone.current);
       last = now;
       if (span === undefined) return;
       const end = Number.isFinite(v.duration) ? Math.min(span.end, v.duration) : span.end;
       v.currentTime = end;
       last = end;
+      told.current += 1;
+      setNotice({
+        id: told.current,
+        title: skippedTitle(span),
+        unskip: () => {
+          undone.current.add(span.start);
+          v.currentTime = span.start;
+          last = span.start;
+        },
+      });
     };
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("seeked", onSeeked);
     return () => {
       v.removeEventListener("timeupdate", onTime);
       v.removeEventListener("seeked", onSeeked);
+      // An Unskip from before would move playback with stale bookkeeping.
+      setNotice(null);
     };
   }, [video, spans]);
-  return null;
+  return <SkipNotice notice={notice} onDone={dismiss} />;
 }

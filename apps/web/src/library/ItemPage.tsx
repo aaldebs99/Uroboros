@@ -141,7 +141,7 @@ export function ItemPage({
   const item = useItem(entryId);
   const colors = useSponsorColors();
   const client = useQueryClient();
-  const [seek, setSeek] = useState<{ time: number } | null>(null);
+  const [seek, setSeek] = useState<{ time: number; pause?: boolean } | null>(null);
   const navigate = useNavigate();
   const q = useQueue(queue);
   const reporter = useProgressReporter((position, duration) =>
@@ -195,7 +195,12 @@ export function ItemPage({
             onEnded={onEnded}
           />
           <h1 className="text-xl font-bold">{it.title}</h1>
-          <ItemActions item={it} />
+          <ItemActions
+            item={it}
+            onStartOver={() => {
+              setSeek({ time: 0, pause: true });
+            }}
+          />
           {it.description === null || it.description.trim() === "" ? null : (
             <Description text={it.description} />
           )}

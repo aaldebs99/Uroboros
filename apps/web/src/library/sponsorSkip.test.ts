@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import type { SponsorBlockCategory, SponsorSegment } from "@uroboros/contract";
 
-import { bandTitle, shownSpans, skipSpans, spanReached, timelineCues } from "./sponsorSkip";
+import {
+  bandTitle,
+  rearmUnskipped,
+  shownSpans,
+  skippedTitle,
+  skipSpans,
+  spanReached,
+  timelineCues,
+} from "./sponsorSkip";
 
 /** A segment shown and skipped, as the defaults have the usual categories. */
 const both = (start: number, end: number, category: SponsorBlockCategory): SponsorSegment => ({
@@ -120,6 +128,41 @@ describe("spanReached", () => {
   it("reaches a span that starts the video from just before 0", () => {
     const intro = skipSpans([both(0, 8, "intro")]);
     expect(spanReached(intro, -0.001, 0.25)?.end).toBe(8);
+  });
+
+  it("passes over a span the viewer unskipped", () => {
+    expect(spanReached(spans, 48.9, 49.15, new Set([49.04]))).toBeUndefined();
+    expect(spanReached(spans, 48.9, 49.15, new Set([10]))?.end).toBe(69);
+  });
+});
+
+describe("rearmUnskipped", () => {
+  it("forgets an Unskip once a seek lands 5 s or more before the segment", () => {
+    const undone = new Set([49.04, 77.69]);
+    // 4.99 s before the first, half a minute before the second.
+    rearmUnskipped(undone, 44.05);
+    expect([...undone]).toEqual([49.04]);
+    rearmUnskipped(undone, 44.04);
+    expect([...undone]).toEqual([]);
+  });
+
+  it("keeps it for a seek into or past the segment", () => {
+    const undone = new Set([49.04]);
+    rearmUnskipped(undone, 49.04);
+    rearmUnskipped(undone, 300);
+    expect([...undone]).toEqual([49.04]);
+  });
+});
+
+describe("skippedTitle", () => {
+  it("names what was skipped", () => {
+    expect(skippedTitle({ start: 0, end: 1, categories: ["sponsor"] })).toBe("Skipped sponsor");
+    expect(skippedTitle({ start: 0, end: 1, categories: ["selfpromo", "sponsor"] })).toBe(
+      "Skipped self-promotion and sponsor",
+    );
+    expect(
+      skippedTitle({ start: 0, end: 1, categories: ["sponsor", "intro", "music_offtopic"] }),
+    ).toBe("Skipped sponsor, intro and non-music section");
   });
 });
 

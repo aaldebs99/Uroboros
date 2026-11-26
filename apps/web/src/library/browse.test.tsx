@@ -77,6 +77,18 @@ describe("library browsing", () => {
     expect(tile.querySelector("[data-watched-bar] > span")).toHaveStyle({ width: "50%" });
   });
 
+  it("draws no watched bar on a video started over (Mark as unwatched)", async () => {
+    api({
+      "/api/library": () => ({
+        entries: [entry(1, { progress: { position: 0, duration: 60, watched: false } })],
+        nextCursor: null,
+      }),
+    });
+    await renderInRouter(<LibraryPage />);
+    const tile = (await screen.findByText("Video 1")).closest("li") as HTMLElement;
+    expect(tile.querySelector("[data-watched-bar]")).toBeNull();
+  });
+
   it("asks the server with the page's filters, and chips change them", async () => {
     const urls = api({ "/api/library": () => ({ entries: [entry(1)], nextCursor: null }) });
     const onFilters = vi.fn();

@@ -9,6 +9,8 @@ const TAIL = 0.2;
  * jump, or one backwards, is a seek, never playback reaching a segment.
  */
 const MAX_STEP = 2;
+/** A seek landing this far or more before an unskipped segment skips it again once reached. */
+const REARM = 5;
 
 /** One stretch the player jumps over: overlapping or touching segments joined. */
 export interface SkipSpan {
@@ -65,17 +67,29 @@ export function shownSpans(segments: readonly SponsorSegment[]): ShownSpan[] {
 
 /**
  * The span playback ran into between two moments, `from` then `to`, to jump past: one whose start
- * lies between them (short of its last moment). Only playback reaches a span: from a seek into one
- * (`from` already inside it, or at its start) it plays out.
+ * lies between them (short of its last moment), unless the viewer unskipped it (`undone`, by
+ * start). Only playback reaches a span: from a seek into one (`from` already inside it, or at its
+ * start) it plays out.
  */
 export function spanReached(
   spans: readonly SkipSpan[],
   from: number,
   to: number,
+  undone: ReadonlySet<number> = new Set(),
 ): SkipSpan | undefined {
   const step = to - from;
   if (step < 0 || step > MAX_STEP) return undefined;
-  return spans.find((s) => from < s.start && s.start <= to && to < s.end - TAIL);
+  return spans.find(
+    (s) => from < s.start && s.start <= to && to < s.end - TAIL && !undone.has(s.start),
+  );
+}
+
+/**
+ * Forgets the Unskips (`undone`, by span start) of the spans a seek to `at` landed 5 s or more
+ * before: playing into one again skips it. A seek closer, into it or past it keeps it unskipped.
+ */
+export function rearmUnskipped(undone: Set<number>, at: number): void {
+  for (const start of undone) if (at <= start - REARM) undone.delete(start);
 }
 
 const LABELS: Record<SponsorBlockCategory, string> = {
@@ -89,6 +103,16 @@ const LABELS: Record<SponsorBlockCategory, string> = {
   interaction: "interaction reminder",
   music_offtopic: "non-music section",
 };
+
+/** What the player's notice says was skipped: "Skipped sponsor", "Skipped sponsor and intro". */
+export function skippedTitle(span: SkipSpan): string {
+  const names = span.categories.map((c) => LABELS[c]);
+  const listed =
+    names.length <= 2
+      ? names.join(" and ")
+      : `${names.slice(0, -1).join(", ")} and ${names.at(-1) ?? ""}`;
+  return `Skipped ${listed}`;
+}
 
 /** A band's cue on the timeline: "Skipped sponsor" for what playback jumps, "Sponsor" for what it only shows. */
 export function bandTitle(span: ShownSpan): string {

@@ -36,12 +36,15 @@ export function VideoThumbnail({
   preview?: boolean;
 }) {
   const watched = entry.progress;
+  // No bar until started: a video started over (Mark as unwatched) has none either.
   const fraction =
     watched === null || watched.duration <= 0
       ? null
       : watched.watched
         ? 1
-        : Math.min(1, watched.position / watched.duration);
+        : watched.position <= 0
+          ? null
+          : Math.min(1, watched.position / watched.duration);
   return (
     <PreviewSurface
       entryId={preview && entry.hasVideo ? entry.id : null}

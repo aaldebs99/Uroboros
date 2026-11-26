@@ -213,6 +213,53 @@
   color: var(--uro-sb-poi_highlight);
 }
 
+/*
+ * What the player skipped (SkipNotice): a small pill in the picture's bottom-right corner that
+ * stays whether or not the controls show, riding up over the control bar (its two rows) while they
+ * do and back down when they hide. It comes in with a short fade. A phone's player is too short for
+ * it beside the center play/pause button, so there that button steps aside while the notice shows
+ * (the bar keeps its own), and the pill rides up less.
+ */
+.uro-player .uro-skip-notice {
+  transition: translate var(--media-duration-controls, 0.15s) ease-out;
+}
+
+.uro-player[data-controls-visible] .uro-skip-notice {
+  translate: 0 -4.5rem;
+}
+
+@media (width < 48rem) {
+  .uro-player[data-controls-visible] .uro-skip-notice {
+    translate: 0 -3.75rem;
+  }
+
+  .uro-player:has(.uro-skip-pill) {
+    --media-center-play-started-opacity: 0;
+    --media-center-play-started-pointer-events: none;
+  }
+}
+
+.uro-player .uro-skip-pill {
+  animation: uro-skip-in 0.15s ease-out;
+}
+
+@keyframes uro-skip-in {
+  from {
+    opacity: 0;
+    translate: 0 0.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uro-player .uro-skip-notice {
+    transition: none;
+  }
+
+  .uro-player .uro-skip-pill {
+    animation: none;
+  }
+}
+
 /* No hairline at the pointer: the lighter run marks it. */
 .uro-player .media-time-slider .media-slider-preview::before {
   display: none;

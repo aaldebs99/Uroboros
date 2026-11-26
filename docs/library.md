@@ -174,11 +174,11 @@ Jump to highlight pill in the player's corner goes there while playback is short
 (`HighlightJump.tsx`). The owner can fetch a file's
 segments again from the page's ⋮ menu (Refresh SponsorBlock segments,
 [automation.md](automation.md#sponsorblock)). That menu (`ItemMenu.tsx`, a dropdown from `md` up
-and a bottom sheet on phones) also holds Mark as watched and Mark as unwatched, the current one
-checked, Keep (below) and Open on original site; the row beside it has Edit details (an upload),
-Save, Save to playlist, Share and Remove. When the browser cannot play
-the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand instead
-([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
+and a bottom sheet on phones) also holds Mark as watched and Mark as unwatched (which starts the
+video over, below), the current one checked, Keep (below) and Open on original site; the row
+beside it has Edit details (an upload), Save, Save to playlist, Share and Remove. When the browser
+cannot play the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand
+instead ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.
 Above the player, a back link names the page the video was opened from and returns to it as the
 browser's Back would, past the videos played since, so its search and filters are as they were; a
@@ -198,8 +198,11 @@ Progress is per person and media (two profiles of one video share it). The playe
 position at most every 10 s and on pause and at the end (`PUT /api/library/{id}/progress`); the
 position is clamped to the duration, and the video counts as watched once past 90%, which a later
 report from earlier in it (a rewatch, a late report) doesn't undo. `PUT /api/library/{id}/watched`
-sets it by hand (the item page's ⋮ menu); unwatching also starts it over. Tiles show a watched bar; the item page resumes
-where the person left off.
+sets it by hand (the item page's ⋮ menu); unwatching also starts it over, forgetting the position,
+so Mark as unwatched clears a video started but not finished too (neither Mark is checked on one).
+Since the page's player would report its old place again, Mark as unwatched also takes it back to
+the start, paused. Tiles show a watched bar once a video is started (none after Mark as
+unwatched); the item page resumes where the person left off.
 
 ## Hover previews
 

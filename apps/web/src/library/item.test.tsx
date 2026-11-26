@@ -68,9 +68,10 @@ describe("ItemPage", () => {
     });
     await renderInRouter(<ItemPage entryId={ID} />);
     await openMenu();
+    // Started but not finished: neither watched nor unwatched.
     expect(screen.getByRole("button", { name: "Mark as unwatched" })).toHaveAttribute(
       "aria-pressed",
-      "true",
+      "false",
     );
     await userEvent.click(screen.getByRole("button", { name: "Mark as watched", pressed: false }));
     await waitFor(() => {
@@ -121,12 +122,40 @@ describe("ItemPage ⋮ menu", () => {
   });
 
   it("sends nothing for the watched state the video is already in", async () => {
-    const calls = fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    const calls = fakeApi({
+      [`GET /api/library/${ID}`]: () => Response.json({ ...item, progress: null }),
+    });
     await renderInRouter(<ItemPage entryId={ID} />);
     await openMenu();
     await userEvent.click(screen.getByRole("button", { name: "Mark as unwatched", pressed: true }));
     expect(calls.some((c) => c.method === "PUT")).toBe(false);
+    expect(screen.getByTestId("player")).toHaveAttribute("data-seek", "");
   });
+
+  it.each([
+    ["started", item.progress],
+    ["watched", { position: 596, duration: 596, watched: true }],
+  ])(
+    "starts a %s video over on Mark as unwatched, the player back at the start and paused",
+    async (_, progress) => {
+      const calls = fakeApi({
+        [`GET /api/library/${ID}`]: () => Response.json({ ...item, progress }),
+        [`PUT /api/library/${ID}/watched`]: () => new Response(null, { status: 204 }),
+      });
+      await renderInRouter(<ItemPage entryId={ID} />);
+      await openMenu();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Mark as unwatched", pressed: false }),
+      );
+      await waitFor(() => {
+        expect(calls.find((c) => c.path.endsWith("/watched"))?.body).toEqual({ watched: false });
+      });
+      // So its next report doesn't put the old place back.
+      const player = screen.getByTestId("player");
+      expect(player).toHaveAttribute("data-seek", "0");
+      expect(player).toHaveAttribute("data-seek-pause", "true");
+    },
+  );
 
   it("opens the video on its site in a new tab", async () => {
     fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
