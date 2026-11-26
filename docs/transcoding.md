@@ -48,6 +48,14 @@ A line under the player says how it plays:
 
 ## Sessions
 
+The page plays a session's HLS through hls.js (`@videojs/hlsjs-video`, Video.js's media for it),
+or natively on Safari and iPhones (`hasNativeHls`; Chrome and Android claim HLS too, but go through
+MSE, Chrome's own player falling short). Previews do the same. Not through Video.js's own engine: it
+gives up on its only origin for five minutes after one failed request (a server restarting answers
+502 for a few seconds), and waits at the smallest hole in what it buffered. hls.js retries and jumps
+small holes, and waits for a segment not made yet about 50 s (10 s to its first byte, four times),
+past the 45 s the server holds it, then retries the 503 with backoff.
+
 `POST {playbackUrl}` takes `{quality, start, copyVideo, copyAudio}`. The page sets `copyVideo` and
 `copyAudio` by asking whether this browser decodes the file's codecs from fragmented MP4: MSE's
 `isTypeSupported`, or `canPlayType` where it plays HLS natively. The server plans the session from
@@ -72,8 +80,8 @@ The session's routes live under `{playbackUrl}/sessions/{sid}`:
 
 - `GET` reports the session's state (`queued`, `starting`, `running`, `stopped` or `failed`), its
   encoder and why it was made. Asking keeps it alive. `DELETE` stops it.
-- `master.m3u8` is a one-variant multivariant playlist (the codecs and the size), which Video.js's
-  HLS engine needs. It names no audio codec for a silent video.
+- `master.m3u8` is a one-variant multivariant playlist, which tells the player the codecs and the
+  size. It names no audio codec for a silent video.
 - `index.m3u8` is the **whole video as a VOD playlist, ended, from the first request**:
   - an encode cuts every 6 s, forcing keyframes there;
   - a remux cuts at the first keyframe at or after each 6 s mark, from the rendition's keyframe
