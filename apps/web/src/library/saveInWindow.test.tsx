@@ -33,13 +33,16 @@ vi.mock("@/push/installed", async (original) => ({
 }));
 
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
-/** The page's origin here is http (jsdom's), so a hand-off opens a window, as on a LAN address. */
-const savesAt = (token: string) => `${window.location.origin}/api/public/saves/${token}`;
+/** What Safari is handed for a token: the page's origin here is http (jsdom's), as on a LAN address. */
+const savesAt = (token: string) => `x-safari-${window.location.origin}/api/public/saves/${token}`;
 
+/** Catches the hand-off (jsdom navigates nowhere) and any window opened instead. */
 function stubOpen() {
-  const open = vi.fn<(url?: string, target?: string) => Window | null>(() => null);
-  vi.stubGlobal("open", open);
-  return open;
+  vi.stubGlobal(
+    "open",
+    vi.fn(() => null),
+  );
+  return vi.spyOn(navigation, "go").mockImplementation(() => undefined);
 }
 const go = () => vi.spyOn(navigation, "go").mockImplementation(() => undefined);
 const tokenIn = (url: unknown) => String(url).split("/").pop() ?? "";
@@ -61,7 +64,7 @@ describe("openSave", () => {
     const [token] = register.mock.calls[0] as unknown as [string];
     expect(token).toMatch(TOKEN);
     // Before the registration answers: the hand-off can't wait for it.
-    expect(open).toHaveBeenCalledWith(savesAt(token), "_blank");
+    expect(open).toHaveBeenCalledWith(savesAt(token));
   });
 
   it("chooses a new token every time", () => {
@@ -94,6 +97,15 @@ describe("openOutside", () => {
     const to = go();
     openOutside("https://uro.example/api/public/saves/abc");
     expect(to).toHaveBeenCalledWith("x-safari-https://uro.example/api/public/saves/abc");
+  });
+
+  it("hands Safari an http link (a LAN address) too, never the in-app sheet that can't save", () => {
+    const to = go();
+    const open = vi.fn(() => null);
+    vi.stubGlobal("open", open);
+    openOutside("http://192.168.1.5:18080/api/public/saves/abc");
+    expect(to).toHaveBeenCalledWith("x-safari-http://192.168.1.5:18080/api/public/saves/abc");
+    expect(open).not.toHaveBeenCalled();
   });
 
   it("says so when Safari never takes over (iOS before 17)", () => {
@@ -141,7 +153,7 @@ describe("SaveButton", () => {
     expect(screen.queryByRole("link", { name: "Save" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     const [token] = register.mock.calls[0] as unknown as [string];
-    expect(open).toHaveBeenCalledWith(savesAt(token), "_blank");
+    expect(open).toHaveBeenCalledWith(savesAt(token));
   });
 
   it("hands over a URL that needs no session (a public link's) as it is", async () => {
@@ -153,8 +165,7 @@ describe("SaveButton", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Download" }));
     expect(open).toHaveBeenCalledWith(
-      `${window.location.origin}/api/public/s/abc/items/x/file`,
-      "_blank",
+      `x-safari-${window.location.origin}/api/public/s/abc/items/x/file`,
     );
   });
 });
