@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.1.3](https://github.com/aaldebs99/Uroboros/compare/0.1.2...0.1.3) (2026-11-26)
+
+
+### Features
+
+* **server:** UROBOROS_SECRETS_KEY takes any passphrase of 8 or more characters ([6aad3da](https://github.com/aaldebs99/Uroboros/commit/6aad3da56690e54d5c9745d0f73970086e3ca76a))
+
+
+### Bug Fixes
+
+* an open library page shows a finished download or upload ([593a230](https://github.com/aaldebs99/Uroboros/commit/593a230b20053bbb4bde1947143d210d77d7379b))
+
+
+### Tests
+
+* **web:** budgets that catch a hang, not a slow runner ([055fe39](https://github.com/aaldebs99/Uroboros/commit/055fe39822ec1354c6af6f077a3955bf5304fe78))
+* **web:** no Safari hand-off timer outlives its test ([0ac7173](https://github.com/aaldebs99/Uroboros/commit/0ac71730cd61299f8f659bbec1151c553a6b5179))
+* **server:** close the worker only once its job has begun to run ([8fb4cfa](https://github.com/aaldebs99/Uroboros/commit/8fb4cfad9746f6c51c142718e1b4a19edfb01502))
+
+
+### Miscellaneous Chores
+
+* stop naming the private projects designs came from ([bd06692](https://github.com/aaldebs99/Uroboros/commit/bd066927cde02531549cb22540a34bc1eff61975))
 ## [0.1.2](https://github.com/aaldebs99/Uroboros/compare/0.1.1...0.1.2) (2026-11-26)
 
 
