@@ -33,6 +33,7 @@ describe("playback sessions", () => {
       encoder: "nvenc",
       width: 1280,
       height: 720,
+      bitrate: 4_000_000,
       reason: "picked",
       url: "/api/library/e/playback/sessions/6f1c1b0e-2a4b-4c5d-8e9f-0a1b2c3d4e5f",
       masterUrl:
@@ -41,5 +42,23 @@ describe("playback sessions", () => {
     };
     expect(PlaybackSession.parse(s)).toEqual(s);
     expect(PlaybackSession.safeParse({ ...s, encoder: "qsv" }).success).toBe(false);
+  });
+
+  it("reads a session from a replica that says no target bitrate as having none", () => {
+    const { bitrate: _, ...older } = PlaybackSession.parse({
+      id: "6f1c1b0e-2a4b-4c5d-8e9f-0a1b2c3d4e5f",
+      state: "running",
+      mode: "remux",
+      quality: "original",
+      encoder: "copy",
+      width: 1280,
+      height: 720,
+      bitrate: null,
+      reason: "container",
+      url: "/s",
+      masterUrl: "/s/master.m3u8",
+      error: null,
+    });
+    expect(PlaybackSession.parse(older).bitrate).toBeNull();
   });
 });

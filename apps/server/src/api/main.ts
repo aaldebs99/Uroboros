@@ -157,6 +157,7 @@ export async function startApi(
       playbackBus,
       secretsKey: config.secretsKey,
       generatePreviews: config.worker.generatePreviews,
+      transcodeMaxShort: config.worker.transcode.maxShort,
     },
     {
       webDist: config.webDist,

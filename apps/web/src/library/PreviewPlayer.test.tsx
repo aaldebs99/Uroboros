@@ -31,6 +31,7 @@ const session: PlaybackSession = {
   encoder: null,
   width: null,
   height: null,
+  bitrate: null,
   reason: "picked",
   url: SESSION_URL,
   masterUrl: `${SESSION_URL}/master.m3u8`,

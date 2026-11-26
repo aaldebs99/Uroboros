@@ -162,6 +162,18 @@ describe("library item", () => {
     });
   });
 
+  it("offers no quality above the server's tallest encode (UROBOROS_TRANSCODE_MAX_HEIGHT)", async () => {
+    const capped = asUser(
+      createApp(
+        { db: testDb.db, version: "t", logger, store, transcodeMaxShort: 480 },
+        { webDist: null },
+      ),
+      alice,
+    );
+    const res = await capped.request(`/api/library/${entryId}`);
+    expect(LibraryItem.parse(await res.json()).qualities).toEqual(["480", "360"]);
+  });
+
   it("streams inline with ranges, and serves the subtitle as text/vtt", async () => {
     const res = await app(alice).request(`/api/library/${entryId}/stream`, {
       headers: { range: "bytes=2-4" },

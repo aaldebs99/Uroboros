@@ -63,6 +63,50 @@ describe("format profiles", () => {
     expect((await list(admin)).filter((p) => p.builtIn)).toEqual(builtIns);
   });
 
+  it("sets the built-in video profiles to AV1 in MP4, at the heights their names say", async () => {
+    const video = (await list())
+      .filter((p) => p.builtIn && !p.audioOnly)
+      .map((p) => [p.name, p.format, p.mergeFormat, p.videoCodec]);
+    expect(video).toEqual([
+      ["Best available", "bv*+ba/b", "mp4", "av1"],
+      ["Best up to 1080p (MP4)", "bv*[height<=1080]+ba/b[height<=1080]", "mp4", "av1"],
+      ["Up to 720p (MP4)", "bv*[height<=720]+ba/b[height<=720]", "mp4", "av1"],
+    ]);
+    const audio = (await list()).filter((p) => p.builtIn && p.audioOnly);
+    for (const p of audio) expect(p.videoCodec).toBeNull();
+  });
+
+  it("keeps a video codec, and refuses one an audio-only profile or WebM can't take", async () => {
+    const p = FormatProfile.parse(
+      await (await create({ videoCodec: "vp9", mergeFormat: "webm" })).json(),
+    );
+    expect([p.videoCodec, p.mergeFormat]).toEqual(["vp9", "webm"]);
+    const renamed = FormatProfile.parse(await (await patch(p.id, { name: `${p.name}-2` })).json());
+    expect(renamed.videoCodec).toBe("vp9");
+    const anyCodec = FormatProfile.parse(await (await patch(p.id, { videoCodec: null })).json());
+    expect(anyCodec.videoCodec).toBeNull();
+    expect(anyCodec.revision).not.toBe(p.revision);
+    const audio = await create({ audioOnly: true, audioFormat: "mp3", videoCodec: "av1" });
+    expect(audio.status).toBe(400);
+    for (const videoCodec of ["h264", "h265"]) {
+      const res = await create({ videoCodec, mergeFormat: "webm" });
+      expect([videoCodec, res.status]).toEqual([videoCodec, 400]);
+      expect(ApiErrorBody.parse(await res.json()).message).toMatch(/WebM/);
+    }
+    expect((await patch(p.id, { videoCodec: "h264" })).status).toBe(400);
+  });
+
+  it("keeps the codec when a person edits a built-in into a profile of their own", async () => {
+    const someone = await signedIn(testDb.db, { username: `p-${randomUUID().slice(0, 8)}` });
+    const best = (await list(someone)).find((p) => p.name === "Best available");
+    expect(best?.videoCodec).toBe("av1");
+    if (best === undefined) return;
+    const copy = FormatProfile.parse(
+      await (await patch(best.id, { name: "My best" }, someone)).json(),
+    );
+    expect([copy.builtIn, copy.videoCodec, copy.mergeFormat]).toEqual([false, "av1", "mp4"]);
+  });
+
   it("refuses an extra argument that is not allowed, naming it", async () => {
     const res = await create({ extraArgs: ["--exec", "x"] });
     expect(res.status).toBe(400);
@@ -124,6 +168,28 @@ describe("format profiles", () => {
     const other = FormatProfile.parse(await (await create()).json());
     expect((await patch(other.id, { name: "Mine" })).status).toBe(409);
     expect((await patch(other.id, { name: "Audio only (Opus)" })).status).toBe(409);
+  });
+});
+
+describe("profileRevision", () => {
+  const best = {
+    format: "bv*+ba/b",
+    mergeFormat: null,
+    audioOnly: false,
+    audioFormat: null,
+    extraArgs: [],
+  };
+
+  it("is the same as before codecs for a profile without one, so its files are still shared", () => {
+    // The literal the first schema seeded "Best available" with.
+    expect(profileRevision(best)).toBe("9dbd9d2454da");
+    expect(profileRevision({ ...best, videoCodec: null })).toBe("9dbd9d2454da");
+  });
+
+  it("changes with the codec", () => {
+    const av1 = profileRevision({ ...best, videoCodec: "av1" });
+    expect(av1).not.toBe("9dbd9d2454da");
+    expect(profileRevision({ ...best, videoCodec: "vp9" })).not.toBe(av1);
   });
 });
 
@@ -189,10 +255,58 @@ describe("ytdlpArgsFor", () => {
       }).extraArgs,
     ).toEqual([
       "--merge-output-format=mp4",
+      "--format-sort=lang,quality,res,fps,hdr:12,vcodec,channels,acodec:aac",
       "--write-thumbnail",
       "--convert-thumbnails=jpg",
       "--embed-chapters",
     ]);
+  });
+
+  /** A video profile's arguments before the thumbnail ones, with `over` changed. */
+  const shape = (over: Partial<Parameters<typeof ytdlpArgsFor>[0]>) =>
+    ytdlpArgsFor({
+      format: "bv*+ba/b",
+      mergeFormat: null,
+      audioOnly: false,
+      audioFormat: null,
+      extraArgs: [],
+      ...over,
+    }).extraArgs.filter((a) => !a.includes("thumbnail"));
+
+  it("prefers the codec at the same height, resolution still first, and the container's audio", () => {
+    expect(shape({ videoCodec: "av1", mergeFormat: "mp4" })).toEqual([
+      "--merge-output-format=mp4",
+      "--format-sort=lang,quality,res,fps,hdr:12,vcodec:av01,channels,acodec:aac",
+    ]);
+    expect(shape({ videoCodec: "vp9", mergeFormat: "webm" })).toEqual([
+      "--merge-output-format=webm",
+      "--format-sort=lang,quality,res,fps,hdr:12,vcodec:vp9,channels,acodec:opus",
+    ]);
+    expect(shape({ videoCodec: "h265" })).toEqual([
+      "--format-sort=lang,quality,res,fps,hdr:12,vcodec:h265,channels,acodec",
+    ]);
+    expect(shape({ videoCodec: "h264", mergeFormat: "mkv" })).toEqual([
+      "--merge-output-format=mkv",
+      "--format-sort=lang,quality,res,fps,hdr:12,vcodec:h264,channels,acodec",
+    ]);
+  });
+
+  it("leaves yt-dlp's own order alone with no codec and no container that prefers an audio", () => {
+    expect(shape({})).toEqual([]);
+    expect(shape({ videoCodec: null, mergeFormat: "mkv" })).toEqual(["--merge-output-format=mkv"]);
+  });
+
+  it("gives an audio-only profile no codec order", () => {
+    expect(
+      ytdlpArgsFor({
+        format: "ba/b",
+        mergeFormat: null,
+        audioOnly: true,
+        audioFormat: "mp3",
+        extraArgs: [],
+        videoCodec: null,
+      }).extraArgs.some((a) => a.startsWith("--format-sort")),
+    ).toBe(false);
   });
 
   it("passes no SponsorBlock flags: the server asks SponsorBlock itself, so files stay whole", async () => {

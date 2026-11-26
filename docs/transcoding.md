@@ -32,19 +32,27 @@ stopped, transcoding the video.
 The player's settings menu has a **Quality** submenu:
 
 - **Original**: direct play, or the smallest change that plays.
-- **2160p, 1440p, 1080p, 720p, 480p and 360p**, up to the video's short side, so a vertical video
-  gets the same rungs. Each rung has a bitrate cap: 20, 12, 8, 4, 1.5 and 0.8 Mb/s.
+- **2160p, 1440p, 1080p, 720p, 480p and 360p**, up to the video's short side and the server's
+  tallest encode (`UROBOROS_TRANSCODE_MAX_HEIGHT`, 2160 by default), so a vertical video gets the
+  same rungs. Each rung has a bitrate cap: 20, 12, 8, 4, 1.5 and 0.8 Mb/s.
 
 Picking a rung starts a session at the current position. Picking Original goes back. The menu takes
 the place of the skin's own, which lists only an HLS stream's renditions, through a slot that
 `patches/@videojs__react.patch` adds (`SettingsMenuSlot`).
 
-A line under the player says how it plays:
+The settings menu's **Stats** row turns on a panel over the picture, in fullscreen too
+(`PlaybackStats`, its words in `playbackStats.ts`). It says:
 
-- "Direct play";
-- "Direct stream", with "· converting the audio" when only the audio is converted;
-- "Transcoding to 720p · NVIDIA GPU", with the reason when it is not your pick ("this browser
-  can't play VP9").
+- **Playback**: how it plays. "Direct play"; "Direct stream", with "· converting the audio" when
+  only the audio is converted; or "Transcoding to 720p · NVIDIA GPU", with the reason when it is
+  not your pick ("this browser can't play VP9").
+- **Source**: the file's codecs, container, size, and bitrate (its size over its length).
+- **Output**, for a session: the encode's size and target bitrate (the session's `bitrate`), or
+  the video copied.
+- **Viewport, Frames, Buffer**, read off the player every second: its size on screen and the
+  picture it decodes, the frames dropped of those shown, and the seconds buffered ahead.
+- **Network**, for a session: the newest segment's size and download time, from the browser's
+  Resource Timing.
 
 ## Sessions
 
@@ -64,9 +72,13 @@ the stored rendition (`src/transcode/sessionPlan.ts`):
 - **remux** when the quality is Original, the browser decodes the video, and fragmented MP4 carries
   it (H.264, HEVC, VP9 or AV1). The video is copied (an MKV becomes fMP4 untouched), and so is the
   audio when the browser plays it; otherwise the audio becomes AAC stereo 160 kb/s.
-- **encode** otherwise: H.264 High at the rung, or at the source's size up to 1080 lines for
-  Original, with the rung's cap and the H.264 level that carries that size at 60 fps. The same
-  level goes into the playlist's CODECS.
+- **encode** otherwise: H.264 High at the rung, or at the source's own size for Original, both no
+  taller than `UROBOROS_TRANSCODE_MAX_HEIGHT`, with the H.264 level that carries that size at 60
+  fps (the same level goes into the playlist's CODECS). The bitrate follows the source: its video
+  bitrate (the file's size over its length, less 160 kb/s of audio) times what H.264 needs more
+  than its codec (2 for AV1, 1.5 for VP9, HEVC and the rest, 1.25 for H.264, a margin for
+  encoding it again), under the rung's cap and over 500 kb/s; the rung's cap when the size is
+  unknown. The CPU's encode aims at CRF 23 under it, a GPU's at it.
 - **audio** for an audio file.
 
 Each session is one viewer's (`playback_sessions`): a signed-in person, or a public link's code. A
@@ -206,6 +218,11 @@ Safari's native HLS, and VA-API on Intel, are built to spec but untested.
 | `UROBOROS_TRANSCODE_CONCURRENCY`  | `10`                  | Sessions this replica runs at once; `0` runs none here   |
 | `UROBOROS_TRANSCODE_HWACCEL`      | `none`                | This replica's GPU: `none` (the CPU), `nvenc` or `vaapi` |
 | `UROBOROS_TRANSCODE_VAAPI_DEVICE` | `/dev/dri/renderD128` | The VA-API render node                                   |
+| `UROBOROS_TRANSCODE_MAX_HEIGHT`   | `2160`                | The tallest encode, on the short side (a rung)           |
+
+`UROBOROS_TRANSCODE_MAX_HEIGHT` is read by the replica that answers the page, which plans the
+session, so set it the same on every replica. A CPU can't encode 4K in real time: a server without
+a GPU should set 1080.
 
 A paused viewer's session holds its slot while their tab is open, but its run is paused, so it
 costs nothing.

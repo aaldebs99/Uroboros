@@ -20,6 +20,8 @@ import { buildMcpServer } from "./server.ts";
 export interface McpDeps {
   db: Kysely<Database>;
   downloads: DownloadContext | undefined;
+  /** The tallest encode (`UROBOROS_TRANSCODE_MAX_HEIGHT`). */
+  maxShort: number;
   logger: Logger;
   version: string;
   /** `UROBOROS_MCP_ENABLED`, read at start (on unless false): off, `/api/mcp` answers 404. */
@@ -71,6 +73,7 @@ export function registerMcpRoute(app: OpenAPIHono, deps: McpDeps): void {
         caller: fromAuthInfo(info),
         db: deps.db,
         downloads: deps.downloads,
+        maxShort: deps.maxShort,
         logger: deps.logger,
       },
       deps.version,

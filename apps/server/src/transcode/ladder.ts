@@ -19,9 +19,15 @@ export const RUNGS: readonly Rung[] = [
   { short: 360, bitrate: 800_000 },
 ];
 
-/** The rungs a source offers: those up to its short side (never an upscale). */
-export function rungsFor(width: number, height: number): number[] {
-  const short = Math.min(width, height);
+/** The top rung: the tallest encode, on the short side, unless the server sets a lower one. */
+export const MAX_SHORT = 2160;
+
+/**
+ * The rungs a source offers: those up to its short side (never an upscale) and the server's
+ * tallest encode (`maxShort`).
+ */
+export function rungsFor(width: number, height: number, maxShort: number = MAX_SHORT): number[] {
+  const short = Math.min(width, height, maxShort);
   return RUNGS.filter((r) => r.short <= short).map((r) => r.short);
 }
 

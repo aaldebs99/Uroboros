@@ -194,7 +194,7 @@ channel ([jobs.md](jobs.md)).
 ## Format profiles
 
 yt-dlp presets (`format_profiles`, `src/downloads/profiles.ts`): a format selector, a container to
-merge into, or audio-only with an audio format, and extra arguments from the wrapper's allowlist (each value checked against its flag's pattern, and the pacing ones
+merge into and a preferred video codec, or audio-only with an audio format, and extra arguments from the wrapper's allowlist (each value checked against its flag's pattern, and the pacing ones
 bounded: `--limit-rate` at least 100K, retries at most 50, sleeps at most 300 s, and no
 `--throttled-rate`, whose re-extraction loop sleeps again on every pass. The floor still lets a
 download of more than about 2 GB, or one from a slow server, run into the 6-hour fetch timeout,
@@ -205,11 +205,31 @@ again, with the server's own subtitle arguments, when the job runs; its one extr
 profile and revision, so editing a profile makes new downloads fetch a fresh file instead of
 reusing one made with the old arguments; files already in libraries stay.
 
+Settings › Profiles shows a profile as plain choices (`apps/web/src/settings/profileShape.ts`), and
+writes the selector from them:
+
+- **Quality**: best available (`bv*+ba/b`) or up to 4K, 1440p, 1080p, 720p, 480p or 360p
+  (`bv*[height<=N]+ba/b[height<=N]`). A selector the form doesn't write stays under Advanced, in
+  place of the quality, beside the extra arguments.
+- **Video codec** (`video_codec`): any, AV1, VP9, H.265 or H.264, preferred among copies of the same
+  resolution. The highest resolution still comes first, and a video without the codec gets the
+  closest one yt-dlp ranks: the profile restates yt-dlp's own order with its codec in it,
+  `--format-sort=lang,quality,res,fps,hdr:12,vcodec:<codec>,channels,acodec[:<audio>]`. YouTube
+  offers AV1 and VP9 up to 4K and H.264 only up to 1080p, and no H.265 at all, so an uncapped H.264
+  profile still gets VP9 at 4K there.
+- **Container** (`merge_format`): any, MP4, MKV or WebM, the format the video and audio are merged
+  into; a site that serves one ready-made file keeps its container. MP4 prefers AAC audio, which
+  plays wherever MP4 does, and WebM Opus, the only one it holds besides Vorbis. WebM holds only AV1
+  or VP9 video, so the server refuses H.264 or H.265 with it, and the form doesn't offer them.
+- **Audio only**: the audio format (Opus, M4A, MP3, FLAC or WAV), from the best audio (`ba/b`), or
+  M4A as served when there is one (`ba[ext=m4a]/ba/b`).
+
 - **Built-ins** (`user_id` null) are everyone's to start with. None of them marks or cuts
   SponsorBlock segments: what a person's player shows and skips is their own setting, Settings ›
   SponsorBlock ([automation.md](automation.md#sponsorblock)):
   - "Best available" (the default), "Best up to 1080p (MP4)" and "Up to 720p (MP4)", the smaller
-    one for phones and tight storage;
+    one for phones and tight storage, each AV1 in MP4 with AAC audio at the height its name says
+    (AV1 is yt-dlp's own first choice; the MP4 makes the file play outside browsers too);
   - "Audio only (Opus)";
   - "Music (MP3)": VBR best (`--audio-quality=0`) with metadata and cover art embedded;
   - "Podcasts (M4A)": AAC with metadata and chapters embedded.

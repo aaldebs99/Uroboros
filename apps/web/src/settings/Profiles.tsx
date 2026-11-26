@@ -17,14 +17,7 @@ import { Notice } from "@/components/ui/notice";
 import { notify } from "@/components/ui/sonner";
 
 import { ProfileDialog } from "./ProfileForm";
-
-/** A profile's arguments in one line: the format, the container or audio, and the extras. */
-function describe(p: FormatProfile): string {
-  const shape = p.audioOnly
-    ? `audio as ${p.audioFormat ?? "?"}`
-    : (p.mergeFormat ?? "any container");
-  return [p.format, shape, ...p.extraArgs].join(" · ");
-}
+import { describeProfile } from "./profileShape";
 
 /** What the open dialog is doing: adding a profile, editing one, or copying one under a new name. */
 type Editing =
@@ -58,7 +51,7 @@ function ProfileRow({
             <span className="text-xs font-normal text-muted-foreground">Built-in</span>
           ) : null}
         </p>
-        <p className="truncate font-mono text-xs text-muted-foreground">{describe(profile)}</p>
+        <p className="truncate text-xs text-muted-foreground">{describeProfile(profile)}</p>
       </div>
       <div className="flex flex-wrap gap-1">
         {profile.isDefault ? null : (

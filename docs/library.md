@@ -160,7 +160,7 @@ entry or one shared with them (`sharedBy` names its owner then; [sharing.md](sha
 to a presigned URL when `UROBOROS_S3_PUBLIC_URL` is set; the CSP's `media-src` allows that origin),
 and `GET /api/library/{id}/subtitles/{subId}` serves a WebVTT file. The web app plays it with
 Video.js 10 (`@videojs/react`, the Neutral video skin in the app's accent): subtitles are `<track>`s
-in its captions menu, chapters are a text track its time slider divides into sections, and the page
+in its settings menu's Captions submenu (the skin's own captions button is hidden, `player.css`), chapters are a text track its time slider divides into sections, and the page
 also lists the chapters to jump to (`apps/web/src/library/Player.tsx`). An audio file (no video
 stream, as Library › Audio counts it) shows its thumbnail where the picture would be, whole over a
 blurred copy of itself, or a music glyph when it has none; it lies behind the media element, so

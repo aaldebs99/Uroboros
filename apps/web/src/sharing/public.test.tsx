@@ -206,6 +206,7 @@ describe("a public link", () => {
             encoder: "libx264",
             width: 1280,
             height: 720,
+            bitrate: null,
             reason: "video_unsupported",
             url: `${base(1)}/playback/sessions/0190a3f2-7c1e-7000-8000-00000000005e`,
             masterUrl: `${base(1)}/playback/sessions/0190a3f2-7c1e-7000-8000-00000000005e/master.m3u8`,

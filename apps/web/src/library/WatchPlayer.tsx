@@ -1,11 +1,11 @@
 import type { LibraryItem, PlaybackSession, Quality } from "@uroboros/contract";
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
 
-import { PlaybackStatus } from "./PlaybackStatus";
+import { PlaybackStats } from "./PlaybackStats";
 import { canPlayOriginal, capabilities, hasNativeHls } from "./playable";
 import type { PlayerProps } from "./Player";
+import { PlayerSettings } from "./PlayerSettings";
 import { qualityChoices } from "./quality";
-import { QualityMenu } from "./QualityMenu";
 import { SessionPlayer } from "./SessionPlayer";
 
 const Player = lazy(() => import("./Player").then((m) => ({ default: m.Player })));
@@ -28,10 +28,16 @@ export type PlayableItem = Pick<
   | "videoCodec"
   | "videoCodecs"
   | "audioCodecs"
+  | "width"
+  | "height"
+  | "duration"
   | "qualities"
   | "playbackUrl"
   | "thumbnailUrl"
->;
+> & {
+  /** The file's size, for the Stats panel's bitrate; a public link's item has none. */
+  sizeBytes?: number;
+};
 
 interface Choice {
   quality: Quality;
@@ -44,7 +50,8 @@ interface Choice {
 /**
  * The watch page's player (docs/transcoding.md): the original file when this browser plays it,
  * otherwise, or at a quality picked in the player's settings menu, a playback session from where
- * the viewer is; a line under it says how it plays.
+ * the viewer is. The settings menu's Stats row shows a panel over the picture that says how it
+ * plays (PlaybackStats).
  */
 export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }) {
   const direct = useMemo(() => canPlayOriginal(item), [item]);
@@ -57,6 +64,7 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
     start: shared.start,
   });
   const [session, setSession] = useState<PlaybackSession | null>(null);
+  const [stats, setStats] = useState(false);
   const { onTime } = shared;
   const track = useCallback(
     (at: number, duration: number) => {
@@ -67,16 +75,34 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
   );
   const where = useCallback(() => position.current, []);
   const viaSession = choice.quality !== "original" || choice.broken || !direct;
-  const settings =
-    item.qualities.length === 0 ? undefined : (
-      <QualityMenu
-        value={choice.quality}
-        options={qualityChoices(item.qualities)}
-        onChange={(q) => {
-          setChoice((c) => ({ ...c, quality: q as Quality, start: position.current }));
-        }}
-      />
-    );
+  const settings = (
+    <PlayerSettings
+      quality={
+        item.qualities.length === 0
+          ? null
+          : {
+              value: choice.quality,
+              options: qualityChoices(item.qualities),
+              onChange: (q) => {
+                setChoice((c) => ({ ...c, quality: q as Quality, start: position.current }));
+              },
+            }
+      }
+      stats={stats}
+      onStats={() => {
+        setStats((on) => !on);
+      }}
+    />
+  );
+  const overlay = stats ? (
+    <PlaybackStats
+      item={item}
+      session={viaSession ? session : null}
+      onClose={() => {
+        setStats(false);
+      }}
+    />
+  ) : undefined;
   const props = {
     ...shared,
     onTime: track,
@@ -86,39 +112,35 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
     sponsorHighlight: item.sponsorHighlight,
     subtitles: item.subtitles,
     settings,
+    overlay,
     // A file with sound alone shows its thumbnail where the picture would be.
     ...(item.videoCodec === null ? { audio: { thumbnailUrl: item.thumbnailUrl } } : {}),
   };
-  return (
-    <div className="grid gap-1.5">
-      {viaSession ? (
-        <SessionPlayer
-          key={`${choice.quality} ${String(choice.broken)} ${String(choice.start)}`}
-          {...props}
-          playbackUrl={item.playbackUrl}
-          native={native}
-          position={where}
-          onSession={setSession}
-          request={{
-            quality: choice.quality,
-            start: choice.start,
-            copyVideo: caps.copyVideo && !choice.broken,
-            copyAudio: caps.copyAudio,
-          }}
-        />
-      ) : (
-        <Suspense fallback={<div className="aspect-video w-full rounded-[0.75rem] bg-raised" />}>
-          <Player
-            {...props}
-            src={item.streamUrl}
-            start={choice.start}
-            onError={() => {
-              setChoice((c) => ({ ...c, broken: true, start: position.current }));
-            }}
-          />
-        </Suspense>
-      )}
-      <PlaybackStatus session={viaSession ? session : null} videoCodec={item.videoCodec} />
-    </div>
+  return viaSession ? (
+    <SessionPlayer
+      key={`${choice.quality} ${String(choice.broken)} ${String(choice.start)}`}
+      {...props}
+      playbackUrl={item.playbackUrl}
+      native={native}
+      position={where}
+      onSession={setSession}
+      request={{
+        quality: choice.quality,
+        start: choice.start,
+        copyVideo: caps.copyVideo && !choice.broken,
+        copyAudio: caps.copyAudio,
+      }}
+    />
+  ) : (
+    <Suspense fallback={<div className="aspect-video w-full rounded-[0.75rem] bg-raised" />}>
+      <Player
+        {...props}
+        src={item.streamUrl}
+        start={choice.start}
+        onError={() => {
+          setChoice((c) => ({ ...c, broken: true, start: position.current }));
+        }}
+      />
+    </Suspense>
   );
 }

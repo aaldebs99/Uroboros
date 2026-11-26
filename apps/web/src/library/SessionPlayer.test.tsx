@@ -49,6 +49,7 @@ const session = (over: Record<string, unknown> = {}) => ({
   encoder: "libx264",
   width: 1280,
   height: 720,
+  bitrate: null,
   reason: "picked",
   url,
   masterUrl: `${url}/master.m3u8`,

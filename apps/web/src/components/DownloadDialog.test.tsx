@@ -19,6 +19,7 @@ function profile(id: string, name: string, isDefault: boolean): FormatProfile {
     name,
     format: "bv*+ba/b",
     mergeFormat: null,
+    videoCodec: null,
     audioOnly: false,
     audioFormat: null,
     extraArgs: [],

@@ -109,6 +109,8 @@ describe("creating a playback session", () => {
       encoder: null,
       width: 1280,
       height: 720,
+      // The seeded file is 10 bytes over 20 s, so the encode aims at the floor.
+      bitrate: 500_000,
       reason: "picked",
       url: `${base()}/sessions/${s.id}`,
       masterUrl: `${base()}/sessions/${s.id}/master.m3u8`,
@@ -117,6 +119,33 @@ describe("creating a playback session", () => {
     const jobs = await liveJobs(t.db, "playback");
     expect(jobs.map((j) => j.key)).toContain(`playback|${s.id}`);
     expect(await isAlive({ db: t.db }, s.id)).toBe(true);
+  });
+
+  it("encodes Original at the source's size, no taller than the server's maximum", async () => {
+    const full = await session(alice, { quality: "original" });
+    expect([full.width, full.height]).toEqual([1920, 1080]);
+    const capped = asUser(
+      createApp(
+        {
+          db: t.db,
+          version: "t",
+          logger,
+          downloads: h.ctx,
+          store,
+          playbackBus: bus,
+          transcodeMaxShort: 720,
+        },
+        { webDist: null },
+      ),
+      alice,
+    );
+    const res = await capped.request(base(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ quality: "original", start: 0, copyVideo: false, copyAudio: true }),
+    });
+    const s = PlaybackSession.parse(await res.json());
+    expect([s.width, s.height]).toEqual([1280, 720]);
   });
 
   it("leaves the viewer's other sessions of the entry playing (another tab or device)", async () => {
@@ -174,6 +203,8 @@ describe("a session's playlists", () => {
   it("cuts a remux at the keyframes, once they are known (409 before)", async () => {
     const s = await session(alice, { quality: "original", copyVideo: true });
     expect(s.mode).toBe("remux");
+    // A remux copies the video: no encode, no target bitrate.
+    expect(s.bitrate).toBeNull();
     expect((await as(alice).request(`${s.url}/index.m3u8`)).status).toBe(409);
     await t.db
       .insertInto("rendition_keyframes")

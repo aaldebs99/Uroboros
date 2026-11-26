@@ -9,8 +9,11 @@ export interface RenditionPlayback {
   height: number | null;
 }
 
-/** The item's playback facts: codec strings, size, and the rungs it offers. */
-export function playbackFacts(r: RenditionPlayback): PlaybackFacts {
+/**
+ * The item's playback facts: codec strings, size, and the rungs it offers, up to the server's
+ * tallest encode (`maxShort`).
+ */
+export function playbackFacts(r: RenditionPlayback, maxShort: number): PlaybackFacts {
   return {
     videoCodecs: r.video_codecs,
     audioCodecs: r.audio_codecs,
@@ -19,6 +22,6 @@ export function playbackFacts(r: RenditionPlayback): PlaybackFacts {
     qualities:
       r.width === null || r.height === null
         ? []
-        : (rungsFor(r.width, r.height).map(String) as PlaybackFacts["qualities"]),
+        : (rungsFor(r.width, r.height, maxShort).map(String) as PlaybackFacts["qualities"]),
   };
 }

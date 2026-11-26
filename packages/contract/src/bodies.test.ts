@@ -197,7 +197,22 @@ describe("format profile words (they reach yt-dlp's arguments)", () => {
     expect(NewFormatProfileBody.parse(base)).toMatchObject({
       mergeFormat: null,
       audioFormat: null,
+      videoCodec: null,
     });
+  });
+
+  it("takes a video codec from its list only", () => {
+    for (const videoCodec of ["av1", "vp9", "h265", "h264"]) {
+      expect(NewFormatProfileBody.parse({ ...base, videoCodec }).videoCodec).toBe(videoCodec);
+      expect(FormatProfilePatch.parse({ videoCodec }).videoCodec).toBe(videoCodec);
+    }
+    expect(FormatProfilePatch.parse({ videoCodec: null }).videoCodec).toBeNull();
+    for (const videoCodec of ["hevc", "AV1", "avc1", ""]) {
+      expect([videoCodec, ok(NewFormatProfileBody, { ...base, videoCodec })]).toEqual([
+        videoCodec,
+        false,
+      ]);
+    }
   });
 
   it("refuses anything that could be read as another argument or a path", () => {

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { FormatProfile } from "@uroboros/contract";
+import type { FormatProfile, VideoCodec } from "@uroboros/contract";
 import { sql, type ExpressionBuilder, type Kysely, type Selectable } from "kysely";
 import type { Database, FormatProfilesTable } from "../db/schema.ts";
 
@@ -7,6 +7,8 @@ import type { Database, FormatProfilesTable } from "../db/schema.ts";
 export interface ProfileArgs {
   format: string;
   mergeFormat: string | null;
+  /** Absent in a download queued before profiles had one, which ran with yt-dlp's own order. */
+  videoCodec?: VideoCodec | null;
   audioOnly: boolean;
   audioFormat: string | null;
   extraArgs: string[];
@@ -24,6 +26,8 @@ export function profileRevision(args: ProfileArgs): string {
     audioOnly: args.audioOnly,
     audioFormat: args.audioFormat,
     extraArgs: args.extraArgs,
+    // Only when set: a profile without one keeps the revision (and the files) it had before.
+    ...(args.videoCodec == null ? {} : { videoCodec: args.videoCodec }),
   });
   return createHash("sha256").update(canonical).digest("hex").slice(0, 12);
 }
@@ -39,29 +43,74 @@ export function shiftsTimeline(extraArgs: readonly string[]): boolean {
   return extraArgs.some((a) => TIMELINE_MOVERS.some((f) => a === f || a.startsWith(`${f}=`)));
 }
 
+/** Each codec as yt-dlp's format sort names it. */
+const SORT_CODEC: Record<VideoCodec, string> = {
+  av1: "av01",
+  vp9: "vp9",
+  h265: "h265",
+  h264: "h264",
+};
+
 /**
- * The yt-dlp format selector and extra arguments a profile runs with. No SponsorBlock flags: the
- * server asks SponsorBlock itself, so files stay whole (docs/automation.md#sponsorblock).
+ * The audio a container takes best: AAC for MP4, which plays it wherever MP4 plays (Opus inside
+ * MP4 doesn't), and Opus for WebM, which can't hold AAC.
+ */
+const CONTAINER_AUDIO: Partial<Record<string, string>> = { mp4: "aac", webm: "opus" };
+
+/**
+ * A video profile's format order: yt-dlp's own (`lang,quality,res,fps,hdr:12,vcodec,channels,
+ * acodec`, then the rest), restated up to the audio codec with the profile's preferred codecs in
+ * it, so the highest resolution still comes first and the codec chooses among copies of one
+ * height; a video without it gets the closest codec yt-dlp ranks. Null leaves yt-dlp's order alone.
+ */
+function formatSort(args: ProfileArgs): string | null {
+  const video = args.videoCodec == null ? null : SORT_CODEC[args.videoCodec];
+  const audio = args.mergeFormat === null ? undefined : CONTAINER_AUDIO[args.mergeFormat];
+  if (video === null && audio === undefined) return null;
+  const vcodec = video === null ? "vcodec" : `vcodec:${video}`;
+  const acodec = audio === undefined ? "acodec" : `acodec:${audio}`;
+  return `--format-sort=lang,quality,res,fps,hdr:12,${vcodec},channels,${acodec}`;
+}
+
+/**
+ * The yt-dlp format selector and extra arguments a profile runs with: its container and codec
+ * order before its own arguments, so a `-S` among those adds to the order rather than replacing it.
+ * No SponsorBlock flags: the server asks SponsorBlock itself, so files stay whole
+ * (docs/automation.md#sponsorblock).
  */
 export function ytdlpArgsFor(args: ProfileArgs): { format: string; extraArgs: string[] } {
-  const shape =
-    args.audioOnly && args.audioFormat !== null
-      ? ["--extract-audio", `--audio-format=${args.audioFormat}`]
-      : args.mergeFormat === null
-        ? []
-        : [`--merge-output-format=${args.mergeFormat}`];
+  if (args.audioOnly && args.audioFormat !== null) {
+    return {
+      format: args.format,
+      extraArgs: [
+        "--extract-audio",
+        `--audio-format=${args.audioFormat}`,
+        "--write-thumbnail",
+        "--convert-thumbnails=jpg",
+        ...args.extraArgs,
+      ],
+    };
+  }
+  const sort = formatSort(args);
   return {
     format: args.format,
-    extraArgs: [...shape, "--write-thumbnail", "--convert-thumbnails=jpg", ...args.extraArgs],
+    extraArgs: [
+      ...(args.mergeFormat === null ? [] : [`--merge-output-format=${args.mergeFormat}`]),
+      ...(sort === null ? [] : [sort]),
+      "--write-thumbnail",
+      "--convert-thumbnails=jpg",
+      ...args.extraArgs,
+    ],
   };
 }
 
 export type ProfileRow = Selectable<FormatProfilesTable>;
 
-export function argsOf(row: ProfileRow): ProfileArgs {
+export function argsOf(row: ProfileRow): ProfileArgs & { videoCodec: VideoCodec | null } {
   return {
     format: row.format,
     mergeFormat: row.merge_format,
+    videoCodec: row.video_codec,
     audioOnly: row.audio_only,
     audioFormat: row.audio_format,
     extraArgs: row.extra_args,

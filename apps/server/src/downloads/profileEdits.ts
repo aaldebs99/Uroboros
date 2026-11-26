@@ -17,10 +17,19 @@ import {
 const UNIQUE_VIOLATION = "23505";
 const FK_VIOLATION = "23503";
 
+/** Video codecs a WebM file can't hold. */
+const NOT_IN_WEBM = new Set(["h264", "h265"]);
+
 /** Checks and canonicalizes the arguments; throws `bad_request`. */
 function checked(args: ProfileArgs): ProfileArgs {
   if (args.audioOnly !== (args.audioFormat !== null)) {
     throw new ApiError("bad_request", "an audio-only profile needs an audio format, and only it");
+  }
+  if (args.audioOnly && args.videoCodec != null) {
+    throw new ApiError("bad_request", "an audio-only profile has no video codec");
+  }
+  if (args.mergeFormat === "webm" && args.videoCodec != null && NOT_IN_WEBM.has(args.videoCodec)) {
+    throw new ApiError("bad_request", "WebM holds only AV1 or VP9 video");
   }
   try {
     return {
@@ -59,6 +68,7 @@ function argColumns(args: ProfileArgs) {
   return {
     format: args.format,
     merge_format: args.mergeFormat,
+    video_codec: args.videoCodec ?? null,
     audio_only: args.audioOnly,
     audio_format: args.audioFormat,
     extra_args: args.extraArgs,
@@ -75,6 +85,7 @@ export async function createProfile(
   const args = checked({
     format: b.format,
     mergeFormat: b.mergeFormat,
+    videoCodec: b.videoCodec,
     audioOnly: b.audioOnly,
     audioFormat: b.audioFormat,
     extraArgs: b.extraArgs,
@@ -139,10 +150,14 @@ export async function editProfile(
   const current = await visibleProfile(db, userId, id);
   if (current === undefined) throw new ApiError("not_found", "no such profile");
   const old = argsOf(current);
+  const audioOnly = patch.audioOnly ?? old.audioOnly;
   const args = checked({
     format: patch.format ?? old.format,
     mergeFormat: patch.mergeFormat === undefined ? old.mergeFormat : patch.mergeFormat,
-    audioOnly: patch.audioOnly ?? old.audioOnly,
+    // Turning a profile audio-only drops its video codec unless the patch names one.
+    videoCodec:
+      patch.videoCodec !== undefined ? patch.videoCodec : audioOnly ? null : old.videoCodec,
+    audioOnly,
     audioFormat: patch.audioFormat === undefined ? old.audioFormat : patch.audioFormat,
     extraArgs: patch.extraArgs ?? old.extraArgs,
   });

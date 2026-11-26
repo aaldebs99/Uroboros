@@ -39,6 +39,7 @@ async function facts(db: Kysely<Database>, renditionId: string) {
       "r.video_codecs",
       "r.audio_codec",
       "r.audio_codecs",
+      "r.size_bytes",
       "k.times as keyframes",
     ])
     .where("r.id", "=", renditionId)
@@ -50,6 +51,7 @@ export async function planFor(
   db: Kysely<Database>,
   renditionId: string,
   r: PlaybackRequest,
+  maxShort: number,
 ): Promise<{ plan: StoredPlan; boundaries: number[] | null }> {
   const f = await facts(db, renditionId);
   if (f.duration === null || f.duration <= 0) {
@@ -63,8 +65,10 @@ export async function planFor(
     videoCodecs: f.video_codecs,
     audioCodec: f.audio_codec,
     audioCodecs: f.audio_codecs,
+    // The overall rate: the file's size over its length.
+    bitrate: Number(f.size_bytes) > 0 ? (Number(f.size_bytes) * 8) / f.duration : null,
   };
-  const plan = { ...planSession(input, r), start: Math.min(r.start, f.duration) };
+  const plan = { ...planSession(input, r, maxShort), start: Math.min(r.start, f.duration) };
   if (plan.boundaries === "uniform") return { plan, boundaries: uniformBoundaries(f.duration) };
   const keyframes = f.keyframes;
   return {
@@ -162,6 +166,7 @@ export function toSession(row: SessionRow, base: string): PlaybackSession {
     encoder: row.encoder,
     width: plan.width,
     height: plan.height,
+    bitrate: plan.bitrate,
     reason: plan.reason,
     url,
     masterUrl: `${url}/master.m3u8`,

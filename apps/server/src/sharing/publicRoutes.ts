@@ -109,6 +109,7 @@ export function registerPublicRoutes(
   db: Kysely<Database>,
   store: MediaStore | undefined,
   playback: SessionContext | undefined,
+  maxShort: number,
 ): void {
   // Before the routes, so it wraps them: a link's pages are never for search engines.
   app.use("/api/public/*", async (c, next) => {
@@ -122,7 +123,7 @@ export function registerPublicRoutes(
   );
   app.openapi(itemRoute, async (c) => {
     const p = c.req.valid("param");
-    return c.json(await publicItem(db, p.code, p.id), 200, noStore);
+    return c.json(await publicItem(db, p.code, p.id, maxShort), 200, noStore);
   });
   app.openapi(streamRoute, async (c) => {
     const s = needStore(store);

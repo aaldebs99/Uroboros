@@ -50,6 +50,14 @@ describe("player.css against the Neutral video skin", () => {
     expect(missing).toEqual([]);
   });
 
+  // Captions are turned on and off from the settings menu's Captions submenu alone, so the control
+  // bar has no button of its own for them.
+  it("hides the skin's own captions button", () => {
+    expect(ourCss).toMatch(
+      /\.uro-player \.video-controls-captions-button \{\s*display: none;\s*\}/,
+    );
+  });
+
   // QualityMenu dresses itself in the skin's menu classes, so it looks like the skin's own.
   it("dresses the Quality menu only in class names the shipped skin still has", () => {
     const used = [...new Set(qualityMenu.match(/media-[a-z-]+/g) ?? [])];

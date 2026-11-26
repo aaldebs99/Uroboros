@@ -9,7 +9,19 @@ const vp9: RenditionFacts = {
   videoCodecs: "vp09.00.40.08",
   audioCodec: "opus",
   audioCodecs: "opus",
+  bitrate: null,
 };
+
+/** A 4K AV1 file at 7 Mb/s overall, as YouTube's best is. */
+const av1Uhd: RenditionFacts = {
+  ...vp9,
+  width: 3840,
+  height: 2160,
+  videoCodec: "av1",
+  videoCodecs: "av01.0.13M.08",
+  bitrate: 7_000_000,
+};
+const original = { quality: "original", copyVideo: false, copyAudio: true } as const;
 
 describe("planSession", () => {
   it("remuxes when the browser plays the codecs and only the file can't play", () => {
@@ -38,7 +50,7 @@ describe("planSession", () => {
     expect(plan.reason).toBe("audio_unsupported");
   });
 
-  it("encodes at the source's size, up to 1080 lines, when the video can't play", () => {
+  it("encodes at the source's size when the video can't play", () => {
     expect(
       planSession(vp9, { quality: "original", copyVideo: false, copyAudio: true }),
     ).toMatchObject({
@@ -53,12 +65,42 @@ describe("planSession", () => {
       reason: "video_unsupported",
     });
     const uhd = { ...vp9, width: 3840, height: 2160 };
-    expect(
-      planSession(uhd, { quality: "original", copyVideo: false, copyAudio: true }),
-    ).toMatchObject({
-      width: 1920,
-      height: 1080,
+    expect(planSession(uhd, original)).toMatchObject({
+      width: 3840,
+      height: 2160,
+      bitrate: 20_000_000,
+      level: 52,
+      codecs: ["avc1.640034", "opus"],
     });
+  });
+
+  it("encodes no taller than the server's maximum, Original or a picked rung", () => {
+    const uhd = { ...vp9, width: 3840, height: 2160 };
+    expect(planSession(uhd, original, 1080)).toMatchObject({ width: 1920, height: 1080 });
+    expect(
+      planSession(uhd, { quality: "2160", copyVideo: true, copyAudio: true }, 1080),
+    ).toMatchObject({ width: 1920, height: 1080, bitrate: 8_000_000 });
+  });
+
+  it("follows the source's bitrate, scaled for what H.264 needs more, under the rung's cap", () => {
+    // (7 Mb/s less 160 kb/s of audio) × 2 for AV1.
+    expect(planSession(av1Uhd, original)).toMatchObject({
+      bitrate: 13_680_000,
+      bandwidth: 13_840_000,
+    });
+    // × 1.5 for VP9, past the 1080p cap.
+    expect(planSession({ ...vp9, bitrate: 20_000_000 }, original).bitrate).toBe(8_000_000);
+    // × 1.25 for H.264, a margin for encoding it again.
+    const h264 = { ...vp9, videoCodec: "h264", videoCodecs: "avc1.640028", bitrate: 4_000_000 };
+    expect(planSession(h264, original).bitrate).toBe(4_800_000);
+    // A picked rung keeps its own cap.
+    expect(planSession(av1Uhd, { ...original, quality: "720" }).bitrate).toBe(4_000_000);
+  });
+
+  it("takes no audio off a silent file's bitrate, and keeps a floor under a broken one", () => {
+    const silent = { ...av1Uhd, audioCodec: null, audioCodecs: null };
+    expect(planSession(silent, original).bitrate).toBe(14_000_000);
+    expect(planSession({ ...av1Uhd, bitrate: 100_000 }, original).bitrate).toBe(500_000);
   });
 
   it("encodes a codec fragmented MP4 can't carry, even when the browser plays it", () => {

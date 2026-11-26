@@ -36,7 +36,7 @@ export const libraryTools: Tool[] = [
     description: `One library entry with its description, chapters, subtitle tracks, tags, watch progress and file details: one of the person's own or one shared with them. ${RELATIVE}`,
     input: McpEntryInput,
     output: LibraryItem,
-    run: ({ entryId }, { db, caller }) => getItem(db, caller.userId, entryId),
+    run: ({ entryId }, { db, caller, maxShort }) => getItem(db, caller.userId, entryId, maxShort),
   }),
   defineTool({
     name: "read_transcript",

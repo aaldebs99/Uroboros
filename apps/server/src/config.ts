@@ -80,6 +80,8 @@ export interface WorkerSettings {
     hwaccel: "none" | "nvenc" | "vaapi";
     /** The VA-API render node (`UROBOROS_TRANSCODE_VAAPI_DEVICE`). */
     vaapiDevice: string;
+    /** The tallest encode, on the short side (`UROBOROS_TRANSCODE_MAX_HEIGHT`, a rung). */
+    maxShort: number;
   };
   /**
    * Whether videos get hover preview clips (`UROBOROS_GENERATE_PREVIEWS`, on by default): off, none
@@ -232,6 +234,14 @@ const workerEnvSchema = z.object({
       .regex(/^\//, "UROBOROS_TRANSCODE_VAAPI_DEVICE must be an absolute path (a render node)")
       .prefault("/dev/dri/renderD128"),
   ),
+  UROBOROS_TRANSCODE_MAX_HEIGHT: unsetIfEmpty(
+    z
+      .enum(["2160", "1440", "1080", "720", "480", "360"], {
+        error: "UROBOROS_TRANSCODE_MAX_HEIGHT must be 2160, 1440, 1080, 720, 480 or 360",
+      })
+      .transform(Number)
+      .prefault("2160"),
+  ),
 });
 
 /** 32 random bytes in standard base64, as `openssl rand -base64 32` prints them. */
@@ -366,6 +376,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
         concurrency: e.UROBOROS_TRANSCODE_CONCURRENCY,
         hwaccel: e.UROBOROS_TRANSCODE_HWACCEL,
         vaapiDevice: e.UROBOROS_TRANSCODE_VAAPI_DEVICE,
+        maxShort: e.UROBOROS_TRANSCODE_MAX_HEIGHT,
       },
       generatePreviews: e.UROBOROS_GENERATE_PREVIEWS !== "false",
       previewMethod: e.UROBOROS_PREVIEW_METHOD,

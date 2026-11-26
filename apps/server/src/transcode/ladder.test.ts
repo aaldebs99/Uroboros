@@ -19,6 +19,9 @@ describe("the ladder", () => {
     // A vertical video is measured on its short side too.
     expect(rungsFor(1080, 1920)).toEqual([1080, 720, 480, 360]);
     expect(rungsFor(640, 360)).toEqual([360]);
+    // No taller than the server's tallest encode (UROBOROS_TRANSCODE_MAX_HEIGHT).
+    expect(rungsFor(3840, 2160, 1080)).toEqual([1080, 720, 480, 360]);
+    expect(rungsFor(640, 360, 1080)).toEqual([360]);
     expect(rungsFor(320, 240)).toEqual([]);
   });
 
