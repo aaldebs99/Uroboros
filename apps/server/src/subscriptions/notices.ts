@@ -14,7 +14,10 @@ interface Named {
 const nameOf = (sub: Named) => sub.title ?? "a subscription";
 const where = (sub: Named) => ({ path: `/subscriptions/${sub.id}`, tag: `subscription-${sub.id}` });
 
-/** "N new videos from <title>" with the first three titles; a newer one replaces it (same tag). */
+/**
+ * "N new videos from <title>" with the first three titles, opening the subscription: the videos a
+ * check left `new` for the person to pick (auto-download off). A newer one replaces it (same tag).
+ */
 export function newVideosNotice(sub: Named, titles: string[]): Message {
   return {
     title:
@@ -23,6 +26,35 @@ export function newVideosNotice(sub: Named, titles: string[]): Message {
         : `${String(titles.length)} new videos from ${nameOf(sub)}`,
     body: titles.slice(0, 3).join("\n"),
     ...where(sub),
+  };
+}
+
+/** One of a subscription's new videos, as its notice names it. */
+interface NewVideo {
+  downloadId: string;
+  title: string;
+}
+
+/**
+ * "New from <title>" once a new video is in the library, opening it; each video keeps its own
+ * notice on a device (a tag of its own), so tapping one opens that video.
+ */
+export function newVideoNotice(sub: Named, video: NewVideo & { entryId: string }): Message {
+  return {
+    title: `New from ${nameOf(sub)}`,
+    body: video.title,
+    path: `/library/${video.entryId}`,
+    tag: `subscription-video-${video.downloadId}`,
+  };
+}
+
+/** The same notice for a new video whose download failed for good, opening Downloads. */
+export function failedVideoNotice(sub: Named, video: NewVideo): Message {
+  return {
+    title: `New from ${nameOf(sub)}`,
+    body: `${video.title}: the download failed`,
+    path: "/downloads",
+    tag: `subscription-video-${video.downloadId}`,
   };
 }
 

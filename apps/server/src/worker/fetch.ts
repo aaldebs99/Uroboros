@@ -5,7 +5,7 @@ import { dispatchFor } from "../downloads/dispatch.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import { StorageError, toDownloadError, type DownloadFailure } from "../downloads/errors.ts";
 import { publishDownloadEvents } from "../downloads/events.ts";
-import { noticeFinishedRequests } from "../downloads/requestNotices.ts";
+import { noticeSettled } from "./settledNotices.ts";
 import { ytdlpArgsFor } from "../downloads/profiles.ts";
 import type { FetchJob } from "../downloads/queues.ts";
 import { loginsForFetch } from "../siteLogins/forJobs.ts";
@@ -133,7 +133,7 @@ export async function settleDone(
   if (settled === null) return false;
   await publishAll(deps, settled);
   await dispatchUsers(deps, settled);
-  await noticeFinishedRequests(
+  await noticeSettled(
     deps,
     settled.map((r) => r.id),
   );
@@ -304,7 +304,7 @@ async function recordFailure(
   await publishAll(deps, rows);
   if (final) {
     await dispatchUsers(deps, rows);
-    await noticeFinishedRequests(
+    await noticeSettled(
       deps,
       rows.map((r) => r.id),
     );
