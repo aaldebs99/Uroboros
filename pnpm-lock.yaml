@@ -210,10 +210,10 @@ importers:
         version: 3.1173.0
       '@hono/node-server':
         specifier: 2.1.11
-        version: 2.1.11(hono@4.13.19)
+        version: 2.1.11(hono@4.13.20)
       '@hono/zod-openapi':
         specifier: 1.6.3
-        version: 1.6.3(hono@4.13.19)(zod@4.6.7)
+        version: 1.6.3(hono@4.13.20)(zod@4.6.7)
       '@modelcontextprotocol/server':
         specifier: 2.4.0
         version: 2.4.0
@@ -227,8 +227,8 @@ importers:
         specifier: 5.10.6
         version: 5.10.6
       hono:
-        specifier: 4.13.19
-        version: 4.13.19
+        specifier: 4.13.20
+        version: 4.13.20
       kysely:
         specifier: 0.29.9
         version: 0.29.9
@@ -389,10 +389,10 @@ importers:
     dependencies:
       '@hono/zod-openapi':
         specifier: 1.6.3
-        version: 1.6.3(hono@4.13.19)(zod@4.6.7)
+        version: 1.6.3(hono@4.13.20)(zod@4.6.7)
       hono:
-        specifier: 4.13.19
-        version: 4.13.19
+        specifier: 4.13.20
+        version: 4.13.20
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -3975,8 +3975,8 @@ packages:
   hls.js@1.7.4:
     resolution: {integrity: sha512-3GlxGdPvT2YHvQYOt+yOzT/DEior/qJVNIylHA77kgeoBTdQQqi70GwefNEUmHQeNGyjC8U62+bruqW/Tpm+tg==}
 
-  hono@4.13.19:
-    resolution: {integrity: sha512-KmXvQAXwcAHV+muzbIwoJ23niEB5nMoDVr9WcRkU8mvjUECm/1+7v4Jgp7P7a+H6MLFrh+vXrGonGrGS+RQfkA==}
+  hono@4.13.20:
+    resolution: {integrity: sha512-xo6gecEJQ+CjTtOUUbcLHE8CdRKMeF4qITe+DT+OhFnSUmZR/ZBa9XavAfiGh4HlukmlaHFdaK4dz5tkTYFNmA==}
     engines: {node: '>=16.9.0'}
 
   hookable@6.1.2:
@@ -6767,21 +6767,21 @@ snapshots:
       protobufjs: 7.6.6
       yargs: 17.7.3
 
-  '@hono/node-server@2.1.11(hono@4.13.19)':
+  '@hono/node-server@2.1.11(hono@4.13.20)':
     dependencies:
-      hono: 4.13.19
+      hono: 4.13.20
 
-  '@hono/zod-openapi@1.6.3(hono@4.13.19)(zod@4.6.7)':
+  '@hono/zod-openapi@1.6.3(hono@4.13.20)(zod@4.6.7)':
     dependencies:
       '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.6.7)
-      '@hono/zod-validator': 0.9.1(hono@4.13.19)(zod@4.6.7)
-      hono: 4.13.19
+      '@hono/zod-validator': 0.9.1(hono@4.13.20)(zod@4.6.7)
+      hono: 4.13.20
       openapi3-ts: 4.6.2
       zod: 4.6.7
 
-  '@hono/zod-validator@0.9.1(hono@4.13.19)(zod@4.6.7)':
+  '@hono/zod-validator@0.9.1(hono@4.13.20)(zod@4.6.7)':
     dependencies:
-      hono: 4.13.19
+      hono: 4.13.20
       zod: 4.6.7
 
   '@humanfs/core@0.19.2':
@@ -9327,7 +9327,7 @@ snapshots:
 
   hls.js@1.7.4: {}
 
-  hono@4.13.19: {}
+  hono@4.13.20: {}
 
   hookable@6.1.2: {}
 
