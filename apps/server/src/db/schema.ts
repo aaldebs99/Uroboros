@@ -21,6 +21,7 @@ import type {
 import type { NoticesTable } from "./noticesSchema.ts";
 import type { UserPreferencesTable } from "./preferencesSchema.ts";
 import type { SiteCooldownsTable } from "./rateLimitsSchema.ts";
+import type { SaveLinksTable } from "./saveLinksSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
 import type { NotificationPrefsTable, SharePeopleTable, SharesTable } from "./sharingSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
@@ -457,5 +458,6 @@ export interface Database {
   uploads: UploadsTable;
   upload_parts: UploadPartsTable;
   exports: ExportsTable;
+  save_links: SaveLinksTable;
   notices: NoticesTable;
 }

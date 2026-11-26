@@ -118,6 +118,19 @@ export const LibraryItem = LibraryEntry.extend({
 }).openapi("LibraryItem");
 export type LibraryItem = z.infer<typeof LibraryItem>;
 
+/**
+ * A short-lived link that saves one file without the session cookie (docs/downloads.md#saving-a-file):
+ * the installed iPhone app opens it in a window of its own, which may not have the app's cookies.
+ */
+export const SaveLink = z
+  .object({
+    /** Same-origin, under `/api/public/saves/`; it works for any number of requests until it expires. */
+    url: z.string(),
+    expiresAt: z.iso.datetime(),
+  })
+  .openapi("SaveLink");
+export type SaveLink = z.infer<typeof SaveLink>;
+
 /** An entry of the caller's, by id. */
 export const EntryRef = z.object({ id: z.uuid() }).openapi("EntryRef");
 export type EntryRef = z.infer<typeof EntryRef>;

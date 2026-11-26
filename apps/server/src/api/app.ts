@@ -15,6 +15,7 @@ import { registerProfileRoutes } from "../downloads/profileRoutes.ts";
 import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
 import { registerItemRoutes } from "../library/itemRoutes.ts";
+import { registerSaveLinkRoutes } from "../library/saveLinkRoutes.ts";
 import { MAX_SHORT } from "../transcode/ladder.ts";
 import { registerPreferenceRoutes } from "../library/preferences.ts";
 import { registerPlaylistRoutes } from "../playlists/routes.ts";
@@ -317,6 +318,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerSubscriptionRoutes(app, deps.downloads);
   registerUploadRoutes(app, uploadContext(deps));
   registerExportRoutes(app, exportContext(deps));
+  registerSaveLinkRoutes(app, deps.db, deps.store);
   const playback = playbackContext(deps);
   registerPlaybackSessionRoutes(app, playback);
   registerPublicRoutes(app, deps.db, deps.store, playback, maxShortOf(deps));
