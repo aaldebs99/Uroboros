@@ -19,6 +19,7 @@ const profiles = [
     name: "Best up to 1080p (MP4)",
     format: "b",
     mergeFormat: null,
+    videoCodec: null,
     audioOnly: false,
     audioFormat: null,
     extraArgs: [],

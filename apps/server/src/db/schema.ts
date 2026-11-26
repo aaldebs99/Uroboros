@@ -13,6 +13,11 @@ import type {
 } from "./playbackSchema.ts";
 import type { CaptionSegmentsTable, SubtitlesTable } from "./captionsSchema.ts";
 import type { ExportsTable } from "./exportsSchema.ts";
+import type {
+  FormatProfilesTable,
+  HiddenProfilesTable,
+  UserDefaultProfilesTable,
+} from "./profilesSchema.ts";
 import type { NoticesTable } from "./noticesSchema.ts";
 import type { UserPreferencesTable } from "./preferencesSchema.ts";
 import type { SiteCooldownsTable } from "./rateLimitsSchema.ts";
@@ -21,6 +26,7 @@ import type { NotificationPrefsTable, SharePeopleTable, SharesTable } from "./sh
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
 
 export type { ShareMode, SharesTable } from "./sharingSchema.ts";
+export type { FormatProfilesTable } from "./profilesSchema.ts";
 
 export type { PlaybackSessionEncoder, PlaybackState } from "./playbackSchema.ts";
 
@@ -122,35 +128,6 @@ type Created = ColumnType<Date, Date | string | undefined, never>;
 type Defaulted<T> = ColumnType<T, T | undefined, T>;
 /** A JSONB column: read parsed, written as JSON text. */
 type Json<T> = ColumnType<T, string, string>;
-
-/** `format_profiles`: an admin-defined yt-dlp preset (docs/downloads.md). */
-export interface FormatProfilesTable {
-  id: Generated<string>;
-  /** The owner; null for a built-in, everyone's until a person edits or deletes it for themselves. */
-  user_id: string | null;
-  name: string;
-  format: string;
-  merge_format: string | null;
-  audio_only: Defaulted<boolean>;
-  audio_format: string | null;
-  extra_args: Defaulted<string[]>;
-  is_default: Defaulted<boolean>;
-  revision: string;
-  created_at: Created;
-  updated_at: Defaulted<Date | string>;
-}
-
-/** `hidden_profiles`: built-ins a person deleted or edited into their own, hidden from them. */
-export interface HiddenProfilesTable {
-  user_id: string;
-  profile_id: string;
-}
-
-/** `user_default_profiles`: the profile a person downloads with when they pick none. */
-export interface UserDefaultProfilesTable {
-  user_id: string;
-  profile_id: string;
-}
 
 /** `media`: one video, by extractor and id, shared by every user. */
 export interface MediaTable {

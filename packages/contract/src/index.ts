@@ -60,6 +60,7 @@ export {
   SPONSORBLOCK_CATEGORIES,
   SponsorSegment,
   SponsorBlockCategory,
+  VideoCodec,
   WatchProgress,
   YOUTUBE_SEARCH_RESULTS,
 } from "./downloads.ts";

@@ -74,6 +74,13 @@ export const SponsorSegment = z
 export type SponsorSegment = z.infer<typeof SponsorSegment>;
 
 /**
+ * The video codec a profile prefers among copies of the same height, the highest resolution still
+ * first; a video without it gets the closest codec yt-dlp ranks (docs/downloads.md#format-profiles).
+ */
+export const VideoCodec = z.enum(["av1", "vp9", "h265", "h264"]).openapi("VideoCodec");
+export type VideoCodec = z.infer<typeof VideoCodec>;
+
+/**
  * A yt-dlp preset: a built-in the caller kept, or one of their own; nobody sees another person's.
  * Editing a built-in makes it the caller's own copy, and deleting one hides it, for them alone.
  * `revision` changes whenever the file-shaping arguments do.
@@ -84,6 +91,8 @@ export const FormatProfile = z
     name: z.string(),
     format: z.string(),
     mergeFormat: z.string().nullable(),
+    /** Null: no preference, yt-dlp's own order. */
+    videoCodec: VideoCodec.nullable(),
     audioOnly: z.boolean(),
     audioFormat: z.string().nullable(),
     extraArgs: z.array(z.string()),
@@ -101,6 +110,7 @@ export const NewFormatProfileBody = z
     name: ProfileName,
     format: z.string().min(1).max(512),
     mergeFormat: Word.nullable().default(null),
+    videoCodec: VideoCodec.nullable().default(null),
     audioOnly: z.boolean().default(false),
     audioFormat: Word.nullable().default(null),
     extraArgs: z.array(z.string().max(512)).max(64).default([]),
@@ -113,6 +123,7 @@ export const FormatProfilePatch = z
     name: ProfileName.optional(),
     format: z.string().min(1).max(512).optional(),
     mergeFormat: Word.nullable().optional(),
+    videoCodec: VideoCodec.nullable().optional(),
     audioOnly: z.boolean().optional(),
     audioFormat: Word.nullable().optional(),
     extraArgs: z.array(z.string().max(512)).max(64).optional(),

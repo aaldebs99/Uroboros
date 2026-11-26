@@ -15,6 +15,7 @@ const profile = (n: number, name: string, over: Partial<FormatProfile> = {}): Fo
   name,
   format: "bv*+ba/b",
   mergeFormat: null,
+  videoCodec: null,
   audioOnly: false,
   audioFormat: null,
   extraArgs: [],
@@ -24,8 +25,16 @@ const profile = (n: number, name: string, over: Partial<FormatProfile> = {}): Fo
   ...over,
 });
 
-const BEST = profile(1, "Best available", { isDefault: true });
-const AUDIO = profile(2, "Audio only (Opus)", { audioOnly: true, audioFormat: "opus" });
+const BEST = profile(1, "Best available", {
+  isDefault: true,
+  videoCodec: "av1",
+  mergeFormat: "mp4",
+});
+const AUDIO = profile(2, "Audio only (Opus)", {
+  format: "ba/b",
+  audioOnly: true,
+  audioFormat: "opus",
+});
 const MINE = profile(3, "Mine 720p", { builtIn: false, format: "b[height<=720]" });
 
 afterEach(() => {
@@ -47,6 +56,14 @@ describe("FormatProfiles", () => {
       "Audio only (Opus)Built-in",
       "Mine 720p",
     ]);
+    // Each says what it downloads in words; a hand-written selector shows as it is.
+    for (const words of [
+      "Best available · AV1 · MP4",
+      "Audio · Opus",
+      "b[height<=720] · any codec · any container",
+    ]) {
+      expect(within(list).getByText(words)).toBeInTheDocument();
+    }
     for (const p of [BEST, AUDIO, MINE]) {
       for (const action of ["Copy", "Edit", "Delete"]) {
         expect(within(list).getByRole("button", { name: `${action} ${p.name}` })).toBeEnabled();
@@ -84,14 +101,13 @@ describe("FormatProfiles", () => {
     renderWithQuery(<FormatProfiles />);
     await userEvent.click(await screen.findByRole("button", { name: "Edit Best available" }));
     const dialog = screen.getByRole("dialog", { name: "Edit Best available" });
-    const format = within(dialog).getByLabelText(/^Format/);
-    await userEvent.clear(format);
-    // Pasted: typing reads "[" as a key name.
-    await userEvent.paste("b[height<=480]");
+    await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: "Quality" }), "480");
     await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => {
       expect(calls.find((c) => c.method === "PATCH")?.body).toMatchObject({
-        format: "b[height<=480]",
+        format: "bv*[height<=480]+ba/b[height<=480]",
+        videoCodec: "av1",
+        mergeFormat: "mp4",
       });
     });
   });

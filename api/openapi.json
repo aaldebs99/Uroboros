@@ -1110,6 +1110,9 @@
           },
           "revision": {
             "type": "string"
+          },
+          "videoCodec": {
+            "$ref": "#/components/schemas/VideoCodec"
           }
         },
         "required": [
@@ -1117,6 +1120,7 @@
           "name",
           "format",
           "mergeFormat",
+          "videoCodec",
           "audioOnly",
           "audioFormat",
           "extraArgs",
@@ -1158,6 +1162,9 @@
             "maxLength": 64,
             "minLength": 1,
             "type": "string"
+          },
+          "videoCodec": {
+            "$ref": "#/components/schemas/VideoCodec"
           }
         },
         "type": "object"
@@ -2027,6 +2034,9 @@
             "maxLength": 64,
             "minLength": 1,
             "type": "string"
+          },
+          "videoCodec": {
+            "$ref": "#/components/schemas/VideoCodec"
           }
         },
         "required": [
@@ -4392,6 +4402,17 @@
       },
       "Username": {
         "pattern": "^[a-z0-9._-]{1,64}$",
+        "type": "string"
+      },
+      "VideoCodec": {
+        "enum": [
+          "av1",
+          "vp9",
+          "h265",
+          "h264",
+          null
+        ],
+        "nullable": true,
         "type": "string"
       },
       "WatchProgress": {
