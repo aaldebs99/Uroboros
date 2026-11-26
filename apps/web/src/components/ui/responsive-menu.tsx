@@ -1,13 +1,15 @@
-import type { LucideIcon } from "lucide-react";
-import { type ReactElement, useRef, useState } from "react";
+import { Check, type LucideIcon } from "lucide-react";
+import { Fragment, type ReactElement, useRef, useState } from "react";
 
 import { DESKTOP_QUERY, useMediaQuery } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "./sheet";
@@ -16,17 +18,103 @@ export type MenuAction = {
   label: string;
   icon: LucideIcon;
   destructive?: boolean;
+  /** A hairline above the row, starting a group. */
+  separated?: boolean;
 } & (
-  | { onSelect: () => void; href?: never }
-  | { /** A file to save: rendered as a real `<a download>`. */ href: string; onSelect?: never }
+  | {
+      onSelect: () => void;
+      /** A row that is on or off: the current item's accent and a trailing check while on. */
+      checked?: boolean;
+      href?: never;
+    }
+  | {
+      /** A file to save (a real `<a download>`), or with `external` a page to open in a new tab. */
+      href: string;
+      external?: boolean;
+      onSelect?: never;
+      checked?: never;
+    }
 );
 
 const sheetRow =
   "flex h-12 w-full items-center gap-4 px-5 text-left text-sm outline-none hover:bg-raised focus-visible:bg-raised";
 
+const linkTarget = (external = false) =>
+  external ? { target: "_blank", rel: "noreferrer" } : { download: true };
+
+type Pick = (onSelect: () => void) => () => void;
+
+/** A dropdown row. A toggle hands focus back to the trigger; any other pick may open a dialog. */
+function DropdownRow({ action, pick }: { action: MenuAction; pick: Pick }) {
+  const { label, icon: Icon, destructive = false } = action;
+  const body = (
+    <>
+      <Icon aria-hidden />
+      {label}
+    </>
+  );
+  if (action.href !== undefined) {
+    return (
+      <DropdownMenuItem destructive={destructive} asChild>
+        <a href={action.href} {...linkTarget(action.external)}>
+          {body}
+        </a>
+      </DropdownMenuItem>
+    );
+  }
+  if (action.checked !== undefined) {
+    return (
+      <DropdownMenuCheckboxItem checked={action.checked} onSelect={action.onSelect}>
+        {body}
+      </DropdownMenuCheckboxItem>
+    );
+  }
+  return (
+    <DropdownMenuItem destructive={destructive} onSelect={pick(action.onSelect)}>
+      {body}
+    </DropdownMenuItem>
+  );
+}
+
+/** A bottom sheet row; a toggle says whether it is on (`aria-pressed`) and shows a check. */
+function SheetRow({ action, pick, close }: { action: MenuAction; pick: Pick; close: () => void }) {
+  const { label, icon: Icon, destructive = false } = action;
+  const on = action.checked === true;
+  const className = cn(sheetRow, destructive && "text-destructive", on && "bg-accent text-primary");
+  const body = (
+    <>
+      <Icon className="size-5.5" aria-hidden />
+      {label}
+      {on ? <Check className="ml-auto size-5.5" aria-hidden /> : null}
+    </>
+  );
+  if (action.href !== undefined) {
+    return (
+      <a href={action.href} {...linkTarget(action.external)} className={className} onClick={close}>
+        {body}
+      </a>
+    );
+  }
+  const run = action.checked === undefined ? pick(action.onSelect) : action.onSelect;
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-pressed={action.checked}
+      onClick={() => {
+        close();
+        run();
+      }}
+    >
+      {body}
+    </button>
+  );
+}
+
 /**
- * An action menu: a dropdown from `md` up, and below it a bottom sheet with 3rem rows.
- * `trigger` must be a single element that accepts a ref (a `Button`).
+ * An action menu: a dropdown from `md` up, and below it a bottom sheet with 3rem rows. Rows act,
+ * save a file, open a page in a new tab (`external`), or toggle (`checked`); `separated` starts a
+ * group. `trigger` must be a single element that accepts a ref (a `Button`).
  */
 export function ResponsiveMenu({
   title,
@@ -57,21 +145,12 @@ export function ResponsiveMenu({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
         <DropdownMenuContent align={align} aria-label={title} onCloseAutoFocus={keepFocus}>
-          {actions.map(({ label, icon: Icon, onSelect, href, destructive = false }) =>
-            href === undefined ? (
-              <DropdownMenuItem key={label} destructive={destructive} onSelect={pick(onSelect)}>
-                <Icon aria-hidden />
-                {label}
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem key={label} destructive={destructive} asChild>
-                <a href={href} download>
-                  <Icon aria-hidden />
-                  {label}
-                </a>
-              </DropdownMenuItem>
-            ),
-          )}
+          {actions.map((action) => (
+            <Fragment key={action.label}>
+              {action.separated === true ? <DropdownMenuSeparator /> : null}
+              <DropdownRow action={action} pick={pick} />
+            </Fragment>
+          ))}
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -84,33 +163,18 @@ export function ResponsiveMenu({
         <SheetTitle className="sr-only">{title}</SheetTitle>
         <SheetDescription className="sr-only">{title}</SheetDescription>
         <ul className="grid">
-          {actions.map(({ label, icon: Icon, onSelect, href, destructive = false }) => (
-            <li key={label}>
-              {href === undefined ? (
-                <button
-                  type="button"
-                  className={cn(sheetRow, destructive && "text-destructive")}
-                  onClick={() => {
-                    setOpen(false);
-                    pick(onSelect)();
-                  }}
-                >
-                  <Icon className="size-5.5" aria-hidden />
-                  {label}
-                </button>
-              ) : (
-                <a
-                  href={href}
-                  download
-                  className={cn(sheetRow, destructive && "text-destructive")}
-                  onClick={() => {
-                    setOpen(false);
-                  }}
-                >
-                  <Icon className="size-5.5" aria-hidden />
-                  {label}
-                </a>
-              )}
+          {actions.map((action) => (
+            <li
+              key={action.label}
+              className={cn(action.separated === true && "mt-2 border-t border-border pt-2")}
+            >
+              <SheetRow
+                action={action}
+                pick={pick}
+                close={() => {
+                  setOpen(false);
+                }}
+              />
             </li>
           ))}
         </ul>
