@@ -42,7 +42,7 @@ export interface SessionPlayerProps extends Omit<PlayerProps, "src" | "hls" | "s
   playbackUrl: string;
   /** What to ask for; `start` is where the first run begins (and the player starts). */
   request: PlaybackRequest;
-  /** Plays HLS natively (Safari, iOS) rather than through Video.js's engine. */
+  /** Plays HLS natively (Safari, iOS) rather than through hls.js. */
   native: boolean;
   /** Where the viewer is now, for a session started again mid-way. */
   position: () => number;

@@ -47,9 +47,16 @@ export function canPlayOriginal(f: FileFacts, probe: HTMLVideoElement = element(
   return type !== null && probe.canPlayType(type) !== "";
 }
 
-/** Safari and iOS play HLS themselves; elsewhere Video.js's engine feeds MSE. */
+/**
+ * Whether the browser plays HLS itself: Apple's own HLS (Safari, iOS, told by its AirPlay API), or
+ * any browser's where there is no MSE. Chrome and Android claim HLS too, but where MSE is they get
+ * hls.js, as every other browser with MSE does, rather than Chrome's newer player of its own.
+ */
 export function hasNativeHls(probe: HTMLVideoElement = element()): boolean {
-  return probe.canPlayType(HLS) !== "";
+  if (probe.canPlayType(HLS) === "") return false;
+  return (
+    typeof MediaSource === "undefined" || "WebKitPlaybackTargetAvailabilityEvent" in globalThis
+  );
 }
 
 /** Whether a codec plays from fragmented MP4 here: natively in HLS, or through MSE. */

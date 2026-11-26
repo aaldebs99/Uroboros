@@ -10,7 +10,7 @@ import {
   type SubtitleTrack,
 } from "@uroboros/contract";
 import { useCreateTextTrack } from "@videojs/react";
-import { HlsVideo } from "@videojs/react/media/hls-video";
+import { HlsJsVideo } from "@videojs/react/media/hlsjs-video";
 import { NativeHlsVideo } from "@videojs/react/media/native-hls-video";
 import { NeutralVideoSkin, Video, VideoPlayer } from "@videojs/react/video";
 import { SettingsMenuSlot } from "@videojs/react/video/settings-slot";
@@ -29,9 +29,7 @@ import { useSubtitlePref } from "./subtitlePref";
 export interface PlayerProps {
   /** The file, or with `hls` a playback session's multivariant playlist. */
   src: string;
-  /**
-   * Play `src` as HLS: natively (Safari, iOS) or through Video.js's MSE engine (docs/transcoding.md).
-   */
+  /** Play `src` as HLS: natively (Safari, iOS) or through hls.js (docs/transcoding.md). */
   hls?: { native: boolean };
   title: string;
   /** Where to start, in seconds (the saved position). */
@@ -187,7 +185,7 @@ export function Player(p: PlayerProps) {
   const segments = p.sponsorSegments ?? NO_SEGMENTS;
   const highlight = p.sponsorHighlight ?? null;
   // The same element and props either way: a file, or an HLS copy.
-  const Media = p.hls === undefined ? Video : p.hls.native ? NativeHlsVideo : HlsVideo;
+  const Media = p.hls === undefined ? Video : p.hls.native ? NativeHlsVideo : HlsJsVideo;
   return (
     <VideoPlayer>
       <SettingsMenuSlot.Provider value={p.settings ?? null}>

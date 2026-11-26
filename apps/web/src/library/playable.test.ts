@@ -111,10 +111,26 @@ describe("capabilities", () => {
 });
 
 describe("hasNativeHls", () => {
-  it("is Safari's and iOS's own HLS", () => {
-    expect(hasNativeHls(probe((t) => (t === "application/vnd.apple.mpegurl" ? "maybe" : "")))).toBe(
-      true,
-    );
+  const claimsHls = () => probe((t) => (t === "application/vnd.apple.mpegurl" ? "maybe" : ""));
+
+  it("is Apple's own HLS (Safari, iOS)", () => {
+    vi.stubGlobal("MediaSource", { isTypeSupported: () => true });
+    vi.stubGlobal("WebKitPlaybackTargetAvailabilityEvent", Event);
+    expect(hasNativeHls(claimsHls())).toBe(true);
+  });
+
+  it("is the browser's own HLS where there is no MSE (an iPhone)", () => {
+    vi.stubGlobal("MediaSource", undefined);
+    expect(hasNativeHls(claimsHls())).toBe(true);
+  });
+
+  it("leaves HLS to hls.js where MSE is, though the browser claims HLS (Chrome, Android)", () => {
+    vi.stubGlobal("MediaSource", { isTypeSupported: () => true });
+    expect(hasNativeHls(claimsHls())).toBe(false);
+  });
+
+  it("is no browser's that can't play HLS", () => {
+    vi.stubGlobal("MediaSource", undefined);
     expect(hasNativeHls(probe(() => ""))).toBe(false);
   });
 });

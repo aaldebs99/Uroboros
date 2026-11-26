@@ -293,9 +293,12 @@ importers:
       '@uroboros/contract':
         specifier: workspace:*
         version: link:../../packages/contract
+      '@videojs/hlsjs-video':
+        specifier: 10.5.0
+        version: 10.5.0
       '@videojs/react':
         specifier: 10.5.0
-        version: 10.5.0(patch_hash=7e3d703a417a45cac7f6de623a06b2d25b107434d4a5d4a3ad1937c3e83afc95)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        version: 10.5.0(patch_hash=7e3d703a417a45cac7f6de623a06b2d25b107434d4a5d4a3ad1937c3e83afc95)(@videojs/hlsjs-video@10.5.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -3029,6 +3032,9 @@ packages:
   '@videojs/core@10.5.0':
     resolution: {integrity: sha512-HzmbJntv2HC9MjNgebwjrb2P63cBLUtzp0XhetSrs5kLRC607W25JFYMd0/f8TJEFGPIFL96sizN5sodSQBiag==}
 
+  '@videojs/hlsjs-video@10.5.0':
+    resolution: {integrity: sha512-X+laYuEFyQ1My99zeIpiA2xIElOBVbHawDmN/+LMcK24AzpugwWUsUaHYs0NrkKpLfF+3EPACl9tXkknXPrbQg==}
+
   '@videojs/media@10.5.0':
     resolution: {integrity: sha512-Yls10cLVOpIjBrlBFr7iaLaKg49MzSwu4beJaQZwP2WJrSmrLiR1ivnLFj6YwHlPVg/UJtQUz6fpUB/AkSpZ/g==}
 
@@ -3965,6 +3971,9 @@ packages:
 
   hermes-parser@0.25.1:
     resolution: {integrity: sha512-6pEjquH3rqaI6cYAXYPcz9MS4rY6R4ngRgrgfDshRptUZIc3lw0MCIJIGDj9++mfySOuPTHB4nrSW99BCvOPIA==}
+
+  hls.js@1.7.4:
+    resolution: {integrity: sha512-3GlxGdPvT2YHvQYOt+yOzT/DEior/qJVNIylHA77kgeoBTdQQqi70GwefNEUmHQeNGyjC8U62+bruqW/Tpm+tg==}
 
   hono@4.13.19:
     resolution: {integrity: sha512-KmXvQAXwcAHV+muzbIwoJ23niEB5nMoDVr9WcRkU8mvjUECm/1+7v4Jgp7P7a+H6MLFrh+vXrGonGrGS+RQfkA==}
@@ -8309,6 +8318,14 @@ snapshots:
       - '@videojs/element'
       - react
 
+  '@videojs/hlsjs-video@10.5.0':
+    dependencies:
+      '@videojs/media': 10.5.0
+      '@videojs/native-hls-video': 10.5.0
+      '@videojs/spf': 10.5.0
+      '@videojs/utils': 10.5.0
+      hls.js: 1.7.4
+
   '@videojs/media@10.5.0':
     dependencies:
       '@videojs/utils': 10.5.0
@@ -8319,7 +8336,7 @@ snapshots:
       '@videojs/spf': 10.5.0
       '@videojs/utils': 10.5.0
 
-  '@videojs/react@10.5.0(patch_hash=7e3d703a417a45cac7f6de623a06b2d25b107434d4a5d4a3ad1937c3e83afc95)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@videojs/react@10.5.0(patch_hash=7e3d703a417a45cac7f6de623a06b2d25b107434d4a5d4a3ad1937c3e83afc95)(@videojs/hlsjs-video@10.5.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@videojs/core': 10.5.0(react@19.3.0)
       '@videojs/media': 10.5.0
@@ -8330,6 +8347,8 @@ snapshots:
       react: 19.3.0
       react-compiler-runtime: 1.0.0(react@19.3.0)
       react-dom: 19.3.0(react@19.3.0)
+    optionalDependencies:
+      '@videojs/hlsjs-video': 10.5.0
     transitivePeerDependencies:
       - '@videojs/element'
 
@@ -9305,6 +9324,8 @@ snapshots:
   hermes-parser@0.25.1:
     dependencies:
       hermes-estree: 0.25.1
+
+  hls.js@1.7.4: {}
 
   hono@4.13.19: {}
 
