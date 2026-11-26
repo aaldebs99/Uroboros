@@ -288,7 +288,15 @@ describe("GET /api/downloads/events", () => {
       },
     );
     expect(events).toEqual([
-      { type: "skips", entryId: entryB, found: null, error: "yt-dlp failed" },
+      {
+        type: "skips",
+        entryId: entryB,
+        found: null,
+        error: "yt-dlp failed",
+        total: null,
+        highlight: false,
+        quiet: false,
+      },
     ]);
   });
 

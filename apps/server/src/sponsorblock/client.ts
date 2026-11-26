@@ -31,8 +31,9 @@ export interface SponsorBlockFindings {
 export interface SponsorBlockClient {
   /**
    * The video's segments and highlight; none when it has none. `duration` is the stored file's
-   * length (null when unknown): those timed on a video of another length are dropped, and ends
-   * within a second of it reach it. Throws `SponsorBlockError`.
+   * length (null when unknown): segments timed on a video of another length are dropped, ends
+   * within a second of it reach it, and a highlight at or past it is dropped. Throws
+   * `SponsorBlockError`.
    */
   lookUp(
     videoId: string,
@@ -91,9 +92,11 @@ function segmentsOf(mine: readonly Answered[], duration: number | null): StoredS
 }
 
 /**
- * The highlight: the most-voted `poi_highlight` point, fitted as yt-dlp fits a point of interest,
- * as a second-long segment (so a start within a second of 0 is 0, and one timed on a video of
- * another length is dropped), and only where it starts before the file's end.
+ * The highlight: the most-voted `poi_highlight` point, where it starts before the file's end (a
+ * start within a second of 0 is 0). Unlike a segment, it is kept whatever length of video it was
+ * marked on, as the SponsorBlock extension shows it: an older cut of the video can put a point a
+ * few seconds off, which only lands a jump a little early or late, where a segment that far off
+ * would skip the wrong part.
  */
 function highlightOf(mine: readonly Answered[], duration: number | null): number | null {
   let best: { at: number; votes: number } | null = null;
@@ -101,11 +104,10 @@ function highlightOf(mine: readonly Answered[], duration: number | null): number
     if (s.category !== HIGHLIGHT || (s.actionType !== undefined && s.actionType !== "poi")) {
       continue;
     }
-    const at = s.segment[0];
-    const span = fitted({ ...s, segment: [at, at + 1] }, duration);
-    if (span === null || span.end <= span.start) continue;
+    const at = s.segment[0] <= 1 ? 0 : s.segment[0];
+    if (duration !== null && at >= duration) continue;
     const votes = s.votes ?? 0;
-    if (best === null || votes > best.votes) best = { at: span.start, votes };
+    if (best === null || votes > best.votes) best = { at, votes };
   }
   return best?.at ?? null;
 }

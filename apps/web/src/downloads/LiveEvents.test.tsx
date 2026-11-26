@@ -70,10 +70,40 @@ describe("LiveEventsProvider", () => {
 
   it("fetches the entry and the person's copies again after a SponsorBlock refetch, and says how it went", async () => {
     const { client, deliver } = renderLive();
-    deliver({ kind: "event", event: { type: "skips", entryId: ENTRY, found: 3, error: null } });
+    deliver({
+      kind: "event",
+      event: {
+        type: "skips",
+        entryId: ENTRY,
+        found: 3,
+        error: null,
+        total: 3,
+        highlight: false,
+        quiet: false,
+      },
+    });
     // A copy cut from the old segments is no longer current: Save must not hand it out.
     expect(client.getQueryState(exportsKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(itemKey(ENTRY))?.isInvalidated).toBe(true);
     expect(await screen.findByText("Found 3 SponsorBlock segments")).toBeInTheDocument();
+  });
+
+  it("fetches the entry again after a quiet refresh, without a toast", async () => {
+    const { client, deliver } = renderLive();
+    deliver({
+      kind: "event",
+      event: {
+        type: "skips",
+        entryId: ENTRY,
+        found: 2,
+        error: null,
+        total: 2,
+        highlight: false,
+        quiet: true,
+      },
+    });
+    expect(client.getQueryState(itemKey(ENTRY))?.isInvalidated).toBe(true);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText("Found 2 SponsorBlock segments")).toBeNull();
   });
 });

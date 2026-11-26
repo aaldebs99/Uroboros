@@ -184,22 +184,31 @@ describe("SponsorBlock's highlight (docs/automation.md#sponsorblock)", () => {
     expect(await highlightFor(300)).toBe(90);
   });
 
-  it("is fitted as yt-dlp fits a point of interest: a second long, on the file's own length", async () => {
+  it("is kept whatever length of video it was marked on, as long as it falls inside the file", async () => {
     // A start within a second of 0 is 0.
     stub.answer({ status: 200, body: [entry(VIDEO, [seg([0.6, 0.6], "poi_highlight", "poi")])] });
     expect(await highlightFor(300)).toBe(0);
-    // Within a second of the file's 300 s: kept.
+    // Marked on a cut of the video 10 s longer (a skip segment from it is dropped): kept, as the
+    // SponsorBlock extension shows it. A point mark lands a few seconds off at worst.
     stub.answer({
       status: 200,
-      body: [entry(VIDEO, [seg([120, 120], "poi_highlight", "poi", 300.4)])],
+      body: [
+        entry(VIDEO, [
+          seg([120, 120], "poi_highlight", "poi", 310),
+          seg([10, 20], "sponsor", "skip", 310),
+        ]),
+      ],
     });
-    expect(await highlightFor(300)).toBe(120);
-    // Two seconds off: timed on another cut of the video.
+    expect(await sponsorBlockClient({ baseUrl: stub.baseUrl }).lookUp(VIDEO, 300)).toEqual({
+      segments: [],
+      highlight: 120,
+    });
+    // Just inside the file's end: kept.
     stub.answer({
       status: 200,
-      body: [entry(VIDEO, [seg([120, 120], "poi_highlight", "poi", 302)])],
+      body: [entry(VIDEO, [seg([299.5, 299.5], "poi_highlight", "poi", 320)])],
     });
-    expect(await highlightFor(300)).toBeNull();
+    expect(await highlightFor(300)).toBe(299.5);
     // At or past the file's end: nothing to jump to.
     stub.answer({ status: 200, body: [entry(VIDEO, [seg([300, 300], "poi_highlight", "poi")])] });
     expect(await highlightFor(300)).toBeNull();

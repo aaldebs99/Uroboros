@@ -22,8 +22,8 @@ const lists = { list: downloadKeys.list(false), active: downloadKeys.active };
  * go into the person's cached lists (and fetch a subscription's activity holding the download
  * again), progress into a map by fetch key, and a notice or previews
  * nudge fetches the notifications or the hover previews being made again. A SponsorBlock refetch's
- * outcome fetches its entry and the person's copies to save again, and says how it went. After a
- * gap all of them are fetched again.
+ * outcome fetches its entry and the person's copies to save again, and says how it went (a quiet
+ * refresh, as the page opened, says nothing). After a gap all of them are fetched again.
  */
 export function LiveEventsProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
@@ -64,7 +64,8 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
             void client.invalidateQueries({ queryKey: itemKey(event.entryId) });
             // A copy cut from the old segments may not be current now: Save asks for a new one.
             void client.invalidateQueries({ queryKey: exportsKey });
-            notify(skipsOutcome(event));
+            // A refresh as the page opened changes what it shows, and says nothing.
+            if (!event.quiet) notify(skipsOutcome(event));
             return;
         }
       }),

@@ -1,6 +1,8 @@
 import { Hotkey, useHotkey } from "@videojs/react";
 import { usePlayer } from "@videojs/react/video";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef } from "react";
+
+import { useFocusInOverlay } from "./focusInOverlay";
 
 /** How far the arrow keys seek. `j`/`l` keep the skin's 10 s. */
 export const ARROW_SEEK_SECONDS = 5;
@@ -29,33 +31,6 @@ const SKIN_SHORTCUTS = [
   { keys: ">", action: "speedUp" },
   { keys: "<", action: "speedDown" },
 ] as const;
-
-/** Where the page's keys belong to something else: a dialog, the nav drawer, a menu, a list. */
-const OVERLAY = '[role="dialog"], [role="alertdialog"], dialog, [role="menu"], [role="listbox"]';
-
-/**
- * Whether the focus is somewhere the page-wide shortcuts must leave alone: inside an overlay (where
- * a letter is the menu's typeahead and Space a dialog's). Rechecked as the focus moves; on a blur
- * after the change, since a dialog that unmounts can drop the focus to the body without a focusin.
- */
-function useFocusInOverlay(): boolean {
-  const [inside, setInside] = useState(false);
-  useEffect(() => {
-    const check = () => {
-      setInside(document.activeElement?.closest(OVERLAY) != null);
-    };
-    const later = () => {
-      window.setTimeout(check, 0);
-    };
-    document.addEventListener("focusin", check);
-    document.addEventListener("focusout", later);
-    return () => {
-      document.removeEventListener("focusin", check);
-      document.removeEventListener("focusout", later);
-    };
-  }, []);
-  return inside;
-}
 
 /**
  * The length of one frame, measured from consecutive presented frames
@@ -91,7 +66,8 @@ function useFrameLength(video: RefObject<HTMLVideoElement | null>): RefObject<nu
 
 /**
  * The player's own shortcuts, on top of the skin's (Space and `k` play and pause, `j`/`l` seek
- * 10 s, `m`, `f`, `c`, `i`, `0`-`9`, Home/End, `<`/`>`):
+ * 10 s, `m`, `f`, `c`, `i`, `0`-`9`, Home/End, `<`/`>`), and beside Enter, which HighlightJump
+ * binds while there is a highlight ahead:
  *
  * - the arrows seek 5 s. The skin binds them to 10 s too, but the hotkey coordinator runs only the
  *   first matching binding, in registration order, and these register first: they render as the

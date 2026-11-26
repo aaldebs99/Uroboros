@@ -29,7 +29,7 @@ import { editDetails, replaceThumbnail } from "./details.ts";
 import { getItem } from "./item.ts";
 import { setKept } from "./kept.ts";
 import { saveProgress, setWatched } from "./progress.ts";
-import { requestSkipsRefetch } from "./skipRefetch.ts";
+import { requestQuietRefresh, requestSkipsRefetch } from "./skipRefetch.ts";
 import { replaceTags } from "./tags.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
@@ -141,6 +141,20 @@ const refetchSkipsRoute = createRoute({
     404: error("No such entry of the caller's own"),
     409: error("The video has no SponsorBlock segments to fetch"),
     503: error("Downloads are not available"),
+  },
+});
+
+const refreshSkipsRoute = createRoute({
+  method: "post",
+  path: "/api/library/{id}/skip-segments/refresh",
+  tags: ["library"],
+  summary:
+    "Refresh the video's SponsorBlock segments quietly as its page opens (at most once an hour per file)",
+  request: { params: z.object({ id }) },
+  responses: {
+    202: { description: "Queued; a quiet `skips` live event follows only if something changed" },
+    204: { description: "Not due, or the video has no segments to fetch: nothing queued" },
+    404: error("No such entry of the caller's own"),
   },
 });
 
@@ -264,6 +278,12 @@ export function registerItemRoutes(
   app.openapi(refetchSkipsRoute, async (c) => {
     await requestSkipsRefetch(db, probe, currentPrincipal(c).userId, c.req.valid("param").id);
     return c.body(null, 202);
+  });
+
+  app.openapi(refreshSkipsRoute, async (c) => {
+    const { userId } = currentPrincipal(c);
+    const queued = await requestQuietRefresh(db, probe, userId, c.req.valid("param").id);
+    return c.body(null, queued ? 202 : 204);
   });
 
   app.openapi(detailsRoute, async (c) => {

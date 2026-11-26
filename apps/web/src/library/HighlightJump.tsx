@@ -1,5 +1,8 @@
+import { useHotkey } from "@videojs/react";
 import { Sparkles } from "lucide-react";
 import { useEffect, useState, type RefObject } from "react";
+
+import { useFocusInOverlay } from "./focusInOverlay";
 
 /** Within this of the highlight, or past it, there is nothing left to jump to. */
 const NEAR = 1;
@@ -7,7 +10,10 @@ const NEAR = 1;
 /**
  * Jump to highlight (docs/automation.md#sponsorblock): while playback is short of the video's
  * SponsorBlock highlight, a pill in the player's top corner that goes there and plays. It shows and
- * hides with the controls (player.css), and its icon wears the highlight's color.
+ * hides with the controls (player.css), and its icon wears the highlight's color. Enter does the
+ * same, in the player and page-wide like the other shortcuts (PlayerHotkeys): Enter on a focused
+ * button or link stays that control's (the hotkey coordinator skips it), as do keys typed in a
+ * field, and the page-wide copy is off while the focus is in a dialog, a menu or a list.
  */
 export function HighlightJump({
   video,
@@ -20,6 +26,13 @@ export function HighlightJump({
   onJump: (time: number) => void;
 }) {
   const [short, setShort] = useState(true);
+  const overlay = useFocusInOverlay();
+  const go = () => {
+    onJump(at);
+  };
+  const enter = { keys: "Enter", repeatable: false, onActivate: go } as const;
+  useHotkey({ ...enter, target: "player", disabled: !short });
+  useHotkey({ ...enter, target: "document", disabled: !short || overlay });
   useEffect(() => {
     const v = video.current;
     if (v === null) return;
@@ -45,8 +58,9 @@ export function HighlightJump({
       }}
       onClick={(e) => {
         e.stopPropagation();
-        onJump(at);
+        go();
       }}
+      aria-keyshortcuts="Enter"
     >
       <Sparkles aria-hidden /> Jump to highlight
     </button>

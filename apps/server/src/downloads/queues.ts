@@ -19,6 +19,8 @@ export interface ProbeJob {
 export interface SkipsJob {
   entryId: string;
   userId: string;
+  /** A refresh as the entry's page opened: no toast, and nothing said unless something changed. */
+  quiet?: boolean;
 }
 
 /**

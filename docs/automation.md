@@ -173,7 +173,7 @@ those. Format profiles carry no categories, and no file is marked or cut for any
 - **Every YouTube file keeps every category's segments, and its highlight.** After a download the
   fetch asks SponsorBlock's API itself (`src/sponsorblock/client.ts`, `src/worker/fetchSegments.ts`)
   for the video's segments and highlight, by the first four hex digits of its id's SHA-256 as yt-dlp does, so SponsorBlock
-  never learns which video it was, fits them to the file's length as yt-dlp does (a start within a
+  never learns which video it was, fits the segments to the file's length as yt-dlp does (a start within a
   second of 0 is 0, an end within a second of the end is the end, and a segment SponsorBlock timed
   on a video of another length, an older cut of it, is dropped unless that is under a second, or
   under 5 s and under 5 % of the segment), and stores their "skip" action's segments on the rendition
@@ -193,13 +193,17 @@ those. Format profiles carry no categories, and no file is marked or cut for any
   jump of more than 2 s between two looks counts as a seek.
 - **The highlight** (`poi_highlight`, SponsorBlock's `poi` action: one moment, the part most people
   are looking for) comes with the segments and is kept on the rendition
-  (`renditions.sponsor_highlight`, seconds). It is fitted as yt-dlp fits a point of interest, as a
-  second-long segment: a start within a second of 0 is 0, one timed on a video of another length
-  is dropped unless the lengths are within a second, and one at or past the file's end is dropped.
-  When SponsorBlock has several, the most-voted wins. Every route hands it out as
+  (`renditions.sponsor_highlight`, seconds). A start within a second of 0 is 0, and one at or
+  past the file's end is dropped. Unlike a segment (and unlike yt-dlp, which fits a point of
+  interest as a second-long segment), it is kept whatever length of video it was marked on, as the
+  SponsorBlock extension shows it: an older cut of the video can put the point a few seconds off,
+  which only lands the jump a little early or late, where a segment that far off would skip the
+  wrong part. When SponsorBlock has several, the most-voted wins. Every route hands it out as
   `sponsorHighlight`, whatever the person's setting. The player marks it on the timeline in its
   color and, while playback is short of it, offers Jump to highlight in its top corner, coming
-  and going with the controls (`apps/web/src/library/HighlightJump.tsx`).
+  and going with the controls (`apps/web/src/library/HighlightJump.tsx`). Enter does the same,
+  in the player and page-wide like its other shortcuts, except on a focused button or link (which
+  Enter presses), in a field, or while the focus is in a dialog, a menu or a list.
 - **Files cut by their own profile keep none.** A profile whose extra arguments cut or trim the file
   (`--sponsorblock-remove`, `--remove-chapters`, `--download-sections`) moves its timeline, so
   SponsorBlock's times would point at the wrong moments in it: such a file stores no segments and
@@ -223,9 +227,24 @@ attempt). The job (`src/worker/refetchSkips.ts`) finds the video from the latest
 the file (`src/library/skipRefetch.ts`), asks SponsorBlock again (`src/sponsorblock/client.ts`, no
 yt-dlp run and no request to YouTube), and puts every category's segments and the highlight on the
 rendition, for everyone whose entry it is. A failed lookup keeps what the file had. Either way a `skips`
-event on the live stream tells the person who asked what came of it, counting the segments their
-own setting shows or skips (not the highlight): the web app fetches the entry again and toasts the
-segments found, none yet, or the failure.
+event on the live stream tells the person who asked what came of it: `found`, the segments their
+own setting shows or skips, `total`, all SponsorBlock has in any category, and whether the file has
+a `highlight`. The web app fetches the entry again and toasts the segments found (and the
+highlight), or, when it found none, whether SponsorBlock has no segments for the video at all
+(with the highlight said when there is one) or only ones in categories they neither show nor skip
+(pointing at Settings › SponsorBlock), or the failure. A replica of the release before sends only
+the count, which reads as no segments at all.
+
+Opening such a video refreshes its segments quietly too: the item page posts
+`POST /api/library/{id}/skip-segments/refresh` (the owner's own entry, 404 for anyone else's),
+which queues a quiet `skips` job (key `skips-quiet:<entryId>`, apart from Refetch's, so a Refetch
+asked meanwhile still runs and says how it went) and answers 202, or 204 when the file's segments
+can't be fetched or one was asked for in the last hour. The hour is per file
+(`renditions.skips_refreshed_at`), claimed by the request that queues the job, so pages opening
+together queue one (`requestQuietRefresh`, `src/library/skipRefetch.ts`). The job puts what it
+finds on the file as Refetch does, but its `skips` event goes out only when the segments or the
+highlight changed, marked `quiet`: the page fetches the entry again and shows no toast. A failure
+is only logged.
 
 To save a file to a device without the segments its person skips, the item page's Save offers a
 copy re-encoded without them, cut exactly and in sync

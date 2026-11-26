@@ -782,6 +782,20 @@
                 "nullable": true,
                 "type": "integer"
               },
+              "highlight": {
+                "default": false,
+                "type": "boolean"
+              },
+              "quiet": {
+                "default": false,
+                "type": "boolean"
+              },
+              "total": {
+                "default": null,
+                "minimum": 0,
+                "nullable": true,
+                "type": "integer"
+              },
               "type": {
                 "enum": [
                   "skips"
@@ -7498,6 +7512,43 @@
           }
         },
         "summary": "Fetch the video's SponsorBlock segments again; a `skips` live event says how it went",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/skip-segments/refresh": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Queued; a quiet `skips` live event follows only if something changed"
+          },
+          "204": {
+            "description": "Not due, or the video has no segments to fetch: nothing queued"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry of the caller's own"
+          }
+        },
+        "summary": "Refresh the video's SponsorBlock segments quietly as its page opens (at most once an hour per file)",
         "tags": [
           "library"
         ]

@@ -94,7 +94,15 @@ function personal(
       return e.userIds.includes(userId) ? { type: "previews" } : null;
     case "skips":
       return e.userId === userId
-        ? { type: "skips", entryId: e.entryId, found: e.found, error: e.error }
+        ? {
+            type: "skips",
+            entryId: e.entryId,
+            found: e.found,
+            error: e.error,
+            total: e.total ?? null,
+            highlight: e.highlight ?? false,
+            quiet: e.quiet ?? false,
+          }
         : null;
   }
 }

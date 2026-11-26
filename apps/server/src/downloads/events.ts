@@ -17,7 +17,19 @@ export type InternalEvent =
   | { kind: "notice"; userId: string }
   | { kind: "previews"; userIds: string[] }
   | { kind: "requests"; userId: string }
-  | { kind: "skips"; userId: string; entryId: string; found: number | null; error: string | null };
+  | {
+      kind: "skips";
+      userId: string;
+      entryId: string;
+      found: number | null;
+      error: string | null;
+      /** SponsorBlock's segments in any category; absent from a replica of the release before. */
+      total?: number | null;
+      /** Whether the file has a highlight now; absent from a replica of the release before. */
+      highlight?: boolean;
+      /** A refresh as the entry's page opened: fetch it again, but no toast. */
+      quiet?: boolean;
+    };
 
 /** How long the latest progress of a fetch is kept for page loads. */
 export const PROGRESS_TTL_S = 60;

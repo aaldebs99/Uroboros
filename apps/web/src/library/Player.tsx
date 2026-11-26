@@ -117,11 +117,11 @@ function tryPlay(v: HTMLVideoElement): void {
 
 /**
  * Video.js 10 (the Neutral video skin, in the app's accent, with a timeline styled after YouTube's
- * in player.css): keyboard and touch controls (PlayerHotkeys adds 5 s arrows and frame steps), a
- * captions menu for the subtitle tracks, chapters on the timeline, SponsorBlock segments skipped
- * (SponsorSkip), resume, seek, autoplay, and the volume and mute remembered in this browser. Subtitles
- * stay off until the viewer turns them on; then the same language is remembered in this browser too
- * (useSubtitlePref).
+ * in player.css): keyboard and touch controls (PlayerHotkeys adds 5 s arrows and frame steps, and
+ * HighlightJump Enter for the highlight), a captions menu for the subtitle tracks, chapters on the
+ * timeline, SponsorBlock segments skipped (SponsorSkip), resume, seek, autoplay, and the volume and
+ * mute remembered in this browser. Subtitles stay off until the viewer turns them on; then the same
+ * language is remembered in this browser too (useSubtitlePref).
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);

@@ -110,6 +110,9 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
         entryId: e.entryId,
         found: 1,
         error: null,
+        total: 2,
+        highlight: true,
+        quiet: false,
       });
   });
 
@@ -130,6 +133,9 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
         entryId: e.entryId,
         found: 0,
         error: null,
+        total: 0,
+        highlight: false,
+        quiet: false,
       });
   });
 
@@ -152,7 +158,60 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
         entryId: e.entryId,
         found: null,
         error: "SponsorBlock answered 503",
+        total: null,
+        highlight: false,
+        quiet: false,
       });
+  });
+
+  it("refreshes quietly as a page opens: nothing said unless something changed, and no toast", async () => {
+    const u = await user();
+    const id = videoId();
+    const e = await seedDownloadedEntry(testDb.db, u.userId, { videoId: id });
+    await withOldSegments(e.renditionId);
+    const quiet = { data: { entryId: e.entryId, userId: u.userId, quiet: true } };
+    const same = { segments: [{ start: 1, end: 2, category: "sponsor" as const }], highlight: 5 };
+    await refetchSkipsProcessor(await depsWith(fakeSponsorBlock({ [id]: same })))(quiet);
+    const newer = [{ start: 40, end: 50, category: "sponsor" as const }];
+    const changed = fakeSponsorBlock({ [id]: { segments: newer, highlight: 5 } });
+    await refetchSkipsProcessor(await depsWith(changed))(quiet);
+    expect(await segmentsOf(e.renditionId)).toEqual(newer);
+    const mine = () => heard.filter((h) => (h as { entryId: string }).entryId === e.entryId);
+    await expect.poll(mine).toHaveLength(1);
+    // The unchanged one said nothing; the changed one tells the page to fetch the entry again,
+    // marked quiet so the app shows no toast.
+    expect(mine()).toEqual([
+      {
+        kind: "skips",
+        userId: u.userId,
+        entryId: e.entryId,
+        // The default setting shows and skips sponsors.
+        found: 1,
+        error: null,
+        total: 1,
+        highlight: true,
+        quiet: true,
+      },
+    ]);
+  });
+
+  it("keeps what the file had when a quiet refresh fails, and says nothing", async () => {
+    const u = await user();
+    const id = videoId();
+    const e = await seedDownloadedEntry(testDb.db, u.userId, { videoId: id });
+    await withOldSegments(e.renditionId);
+    const sb = fakeSponsorBlock({ [id]: new Error("SponsorBlock answered 503") });
+    await refetchSkipsProcessor(await depsWith(sb))({
+      data: { entryId: e.entryId, userId: u.userId, quiet: true },
+    });
+    expect(await segmentsOf(e.renditionId)).toEqual(OLD);
+    // A later manual refetch's event is the first and only one heard for this entry.
+    await refetchSkipsProcessor(await depsWith(fakeSponsorBlock()))({
+      data: { entryId: e.entryId, userId: u.userId },
+    });
+    const mine = () => heard.filter((h) => (h as { entryId: string }).entryId === e.entryId);
+    await expect.poll(mine).toHaveLength(1);
+    expect(mine()[0]).toMatchObject({ found: 0, error: null });
   });
 
   it("does nothing for an entry that is gone, or someone else's", async () => {
