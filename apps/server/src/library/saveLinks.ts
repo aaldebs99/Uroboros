@@ -17,13 +17,23 @@ export type SaveTarget = { entryId: string } | { exportId: string };
 
 const hashOf = (token: string): Buffer => createHash("sha256").update(token).digest();
 
-/** A new save link for `userId`, who must already have been allowed the target. */
+/**
+ * How long a save link that isn't there yet is waited for: the app hands Safari a link whose token
+ * it chose inside the tap, and registers it alongside, so Safari can ask first.
+ */
+export const SAVE_LINK_WAIT_MS = 1500;
+const WAIT_STEP_MS = 150;
+
+/**
+ * A new save link for `userId`, who must already have been allowed the target: under `token` when
+ * the app chose one (`conflict` if it is taken), else a fresh random one.
+ */
 export async function createSaveLink(
   db: Kysely<Database>,
   userId: string,
   target: SaveTarget,
+  token: string = randomBytes(32).toString("base64url"),
 ): Promise<SaveLink> {
-  const token = randomBytes(32).toString("base64url");
   const row = await db
     .insertInto("save_links")
     .values({
@@ -33,22 +43,35 @@ export async function createSaveLink(
       export_id: "exportId" in target ? target.exportId : null,
       expires_at: sql<Date>`now() + interval '1 hour'`,
     })
+    .onConflict((oc) => oc.column("token_hash").doNothing())
     .returning("expires_at")
-    .executeTakeFirstOrThrow();
+    .executeTakeFirst();
+  if (row === undefined) throw new ApiError("conflict", "that token is taken");
   return { url: `/api/public/saves/${token}`, expiresAt: row.expires_at.toISOString() };
 }
 
-/** Whose link `token` is and what it saves; `not_found` for one unknown or expired. */
+const findLink = (db: Kysely<Database>, hash: Buffer) =>
+  db
+    .selectFrom("save_links")
+    .select(["user_id", "entry_id", "export_id"])
+    .where("token_hash", "=", hash)
+    .where("expires_at", ">", sql<Date>`now()`)
+    .executeTakeFirst();
+
+/**
+ * Whose link `token` is and what it saves, waiting up to `SAVE_LINK_WAIT_MS` for one still being
+ * registered; `not_found` for one unknown or expired.
+ */
 export async function resolveSaveLink(
   db: Kysely<Database>,
   token: string,
 ): Promise<{ userId: string; target: SaveTarget }> {
-  const row = await db
-    .selectFrom("save_links")
-    .select(["user_id", "entry_id", "export_id"])
-    .where("token_hash", "=", hashOf(token))
-    .where("expires_at", ">", sql<Date>`now()`)
-    .executeTakeFirst();
+  const hash = hashOf(token);
+  let row = await findLink(db, hash);
+  for (let waited = 0; row === undefined && waited < SAVE_LINK_WAIT_MS; waited += WAIT_STEP_MS) {
+    await new Promise((resolve) => setTimeout(resolve, WAIT_STEP_MS));
+    row = await findLink(db, hash);
+  }
   if (row === undefined) throw new ApiError("not_found", "the link doesn't work any more");
   if (row.entry_id !== null) return { userId: row.user_id, target: { entryId: row.entry_id } };
   if (row.export_id !== null) return { userId: row.user_id, target: { exportId: row.export_id } };

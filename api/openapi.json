@@ -3327,6 +3327,15 @@
         ],
         "type": "object"
       },
+      "SaveLinkBody": {
+        "properties": {
+          "token": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "SearchMatch": {
         "nullable": true,
         "properties": {
@@ -5733,6 +5742,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLinkBody"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "201": {
             "content": {
@@ -5753,6 +5772,16 @@
               }
             },
             "description": "Not the caller's, or not finished"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The token is taken"
           }
         },
         "summary": "A short-lived link that saves a finished copy without the session cookie",
@@ -7537,6 +7566,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLinkBody"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "201": {
             "content": {
@@ -7557,6 +7596,16 @@
               }
             },
             "description": "No such entry"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The token is taken"
           }
         },
         "summary": "A short-lived link that saves the entry's file (own or shared) without the session cookie",

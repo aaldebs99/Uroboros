@@ -60,7 +60,7 @@ function ExportRow({ copy }: { copy: Export }) {
             className="max-md:size-10 max-md:px-0"
             aria-label={`Save ${copy.title}`}
             href={copy.fileUrl}
-            link={() => exportSaveLink(copy.id)}
+            link={(token) => exportSaveLink(copy.id, token)}
           >
             <Download aria-hidden /> <span className="hidden md:inline">Save</span>
           </SaveButton>

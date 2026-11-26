@@ -131,6 +131,20 @@ export const SaveLink = z
   .openapi("SaveLink");
 export type SaveLink = z.infer<typeof SaveLink>;
 
+/**
+ * Asks for a save link, optionally with its token chosen by the app (32 random bytes, base64url),
+ * so the app knows the link inside the tap and can hand it to Safari at once.
+ */
+export const SaveLinkBody = z
+  .object({
+    token: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{43}$/)
+      .optional(),
+  })
+  .openapi("SaveLinkBody");
+export type SaveLinkBody = z.infer<typeof SaveLinkBody>;
+
 /** An entry of the caller's, by id. */
 export const EntryRef = z.object({ id: z.uuid() }).openapi("EntryRef");
 export type EntryRef = z.infer<typeof EntryRef>;

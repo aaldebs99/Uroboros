@@ -95,7 +95,18 @@ async function shareWithCarol() {
 const make = () => createApp({ db: testDb.db, version: "t", logger, store }, { webDist: null });
 /** The window Save opens: no session cookie, no CSRF header. */
 const window = () => make();
-const ask = (s: SignedIn, path: string) => asUser(make(), s).request(path, { method: "POST" });
+const ask = (s: SignedIn, path: string, body?: unknown) =>
+  asUser(make(), s).request(
+    path,
+    body === undefined
+      ? { method: "POST" }
+      : {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        },
+  );
+const newToken = () => randomBytes(32).toString("base64url");
 
 async function linkFor(s: SignedIn, path: string): Promise<string> {
   const res = await ask(s, path);
@@ -136,6 +147,23 @@ describe("POST /api/library/{id}/save-link", () => {
     }
   });
 
+  it("takes a token the app chose, so the app knows the link inside the tap", async () => {
+    const token = newToken();
+    const res = await ask(alice, `/api/library/${entryId}/save-link`, { token });
+    expect(res.status).toBe(201);
+    expect(SaveLink.parse(await res.json()).url).toBe(`/api/public/saves/${token}`);
+    expect(await (await window().request(`/api/public/saves/${token}`)).text()).toBe("0123456789");
+  });
+
+  it("refuses a token already taken, and one too short to be random", async () => {
+    const token = newToken();
+    expect((await ask(alice, `/api/library/${entryId}/save-link`, { token })).status).toBe(201);
+    expect((await ask(carol, `/api/library/${entryId}/save-link`, { token })).status).toBe(409);
+    expect((await ask(alice, `/api/library/${entryId}/save-link`, { token: "short" })).status).toBe(
+      400,
+    );
+  });
+
   it("gives no link for someone else's entry", async () => {
     expect((await ask(bob, `/api/library/${entryId}/save-link`)).status).toBe(404);
   });
@@ -155,6 +183,17 @@ describe("GET /api/public/saves/{token}", () => {
       .where("token_hash", "=", hashOf(tokenOf(url)))
       .execute();
     expect((await window().request(url)).status).toBe(404);
+  });
+
+  it("waits a moment for a link the app is still registering", async () => {
+    // Safari can ask before the app's registration lands: the app hands it the link at once.
+    const token = newToken();
+    const saving = window().request(`/api/public/saves/${token}`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect((await ask(alice, `/api/library/${entryId}/save-link`, { token })).status).toBe(201);
+    const res = await saving;
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("0123456789");
   });
 
   it("refuses a link nobody made", async () => {

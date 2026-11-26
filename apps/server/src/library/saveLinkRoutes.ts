@@ -1,5 +1,5 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { ApiErrorBody, SaveLink } from "@uroboros/contract";
+import { ApiErrorBody, SaveLink, SaveLinkBody } from "@uroboros/contract";
 import type { Kysely } from "kysely";
 import { currentPrincipal } from "../api/principal.ts";
 import type { Database } from "../db/schema.ts";
@@ -21,6 +21,8 @@ const binary = (description: string) => ({
   content: { "application/octet-stream": { schema: z.string().openapi({ format: "binary" }) } },
 });
 const idParams = z.object({ id: z.uuid().openapi({ param: { name: "id", in: "path" } }) });
+/** Optional: without it the server picks the token. */
+const body = { required: false, content: { "application/json": { schema: SaveLinkBody } } };
 const tokenParams = z.object({
   token: z
     .string()
@@ -34,8 +36,12 @@ const entryLinkRoute = createRoute({
   tags: ["library"],
   summary:
     "A short-lived link that saves the entry's file (own or shared) without the session cookie",
-  request: { params: idParams },
-  responses: { 201: json(SaveLink, "The link, for an hour"), 404: error("No such entry") },
+  request: { params: idParams, body },
+  responses: {
+    201: json(SaveLink, "The link, for an hour"),
+    404: error("No such entry"),
+    409: error("The token is taken"),
+  },
 });
 
 const exportLinkRoute = createRoute({
@@ -43,10 +49,11 @@ const exportLinkRoute = createRoute({
   path: "/api/exports/{id}/save-link",
   tags: ["library"],
   summary: "A short-lived link that saves a finished copy without the session cookie",
-  request: { params: idParams },
+  request: { params: idParams, body },
   responses: {
     201: json(SaveLink, "The link, for an hour"),
     404: error("Not the caller's, or not finished"),
+    409: error("The token is taken"),
   },
 });
 
@@ -67,6 +74,9 @@ const saveRoute = createRoute({
   },
 });
 
+/** The body, absent when the request sent none. */
+const tokenOf = (sent: SaveLinkBody | undefined): SaveLinkBody => sent ?? {};
+
 export function registerSaveLinkRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
@@ -75,12 +85,14 @@ export function registerSaveLinkRoutes(
   app.openapi(entryLinkRoute, async (c) => {
     const { userId } = currentPrincipal(c);
     const entry = await visibleEntry(db, { userId }, c.req.valid("param").id);
-    return c.json(await createSaveLink(db, userId, { entryId: entry.id }), 201);
+    const { token } = tokenOf(c.req.valid("json"));
+    return c.json(await createSaveLink(db, userId, { entryId: entry.id }, token), 201);
   });
   app.openapi(exportLinkRoute, async (c) => {
     const { userId } = currentPrincipal(c);
     const copy = await finishedExport(db, userId, c.req.valid("param").id);
-    return c.json(await createSaveLink(db, userId, { exportId: copy.id }), 201);
+    const { token } = tokenOf(c.req.valid("json"));
+    return c.json(await createSaveLink(db, userId, { exportId: copy.id }, token), 201);
   });
   app.openapi(saveRoute, async (c) => {
     const s = needStore(store);

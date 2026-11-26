@@ -172,11 +172,17 @@ export const reportProgress = (id: string, position: number, duration: number) =
   putNoContent(`/api/library/${encodeURIComponent(id)}/progress`, { position, duration });
 
 /**
- * A short-lived link that saves the entry's file without the session cookie, for the installed
- * iPhone app's Save window (docs/downloads.md#saving-a-file).
+ * Registers a short-lived link that saves the entry's file without the session cookie, under the
+ * token the app chose, for the installed iPhone app's Save (docs/downloads.md#saving-a-file). It
+ * keeps going as Safari puts the app away.
  */
-export const entrySaveLink = (id: string) =>
-  postJson(`/api/library/${encodeURIComponent(id)}/save-link`, SaveLink).then((l) => l.url);
+export const entrySaveLink = (id: string, token: string) =>
+  postJson(
+    `/api/library/${encodeURIComponent(id)}/save-link`,
+    SaveLink,
+    { token },
+    { keepalive: true },
+  );
 
 export const setWatched = (id: string, watched: boolean) =>
   putNoContent(`/api/library/${encodeURIComponent(id)}/watched`, { watched });

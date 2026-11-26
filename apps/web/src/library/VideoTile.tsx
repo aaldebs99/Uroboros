@@ -140,8 +140,8 @@ export function EntryTile({
         <ResponsiveMenu
           title={`Actions for ${entry.title}`}
           actions={[
-            saveAction("Save", Download, `/api/library/${entry.id}/file`, () =>
-              entrySaveLink(entry.id),
+            saveAction("Save", Download, `/api/library/${entry.id}/file`, (token) =>
+              entrySaveLink(entry.id, token),
             ),
             { label: "Save to playlist", icon: ListPlus, onSelect: onSaveToPlaylist },
             {

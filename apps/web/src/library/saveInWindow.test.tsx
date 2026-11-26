@@ -1,25 +1,27 @@
 import type { Export } from "@uroboros/contract";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Download } from "lucide-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Toaster } from "@/components/ui/sonner";
-import type * as InstalledModule from "@/push/installed";
+import { notify, Toaster } from "@/components/ui/sonner";
 import { ExportsSection } from "@/exports/ExportsSection";
+import type * as InstalledModule from "@/push/installed";
 import { fakeApi } from "@/test/fakeApi";
 import { ITEM_ID, itemFixture } from "@/test/libraryItem";
 import { renderInRouter, renderWithQuery } from "@/test/render";
 
 import { SaveButton } from "./SaveButton";
 import { SaveFile } from "./SaveFile";
-import { openSave } from "./saveInWindow";
+import { navigation, openOutside, openSave } from "./saveInWindow";
 import { EntryTile } from "./VideoTile";
 
 /**
- * Saving from the installed iPhone app (docs/downloads.md#saving-a-file): a link to the file would
- * hand the app's only page to iOS's file view with no way back, so Save opens a window of its own
- * and sends it to a short-lived save link that needs no cookie. Everywhere else Save stays a link.
+ * Saving from the installed iPhone app (docs/downloads.md#saving-a-file): following a link to the
+ * file would hand the app's only page to iOS's file view with no way back, and a window the app
+ * opens is an in-app Safari sheet that can't download (a blank page). So Save hands Safari itself
+ * a save link (`x-safari-https:`), which needs no cookie; the app chooses its token, so the link is
+ * known inside the tap, and registers it alongside. Everywhere else Save stays a link.
  */
 
 type Installed = typeof InstalledModule;
@@ -30,61 +32,88 @@ vi.mock("@/push/installed", async (original) => ({
   isInstalled: () => where.iosApp,
 }));
 
-const SAVE = "/api/public/saves/tok-0123456789abcdefghij";
-/** The window `window.open` hands back, in place of a real one. */
-function fakeWindow() {
-  return { location: { href: "" }, opener: window as unknown, close: vi.fn() };
-}
-function stubOpen(win: ReturnType<typeof fakeWindow> | null = fakeWindow()) {
-  const open = vi.fn(() => win);
+const TOKEN = /^[A-Za-z0-9_-]{43}$/;
+/** The page's origin here is http (jsdom's), so a hand-off opens a window, as on a LAN address. */
+const savesAt = (token: string) => `${window.location.origin}/api/public/saves/${token}`;
+
+function stubOpen() {
+  const open = vi.fn<(url?: string, target?: string) => Window | null>(() => null);
   vi.stubGlobal("open", open);
-  return { open, win };
+  return open;
 }
+const go = () => vi.spyOn(navigation, "go").mockImplementation(() => undefined);
+const tokenIn = (url: unknown) => String(url).split("/").pop() ?? "";
 
 beforeEach(() => {
   where.iosApp = true;
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("openSave", () => {
-  it("opens the window inside the tap, then sends it to the link once it is made", async () => {
-    const { open, win } = stubOpen();
-    let made: (url: string) => void = () => undefined;
-    openSave(
-      () =>
-        new Promise<string>((resolve) => {
-          made = resolve;
-        }),
-    );
-    expect(open).toHaveBeenCalledWith("", "_blank");
-    expect(win?.location.href).toBe("");
-    await act(async () => {
-      made(SAVE);
-      await Promise.resolve();
-    });
-    expect(win?.location.href).toBe(new URL(SAVE, window.location.origin).href);
-    expect(win?.opener).toBeNull();
+  it("hands over a link with a token it chose inside the tap, registering it alongside", () => {
+    const open = stubOpen();
+    const register = vi.fn(() => new Promise<never>(() => undefined));
+    openSave(register);
+    expect(register).toHaveBeenCalledOnce();
+    const [token] = register.mock.calls[0] as unknown as [string];
+    expect(token).toMatch(TOKEN);
+    // Before the registration answers: the hand-off can't wait for it.
+    expect(open).toHaveBeenCalledWith(savesAt(token), "_blank");
   });
 
-  it("closes the window and says why when the link can't be made", async () => {
+  it("chooses a new token every time", () => {
+    stubOpen();
+    const register = vi.fn(() => Promise.resolve());
+    openSave(register);
+    openSave(register);
+    const [[a], [b]] = register.mock.calls as unknown as [[string], [string]];
+    expect(a).not.toBe(b);
+  });
+
+  it("says why when the link can't be registered", async () => {
     render(<Toaster />);
-    const { win } = stubOpen();
+    stubOpen();
     openSave(() => Promise.reject(new TypeError("Failed to fetch")));
     expect(await screen.findByText("Could not reach the server.")).toBeInTheDocument();
-    expect(win?.close).toHaveBeenCalled();
+  });
+});
+
+describe("openOutside", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+  const said = () => vi.spyOn(notify, "error").mockImplementation(() => undefined);
+
+  it("hands an https link to Safari itself, where downloads work", () => {
+    const to = go();
+    openOutside("https://uro.example/api/public/saves/abc");
+    expect(to).toHaveBeenCalledWith("x-safari-https://uro.example/api/public/saves/abc");
   });
 
-  it("says so when no window may open, and leaves the app where it is", async () => {
-    render(<Toaster />);
-    stubOpen(null);
-    const here = window.location.href;
-    const link = vi.fn(() => Promise.resolve(SAVE));
-    openSave(link);
-    expect(await screen.findByText("Couldn't open a window to save the file")).toBeInTheDocument();
-    expect(link).not.toHaveBeenCalled();
-    expect(window.location.href).toBe(here);
+  it("says so when Safari never takes over (iOS before 17)", () => {
+    go();
+    const error = said();
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    openOutside("https://uro.example/api/public/saves/abc");
+    vi.advanceTimersByTime(1499);
+    expect(error).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(error).toHaveBeenCalledWith("Couldn't open Safari to save the file", expect.anything());
+  });
+
+  it("says nothing once Safari has taken over", () => {
+    go();
+    const error = said();
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    openOutside("https://uro.example/api/public/saves/abc");
+    vi.advanceTimersByTime(5000);
+    expect(error).not.toHaveBeenCalled();
   });
 });
 
@@ -92,7 +121,7 @@ describe("SaveButton", () => {
   it("is a plain download link outside the installed iPhone app", () => {
     where.iosApp = false;
     render(
-      <SaveButton href="/f" link={() => Promise.resolve(SAVE)} aria-label="Save">
+      <SaveButton href="/f" link={() => Promise.resolve()} aria-label="Save">
         <Download aria-hidden />
       </SaveButton>,
     );
@@ -101,30 +130,32 @@ describe("SaveButton", () => {
     expect(link).toHaveAttribute("download");
   });
 
-  it("saves through a window of its own in the installed iPhone app", async () => {
-    const { open, win } = stubOpen();
+  it("hands a save link over in the installed iPhone app", async () => {
+    const open = stubOpen();
+    const register = vi.fn(() => Promise.resolve());
     render(
-      <SaveButton href="/f" link={() => Promise.resolve(SAVE)} aria-label="Save">
+      <SaveButton href="/f" link={register} aria-label="Save">
         <Download aria-hidden />
       </SaveButton>,
     );
     expect(screen.queryByRole("link", { name: "Save" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(open).toHaveBeenCalledOnce();
-    await waitFor(() => {
-      expect(win?.location.href).toContain(SAVE);
-    });
+    const [token] = register.mock.calls[0] as unknown as [string];
+    expect(open).toHaveBeenCalledWith(savesAt(token), "_blank");
   });
 
-  it("opens a URL that needs no session (a public link's) in a new window as it is", () => {
+  it("hands over a URL that needs no session (a public link's) as it is", async () => {
+    const open = stubOpen();
     render(
       <SaveButton href="/api/public/s/abc/items/x/file" aria-label="Download">
         <Download aria-hidden />
       </SaveButton>,
     );
-    const link = screen.getByRole("link", { name: "Download" });
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).not.toHaveAttribute("download");
+    await userEvent.click(screen.getByRole("button", { name: "Download" }));
+    expect(open).toHaveBeenCalledWith(
+      `${window.location.origin}/api/public/s/abc/items/x/file`,
+      "_blank",
+    );
   });
 });
 
@@ -145,27 +176,42 @@ describe("Save in the installed iPhone app", () => {
     current: true,
     ...over,
   });
-  const saveLink = () =>
-    Response.json({ url: SAVE, expiresAt: "2026-11-26T20:00:00.000Z" }, { status: 201 });
+  const registered = () =>
+    Response.json(
+      { url: "/api/public/saves/x", expiresAt: "2026-11-26T20:00:00.000Z" },
+      { status: 201 },
+    );
+  /** The registration's token is the one the opened link carries. */
+  async function handedOver(
+    calls: { path: string; body: unknown }[],
+    path: string,
+    open: ReturnType<typeof stubOpen>,
+  ) {
+    await waitFor(() => {
+      expect(calls.some((c) => c.path === path)).toBe(true);
+    });
+    const body = calls.find((c) => c.path === path)?.body as { token: string };
+    expect(body.token).toMatch(TOKEN);
+    expect(tokenIn(open.mock.calls[0]?.[0])).toBe(body.token);
+  }
 
   it("saves the watch page's file through an entry's save link", async () => {
-    const calls = fakeApi({ [`POST /api/library/${ITEM_ID}/save-link`]: saveLink });
-    const { win } = stubOpen();
+    const path = `/api/library/${ITEM_ID}/save-link`;
+    const calls = fakeApi({ [`POST ${path}`]: registered });
+    const open = stubOpen();
     await renderInRouter(<SaveFile item={{ id: ITEM_ID, sponsorSegments: [] }} />);
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => {
-      expect(win?.location.href).toContain(SAVE);
-    });
-    expect(calls.some((c) => c.method === "POST" && c.path.endsWith("/save-link"))).toBe(true);
+    await handedOver(calls, path, open);
   });
 
   it("saves a copy without sponsors through the copy's save link", async () => {
     const made = copy({});
+    const path = `/api/exports/${made.id}/save-link`;
     const calls = fakeApi({
       "GET /api/exports": () => Response.json([made]),
-      [`POST /api/exports/${made.id}/save-link`]: saveLink,
+      [`POST ${path}`]: registered,
     });
-    const { win } = stubOpen();
+    const open = stubOpen();
     await renderInRouter(
       <SaveFile
         item={{
@@ -174,21 +220,20 @@ describe("Save in the installed iPhone app", () => {
         }}
       />,
     );
+    await waitFor(() => {
+      // Once the copy is known, its row saves it rather than asking for a new one.
+      expect(calls.some((c) => c.path === "/api/exports")).toBe(true);
+    });
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     const sheet = await screen.findByRole("dialog");
-    await waitFor(() => {
-      expect(within(sheet).getByRole("button", { name: "Without sponsors" })).toBeInTheDocument();
-    });
-    await userEvent.click(within(sheet).getByRole("button", { name: "Without sponsors" }));
-    await waitFor(() => {
-      expect(win?.location.href).toContain(SAVE);
-    });
-    expect(calls.some((c) => c.path === `/api/exports/${made.id}/save-link`)).toBe(true);
+    await userEvent.click(await within(sheet).findByRole("button", { name: "Without sponsors" }));
+    await handedOver(calls, path, open);
   });
 
   it("saves from a tile's menu through the entry's save link", async () => {
-    const calls = fakeApi({ [`POST /api/library/${ITEM_ID}/save-link`]: saveLink });
-    const { win } = stubOpen();
+    const path = `/api/library/${ITEM_ID}/save-link`;
+    const calls = fakeApi({ [`POST ${path}`]: registered });
+    const open = stubOpen();
     const nothing = () => undefined;
     await renderInRouter(
       <ul>
@@ -204,24 +249,19 @@ describe("Save in the installed iPhone app", () => {
     await userEvent.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Save" }),
     );
-    await waitFor(() => {
-      expect(win?.location.href).toContain(SAVE);
-    });
-    expect(calls.some((c) => c.path === `/api/library/${ITEM_ID}/save-link`)).toBe(true);
+    await handedOver(calls, path, open);
   });
 
   it("saves a finished copy from Downloads through its save link", async () => {
     const made = copy({});
+    const path = `/api/exports/${made.id}/save-link`;
     const calls = fakeApi({
       "GET /api/exports": () => Response.json([made]),
-      [`POST /api/exports/${made.id}/save-link`]: saveLink,
+      [`POST ${path}`]: registered,
     });
-    const { win } = stubOpen();
+    const open = stubOpen();
     renderWithQuery(<ExportsSection />);
     await userEvent.click(await screen.findByRole("button", { name: `Save ${made.title}` }));
-    await waitFor(() => {
-      expect(win?.location.href).toContain(SAVE);
-    });
-    expect(calls.some((c) => c.path === `/api/exports/${made.id}/save-link`)).toBe(true);
+    await handedOver(calls, path, open);
   });
 });

@@ -77,6 +77,7 @@ export {
   MAX_TAGS,
   ProgressBody,
   SaveLink,
+  SaveLinkBody,
   SEARCH_MAX_CHARS,
   SEARCH_MAX_TERMS,
   SEARCH_MIN_CHARS,

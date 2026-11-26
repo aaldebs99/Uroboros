@@ -26,7 +26,7 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "sponsorSegm
   const copies = useExports(cuts);
   const navigate = useNavigate();
   const fileUrl = `/api/library/${item.id}/file`;
-  const entryLink = () => entrySaveLink(item.id);
+  const entryLink = (token: string) => entrySaveLink(item.id, token);
   if (!cuts) {
     return (
       <Tooltip label="Save">
@@ -63,7 +63,9 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "sponsorSegm
   const withoutSponsors: MenuAction =
     made?.fileUrl == null
       ? { label: "Without sponsors", icon: Scissors, onSelect: ask }
-      : saveAction("Without sponsors", Scissors, made.fileUrl, () => exportSaveLink(made.id));
+      : saveAction("Without sponsors", Scissors, made.fileUrl, (token) =>
+          exportSaveLink(made.id, token),
+        );
   return (
     <ResponsiveMenu
       title="Save"
