@@ -67,6 +67,29 @@ function DropdownMenuRadioItem({
   );
 }
 
+/** A row that is on or off: the current item's accent and trailing check while on. */
+function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      className={cn(
+        itemClasses,
+        "pr-10 data-[state=checked]:bg-accent data-[state=checked]:text-primary",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <DropdownMenuPrimitive.ItemIndicator className="absolute right-4">
+        <Check aria-hidden />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </DropdownMenuPrimitive.CheckboxItem>
+  );
+}
+
 function DropdownMenuSubTrigger({
   className,
   children,
@@ -125,6 +148,7 @@ function DropdownMenuSeparator({
 
 export {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,

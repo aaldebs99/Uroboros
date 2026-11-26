@@ -24,6 +24,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Opens the watch page's ⋮ menu (a bottom sheet in jsdom, which has no `matchMedia`). */
+async function openMenu() {
+  await userEvent.click(await screen.findByRole("button", { name: "More actions" }));
+}
+
 describe("ItemPage", () => {
   beforeEach(() => undefined);
 
@@ -62,7 +67,12 @@ describe("ItemPage", () => {
       [`PUT /api/library/${ID}/tags`]: () => Response.json({ tags: ["movies", "open"] }),
     });
     await renderInRouter(<ItemPage entryId={ID} />);
-    await userEvent.click(await screen.findByRole("switch", { name: "Watched" }));
+    await openMenu();
+    expect(screen.getByRole("button", { name: "Mark as unwatched" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Mark as watched", pressed: false }));
     await waitFor(() => {
       expect(calls.find((c) => c.path.endsWith("/watched"))?.body).toEqual({ watched: true });
     });
@@ -75,36 +85,59 @@ describe("ItemPage", () => {
   });
 });
 
-describe("ItemPage Keep", () => {
-  it("toggles Keep on an entry from a subscription", async () => {
-    const fromSub = {
-      ...item,
-      subscription: { id: "0190a3f2-7c1e-7000-8000-0000000000aa", title: "Blender" },
-    };
+const fromSub = (hasRetention: boolean) => ({
+  ...item,
+  subscription: { id: "0190a3f2-7c1e-7000-8000-0000000000aa", title: "Blender", hasRetention },
+});
+
+describe("ItemPage ⋮ menu", () => {
+  it("toggles Keep on an entry whose subscription's retention could remove it", async () => {
     const calls = fakeApi({
-      [`GET /api/library/${ID}`]: () => Response.json(fromSub),
+      [`GET /api/library/${ID}`]: () => Response.json(fromSub(true)),
       [`PUT /api/library/${ID}/kept`]: () => new Response(null, { status: 204 }),
     });
     await renderInRouter(<ItemPage entryId={ID} />);
-    await userEvent.click(await screen.findByRole("switch", { name: "Keep" }));
+    await openMenu();
+    await userEvent.click(screen.getByRole("button", { name: "Keep", pressed: false }));
     await waitFor(() => {
       expect(calls.find((c) => c.path.endsWith("/kept"))?.body).toEqual({ kept: true });
     });
   });
 
-  it("shows its actions as icon buttons, each named in a tooltip", async () => {
-    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+  it("offers no Keep when the subscription keeps every video", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(fromSub(false)) });
     await renderInRouter(<ItemPage entryId={ID} />);
-    const share = await screen.findByRole("button", { name: "Share" });
-    for (const name of ["Save to playlist", "Share", "Remove"]) {
-      expect(screen.getByRole("button", { name })).toHaveTextContent("");
-    }
-    expect(screen.getByRole("link", { name: "Save" })).toHaveTextContent("");
-    await userEvent.hover(share);
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Share");
+    await openMenu();
+    expect(screen.getByRole("button", { name: "Mark as watched" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
   });
 
-  it("fetches the video's SponsorBlock segments again when asked", async () => {
+  it("offers no Keep on an entry no subscription brought", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await openMenu();
+    expect(screen.getByRole("button", { name: "Mark as watched" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
+  });
+
+  it("sends nothing for the watched state the video is already in", async () => {
+    const calls = fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await openMenu();
+    await userEvent.click(screen.getByRole("button", { name: "Mark as unwatched", pressed: true }));
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+  });
+
+  it("opens the video on its site in a new tab", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await openMenu();
+    const link = screen.getByRole("link", { name: "Open on original site" });
+    expect(link).toHaveAttribute("href", item.webpageUrl);
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("refreshes the video's SponsorBlock segments when asked", async () => {
     const calls = fakeApi({
       [`GET /api/library/${ID}`]: () =>
         Response.json({ ...item, sponsorSegmentsRefetchable: true }),
@@ -116,9 +149,8 @@ describe("ItemPage Keep", () => {
         <Toaster />
       </>,
     );
-    const refetch = await screen.findByRole("button", { name: "Refetch SponsorBlock segments" });
-    expect(refetch).toHaveTextContent("");
-    await userEvent.click(refetch);
+    await openMenu();
+    await userEvent.click(screen.getByRole("button", { name: "Refresh SponsorBlock segments" }));
     await waitFor(() => {
       expect(
         calls.some(
@@ -129,11 +161,37 @@ describe("ItemPage Keep", () => {
     expect(await screen.findByText("Fetching SponsorBlock segments")).toBeInTheDocument();
   });
 
-  it("offers no refetch on a video with no SponsorBlock segments to fetch", async () => {
+  it("offers no refresh on a video with no SponsorBlock segments to fetch", async () => {
     fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
     await renderInRouter(<ItemPage entryId={ID} />);
-    await screen.findByRole("button", { name: "Share" });
-    expect(screen.queryByRole("button", { name: "Refetch SponsorBlock segments" })).toBeNull();
+    await openMenu();
+    expect(screen.queryByRole("button", { name: "Refresh SponsorBlock segments" })).toBeNull();
+  });
+
+  it("offers the watched pair but not Keep on a video shared with the person", async () => {
+    fakeApi({
+      [`GET /api/library/${ID}`]: () =>
+        Response.json({ ...fromSub(true), sharedBy: "Alice", subscription: null }),
+    });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    await openMenu();
+    expect(screen.getByRole("button", { name: "Mark as watched" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark as unwatched" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ItemPage actions", () => {
+  it("shows its actions as icon buttons, each named in a tooltip", async () => {
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+    await renderInRouter(<ItemPage entryId={ID} />);
+    const share = await screen.findByRole("button", { name: "Share" });
+    for (const name of ["Save to playlist", "Share", "Remove", "More actions"]) {
+      expect(screen.getByRole("button", { name })).toHaveTextContent("");
+    }
+    expect(screen.getByRole("link", { name: "Save" })).toHaveTextContent("");
+    await userEvent.hover(share);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Share");
   });
 
   it("links the URLs in the description, opening them in a new tab", async () => {
@@ -145,13 +203,6 @@ describe("ItemPage Keep", () => {
     const link = await screen.findByRole("link", { name: "https://blender.org/fund" });
     expect(link).toHaveAttribute("href", "https://blender.org/fund");
     expect(link).toHaveAttribute("target", "_blank");
-  });
-
-  it("shows no Keep for an entry no subscription brought", async () => {
-    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
-    await renderInRouter(<ItemPage entryId={ID} />);
-    await screen.findByRole("switch", { name: "Watched" });
-    expect(screen.queryByRole("switch", { name: "Keep" })).not.toBeInTheDocument();
   });
 });
 

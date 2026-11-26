@@ -3,11 +3,15 @@ import { useNavigate } from "@tanstack/react-router";
 import { Download, Scissors } from "lucide-react";
 
 import { errorText } from "@/api/client";
-import { useExports, useStartExport } from "@/api/exports";
+import { exportSaveLink, useExports, useStartExport } from "@/api/exports";
+import { entrySaveLink } from "@/api/library";
 import { Button } from "@/components/ui/button";
 import { type MenuAction, ResponsiveMenu } from "@/components/ui/responsive-menu";
 import { notify } from "@/components/ui/sonner";
 import { Tooltip } from "@/components/ui/tooltip";
+
+import { SaveButton } from "./SaveButton";
+import { saveAction } from "./saveInWindow";
 
 /**
  * Save, an icon button named in its tooltip: the stored file as it is, or, on a file with
@@ -22,21 +26,18 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "sponsorSegm
   const copies = useExports(cuts);
   const navigate = useNavigate();
   const fileUrl = `/api/library/${item.id}/file`;
+  const entryLink = (token: string) => entrySaveLink(item.id, token);
   if (!cuts) {
     return (
       <Tooltip label="Save">
-        <Button variant="icon" size="icon" asChild>
-          <a href={fileUrl} download aria-label="Save">
-            <Download aria-hidden />
-          </a>
-        </Button>
+        <SaveButton variant="icon" size="icon" aria-label="Save" href={fileUrl} link={entryLink}>
+          <Download aria-hidden />
+        </SaveButton>
       </Tooltip>
     );
   }
   // A copy cut from segments a refetch has since changed is not this video's any more.
-  const made = copies.data?.find(
-    (c) => c.entryId === item.id && c.current && c.fileUrl !== null,
-  )?.fileUrl;
+  const made = copies.data?.find((c) => c.entryId === item.id && c.current && c.fileUrl !== null);
   const ask = () => {
     start.mutate(item.id, {
       onSuccess: (copy) => {
@@ -60,9 +61,11 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "sponsorSegm
   };
   // A copy made already saves at once; otherwise the server makes one (or answers the one it is making).
   const withoutSponsors: MenuAction =
-    made === undefined || made === null
+    made?.fileUrl == null
       ? { label: "Without sponsors", icon: Scissors, onSelect: ask }
-      : { label: "Without sponsors", icon: Scissors, href: made };
+      : saveAction("Without sponsors", Scissors, made.fileUrl, (token) =>
+          exportSaveLink(made.id, token),
+        );
   return (
     <ResponsiveMenu
       title="Save"
@@ -74,7 +77,7 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "sponsorSegm
           </Button>
         </Tooltip>
       }
-      actions={[{ label: "Original file", icon: Download, href: fileUrl }, withoutSponsors]}
+      actions={[saveAction("Original file", Download, fileUrl, entryLink), withoutSponsors]}
     />
   );
 }

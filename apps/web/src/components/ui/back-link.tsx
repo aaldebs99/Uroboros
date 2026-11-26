@@ -7,11 +7,12 @@ import { cn } from "@/lib/utils";
 
 /**
  * A back link's look: a compact quiet button whose arrow lines up with the text at the left margin.
- * The negative bottom margin leaves 0.75rem to what follows in a `gap-6` section.
+ * It rises 0.75rem into the page's top padding, close under the top bar, and the negative bottom
+ * margin leaves 0.75rem to what follows in a `gap-6` section.
  */
 export const backLinkClass = cn(
   buttonVariants({ variant: "quiet", size: "compact" }),
-  "-mb-3 -ml-3.5 w-fit",
+  "-mt-3 -mb-3 -ml-3.5 w-fit",
 );
 
 /**

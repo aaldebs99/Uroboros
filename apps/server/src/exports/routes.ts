@@ -1,5 +1,8 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import { ApiErrorBody, Export } from "@uroboros/contract";
+import type { Context } from "hono";
+import type { Kysely } from "kysely";
+import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
@@ -72,6 +75,33 @@ const removeRoute = createRoute({
   responses: { 204: { description: "Removed" }, 404: error("Not the caller's") },
 });
 
+/** A finished copy of `userId`'s, or `not_found`: neither someone else's nor one still being made. */
+export async function finishedExport(db: Kysely<Database>, userId: string, id: string) {
+  const row = await ownExport(db, userId, id);
+  if (row.state !== "done" || row.storage_key === null) {
+    throw new ApiError("not_found", "the copy is not ready");
+  }
+  return { ...row, storage_key: row.storage_key };
+}
+
+/**
+ * Saves a finished copy of `userId`'s: a presigned redirect, or streamed with range support. The
+ * file route and a save link (`library/saveLinks.ts`) both use it.
+ */
+export async function exportFile(
+  c: Context,
+  db: Kysely<Database>,
+  store: MediaStore,
+  userId: string,
+  id: string,
+) {
+  const row = await finishedExport(db, userId, id);
+  const filename = `${sanitizeSegment(row.title ?? row.video_id)} (no sponsors).${row.format}`;
+  const url = await store.downloadUrl(row.storage_key, filename);
+  if (url !== null) return c.redirect(url, 302);
+  return serve(c, store, row.storage_key, contentTypeOf(row.format), filename);
+}
+
 export function registerExportRoutes(app: OpenAPIHono, ctx: ExportContext | undefined): void {
   const need = (): ExportContext => {
     if (ctx === undefined) throw new ApiError("unavailable", "copies are not available");
@@ -86,14 +116,7 @@ export function registerExportRoutes(app: OpenAPIHono, ctx: ExportContext | unde
   );
   app.openapi(fileRoute, async (c) => {
     const { db, store } = need();
-    const row = await ownExport(db, currentPrincipal(c).userId, c.req.valid("param").id);
-    if (row.state !== "done" || row.storage_key === null) {
-      throw new ApiError("not_found", "the copy is not ready");
-    }
-    const filename = `${sanitizeSegment(row.title ?? row.video_id)} (no sponsors).${row.format}`;
-    const url = await store.downloadUrl(row.storage_key, filename);
-    if (url !== null) return c.redirect(url, 302);
-    return serve(c, store, row.storage_key, contentTypeOf(row.format), filename);
+    return exportFile(c, db, store, currentPrincipal(c).userId, c.req.valid("param").id);
   });
   app.openapi(removeRoute, async (c) => {
     await removeExport(need().db, currentPrincipal(c).userId, c.req.valid("param").id);

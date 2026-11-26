@@ -393,7 +393,17 @@ export const LibraryEntry = z
     /** Retention never removes a kept entry. */
     kept: z.boolean(),
     /** The subscription that brought it, if any. */
-    subscription: z.object({ id: Id, title: z.string().nullable() }).nullable(),
+    subscription: z
+      .object({
+        id: Id,
+        title: z.string().nullable(),
+        /**
+         * Its retention may remove this entry (keep the last N, or remove watched after N days), so
+         * Keep matters; false when it keeps every video. True from a replica that doesn't say.
+         */
+        hasRetention: z.boolean().default(true),
+      })
+      .nullable(),
     /** The channel page's key; null when the site gives no channel. */
     channelKey: z.string().nullable(),
   })

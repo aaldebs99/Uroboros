@@ -36,6 +36,20 @@
 }
 
 /*
+ * Phones: the player runs edge to edge (WatchPlayer.tsx), so its corners are square there; from md
+ * up it keeps the skin's 12 pixels. And a play/pause button sits over the middle of the picture,
+ * coming and going with the controls: the skin's own center play button, which it would hide once
+ * playback starts.
+ */
+@media (width < 48rem) {
+  .uro-player {
+    --media-video-border-radius: 0;
+    --media-center-play-started-opacity: 1;
+    --media-center-play-started-pointer-events: auto;
+  }
+}
+
+/*
  * The player takes the focus for its keyboard shortcuts (F, Space, the arrows) and after a click;
  * the skin rings it then, which stays around the picture, fullscreen and back. No ring on the
  * player itself: its controls keep theirs.

@@ -10,6 +10,20 @@ import { SessionPlayer } from "./SessionPlayer";
 
 const Player = lazy(() => import("./Player").then((m) => ({ default: m.Player })));
 
+/**
+ * On phones the player runs edge to edge, as the library's thumbnails do: across the page's 1rem
+ * gutter (both pages that play it have one), its corners only from md up (`Player`,
+ * `SessionPlayer`). No full width, which would keep the page's width and only shift it left.
+ */
+const bleed = "max-md:-mx-4";
+
+/** Where the player will be, while what it plays loads. */
+export function PlayerPlaceholder() {
+  return (
+    <div aria-busy="true" className={`${bleed} aspect-video bg-raised md:rounded-[0.75rem]`} />
+  );
+}
+
 type Shared = Omit<
   PlayerProps,
   "src" | "hls" | "title" | "chapters" | "sponsorSegments" | "sponsorHighlight" | "subtitles"
@@ -116,7 +130,7 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
     // A file with sound alone shows its thumbnail where the picture would be.
     ...(item.videoCodec === null ? { audio: { thumbnailUrl: item.thumbnailUrl } } : {}),
   };
-  return viaSession ? (
+  const player = viaSession ? (
     <SessionPlayer
       key={`${choice.quality} ${String(choice.broken)} ${String(choice.start)}`}
       {...props}
@@ -132,7 +146,7 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
       }}
     />
   ) : (
-    <Suspense fallback={<div className="aspect-video w-full rounded-[0.75rem] bg-raised" />}>
+    <Suspense fallback={<div className="aspect-video w-full bg-raised md:rounded-[0.75rem]" />}>
       <Player
         {...props}
         src={item.streamUrl}
@@ -143,4 +157,5 @@ export function WatchPlayer({ item, ...shared }: Shared & { item: PlayableItem }
       />
     </Suspense>
   );
+  return <div className={bleed}>{player}</div>;
 }

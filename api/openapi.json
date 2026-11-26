@@ -1464,6 +1464,10 @@
           "subscription": {
             "nullable": true,
             "properties": {
+              "hasRetention": {
+                "default": true,
+                "type": "boolean"
+              },
               "id": {
                 "format": "uuid",
                 "type": "string"
@@ -3306,6 +3310,31 @@
           "member"
         ],
         "type": "string"
+      },
+      "SaveLink": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "SaveLinkBody": {
+        "properties": {
+          "token": {
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "type": "string"
+          }
+        },
+        "type": "object"
       },
       "SearchMatch": {
         "nullable": true,
@@ -5700,6 +5729,67 @@
         ]
       }
     },
+    "/api/exports/{id}/save-link": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLinkBody"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveLink"
+                }
+              }
+            },
+            "description": "The link, for an hour"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not the caller's, or not finished"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The token is taken"
+          }
+        },
+        "summary": "A short-lived link that saves a finished copy without the session cookie",
+        "tags": [
+          "library"
+        ]
+      }
+    },
     "/api/format-profiles": {
       "get": {
         "responses": {
@@ -7458,6 +7548,67 @@
           }
         },
         "summary": "Where the caller is in this video; watched past 90%",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/{id}/save-link": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLinkBody"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveLink"
+                }
+              }
+            },
+            "description": "The link, for an hour"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such entry"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The token is taken"
+          }
+        },
+        "summary": "A short-lived link that saves the entry's file (own or shared) without the session cookie",
         "tags": [
           "library"
         ]
@@ -10001,6 +10152,66 @@
         "summary": "A video's thumbnail",
         "tags": [
           "public links"
+        ]
+      }
+    },
+    "/api/public/saves/{token}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{20,128}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The file"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range of it"
+          },
+          "302": {
+            "description": "A presigned URL (S3 with a public URL set)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more, or the file is no longer the person's to save"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "security": [],
+        "summary": "Save through a save link: streamed with range support, or a presigned redirect",
+        "tags": [
+          "library"
         ]
       }
     },

@@ -58,6 +58,30 @@ describe("player.css against the Neutral video skin", () => {
     );
   });
 
+  // On phones the player runs edge to edge (WatchPlayer), so its corners are square there: the
+  // skin rounds itself through this variable, which a rename would quietly bring back.
+  /** Our phone-only rules for the player: the body of `@media (width < 48rem) { .uro-player { … } }`. */
+  const phoneRules = () =>
+    /@media \(width < 48rem\) \{\s*\.uro-player \{([^}]*)\}\s*\}/.exec(ourCss)?.[1] ?? "";
+
+  it("squares the player's corners below md, through the variable the skin rounds it with", () => {
+    expect(skinCss).toMatch(
+      /\.media-container[^{]*\{[^}]*border-radius: var\(--media-video-border-radius\)/,
+    );
+    expect(phoneRules()).toMatch(/--media-video-border-radius: 0;/);
+  });
+
+  // On phones a play/pause button sits over the middle of the picture, coming and going with the
+  // controls: the skin's own center play button, which it hides once playback starts through these
+  // two variables.
+  it("keeps the skin's center play button once playing, below md", () => {
+    expect(skinCss).toMatch(
+      /\.video-controls-center-play\[data-started\][^{]*\{[^}]*pointer-events: var\(--media-center-play-started-pointer-events, none\)[^}]*opacity: var\(--media-center-play-started-opacity, 0\)/,
+    );
+    expect(phoneRules()).toMatch(/--media-center-play-started-opacity: 1;/);
+    expect(phoneRules()).toMatch(/--media-center-play-started-pointer-events: auto;/);
+  });
+
   // QualityMenu dresses itself in the skin's menu classes, so it looks like the skin's own.
   it("dresses the Quality menu only in class names the shipped skin still has", () => {
     const used = [...new Set(qualityMenu.match(/media-[a-z-]+/g) ?? [])];

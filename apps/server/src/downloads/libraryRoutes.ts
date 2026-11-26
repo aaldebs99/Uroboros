@@ -233,6 +233,28 @@ export async function serve(
   return c.body(opened.body, range === null ? 200 : 206, headers);
 }
 
+/**
+ * Saves an entry's file for `userId`, their own or one shared with them: a presigned redirect, or
+ * streamed with range support. The file route and a save link (`library/saveLinks.ts`) both use it.
+ */
+export async function entryFile(
+  c: Context,
+  db: Kysely<Database>,
+  store: MediaStore,
+  userId: string,
+  entryId: string,
+) {
+  const entry = await visibleEntry(db, { userId }, entryId);
+  const ext = extname(entry.storage_key).slice(1) || (entry.container ?? "bin");
+  const title = sanitizeSegment(entry.title ?? entry.video_id);
+  // An upload has no profile to name (nor has a download whose profile went with its owner).
+  const filename =
+    entry.profile_name === null ? `${title}.${ext}` : `${title} [${entry.profile_name}].${ext}`;
+  const url = await store.downloadUrl(entry.storage_key, filename);
+  if (url !== null) return c.redirect(url, 302);
+  return serve(c, store, entry.storage_key, contentTypeOf(ext), filename);
+}
+
 export function needStore(store: MediaStore | undefined): MediaStore {
   if (store === undefined) throw new ApiError("unavailable", "storage is not available");
   return store;
@@ -263,19 +285,9 @@ export function registerLibraryRoutes(
     return c.body(null, 204);
   });
 
-  app.openapi(fileRoute, async (c) => {
-    const s = needStore(store);
-    const viewer = { userId: currentPrincipal(c).userId };
-    const entry = await visibleEntry(db, viewer, c.req.valid("param").id);
-    const ext = extname(entry.storage_key).slice(1) || (entry.container ?? "bin");
-    const title = sanitizeSegment(entry.title ?? entry.video_id);
-    // An upload has no profile to name (nor has a download whose profile went with its owner).
-    const filename =
-      entry.profile_name === null ? `${title}.${ext}` : `${title} [${entry.profile_name}].${ext}`;
-    const url = await s.downloadUrl(entry.storage_key, filename);
-    if (url !== null) return c.redirect(url, 302);
-    return serve(c, s, entry.storage_key, contentTypeOf(ext), filename);
-  });
+  app.openapi(fileRoute, async (c) =>
+    entryFile(c, db, needStore(store), currentPrincipal(c).userId, c.req.valid("param").id),
+  );
 
   app.openapi(thumbnailRoute, async (c) => {
     const s = needStore(store);

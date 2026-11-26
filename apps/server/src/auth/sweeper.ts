@@ -3,6 +3,7 @@ import type { Logger } from "pino";
 import type { Database } from "../db/schema.ts";
 import { sweepExpiredProgress } from "../downloads/events.ts";
 import { sweepExpiredRequests } from "../downloads/requests.ts";
+import { sweepExpiredSaveLinks } from "../library/saveLinks.ts";
 import { sweepOldNotices } from "../notices/store.ts";
 import { sweepExpiredFailures } from "./limiter.ts";
 import { sweepExpired } from "./sessions.ts";
@@ -11,8 +12,8 @@ export const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
 
 /**
  * The leader's duty: delete expired sessions, pending OIDC logins, unfinished download previews,
- * stale download progress, ended sign-in windows and notices older than a month, at once, then
- * hourly, until leadership ends (`signal` aborts).
+ * stale download progress, ended sign-in windows, expired save links and notices older than a
+ * month, at once, then hourly, until leadership ends (`signal` aborts).
  */
 export function sweeperDuty(db: Kysely<Database>, logger: Logger) {
   return async (signal: AbortSignal): Promise<void> => {
@@ -24,6 +25,7 @@ export function sweeperDuty(db: Kysely<Database>, logger: Logger) {
         if (previews > 0) logger.info({ previews }, "swept expired download previews");
         await sweepExpiredProgress(db);
         await sweepExpiredFailures(db);
+        await sweepExpiredSaveLinks(db);
         const notices = await sweepOldNotices(db);
         if (notices > 0) logger.info({ notices }, "swept old notices");
       } catch (err) {

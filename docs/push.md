@@ -13,7 +13,9 @@ taken from Djinn's (`docs/design/push.md` there), ported in behaviour rather tha
 serves the same manifest as a build (iOS reads it when the icon is added to the Home Screen). Its
 `id`, `start_url` and `scope` are `/`, it opens `standalone`, and its theme and background color
 is the shell's dark sidebar token (`#010611`, the `.dark` `--sidebar` in `index.css`), also in the
-`theme-color` meta.
+`theme-color` meta. In the installed iPhone app, Save hands the file to Safari rather than
+following a link to it, which iOS would show in place of the app with no way back
+([downloads.md](downloads.md#saving-a-file)).
 
 The icons are generated from `assets/logos/uroboros-transparent.svg`, the one source of truth.
 `mise run icons` copies it to `apps/web/public/uroboros.svg` (the favicon) and runs a pinned

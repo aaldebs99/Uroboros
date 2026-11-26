@@ -2,12 +2,13 @@ import type { Export } from "@uroboros/contract";
 import { Download, RotateCcw, Scissors, X } from "lucide-react";
 
 import { errorText } from "@/api/client";
-import { useExports, useRemoveExport, useStartExport } from "@/api/exports";
+import { exportSaveLink, useExports, useRemoveExport, useStartExport } from "@/api/exports";
 import { ExportBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { notify } from "@/components/ui/sonner";
 import { formatBytes, formatDuration } from "@/downloads/format";
+import { SaveButton } from "@/library/SaveButton";
 
 /** The muted line beside the badge: what the copy is, and how far or how big. */
 function detail(copy: Export): string {
@@ -53,11 +54,16 @@ function ExportRow({ copy }: { copy: Export }) {
       </div>
       <div className="flex shrink-0 items-start gap-1">
         {copy.fileUrl === null ? null : (
-          <Button variant="secondary" size="compact" className="max-md:size-10 max-md:px-0" asChild>
-            <a href={copy.fileUrl} download aria-label={`Save ${copy.title}`}>
-              <Download aria-hidden /> <span className="hidden md:inline">Save</span>
-            </a>
-          </Button>
+          <SaveButton
+            variant="secondary"
+            size="compact"
+            className="max-md:size-10 max-md:px-0"
+            aria-label={`Save ${copy.title}`}
+            href={copy.fileUrl}
+            link={(token) => exportSaveLink(copy.id, token)}
+          >
+            <Download aria-hidden /> <span className="hidden md:inline">Save</span>
+          </SaveButton>
         )}
         {copy.state === "failed" ? (
           <Button

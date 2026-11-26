@@ -172,8 +172,11 @@ over a skipped one when it runs into it, without a toast; a segment the viewer s
 color. The file's SponsorBlock highlight (`sponsorHighlight`) is a mark on the timeline, and a
 Jump to highlight pill in the player's corner goes there while playback is short of it
 (`HighlightJump.tsx`). The owner can fetch a file's
-segments again from the page (Refetch SponsorBlock segments,
-[automation.md](automation.md#sponsorblock)). When the browser cannot play
+segments again from the page's ⋮ menu (Refresh SponsorBlock segments,
+[automation.md](automation.md#sponsorblock)). That menu (`ItemMenu.tsx`, a dropdown from `md` up
+and a bottom sheet on phones) also holds Mark as watched and Mark as unwatched, the current one
+checked, Keep (below) and Open on original site; the row beside it has Edit details (an upload),
+Save, Save to playlist, Share and Remove. When the browser cannot play
 the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand instead
 ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.
@@ -195,13 +198,13 @@ Progress is per person and media (two profiles of one video share it). The playe
 position at most every 10 s and on pause and at the end (`PUT /api/library/{id}/progress`); the
 position is clamped to the duration, and the video counts as watched once past 90%, which a later
 report from earlier in it (a rewatch, a late report) doesn't undo. `PUT /api/library/{id}/watched`
-sets it by hand; unwatching also starts it over. Tiles show a watched bar; the item page resumes
+sets it by hand (the item page's ⋮ menu); unwatching also starts it over. Tiles show a watched bar; the item page resumes
 where the person left off.
 
 ## Hover previews
 
 A video's tile plays the whole video, smaller, while it is hovered with a mouse (after 300 ms), or
-after a press and hold of 400 ms on a touch screen. It starts at the beginning, muted, with captions
+after a press and hold of 200 ms on a touch screen. It starts at the beginning, muted, with captions
 on, and has its own controls: a scrub bar along the bottom, a sound button in the top right and a
 captions button below it. What it plays is, best first:
 
@@ -274,7 +277,9 @@ search, channels, playlists, a shared playlist and Shared › With me); the rows
 
 An entry a subscription brought carries it (`subscription`), and that subscription's retention may
 remove it; **Keep** (`PUT /api/library/{id}/kept`), being in one of the person's playlists, or
-being shared on its own exempts it ([automation.md](automation.md)).
+being shared on its own exempts it ([automation.md](automation.md)). The item page's ⋮ menu offers
+Keep, checked while kept, only while the subscription has retention (`subscription.hasRetention`):
+one that keeps every video has nothing to exempt it from.
 Removing an entry, by hand or by retention, deletes the row; the reaper frees the file a day after
 its last entry goes.
 

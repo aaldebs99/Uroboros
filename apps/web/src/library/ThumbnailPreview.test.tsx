@@ -107,6 +107,15 @@ describe("a thumbnail's hover preview", () => {
     expect(fireEvent.click(surfaceOf("a"))).toBe(true);
   });
 
+  it("plays after a 200 ms hold on a touch screen, half the old wait", () => {
+    render(tile("a"));
+    fireEvent.pointerDown(surfaceOf("a"), { pointerType: "touch", clientX: 10, clientY: 10 });
+    wait(199);
+    expect(clips()).toHaveLength(0);
+    wait(1);
+    expect(clips()).toHaveLength(1);
+  });
+
   it("leaves a quick tap to open the video, and a finger that moves to scroll", () => {
     render(tile("a"));
     fireEvent.pointerDown(surfaceOf("a"), { pointerType: "touch", clientX: 10, clientY: 10 });

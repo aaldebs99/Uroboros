@@ -9,7 +9,7 @@ import type { PlayerProps } from "./Player";
 
 const Player = lazy(() => import("./Player").then((m) => ({ default: m.Player })));
 
-const frame = "grid aspect-video w-full place-items-center rounded-[0.75rem] bg-raised p-6";
+const frame = "grid aspect-video w-full place-items-center bg-raised p-6 md:rounded-[0.75rem]";
 /** A lost or failed session is started again by itself at most this often. */
 const AUTO_RESTART_EVERY_MS = 30_000;
 

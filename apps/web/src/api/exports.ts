@@ -1,4 +1,4 @@
-import { Export } from "@uroboros/contract";
+import { Export, SaveLink } from "@uroboros/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
@@ -32,6 +32,19 @@ export function useStartExport() {
     onSuccess: () => qc.invalidateQueries({ queryKey: exportsKey }),
   });
 }
+
+/**
+ * Registers a short-lived link that saves a finished copy without the session cookie, under the
+ * token the app chose, for the installed iPhone app's Save (docs/downloads.md#saving-a-file). It
+ * keeps going as Safari puts the app away.
+ */
+export const exportSaveLink = (id: string, token: string) =>
+  postJson(
+    `/api/exports/${encodeURIComponent(id)}/save-link`,
+    SaveLink,
+    { token },
+    { keepalive: true },
+  );
 
 /** Removes a copy, stopping it if it is being made. */
 export function useRemoveExport() {
