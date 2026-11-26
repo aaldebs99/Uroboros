@@ -173,7 +173,7 @@ those. Format profiles carry no categories, and no file is marked or cut for any
 - **Every YouTube file keeps every category's segments, and its highlight.** After a download the
   fetch asks SponsorBlock's API itself (`src/sponsorblock/client.ts`, `src/worker/fetchSegments.ts`)
   for the video's segments and highlight, by the first four hex digits of its id's SHA-256 as yt-dlp does, so SponsorBlock
-  never learns which video it was, fits them to the file's length as yt-dlp does (a start within a
+  never learns which video it was, fits the segments to the file's length as yt-dlp does (a start within a
   second of 0 is 0, an end within a second of the end is the end, and a segment SponsorBlock timed
   on a video of another length, an older cut of it, is dropped unless that is under a second, or
   under 5 s and under 5 % of the segment), and stores their "skip" action's segments on the rendition
@@ -193,10 +193,12 @@ those. Format profiles carry no categories, and no file is marked or cut for any
   jump of more than 2 s between two looks counts as a seek.
 - **The highlight** (`poi_highlight`, SponsorBlock's `poi` action: one moment, the part most people
   are looking for) comes with the segments and is kept on the rendition
-  (`renditions.sponsor_highlight`, seconds). It is fitted as yt-dlp fits a point of interest, as a
-  second-long segment: a start within a second of 0 is 0, one timed on a video of another length
-  is dropped unless the lengths are within a second, and one at or past the file's end is dropped.
-  When SponsorBlock has several, the most-voted wins. Every route hands it out as
+  (`renditions.sponsor_highlight`, seconds). A start within a second of 0 is 0, and one at or
+  past the file's end is dropped. Unlike a segment (and unlike yt-dlp, which fits a point of
+  interest as a second-long segment), it is kept whatever length of video it was marked on, as the
+  SponsorBlock extension shows it: an older cut of the video can put the point a few seconds off,
+  which only lands the jump a little early or late, where a segment that far off would skip the
+  wrong part. When SponsorBlock has several, the most-voted wins. Every route hands it out as
   `sponsorHighlight`, whatever the person's setting. The player marks it on the timeline in its
   color and, while playback is short of it, offers Jump to highlight in its top corner, coming
   and going with the controls (`apps/web/src/library/HighlightJump.tsx`).
