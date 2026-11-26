@@ -2,22 +2,20 @@
 
 Uroboros is multi-user and every page needs a signed-in user. People sign in through the
 deployment's OIDC provider (Authentik, normally) or with a local account an admin made for them in
-the web app. The design is a port of Djinn's authentication
-(`/PM9A3/.repos/Djinn/docs/design/authentication.md`, `identity.md`, `api-tokens.md`,
-`oidc-claims-sync.md`), with the differences called out below.
+the web app.
 
 ## Accounts
 
 One `users` table. An account is either **local** (a username and an argon2id password hash) or
 **SSO** (an OIDC issuer and subject), never both, so "reset password" and "role from the provider's
-groups" always mean one thing. Djinn allows both on one row; Uroboros does not.
+groups" always mean one thing.
 
 Roles are `admin` and `member`. An SSO user's role is derived from the groups claim at every
 sign-in and by the claims sync: membership in any of `UROBOROS_OIDC_ADMIN_GROUPS` (default
 `authentik Admins`) makes them an admin. Admins cannot override an SSO user's role. A local user's
 role is set by an admin. The provider's groups decide only this role: sharing with a group means
 one of the groups people make in Uroboros ([sharing.md](sharing.md#groups)). Admission is the provider's job: anyone the provider lets through gets an
-account on first sign-in (just-in-time), as in Djinn, unless `UROBOROS_OIDC_AUTO_CREATE` is
+account on first sign-in (just-in-time), unless `UROBOROS_OIDC_AUTO_CREATE` is
 false: then only existing SSO accounts sign in, and a new identity is sent back with
 `auth_error=unregistered` and no account is made. Admitting someone new then means turning it on
 while they sign in once; a fresh install with it off and local login off lets nobody in.
@@ -44,8 +42,8 @@ dev:server` pass a dev-only `admin` / `admin` with that opt-out unless the shell
 **Local**: `POST /api/auth/local/login {username, password}` answers 204 with the cookies. A wrong
 password and an unknown username answer the same 401, in about the same time (an unknown name is
 verified against a dummy hash). Attempts are counted in **Postgres** (the unlogged
-`signin_failures` table, [jobs.md](jobs.md)), so the limit holds across replicas (Djinn counts per
-process), each within 15 minutes, then 429: 5 failures per username from one client IP, 100 per
+`signin_failures` table, [jobs.md](jobs.md)), so the limit holds across replicas,
+each within 15 minutes, then 429: 5 failures per username from one client IP, 100 per
 username from every address together, and 30 per client IP. Counting a username per address means
 a stranger's guesses lock only the stranger's address, never the person signing in from their own
 (Uroboros used to lock the username itself, so six requests from anyone locked an account out);
@@ -59,7 +57,7 @@ username's counts. The client IP is the last `X-Forwarded-For` entry (the one
 the proxy in front added; entries to its left came from the client) only when
 `UROBOROS_TRUST_PROXY` is true (compose sets it, since the replicas sit behind Caddy). A disabled account answers 403, only after the right password.
 
-**OIDC** uses `openid-client` (Djinn hand-rolled its client in Rust). Discovery runs in the
+**OIDC** uses `openid-client`. Discovery runs in the
 background with 1–60 s backoff; until it succeeds the sign-in button is disabled and says the
 provider is not reachable yet. Providers that do not advertise PKCE S256 are refused.
 `GET /api/auth/oidc/login` stores a pending sign-in (SHA-256 of the state and of a browser-binding
@@ -99,15 +97,15 @@ account brings none of it back (`revokeAccess` in `auth/adminUserRoutes.ts`).
 `/api/me/tokens` creates (the secret is shown once), lists and revokes personal tokens, which people
 manage in Settings › Tokens (New token opens a dialog for the options, then shows the secret): 64 hex
 characters sent as `Authorization: Bearer …`, SHA-256 at rest, at most 20 per user, names unique per
-user, and no expiry (Djinn's choices). A token acts as its owner except on
+user, and no expiry. A token acts as its owner except on
 `/api/admin/*`, `/api/me/tokens*`, `/api/me/password`, `/api/me/sessions*`, `/api/me/push*` and
 `/api/me/site-logins*`, which answer 403 "an API token cannot be used here; sign in in the
 browser": a leaked token must not mint successors, act as an admin, change the password, move
 someone's notifications or read and replace their saved site logins. Token requests need no CSRF
 header.
 
-Each token carries **scopes**, chosen when it is made (Djinn left scopes for later; Uroboros needed
-them for its MCP server, docs/mcp.md): `api` reaches the REST API, `mcp` the MCP server at
+Each token carries **scopes**, chosen when it is made (the MCP server needs them, docs/mcp.md):
+`api` reaches the REST API, `mcp` the MCP server at
 `/api/mcp`, and a token may hold both (the default is `api` alone). The guard checks them after it
 has found the token's owner (`checkTokenReach` in `auth/guard.ts`), so a refused request still
 counts as the token's use: `/api/mcp` without `mcp` answers 403 "this token cannot use MCP", any

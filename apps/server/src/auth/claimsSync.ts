@@ -15,7 +15,7 @@ export interface SyncDeps {
   logger: Logger;
 }
 
-/** First pass after start, then every tick: Djinn's cadence. */
+/** First pass after start, then every tick. */
 export const FIRST_PASS_MS = 15_000;
 export const TICK_MS = 60_000;
 

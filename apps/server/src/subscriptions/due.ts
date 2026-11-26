@@ -1,5 +1,5 @@
 /**
- * Scheduled checks (docs/automation.md), a leader duty ported from Djinn's scheduler: every few
+ * Scheduled checks (docs/automation.md), a leader duty: every few
  * seconds the leader looks for subscriptions whose next check is due, and claims each with a
  * conditional update that moves its next check on, so a pass that raced another (a new leader
  * while the old one finishes) queues nothing twice. Missed runs are skipped, never replayed.

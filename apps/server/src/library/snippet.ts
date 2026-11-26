@@ -1,6 +1,5 @@
 /**
- * Where a search matched, shown as a short line with every term marked (docs/library.md "Search"),
- * ported from Djinn's search snippets.
+ * Where a search matched, shown as a short line with every term marked (docs/library.md "Search").
  */
 
 export interface SnippetPart {

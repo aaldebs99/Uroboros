@@ -1,7 +1,7 @@
 /**
- * Leader election on a Postgres advisory lock, ported from Djinn (`djinn-store`'s `leader.rs` and
- * `djinn-server`'s `lead_and_run`). The holder takes a session-level `pg_try_advisory_lock` on a
- * connection of its own, outside every pool and outside any transaction, and pings it; the first
+ * Leader election on a Postgres advisory lock. The holder takes a session-level
+ * `pg_try_advisory_lock` on a connection of its own, outside every pool and outside any
+ * transaction, and pings it; the first
  * failed or hung ping reports the loss. The server drops the lock with the session, so a dead
  * holder frees it without anyone's help, and another replica's next attempt wins.
  */
@@ -236,7 +236,7 @@ async function runWhileLeading(
 /**
  * Leads whenever it can, until shutdown: tries the lock every `retryMs`; on a win sets the status,
  * runs `work`, and when the work returns (the lock was lost, or shutdown) releases the lock and
- * tries again. A `work` that fails stops this loop for good, as Djinn's does; the HTTP server
+ * tries again. A `work` that fails stops this loop for good; the HTTP server
  * keeps serving. Shutdown wins over every wait. Never rejects.
  */
 export async function leadAndRun(opts: LeadAndRunOptions): Promise<void> {

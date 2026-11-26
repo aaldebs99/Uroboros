@@ -62,7 +62,7 @@ still running back at once, as stalls.
 
 ## Messages between replicas
 
-`src/db/notifications.ts` carries messages over Postgres's LISTEN/NOTIFY, as Djinn's `live.rs` does.
+`src/db/notifications.ts` carries messages over Postgres's LISTEN/NOTIFY.
 
 - **Sending.** `notify(db, channel, payload)` sends a payload under 8000 bytes.
   - Inside a transaction it goes out when that transaction commits, and never after a rollback.

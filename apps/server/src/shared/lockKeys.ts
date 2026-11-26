@@ -2,8 +2,8 @@
  * Every Postgres advisory lock key Uroboros takes, in one place so no two collide.
  *
  * A role (one replica does this) has a fixed key: its 8-byte ASCII name read as a big-endian
- * int64, as Djinn names its leader locks ("DJINN_SC"). A lock per resource (one replica works on
- * this row) is 4 ASCII bytes of namespace followed by the first 4 bytes of the resource's sha256,
+ * int64 ("URO_LEAD"). A lock per resource (one replica works on this row) is 4 ASCII bytes of
+ * namespace followed by the first 4 bytes of the resource's sha256,
  * so namespaces never meet and `pg_locks` shows which kind a key is. Every such key starts with a
  * printable ASCII byte, so it is above 2^32 and never equals the migration runner's int4
  * `hashtext()` key.
@@ -49,7 +49,7 @@ export const URO_LEAD = roleKey("URO_LEAD");
 
 /**
  * One OIDC claims-sync pass at a time across replicas: refresh tokens rotate and are single-use,
- * so two replicas redeeming the same one would look like a revocation (Djinn's OIDC_SYNC_KEY).
+ * so two replicas redeeming the same one would look like a revocation.
  */
 export const URO_OSYN = roleKey("URO_OSYN");
 

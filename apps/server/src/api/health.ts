@@ -8,7 +8,7 @@ import { withDeadline } from "../shared/deadline.ts";
 
 export const CHECK_TIMEOUT_MS = 2000;
 
-/** Liveness: answers while the process does, checking nothing (Djinn's `/api/health`). */
+/** Liveness: answers while the process does, checking nothing. */
 export const healthRoute = createRoute({
   method: "get",
   path: "/api/health",

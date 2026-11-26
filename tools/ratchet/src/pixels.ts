@@ -10,7 +10,7 @@
  * except the exact tokens `0px` and `1px`, hairlines being the one place a pixel is right. A line
  * carrying `px-allow: <reason>`, with a reason longer than `MIN_REASON_CHARS`, is skipped: that is
  * for a value that truly must be device pixels. Files that legitimately need more are frozen in
- * `frozen.json` at their exact count, with a reason. Ported from tyrfing's `xtask ratchet css-px`.
+ * `frozen.json` at their exact count, with a reason.
  */
 import { frozenReport, MIN_REASON_CHARS, type Frozen, type Wording } from "./frozen.ts";
 import { type Report } from "./report.ts";

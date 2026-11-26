@@ -103,7 +103,7 @@ const DEFAULT_SUBTITLE_LANGS = "en.*";
 const DEFAULT_BIND = "127.0.0.1:18081";
 const DEFAULT_SHUTDOWN_GRACE_MS = 20_000;
 const DEFAULT_BODY_LIMIT_BYTES = 64 * 1024;
-/** Djinn's default: wait for the database as long as it takes. */
+/** Wait for the database as long as it takes. */
 const DEFAULT_DB_STARTUP_GRACE_SECS = 0;
 
 const bindSchema = z.string().transform((value, ctx) => {

@@ -1,5 +1,5 @@
 /**
- * Migrations on api start, ported from Djinn's `prepare_database` and `run_migrations`: connect
+ * Migrations on api start: connect
  * (retrying a server that is not up yet, within the startup grace), then apply every pending file
  * on a dedicated connection with no statement, lock or client-side query timeout, since a long
  * migration, or the wait for another replica's, must not be cut off. The runner's advisory lock

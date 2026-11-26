@@ -30,7 +30,7 @@ function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
 /**
  * `fetch` lets tests trust their loopback provider's self-signed certificate; production uses the
  * global fetch. ID-token signatures are always checked against the provider's JWKS (openid-client skips that
- * for token-endpoint responses unless non-repudiation checks are on; Djinn always checks).
+ * for token-endpoint responses unless non-repudiation checks are on).
  */
 export function createOidcProvider(
   settings: OidcConfig,

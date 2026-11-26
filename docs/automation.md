@@ -28,8 +28,8 @@ person's subscription is 404, admins included.
 ## Checks
 
 Each enabled subscription keeps when its next check is due (`next_check_at`). Every 5 s the leader
-queues the due ones on the `automation` queue (`src/subscriptions/due.ts`, as Djinn's scheduler
-does). It claims each with a conditional update that moves its next check on, so a pass racing
+queues the due ones on the `automation` queue (`src/subscriptions/due.ts`). It claims
+each with a conditional update that moves its next check on, so a pass racing
 another queues nothing twice, and runs missed meanwhile are skipped, never replayed. A scheduled
 check shares the `check|<id>` key with "check now", so one that falls due while another waits or
 runs is absorbed. A subscription's schedule (`CheckSchedule`, `src/subscriptions/schedule.ts`) is

@@ -8,8 +8,8 @@ import { stallBack } from "./store.ts";
 export const STALL_SWEEP_EVERY_MS = 15_000;
 
 /**
- * Puts back every job whose run's lease lapsed (its worker crashed or hung), as Djinn reaps stale
- * runs: the run's attempt is given back and a stall counted, and a job past its queue's stalls is
+ * Puts back every job whose run's lease lapsed (its worker crashed or hung): the run's attempt
+ * is given back and a stall counted, and a job past its queue's stalls is
  * dropped. A leader duty.
  */
 export async function recoverStalled(

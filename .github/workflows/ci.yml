@@ -44,8 +44,8 @@ concurrency:
 jobs:
   static:
     name: Static checks
-    # big, not small: lint:renovate installs and runs renovate, which a small runner killed
-    # (exit 137) in Djinn.
+    # big, not small: lint:renovate installs and runs renovate, which a small runner kills
+    # (exit 137).
     runs-on: big
     timeout-minutes: 105
     steps:
@@ -99,9 +99,9 @@ jobs:
       - run: mise run check:gen
       - run: mise run lint
       - run: mise run check:types
-      # Postgres and RustFS started here, as Djinn does, rather than by testcontainers: the job's
-      # Docker daemon starts empty, and pulls into it are retried here (Djinn saw them fail with
-      # containerd ingest-lock errors). The suite's global setup builds its migrated template on
+      # Postgres and RustFS started here rather than by testcontainers: the job's Docker daemon
+      # starts empty, and pulls into it are retried here (they can fail with containerd
+      # ingest-lock errors). The suite's global setup builds its migrated template on
       # this server (UROBOROS_TEST_DATABASE_URL) and every test clones it, and skips starting
       # containers of its own. The images are compose.yaml's pins (exact tag and digest), which a
       # laptop run's global setup starts too.

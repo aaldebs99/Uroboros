@@ -3,8 +3,7 @@
 Uroboros serves a [Model Context Protocol](https://modelcontextprotocol.io) server at `/api/mcp`, so
 an AI tool (Claude Code, Cursor, VS Code and other clients that send a bearer token) can search a
 person's library, read transcripts, save videos, curate playlists and manage subscriptions, acting
-as that person. Djinn has an MCP client but no server, so this design is Uroboros's own; it sits on
-the API tokens Uroboros took from Djinn (docs/auth.md).
+as that person. It sits on the API tokens (docs/auth.md).
 
 ## Turning it on
 

@@ -136,7 +136,7 @@ export function firstCheckAt(row: ScheduleRow, lastCheckedAt: Date | null, now: 
 
 /**
  * When the check after one due at `due` is: the interval's next step after now, counted from the
- * due time so the schedule keeps its rhythm, skipping steps missed meanwhile (Djinn's `next_after`);
+ * due time so the schedule keeps its rhythm, skipping steps missed meanwhile;
  * or the cron's next tick; none (null) for a manual schedule.
  */
 export function nextCheckAfter(row: ScheduleRow, due: Date, now: Date): Date | null {

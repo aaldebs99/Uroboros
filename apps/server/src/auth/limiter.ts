@@ -65,8 +65,8 @@ function distinct(keys: readonly FailureKey[]): FailureKey[] {
 }
 
 /**
- * Sign-in attempt counters in Postgres (`signin_failures`), so every replica shares them (Djinn's
- * are per process). `attempt` counts first and checks after, in one statement, so a burst of
+ * Sign-in attempt counters in Postgres (`signin_failures`), so every replica shares them.
+ * `attempt` counts first and checks after, in one statement, so a burst of
  * parallel guesses cannot all pass the check before any of them is counted; `succeeded` takes a
  * good sign-in back off the counters. A window starts at a key's first failure and lasts 15
  * minutes.

@@ -1,6 +1,6 @@
 # git-cliff configuration for the release pipeline (.github/workflows/release-pr.yml and
 # scripts/release/) and for `mise run changelog`. The section names, ordering and bump rules
-# reproduce what release-please generates. Ported from Djinn.
+# reproduce what release-please generates.
 #
 # One thing git-cliff cannot express: a release should only be cut for a releasing commit type
 # (feat, fix, perf, revert, deps, breaking), while `--bumped-version` bumps for any conventional

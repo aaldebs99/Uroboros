@@ -1,6 +1,6 @@
 /**
- * The navigation drawer's drag, with no DOM attached (ported from Djinn, which took it from
- * Quire): where the finger is, which way it has decided to go, how fast it was moving when it
+ * The navigation drawer's drag, with no DOM attached: where the finger is, which way it has
+ * decided to go, how fast it was moving when it
  * lifted, and which side the panel settles on. The panel follows the finger one to one, so this is
  * asked on every move; keeping it to pure functions over samples lets `useDrawerDrag` stay a thin
  * layer of listeners and pins the thresholds without a touch event in sight.
