@@ -120,6 +120,19 @@ describe("PlaybackStats", () => {
     });
   });
 
+  it("says nothing of a replaced session's segments while this one has none yet", () => {
+    fetched([
+      {
+        name: "http://h/api/library/e/playback/sessions/old/seg-9.m4s",
+        encodedBodySize: 7_700_000,
+        requestStart: 1000,
+        responseEnd: 1800,
+      },
+    ]);
+    renderStats(session);
+    expect(rows()).not.toHaveProperty("Network");
+  });
+
   it("leaves out what direct play has nothing to say about", () => {
     fetched([]);
     renderStats(null);

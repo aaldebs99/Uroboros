@@ -154,4 +154,21 @@ describe("the panel's lines", () => {
     expect(networkLine(seg)).toBe("last segment 7.7 MB in 0.8 s (77 Mb/s)");
     expect(lastSegment(entries.slice(1, 2))).toBeNull();
   });
+
+  it("counts only this session's segments, not a session it replaced", () => {
+    const old = {
+      name: "http://h/api/library/e/playback/sessions/old/seg-9.m4s",
+      encodedBodySize: 9,
+      requestStart: 0,
+      responseEnd: 10,
+    };
+    const now = {
+      name: `http://h${url}/seg-0.m4s`,
+      encodedBodySize: 5,
+      requestStart: 0,
+      responseEnd: 10,
+    };
+    expect(lastSegment([now, old], url)).toEqual({ bytes: 5, seconds: 0.01 });
+    expect(lastSegment([old], url)).toBeNull();
+  });
 });

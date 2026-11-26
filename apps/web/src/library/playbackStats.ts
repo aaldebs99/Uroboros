@@ -191,11 +191,17 @@ export interface FetchTiming {
   responseEnd: number;
 }
 
-/** The newest session segment the player fetched: its bytes and the seconds it took to come. */
+/**
+ * The newest session segment the player fetched: its bytes and the seconds it took to come. With
+ * `session` (its URL), that session's alone: a session it replaced fetched segments too.
+ */
 export function lastSegment(
   entries: readonly FetchTiming[],
+  session?: string,
 ): { bytes: number; seconds: number } | null {
-  const seg = entries.findLast((e) => SEGMENT.test(e.name));
+  const seg = entries.findLast(
+    (e) => SEGMENT.test(e.name) && (session === undefined || e.name.includes(`${session}/seg-`)),
+  );
   if (seg === undefined) return null;
   return { bytes: seg.encodedBodySize, seconds: (seg.responseEnd - seg.requestStart) / 1000 };
 }

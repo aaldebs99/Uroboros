@@ -35,10 +35,11 @@ type Segment = ReturnType<typeof lastSegment>;
  * An observer rather than `performance.getEntriesByType`, whose buffer stops at 250 entries: a long
  * session fetches more segments than that, and the dev server's modules alone fill it.
  */
-function watchSegments(into: { current: Segment }): () => void {
+function watchSegments(into: { current: Segment }, session: string): () => void {
   if (typeof PerformanceObserver === "undefined") return () => undefined;
   const observer = new PerformanceObserver((list) => {
-    into.current = lastSegment(list.getEntries() as unknown as FetchTiming[]) ?? into.current;
+    into.current =
+      lastSegment(list.getEntries() as unknown as FetchTiming[], session) ?? into.current;
   });
   observer.observe({ type: "resource", buffered: true });
   return () => {
@@ -87,8 +88,12 @@ export function PlaybackStats({
   const root = useRef<HTMLElement>(null);
   const segment = useRef<Segment>(null);
   const [now, setNow] = useState<Sample | null>(null);
-  // Before the first read, so segments already fetched count.
-  useEffect(() => watchSegments(segment), []);
+  // Before the first read, so segments already fetched count; only this session's.
+  const sessionUrl = session?.url ?? null;
+  useEffect(() => {
+    segment.current = null;
+    return sessionUrl === null ? undefined : watchSegments(segment, sessionUrl);
+  }, [sessionUrl]);
   useEffect(() => {
     const read = () => {
       setNow(sample(root.current?.closest<HTMLElement>(".uro-player") ?? null, segment.current));
