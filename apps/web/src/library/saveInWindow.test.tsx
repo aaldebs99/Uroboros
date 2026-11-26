@@ -51,8 +51,14 @@ const tokenIn = (url: unknown) => String(url).split("/").pop() ?? "";
 
 beforeEach(() => {
   where.iosApp = true;
+  // A hand-off leaves a 1.5 s timer (openOutside's check that Safari took over), which on real
+  // timers outlives the test and, once this file's page is gone, throws. Fake ones that keep up with
+  // the clock let clicks and waits run as usual, and are dropped after each test.
+  vi.useFakeTimers({ shouldAdvanceTime: true });
 });
 afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
