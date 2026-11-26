@@ -70,6 +70,18 @@ describe("downloads contract", () => {
     expect(() => DownloadEvent.parse({ type: "nope" })).toThrow();
   });
 
+  it("reads a SponsorBlock refetch's event from a replica that knows only the count", () => {
+    const entryId = "0190a3f2-7c1e-7000-8000-000000000009";
+    expect(DownloadEvent.parse({ type: "skips", entryId, found: 0, error: null })).toEqual({
+      type: "skips",
+      entryId,
+      found: 0,
+      error: null,
+      total: null,
+      highlight: false,
+    });
+  });
+
   it("takes a trimmed search of 1 to 200 characters with no control characters", () => {
     expect(NewSearchBody.parse({ query: "  blender open movie " }).query).toBe(
       "blender open movie",

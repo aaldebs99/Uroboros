@@ -110,6 +110,8 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
         entryId: e.entryId,
         found: 1,
         error: null,
+        total: 2,
+        highlight: true,
       });
   });
 
@@ -130,6 +132,8 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
         entryId: e.entryId,
         found: 0,
         error: null,
+        total: 0,
+        highlight: false,
       });
   });
 
@@ -152,6 +156,8 @@ describe("refetching a video's SponsorBlock segments (docs/automation.md#sponsor
         entryId: e.entryId,
         found: null,
         error: "SponsorBlock answered 503",
+        total: null,
+        highlight: false,
       });
   });
 

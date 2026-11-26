@@ -227,9 +227,13 @@ attempt). The job (`src/worker/refetchSkips.ts`) finds the video from the latest
 the file (`src/library/skipRefetch.ts`), asks SponsorBlock again (`src/sponsorblock/client.ts`, no
 yt-dlp run and no request to YouTube), and puts every category's segments and the highlight on the
 rendition, for everyone whose entry it is. A failed lookup keeps what the file had. Either way a `skips`
-event on the live stream tells the person who asked what came of it, counting the segments their
-own setting shows or skips (not the highlight): the web app fetches the entry again and toasts the
-segments found, none yet, or the failure.
+event on the live stream tells the person who asked what came of it: `found`, the segments their
+own setting shows or skips, `total`, all SponsorBlock has in any category, and whether the file has
+a `highlight`. The web app fetches the entry again and toasts the segments found (and the
+highlight), or, when it found none, whether SponsorBlock has no segments for the video at all
+(with the highlight said when there is one) or only ones in categories they neither show nor skip
+(pointing at Settings › SponsorBlock), or the failure. A replica of the release before sends only
+the count, which reads as no segments at all.
 
 To save a file to a device without the segments its person skips, the item page's Save offers a
 copy re-encoded without them, cut exactly and in sync

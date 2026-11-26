@@ -782,6 +782,16 @@
                 "nullable": true,
                 "type": "integer"
               },
+              "highlight": {
+                "default": false,
+                "type": "boolean"
+              },
+              "total": {
+                "default": null,
+                "minimum": 0,
+                "nullable": true,
+                "type": "integer"
+              },
               "type": {
                 "enum": [
                   "skips"

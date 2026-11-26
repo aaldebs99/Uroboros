@@ -11,8 +11,8 @@ import type { WorkerDeps } from "./deps.ts";
  * The probe queue's `skips` jobs (docs/automation.md#sponsorblock): asks SponsorBlock for a video's
  * segments again, every category's, and its highlight, and puts them on the file, for everyone
  * whose entry it is. A failure keeps what it had. Either way the person who asked hears how it went
- * (a `skips` event, counting the segments their own setting shows or skips, not the highlight); an
- * entry that is gone hears nothing.
+ * (a `skips` event: the segments their own setting shows or skips, of all SponsorBlock has, and
+ * whether there is a highlight); an entry that is gone hears nothing.
  */
 export function refetchSkipsProcessor(deps: WorkerDeps) {
   return async (job: { data: SkipsJob }): Promise<void> => {
@@ -30,8 +30,11 @@ export function refetchSkipsProcessor(deps: WorkerDeps) {
       .where("e.user_id", "=", userId)
       .executeTakeFirst();
     if (entry === undefined) return;
-    const outcome = async (found: number | null, error: string | null) =>
-      publishDownloadEvent(deps.db, { kind: "skips", userId, entryId, found, error });
+    const outcome = async (
+      found: number | null,
+      error: string | null,
+      also: { total: number | null; highlight: boolean } = { total: null, highlight: false },
+    ) => publishDownloadEvent(deps.db, { kind: "skips", userId, entryId, found, error, ...also });
     const source = await refetchSource(deps.db, entry.rendition_id);
     if (source === null) {
       await outcome(null, "this video has no SponsorBlock segments to fetch");
@@ -51,6 +54,10 @@ export function refetchSkipsProcessor(deps: WorkerDeps) {
       await outcome(
         sponsorSegmentsFor(segments, settings, entry.video_codec === null).length,
         null,
+        {
+          total: segments.length,
+          highlight: highlight !== null,
+        },
       );
     } catch (err) {
       deps.logger.warn({ err, entryId }, "refetching SponsorBlock segments failed");
