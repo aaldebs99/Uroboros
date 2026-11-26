@@ -5,6 +5,7 @@ import { publishDownloadEvent } from "../downloads/events.ts";
 import { getProfile } from "../downloads/profiles.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
 import { candidateKey, type Candidate } from "./listing.ts";
+import { noticeNewVideos } from "./videoNotices.ts";
 import type { SubscriptionRow } from "./store.ts";
 
 /** What a check decided for one listed video. */
@@ -80,9 +81,10 @@ async function stale(tx: Transaction<Database>, sub: SubscriptionRow): Promise<b
 /**
  * Records every decision and queues the passing videos in one transaction, then dispatches for the
  * person. Backfill (`backfill` keys) queues at priority 1, behind pasted links, and is not "new".
- * With auto-download off nothing is queued: a passing video is recorded `new`, for the person to
- * pick. Returns the videos newly queued (or left new) outside the backfill, for the notification,
- * or "stale" (nothing written) when the filters changed while the check ran.
+ * A new video queued outside the backfill is announced once it is in the library
+ * (`noticeNewVideos`). With auto-download off nothing is queued: a passing video is recorded `new`,
+ * for the person to pick. Returns those videos left new outside the backfill, for the check's own
+ * notification, or "stale" (nothing written) when the filters changed while the check ran.
  */
 export async function recordAndQueue(
   deps: WorkerDeps,
@@ -114,12 +116,10 @@ export async function recordAndQueue(
           profile,
           subscriptionId: sub.id,
           priority: old ? 1 : 0,
+          announce: !old,
         });
         row.download_id = out.downloadId;
-        if (out.downloadId !== null) {
-          ids.push(out.downloadId);
-          if (!old) announce.push(d.c);
-        }
+        if (out.downloadId !== null) ids.push(out.downloadId);
       }
       rows.push(row);
     }
@@ -134,6 +134,9 @@ export async function recordAndQueue(
       userId: sub.user_id,
     });
   }
+  // A video already stored is in the library now: its "New from" goes out here, the rest's when
+  // their fetch settles.
+  await noticeNewVideos(deps, result.ids);
   if (result.ids.length > 0) await dispatchFor(deps, sub.user_id);
   return { announce: result.announce };
 }

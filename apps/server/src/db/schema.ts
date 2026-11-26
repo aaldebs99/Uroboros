@@ -355,6 +355,8 @@ export interface DownloadsTable {
   size_held_at: Timestamp | null;
   /** Its owner said yes to a large download: no fetch for it holds again. */
   size_ok_at: Timestamp | null;
+  /** A subscription's new video whose "New from" notice is still to go out once it settles. */
+  announce: Defaulted<boolean>;
 }
 
 /** `sources`: a playlist someone queued from a preview. */

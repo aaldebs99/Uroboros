@@ -246,9 +246,18 @@ been dispatched yet, and leaves its library entries in the library as ordinary e
 
 Through `sendNotice` ([push.md](push.md)): each notice is filed in the person's notification list
 and pushed through the `notify` queue, whose consumer (`src/worker/notify.ts`) drops it while push
-is off. A check that queued at least one video outside a backfill sends "N new videos from
-<subscription>" (one: "New from <subscription>") with the first three titles, opening the
-subscription's page; a newer one replaces it (tag `subscription-<id>`). The third failed check in a
+is off. With auto-download on, each new video a check queues outside a backfill is announced
+once it is in the library: "New from <subscription>" with the video's title, opening the video
+(its own tag, `subscription-video-<downloadId>`, so each stays on a device). A video already stored
+for someone else is in the library at once, so it is announced at the check; the rest are
+announced when their fetch settles (`noticeSettled`, `src/worker/settledNotices.ts`), and one whose
+download fails for good says so, opening Downloads. The check marks such a download `announce`,
+and whoever first sees it settled clears the mark and sends the notice
+(`src/subscriptions/videoNotices.ts`), so it goes out once; a video picked by hand from the
+subscription's page is not marked. With auto-download off, a check that left at least one video
+`new` sends "N new videos from <subscription>" (one: "New from <subscription>") with the first
+three titles, opening the subscription's page, where they are picked; a newer one replaces it (tag
+`subscription-<id>`). The third failed check in a
 row sends "<subscription>: checks are failing" at high urgency, once per failing streak. Each
 subscription can turn its pushes off; its notices still reach the list.
 

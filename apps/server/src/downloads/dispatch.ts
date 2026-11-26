@@ -34,6 +34,8 @@ export interface QueueInput {
   subscriptionId?: string | null;
   /** 0 (the default) dispatches first; 1 waits behind: a subscription's backfill. */
   priority?: 0 | 1;
+  /** A subscription check's new video: "New from" goes out once it is in the library. */
+  announce?: boolean;
 }
 
 export type QueueOutcome = "done" | "queued" | "skipped";
@@ -119,6 +121,7 @@ export async function queueDownload(
       fetch_key: key,
       priority: input.priority ?? 0,
       subscription_id: input.subscriptionId ?? null,
+      announce: input.announce ?? false,
       ...(stored === undefined
         ? {}
         : { state: "done" as const, rendition_id: stored.id, finished_at: new Date() }),
