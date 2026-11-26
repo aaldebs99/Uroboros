@@ -49,10 +49,12 @@ describe("audio", () => {
     expect(audioSelectorFor("opus")).toBe("ba/b");
   });
 
-  it("knows its own selectors from a hand-written one", () => {
-    expect(isStandardAudioSelector("ba/b")).toBe(true);
-    expect(isStandardAudioSelector("ba[ext=m4a]/ba/b")).toBe(true);
-    expect(isStandardAudioSelector("ba[abr>128]/ba")).toBe(false);
+  it("knows the selector its format writes from any other, hand-written or another format's", () => {
+    expect(isStandardAudioSelector("ba/b", "mp3")).toBe(true);
+    expect(isStandardAudioSelector(" ba[ext=m4a]/ba/b ", "m4a")).toBe(true);
+    expect(isStandardAudioSelector("ba/b", "m4a")).toBe(false);
+    expect(isStandardAudioSelector("ba[ext=m4a]/ba/b", "opus")).toBe(false);
+    expect(isStandardAudioSelector("ba[abr>128]/ba", "opus")).toBe(false);
   });
 });
 
@@ -92,5 +94,8 @@ describe("describeProfile", () => {
     expect(
       describeProfile(profile({ format: "ba[abr>100]", audioOnly: true, audioFormat: "opus" })),
     ).toBe("Audio · Opus · ba[abr>100]");
+    expect(describeProfile(profile({ format: "ba/b", audioOnly: true, audioFormat: "m4a" }))).toBe(
+      "Audio · M4A (AAC) · ba/b",
+    );
   });
 });

@@ -131,6 +131,14 @@ describe("ProfileForm", () => {
     expect(option(select("Container"), "WebM")).toBeDisabled();
   });
 
+  it("keeps an audio selector that isn't the one its format would write, saving it as it was", async () => {
+    // Possible from the old free-text form: the best audio for M4A, not M4A as served.
+    const { saved } = setup(profile({ format: "ba/b", audioOnly: true, audioFormat: "m4a" }));
+    expect(screen.getByLabelText("Format selector")).toHaveValue("ba/b");
+    await userEvent.type(screen.getByLabelText("Name"), " 2");
+    expect(await saved()).toMatchObject({ format: "ba/b", audioFormat: "m4a" });
+  });
+
   it("keeps a container or audio format the lists don't name", async () => {
     const { saved } = setup(profile({ mergeFormat: "mov" }));
     expect(select("Container")).toHaveValue("mov");

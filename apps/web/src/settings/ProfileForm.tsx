@@ -72,7 +72,9 @@ function ChoiceField(p: {
 /** The selector written by hand under Advanced, if the profile's isn't one the choices write. */
 function customSelector(p: FormatProfile | undefined): string {
   if (p === undefined) return "";
-  const standard = p.audioOnly ? isStandardAudioSelector(p.format) : qualityOf(p.format) !== null;
+  const standard = p.audioOnly
+    ? isStandardAudioSelector(p.format, p.audioFormat ?? "")
+    : qualityOf(p.format) !== null;
   return standard ? "" : p.format;
 }
 

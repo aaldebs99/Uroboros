@@ -67,10 +67,13 @@ export function audioSelectorFor(format: string): string {
   return format === "m4a" ? "ba[ext=m4a]/ba/b" : "ba/b";
 }
 
-/** Whether an audio profile's selector is one the form writes, rather than one written by hand. */
-export function isStandardAudioSelector(selector: string): boolean {
-  const trimmed = selector.trim();
-  return trimmed === "ba/b" || trimmed === audioSelectorFor("m4a");
+/**
+ * Whether an audio profile's selector is the one the form writes for its audio format. Any other
+ * (written by hand, or another format's) stays as it is, so saving never changes the profile's
+ * revision behind the person's back.
+ */
+export function isStandardAudioSelector(selector: string, format: string): boolean {
+  return selector.trim() === audioSelectorFor(format);
 }
 
 /** A value's words in a list, or the value itself when the list doesn't have it. */
@@ -88,7 +91,7 @@ export function describeProfile(p: FormatProfile): string {
     ? [
         "Audio",
         labelOf(AUDIO_FORMATS, p.audioFormat ?? "?"),
-        ...(isStandardAudioSelector(p.format) ? [] : [p.format]),
+        ...(isStandardAudioSelector(p.format, p.audioFormat ?? "") ? [] : [p.format]),
       ]
     : [
         labelOf(QUALITIES, qualityOf(p.format) ?? p.format),
