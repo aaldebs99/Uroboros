@@ -23,6 +23,7 @@ export async function getItem(
   db: Kysely<Database>,
   userId: string,
   entryId: string,
+  maxShort?: number,
 ): Promise<LibraryItem> {
   const seen = await visibleEntry(db, { userId }, entryId);
   const row = (await base(db, userId, seen.user_id)
@@ -87,7 +88,7 @@ export async function getItem(
     playbackUrl: `/api/library/${entryId}/playback`,
     sharedBy: seen.own ? null : seen.owner_name,
     editable: seen.own && row.extractor === UPLOAD_EXTRACTOR && row.uploaded_by === userId,
-    ...playbackFacts(row),
+    ...playbackFacts(row, maxShort),
   };
 }
 

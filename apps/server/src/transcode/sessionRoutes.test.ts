@@ -119,6 +119,33 @@ describe("creating a playback session", () => {
     expect(await isAlive({ db: t.db }, s.id)).toBe(true);
   });
 
+  it("encodes Original at the source's size, no taller than the server's maximum", async () => {
+    const full = await session(alice, { quality: "original" });
+    expect([full.width, full.height]).toEqual([1920, 1080]);
+    const capped = asUser(
+      createApp(
+        {
+          db: t.db,
+          version: "t",
+          logger,
+          downloads: h.ctx,
+          store,
+          playbackBus: bus,
+          transcodeMaxShort: 720,
+        },
+        { webDist: null },
+      ),
+      alice,
+    );
+    const res = await capped.request(base(), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ quality: "original", start: 0, copyVideo: false, copyAudio: true }),
+    });
+    const s = PlaybackSession.parse(await res.json());
+    expect([s.width, s.height]).toEqual([1280, 720]);
+  });
+
   it("leaves the viewer's other sessions of the entry playing (another tab or device)", async () => {
     const first = await session();
     const stops: BusMessage[] = [];

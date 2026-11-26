@@ -107,7 +107,12 @@ const Chapters = z.array(Chapter);
  * go by the link owner's setting: whoever opens it, signed in or not, sees it as its owner set it;
  * its highlight goes to everyone.
  */
-export async function publicItem(db: Db, code: string, entryId: string): Promise<PublicItem> {
+export async function publicItem(
+  db: Db,
+  code: string,
+  entryId: string,
+  maxShort?: number,
+): Promise<PublicItem> {
   const e = await linkEntry(db, code, entryId);
   const base = itemBase(code, entryId);
   const [extra, subs, sponsorBlock] = await Promise.all([
@@ -162,6 +167,6 @@ export async function publicItem(db: Db, code: string, entryId: string): Promise
     videoCodec: extra.video_codec,
     audioCodec: extra.audio_codec,
     playbackUrl: `${base}/playback`,
-    ...playbackFacts(extra),
+    ...playbackFacts(extra, maxShort),
   };
 }

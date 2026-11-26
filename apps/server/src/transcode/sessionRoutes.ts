@@ -29,6 +29,8 @@ export interface SessionContext extends DownloadContext {
   bus: PlaybackBus;
   /** How long a segment request waits for the runner to make it. */
   waitMs: number;
+  /** The tallest encode, on the short side (`UROBOROS_TRANSCODE_MAX_HEIGHT`). */
+  maxShort: number;
 }
 
 /** A segment request waits this long for the runner before answering 503. */
@@ -194,7 +196,12 @@ export function registerSessionScope(
     const ctx = need(context);
     const { viewer, entryId, base } = scope.resolve(c);
     const seen = await visibleEntry(ctx.db, viewer, entryId);
-    const { plan, boundaries } = await planFor(ctx.db, seen.rendition_id, c.req.valid("json"));
+    const { plan, boundaries } = await planFor(
+      ctx.db,
+      seen.rendition_id,
+      c.req.valid("json"),
+      ctx.maxShort,
+    );
     // A viewer's other sessions (another tab or device) play on: the page stops its own when it
     // switches or leaves, and an abandoned one stops once nobody asks for it.
     await checkLinkLimit(ctx.db, viewer);

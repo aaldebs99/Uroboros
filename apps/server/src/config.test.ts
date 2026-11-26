@@ -281,7 +281,19 @@ describe("loadConfig transcoding", () => {
       concurrency: 10,
       hwaccel: "none",
       vaapiDevice: "/dev/dri/renderD128",
+      maxShort: 2160,
     });
+  });
+
+  it("encodes no taller than UROBOROS_TRANSCODE_MAX_HEIGHT, one of the quality rungs", () => {
+    for (const rung of ["2160", "1440", "1080", "720", "480", "360"]) {
+      expect(
+        loadConfig({ ...base, UROBOROS_TRANSCODE_MAX_HEIGHT: rung }).worker.transcode.maxShort,
+      ).toBe(Number(rung));
+    }
+    expect(
+      loadConfig({ ...base, UROBOROS_TRANSCODE_MAX_HEIGHT: "" }).worker.transcode.maxShort,
+    ).toBe(2160);
   });
 
   it("reads the transcode settings, 0 meaning none", () => {
@@ -308,6 +320,9 @@ describe("loadConfig transcoding", () => {
     ["UROBOROS_TRANSCODE_CONCURRENCY", "-1"],
     ["UROBOROS_TRANSCODE_HWACCEL", "qsv"],
     ["UROBOROS_TRANSCODE_VAAPI_DEVICE", "renderD128"],
+    ["UROBOROS_TRANSCODE_MAX_HEIGHT", "1000"],
+    ["UROBOROS_TRANSCODE_MAX_HEIGHT", "4320"],
+    ["UROBOROS_TRANSCODE_MAX_HEIGHT", "abc"],
     ["UROBOROS_GENERATE_PREVIEWS", "no"],
   ])("rejects %s=%j", (name, bad) => {
     expect(() => loadConfig({ ...base, [name]: bad })).toThrow(ConfigError);

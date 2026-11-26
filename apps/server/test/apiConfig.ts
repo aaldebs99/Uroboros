@@ -45,6 +45,7 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
         concurrency: 0,
         hwaccel: "none",
         vaapiDevice: "/dev/dri/renderD128",
+        maxShort: 2160,
       },
       generatePreviews: true,
       previewMethod: "download",

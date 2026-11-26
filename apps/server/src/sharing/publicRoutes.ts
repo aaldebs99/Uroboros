@@ -122,7 +122,7 @@ export function registerPublicRoutes(
   );
   app.openapi(itemRoute, async (c) => {
     const p = c.req.valid("param");
-    return c.json(await publicItem(db, p.code, p.id), 200, noStore);
+    return c.json(await publicItem(db, p.code, p.id, playback?.maxShort), 200, noStore);
   });
   app.openapi(streamRoute, async (c) => {
     const s = needStore(store);

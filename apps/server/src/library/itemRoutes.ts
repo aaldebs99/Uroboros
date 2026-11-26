@@ -193,9 +193,10 @@ export function registerItemRoutes(
   store: MediaStore | undefined,
   storage?: StorageConfig,
   probe?: DownloadQueues["probe"],
+  maxShort?: number,
 ): void {
   app.openapi(itemRoute, async (c) =>
-    c.json(await getItem(db, currentPrincipal(c).userId, c.req.valid("param").id), 200),
+    c.json(await getItem(db, currentPrincipal(c).userId, c.req.valid("param").id, maxShort), 200),
   );
 
   app.openapi(streamRoute, async (c) => {
@@ -269,7 +270,7 @@ export function registerItemRoutes(
     const { userId } = currentPrincipal(c);
     const { id: entryId } = c.req.valid("param");
     await editDetails(db, userId, entryId, c.req.valid("json"));
-    return c.json(await getItem(db, userId, entryId), 200);
+    return c.json(await getItem(db, userId, entryId, maxShort), 200);
   });
 
   app.openapi(thumbnailPutRoute, async (c) => {
@@ -279,7 +280,7 @@ export function registerItemRoutes(
     const { id: entryId } = c.req.valid("param");
     const bytes = new Uint8Array(await c.req.raw.arrayBuffer());
     await replaceThumbnail(db, s, storage, userId, entryId, bytes);
-    return c.json(await getItem(db, userId, entryId), 200);
+    return c.json(await getItem(db, userId, entryId, maxShort), 200);
   });
 
   app.openapi(tagsRoute, async (c) => {

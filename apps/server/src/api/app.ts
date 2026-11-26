@@ -15,6 +15,7 @@ import { registerProfileRoutes } from "../downloads/profileRoutes.ts";
 import { registerDownloadRoutes } from "../downloads/routes.ts";
 import { registerEventRoutes, type EventHub } from "../downloads/sse.ts";
 import { registerItemRoutes } from "../library/itemRoutes.ts";
+import { MAX_SHORT } from "../transcode/ladder.ts";
 import { registerPreferenceRoutes } from "../library/preferences.ts";
 import { registerPlaylistRoutes } from "../playlists/routes.ts";
 import { linkPreviews } from "../sharing/previews.ts";
@@ -87,6 +88,8 @@ export interface Deps {
   uploadPartBytes?: number;
   /** Whether videos get hover previews (`UROBOROS_GENERATE_PREVIEWS`); on unless said. */
   generatePreviews?: boolean;
+  /** The tallest encode, on the short side (`UROBOROS_TRANSCODE_MAX_HEIGHT`); 2160 unless said. */
+  transcodeMaxShort?: number;
 }
 
 export interface AuthDeps {
@@ -180,6 +183,7 @@ function playbackContext(deps: Deps): SessionContext | undefined {
     store: deps.store,
     bus: deps.playbackBus,
     waitMs: deps.playbackWaitMs ?? SEGMENT_WAIT_MS,
+    maxShort: deps.transcodeMaxShort ?? MAX_SHORT,
   };
 }
 
@@ -290,7 +294,14 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerDownloadRoutes(app, deps.downloads);
   registerEventRoutes(app, deps.downloads, deps.downloadEvents);
   registerLibraryRoutes(app, deps.db, deps.store);
-  registerItemRoutes(app, deps.db, deps.store, deps.storage, deps.downloads?.queues.probe);
+  registerItemRoutes(
+    app,
+    deps.db,
+    deps.store,
+    deps.storage,
+    deps.downloads?.queues.probe,
+    deps.transcodeMaxShort,
+  );
   registerPlaylistRoutes(app, deps.db);
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);

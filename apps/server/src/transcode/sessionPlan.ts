@@ -1,5 +1,5 @@
 import { COPYABLE_AUDIO, COPYABLE_VIDEO } from "./codecs.ts";
-import { h264Level, outputSize, rungFor } from "./ladder.ts";
+import { h264Level, MAX_SHORT, outputSize, rungFor } from "./ladder.ts";
 
 /**
  * What a playback session will serve (docs/transcoding.md), decided from the stored rendition's
@@ -26,6 +26,8 @@ export interface RenditionFacts {
   videoCodecs: string | null;
   audioCodec: string | null;
   audioCodecs: string | null;
+  /** The file's overall bits per second (its size over its length); null when unknown. */
+  bitrate: number | null;
 }
 
 export interface PlanRequest {
@@ -51,10 +53,29 @@ export interface SessionPlan {
   reason: PlaybackReason;
 }
 
-/** "original" encodes at the source's size, up to this many lines on the short side. */
-const ORIGINAL_MAX_SHORT = 1080;
 const AUDIO_BITRATE = 160_000;
 const AAC = "mp4a.40.2";
+
+/**
+ * How many times the source codec's bits H.264 needs for the same picture: AV1 packs about twice as
+ * much into a bit, VP9 and HEVC about one and a half; an H.264 source gets a margin, since encoding
+ * it again loses some. Anything else, one and a half.
+ */
+const H264_NEED: Partial<Record<string, number>> = { av1: 2, vp9: 1.5, hevc: 1.5, h264: 1.25 };
+const OTHER_NEED = 1.5;
+/** No encode goes under this, whatever a broken size says. */
+const MIN_BITRATE = 500_000;
+
+/**
+ * The encode's bitrate: the source's video bitrate (its overall rate less the audio's) scaled by
+ * what H.264 needs more, never above the rung's cap nor under the floor; the cap when unknown.
+ */
+function encodeBitrate(f: RenditionFacts, cap: number): number {
+  if (f.bitrate === null || f.videoCodec === null) return cap;
+  const video = f.bitrate - (f.audioCodec === null ? 0 : AUDIO_BITRATE);
+  const need = H264_NEED[f.videoCodec] ?? OTHER_NEED;
+  return Math.min(cap, Math.max(MIN_BITRATE, Math.round(video * need)));
+}
 
 interface AudioPart {
   audio: SessionPlan["audio"];
@@ -77,12 +98,13 @@ function encodePlan(
   r: PlanRequest,
   a: AudioPart,
   copyable: boolean,
+  maxShort: number,
 ): SessionPlan {
-  const short =
-    r.quality === "original" ? Math.min(f.width, f.height, ORIGINAL_MAX_SHORT) : Number(r.quality);
-  const size = outputSize(f.width, f.height, short);
+  // Original keeps the source's size; either way no taller than the server's maximum.
+  const asked = r.quality === "original" ? Math.min(f.width, f.height) : Number(r.quality);
+  const size = outputSize(f.width, f.height, Math.min(asked, maxShort));
   const level = h264Level(size.width, size.height);
-  const bitrate = rungFor(Math.min(size.width, size.height)).bitrate;
+  const bitrate = encodeBitrate(f, rungFor(Math.min(size.width, size.height)).bitrate);
   let reason: PlaybackReason = "picked";
   if (r.quality === "original") reason = copyable ? "video_unsupported" : "video_not_copyable";
   return {
@@ -99,7 +121,16 @@ function encodePlan(
   };
 }
 
-export function planSession(f: RenditionFacts, r: PlanRequest): SessionPlan {
+/**
+ * The plan for a request. `maxShort` is the tallest encode the server makes, on the short side
+ * (`UROBOROS_TRANSCODE_MAX_HEIGHT`): Original encodes at the source's size up to it, and a rung
+ * above it is brought down to it. A remux copies the source at its own size.
+ */
+export function planSession(
+  f: RenditionFacts,
+  r: PlanRequest,
+  maxShort: number = MAX_SHORT,
+): SessionPlan {
   const a = audioPart(f, r);
   const { width, height, videoCodec } = f;
   if (videoCodec === null || width === null || height === null) {
@@ -119,7 +150,7 @@ export function planSession(f: RenditionFacts, r: PlanRequest): SessionPlan {
   }
   const copyable = COPYABLE_VIDEO.has(videoCodec) && f.videoCodecs !== null;
   if (r.quality !== "original" || !r.copyVideo || !copyable) {
-    return encodePlan({ ...f, width, height }, r, a, copyable);
+    return encodePlan({ ...f, width, height }, r, a, copyable, maxShort);
   }
   return {
     mode: "remux",
