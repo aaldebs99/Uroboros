@@ -47,9 +47,13 @@ export function SidebarNav({
   const info = useInfo();
   return (
     <div className="flex h-full flex-col">
+      {/* Its rows never shrink to fit (flex items do by default): a short screen scrolls it. */}
       <nav
         aria-label="Primary"
-        className={cn("flex flex-1 flex-col overflow-y-auto pt-2", mini ? "px-1" : "px-3")}
+        className={cn(
+          "flex flex-1 flex-col overflow-y-auto pt-2 *:shrink-0",
+          mini ? "px-1" : "px-3",
+        )}
       >
         {NAV_ITEMS.map((item) => {
           const section = SECTIONS[item.to];
