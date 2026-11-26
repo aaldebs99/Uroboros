@@ -8,6 +8,7 @@ import { pino } from "pino";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { asUser, signedIn, type SignedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
+import { insertSubscription } from "../../test/listings.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 import { DEFAULT_LAYOUT } from "../storage/config.ts";
@@ -236,6 +237,28 @@ describe("library item", () => {
     await put(alice, `/api/library/${entryId}/kept`, { kept: false });
     expect((await item()).kept).toBe(false);
     expect((await put(bob, `/api/library/${entryId}/kept`, { kept: true })).status).toBe(404);
+  });
+
+  it("says whether the subscription that brought it has retention, which Keep only matters for", async () => {
+    const id = await insertSubscription(testDb.db, {
+      userId: alice.userId,
+      profileId: (await seededDefault(testDb.db)).id,
+      feeds: [{ name: "Videos", url: "https://www.youtube.com/@BlenderOfficial/videos" }],
+      sourceId: "UCitem",
+    });
+    const entry = testDb.db.updateTable("library_entries").where("id", "=", entryId);
+    const rule = (set: { keep_last: number | null; delete_watched_after_days: number | null }) =>
+      testDb.db.updateTable("subscriptions").set(set).where("id", "=", id).execute();
+    await entry.set({ subscription_id: id }).execute();
+    try {
+      expect((await item()).subscription).toEqual({ id, title: "Blender", hasRetention: false });
+      await rule({ keep_last: 5, delete_watched_after_days: null });
+      expect((await item()).subscription?.hasRetention).toBe(true);
+      await rule({ keep_last: null, delete_watched_after_days: 30 });
+      expect((await item()).subscription?.hasRetention).toBe(true);
+    } finally {
+      await entry.set({ subscription_id: null }).execute();
+    }
   });
 
   it("replaces and normalizes tags", async () => {

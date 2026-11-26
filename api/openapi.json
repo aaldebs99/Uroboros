@@ -1464,6 +1464,10 @@
           "subscription": {
             "nullable": true,
             "properties": {
+              "hasRetention": {
+                "default": true,
+                "type": "boolean"
+              },
               "id": {
                 "format": "uuid",
                 "type": "string"

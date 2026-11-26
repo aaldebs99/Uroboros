@@ -356,6 +356,9 @@ export const ENTRY_COLUMNS = [
   sql<string | null>`(SELECT s.title FROM subscriptions s WHERE s.id = e.subscription_id)`.as(
     "subscription_title",
   ),
+  // Whether retention may remove it, so Keep matters (null without a subscription).
+  sql<boolean | null>`(SELECT s.keep_last IS NOT NULL OR s.delete_watched_after_days IS NOT NULL
+    FROM subscriptions s WHERE s.id = e.subscription_id)`.as("subscription_has_retention"),
   sql<
     string[]
   >`coalesce((SELECT array_agg(t.tag ORDER BY t.tag) FROM entry_tags t WHERE t.entry_id = e.id), '{}')`.as(
@@ -388,6 +391,7 @@ export interface EntryRow {
   kept: boolean;
   subscription_id: string | null;
   subscription_title: string | null;
+  subscription_has_retention: boolean | null;
   tags: string[];
   /** With a search: every tier its media matched in (`hitsTable`). */
   tiers?: number[];
@@ -433,7 +437,11 @@ export function toEntry(r: EntryRow, own = true): LibraryEntry {
     subscription:
       !own || r.subscription_id === null
         ? null
-        : { id: r.subscription_id, title: r.subscription_title },
+        : {
+            id: r.subscription_id,
+            title: r.subscription_title,
+            hasRetention: r.subscription_has_retention ?? false,
+          },
     channelKey: channelKey(r.extractor, r.channel_id, r.channel ?? r.uploader),
   };
 }
