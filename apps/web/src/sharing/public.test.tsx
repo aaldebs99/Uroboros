@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createAppRouter } from "../router";
 import { fakeApi } from "../test/fakeApi";
@@ -76,6 +76,11 @@ const signedOut = {
 afterEach(() => {
   playable.original = true;
   vi.unstubAllGlobals();
+});
+
+// The player is a lazy chunk: loaded here, a test's wait covers rendering it, not loading it.
+beforeAll(async () => {
+  await import("../library/Player");
 });
 
 describe("a public link", () => {

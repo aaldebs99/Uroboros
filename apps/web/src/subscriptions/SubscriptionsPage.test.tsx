@@ -230,10 +230,11 @@ describe("SubscriptionPage", () => {
     });
     await renderInRouter(<SubscriptionPage subscriptionId={SUB_ID} />);
     expect(await screen.findByText(/Nothing yet/)).toBeInTheDocument();
+    // The page looks again 2.5 s after the check (RECHECK_AFTER_MS), so longer than the usual wait.
     expect(
-      await screen.findByText("Blender 5.3 overview", undefined, { timeout: 6000 }),
+      await screen.findByText("Blender 5.3 overview", undefined, { timeout: 7500 }),
     ).toBeInTheDocument();
-  }, 10_000);
+  });
 
   it("checks now from its page and pauses it", async () => {
     const calls = fakeApi({

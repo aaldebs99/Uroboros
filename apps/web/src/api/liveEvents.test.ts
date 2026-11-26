@@ -1,3 +1,4 @@
+import { waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { followLiveEvents, openStream, type LiveMessage } from "./liveEvents";
@@ -116,7 +117,7 @@ describe("followLiveEvents", () => {
   it("streams in one tab and passes every message to the others", async () => {
     const a = tab();
     const b = tab();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(FakeEventSource.all).toHaveLength(1);
     });
     const source = FakeEventSource.all[0];
@@ -134,14 +135,14 @@ describe("followLiveEvents", () => {
     const a = tab();
     const b = tab();
     const c = tab();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(FakeEventSource.all).toHaveLength(1);
     });
     now.mockReturnValue(60_000);
     b.heard.length = 0;
     c.heard.length = 0;
     a.stop();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(FakeEventSource.all).toHaveLength(2);
     });
     expect(FakeEventSource.all[0]?.closed).toBe(true);
@@ -153,7 +154,7 @@ describe("followLiveEvents", () => {
 
   it("reports a drop after the stream was open as a gap, and a failure to connect as nothing", async () => {
     const a = tab();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(FakeEventSource.all).toHaveLength(1);
     });
     const source = FakeEventSource.all[0];

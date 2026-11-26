@@ -1,5 +1,5 @@
 import { render, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { itemFixture } from "@/test/libraryItem";
 
@@ -18,6 +18,11 @@ vi.mock("./playable", () => ({
 }));
 
 const noop = () => undefined;
+
+// The player is a lazy chunk: loaded here, a test's wait covers rendering it, not loading it.
+beforeAll(async () => {
+  await import("./Player");
+});
 
 describe("the watch player on phones", () => {
   it("crosses the page's gutter to the screen's edges, with corners only from md up", async () => {

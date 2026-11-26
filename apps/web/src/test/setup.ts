@@ -1,9 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
 import { clearToastLog } from "@/lib/toastLog";
+
+// How long findBy* and waitFor retry before failing: testing-library's 1 s, which a CI runner
+// shared with other jobs missed, is too tight; 5 s as the server's tests wait (test/eventually.ts).
+configure({ asyncUtilTimeout: 5000 });
 
 afterEach(() => {
   cleanup();

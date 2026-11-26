@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
 import { renderWithQuery } from "@/test/render";
@@ -75,6 +75,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// The player is a lazy chunk: loaded here, a test's wait covers rendering it, not loading it.
+beforeAll(async () => {
+  await import("./Player");
+});
+
 describe("SessionPlayer", () => {
   it("asks for the session from the viewer's position, and plays its playlist once it runs", async () => {
     let polls = 0;
@@ -85,7 +90,7 @@ describe("SessionPlayer", () => {
     });
     renderWithQuery(<SessionPlayer {...props} />);
     expect(await screen.findByText("Waiting for a free transcoder…")).toBeInTheDocument();
-    const player = await screen.findByTestId("player", undefined, { timeout: 4000 });
+    const player = await screen.findByTestId("player");
     expect(player).toHaveAttribute("data-src", `${url}/master.m3u8`);
     expect(player).toHaveAttribute("data-hls", "mse");
     expect(player).toHaveAttribute("data-start", "42");
@@ -196,12 +201,9 @@ describe("SessionPlayer", () => {
     await screen.findByTestId("player");
     lastOnTime?.(44, 120);
     played();
-    await waitFor(
-      () => {
-        expect(polls).toBeGreaterThanOrEqual(2);
-      },
-      { timeout: 4000 },
-    );
+    await waitFor(() => {
+      expect(polls).toBeGreaterThanOrEqual(2);
+    });
     expect(screen.getByTestId("player")).toBeInTheDocument();
     expect(mounts.count).toBe(1);
   });
@@ -214,7 +216,7 @@ describe("SessionPlayer", () => {
       [`GET ${url}`]: () => Response.json(posts === 1 ? failed : session()),
     });
     renderWithQuery(<SessionPlayer {...props} />);
-    expect(await screen.findByTestId("player", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByTestId("player")).toBeInTheDocument();
     expect(calls.filter((c) => c.method === "POST")).toHaveLength(2);
   });
 
