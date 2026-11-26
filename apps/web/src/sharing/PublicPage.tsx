@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDuration } from "@/downloads/format";
 import { cn } from "@/lib/utils";
 
-import { WatchPlayer } from "../library/WatchPlayer";
+import { PlayerPlaceholder, WatchPlayer } from "../library/WatchPlayer";
 
 const nothing = () => undefined;
 
@@ -122,8 +122,7 @@ export function PublicPage({ code }: { code: string }) {
   const item = usePublicItem(code, currentId);
   const failed = share.isError ? share.error : item.isError ? item.error : null;
   if (failed !== null) return <LinkFailed error={failed} />;
-  if (share.data === undefined)
-    return <div aria-busy="true" className="aspect-video w-full rounded-[0.75rem] bg-raised" />;
+  if (share.data === undefined) return <PlayerPlaceholder />;
   if (items.length === 0) {
     return (
       <EmptyState icon={ListVideo} title="Nothing in this playlist yet">
@@ -144,7 +143,7 @@ export function PublicPage({ code }: { code: string }) {
       >
         <article className="grid min-w-0 content-start gap-4">
           {item.data === undefined ? (
-            <div aria-busy="true" className="aspect-video w-full rounded-[0.75rem] bg-raised" />
+            <PlayerPlaceholder />
           ) : (
             <>
               <WatchPlayer

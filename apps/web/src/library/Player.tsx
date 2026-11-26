@@ -199,7 +199,7 @@ export function Player(p: PlayerProps) {
           navigation drawer (components/useDrawerDrag.ts). */}
         <NeutralVideoSkin
           style={style}
-          className="uro-player overflow-hidden rounded-[0.75rem] bg-black"
+          className="uro-player overflow-hidden bg-black md:rounded-[0.75rem]"
           data-own-swipe=""
         >
           {p.audio === undefined ? null : <AudioArtwork src={p.audio.thumbnailUrl} />}

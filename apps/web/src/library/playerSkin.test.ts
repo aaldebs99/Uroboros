@@ -58,6 +58,17 @@ describe("player.css against the Neutral video skin", () => {
     );
   });
 
+  // On phones the player runs edge to edge (WatchPlayer), so its corners are square there: the
+  // skin rounds itself through this variable, which a rename would quietly bring back.
+  it("squares the player's corners below md, through the variable the skin rounds it with", () => {
+    expect(skinCss).toMatch(
+      /\.media-container[^{]*\{[^}]*border-radius: var\(--media-video-border-radius\)/,
+    );
+    expect(ourCss).toMatch(
+      /@media \(width < 48rem\) \{\s*\.uro-player \{\s*--media-video-border-radius: 0;\s*\}\s*\}/,
+    );
+  });
+
   // QualityMenu dresses itself in the skin's menu classes, so it looks like the skin's own.
   it("dresses the Quality menu only in class names the shipped skin still has", () => {
     const used = [...new Set(qualityMenu.match(/media-[a-z-]+/g) ?? [])];

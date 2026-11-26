@@ -36,6 +36,16 @@
 }
 
 /*
+ * Phones: the player runs edge to edge (WatchPlayer.tsx), so its corners are square there. The
+ * skin rounds itself through this variable; from md up it keeps its 12 pixels.
+ */
+@media (width < 48rem) {
+  .uro-player {
+    --media-video-border-radius: 0;
+  }
+}
+
+/*
  * The player takes the focus for its keyboard shortcuts (F, Space, the arrows) and after a click;
  * the skin rings it then, which stays around the picture, fullscreen and back. No ring on the
  * player itself: its controls keep theirs.

@@ -19,7 +19,7 @@ import { nextInQueue, UpNext, useQueue, type PlayQueue } from "./UpNext";
 import { useProgressReporter } from "./useProgressReporter";
 import { useQuietSkipsRefresh } from "./useQuietSkipsRefresh";
 import { WatchBack } from "./WatchBack";
-import { WatchPlayer } from "./WatchPlayer";
+import { PlayerPlaceholder, WatchPlayer } from "./WatchPlayer";
 
 function Description({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -160,7 +160,7 @@ export function ItemPage({
   if (item.isPending)
     return (
       <Frame>
-        <div aria-busy="true" className="aspect-video w-full rounded-[0.75rem] bg-raised" />
+        <PlayerPlaceholder />
       </Frame>
     );
   const it = item.data;

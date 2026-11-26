@@ -48,6 +48,9 @@ A single-column feed:
   ⋮.
 - Items are 14px apart.
 
+The watch page's player (and a shared link's) runs edge to edge the same way, across the page's
+1rem gutter with no corners (`library/WatchPlayer.tsx`); its details keep the gutter.
+
 ## Menus: the ⋮ bottom sheet
 
 A sheet of action rows that slides up from the bottom:
