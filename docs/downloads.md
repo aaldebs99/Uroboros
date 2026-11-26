@@ -288,6 +288,26 @@ Pasted links and new uploads dispatch before a subscription's backfill (`downloa
 every YouTube download keeps its SponsorBlock segments for each person's player to show or skip by
 their own setting ([automation.md](automation.md#sponsorblock)).
 
+### Saving a file
+
+Save is a plain download link to the file (`GET /api/library/{id}/file`, a copy's `GET
+/api/exports/{id}/file`, a public link's file) everywhere but the installed iPhone or iPad app.
+There, following a link to a file hands the app's only page to iOS's file view ("Open in…"), and
+a home-screen app has no browser chrome to leave it by: the person must force-quit the app (WebKit
+bug 290847; the `download` attribute doesn't stop it for a video). So in that app
+(`savesInWindow`, `apps/web/src/library/saveInWindow.ts`) Save opens a window of its own, inside
+the tap, and sends it to a **save link**, where iOS's own downloader saves the file to Files. The
+app's page never navigates.
+
+The window may not share the app's cookies (iOS gives a home-screen app its own storage), so a save
+link needs none. `POST /api/library/{id}/save-link` (an entry the caller sees, own or shared) and
+`POST /api/exports/{id}/save-link` (a finished copy of theirs) answer 201 with `{ url, expiresAt }`,
+a URL under `/api/public/saves/{token}` that works for an hour, for any number of requests (the
+downloader resumes with ranges). Only the token's SHA-256 is stored (`save_links`); every use
+checks access again as its person, so a share revoked since stops it, and serves exactly what the
+file route would (ranges, or the presigned redirect). The leader's sweeper deletes expired links. A
+public link's file needs no session, so there it opens in the new window as it is.
+
 ## Scratch space
 
 yt-dlp and ffmpeg need a real folder for a download's parts, their merge and any post-processing:

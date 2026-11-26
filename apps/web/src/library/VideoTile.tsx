@@ -2,6 +2,7 @@ import type { LibraryEntry, LibraryPageEntry } from "@uroboros/contract";
 import { Link } from "@tanstack/react-router";
 import { Download, Eye, EyeOff, Film, ListPlus, MoreVertical, Trash2 } from "lucide-react";
 
+import { entrySaveLink } from "@/api/library";
 import { Avatar } from "@/components/Avatar";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { ResponsiveMenu } from "@/components/ui/responsive-menu";
 import { formatBytes, formatDuration } from "@/downloads/format";
 
 import { MatchLine } from "./MatchLine";
+import { saveAction } from "./saveInWindow";
 import { PreviewSurface } from "./ThumbnailPreview";
 
 const added = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -138,7 +140,9 @@ export function EntryTile({
         <ResponsiveMenu
           title={`Actions for ${entry.title}`}
           actions={[
-            { label: "Save", icon: Download, href: `/api/library/${entry.id}/file` },
+            saveAction("Save", Download, `/api/library/${entry.id}/file`, () =>
+              entrySaveLink(entry.id),
+            ),
             { label: "Save to playlist", icon: ListPlus, onSelect: onSaveToPlaylist },
             {
               label: watched ? "Mark unwatched" : "Mark watched",

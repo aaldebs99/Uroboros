@@ -5,11 +5,11 @@ import { useState } from "react";
 import { ApiError, errorText } from "@/api/client";
 import { usePublicItem, usePublicShare } from "@/api/public";
 import { LinkifiedText } from "@/components/LinkifiedText";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDuration } from "@/downloads/format";
 import { cn } from "@/lib/utils";
 
+import { SaveButton } from "../library/SaveButton";
 import { PlayerPlaceholder, WatchPlayer } from "../library/WatchPlayer";
 
 const nothing = () => undefined;
@@ -29,11 +29,9 @@ function Details({ item }: { item: PublicItem }) {
             .join(" · ")}
         </p>
         {item.fileUrl === null ? null : (
-          <Button variant="secondary" asChild>
-            <a href={item.fileUrl} download>
-              <Download aria-hidden /> Download
-            </a>
-          </Button>
+          <SaveButton variant="secondary" href={item.fileUrl}>
+            <Download aria-hidden /> Download
+          </SaveButton>
         )}
       </div>
       {item.description === null || item.description.trim() === "" ? null : (
