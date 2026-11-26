@@ -19,7 +19,7 @@
     "cron-parser": "5.10.6",
     "hono": "4.13.20",
     "kysely": "0.29.9",
-    "openid-client": "6.9.0",
+    "openid-client": "6.9.1",
     "pg": "8.23.1",
     "pino": "10.4.0",
     "swagger-ui-dist": "5.35.0",
