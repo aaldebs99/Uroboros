@@ -61,6 +61,12 @@ describe("POST /api/downloads", () => {
     );
   });
 
+  it("takes a link without a scheme as an https one", async () => {
+    const res = await post(h.app(alice), "/api/downloads", { url: " twitch.tv/channel " });
+    expect(res.status).toBe(202);
+    expect(DownloadRequest.parse(await res.json()).url).toBe("https://twitch.tv/channel");
+  });
+
   it("creates a probing request on the default profile and a probe job", async () => {
     const res = await post(h.app(alice), "/api/downloads", {
       url: "https://www.youtube.com/watch?v=a",

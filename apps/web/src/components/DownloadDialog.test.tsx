@@ -159,11 +159,22 @@ describe("DownloadDialog", () => {
     });
   });
 
+  it("adds https:// to a link typed without it", async () => {
+    const { calls } = setup({
+      "POST /api/downloads": () => Response.json(request({}), { status: 202 }),
+    });
+    await userEvent.type(await openLine(), "twitch.tv/channel{Enter}");
+
+    await waitFor(() => {
+      expect(posts(calls).map((call) => call.body)).toEqual([{ url: "https://twitch.tv/channel" }]);
+    });
+  });
+
   it("refuses anything but an http(s) link without calling the server", async () => {
     const { calls } = setup();
     await userEvent.type(await openLine(), "file:///etc/passwd{Enter}");
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Paste an http or https link.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Paste a web link.");
     expect(screen.getByRole("textbox", { name: "Link" })).toHaveAttribute("aria-invalid", "true");
     expect(posts(calls)).toEqual([]);
   });

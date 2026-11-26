@@ -112,6 +112,13 @@ describe("the MCP download tools", () => {
     expect(req).toMatchObject({ state: "probing", profileId: chosen?.id });
   });
 
+  it("take a link without a scheme as an https one", async () => {
+    const req = DownloadRequest.parse(
+      await ok(secret, "download_link", { url: "youtube.com/watch?v=dQw4w9WgXcQ" }),
+    );
+    expect(req).toMatchObject({ state: "probing", url: "https://youtube.com/watch?v=dQw4w9WgXcQ" });
+  });
+
   it("refuse an empty list of ids as a mistake in the call, not a failure of the server", async () => {
     const r = await callTool(app, secret, "list_downloads", { ids: [] });
     expect(r.isError).toBe(true);

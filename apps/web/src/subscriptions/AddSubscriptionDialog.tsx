@@ -67,7 +67,7 @@ function SubscribeLinkForm({ onDone }: { onDone: () => void }) {
     event.preventDefault();
     const body = NewDownloadBody.safeParse({ url: url.trim(), intent: "subscribe" });
     if (!body.success) {
-      setError("Paste an http or https link.");
+      setError("Paste a web link.");
       return;
     }
     setError(null);

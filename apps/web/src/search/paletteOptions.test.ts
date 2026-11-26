@@ -12,6 +12,17 @@ describe("asLink", () => {
     expect(asLink("ftp://example.com/a")).toBeNull();
     expect(asLink("note: https://example.com")).toBeNull();
   });
+
+  it("takes a link typed without https:// as an https one, but not a word with a dot", () => {
+    expect(asLink("twitch.tv/channel")).toBe("https://twitch.tv/channel");
+    expect(asLink(" youtube.com/watch?v=a ")).toBe("https://youtube.com/watch?v=a");
+    expect(asLink("www.twitch.tv")).toBe("https://www.twitch.tv");
+    expect(asLink("nas.local:8096/videos")).toBe("https://nas.local:8096/videos");
+    expect(asLink("node.js")).toBeNull();
+    expect(asLink("youtube.com")).toBeNull();
+    expect(asLink("e.g./x")).toBeNull();
+    expect(asLink("lofi beats")).toBeNull();
+  });
 });
 
 describe("paletteSections", () => {

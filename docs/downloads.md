@@ -9,7 +9,10 @@ request handler.
 1. `POST /api/downloads {url, profileId?, intent?}` records a `download_requests` row (`probing`)
    and adds `probe|<requestId>` to the `probe` queue. Without `profileId` the default format
    profile is used. `intent: "subscribe"` (Subscriptions › Add subscription) makes a single video
-   fail as `not_a_feed` rather than download: the link was for a subscription.
+   fail as `not_a_feed` rather than download: the link was for a subscription. A link typed
+   without a scheme is read as https (`twitch.tv/channel` is `https://twitch.tv/channel`,
+   `WebLink` in the contract), and a scheme other than http or https is refused; yt-dlp follows the
+   site's redirects from there, and a video keeps the address it ended up at.
 2. A replica's probe consumer probes the link with `--flat-playlist` (`src/worker/probe.ts`):
    - a **video** upserts its `media` row, creates one `downloads` row and dispatches it; the
      request becomes `queued`. A media row is keyed by extractor and video id, and a stored

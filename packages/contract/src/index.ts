@@ -1,4 +1,5 @@
 export { ApiErrorBody, ApiErrorCode, apiErrorStatus } from "./errors.ts";
+export { WebLink, withScheme } from "./links.ts";
 export {
   NotificationPrefs,
   PUSH_LABEL_CHARS,

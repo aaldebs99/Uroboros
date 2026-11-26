@@ -11,6 +11,7 @@ import {
   Tag,
 } from "./library.ts";
 import { Download, FormatProfile, NewSearchBody } from "./downloads.ts";
+import { WebLink } from "./links.ts";
 import { PLAYLIST_MAX_ITEMS, PlaylistDetail, PlaylistSummary } from "./playlists.ts";
 import { Subscription, SubscriptionPatch } from "./subscriptions.ts";
 
@@ -111,10 +112,9 @@ export const McpPlaylistPage = z.object({ playlist: PlaylistDetail, page: Librar
 export const MAX_PROBE_WAIT_SECONDS = 15;
 
 export const McpDownloadLinkInput = z.object({
-  url: z
-    .url({ protocol: /^https?$/ })
-    .max(2048)
-    .describe("A video, playlist or channel link yt-dlp can read"),
+  url: WebLink.describe(
+    "A video, playlist or channel link yt-dlp can read; https:// is assumed when it has no scheme",
+  ),
   profileId: z.uuid().optional().describe("A format profile (list_profiles); the default if none"),
 });
 

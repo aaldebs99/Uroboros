@@ -1,4 +1,4 @@
-import type { DownloadRequest } from "@uroboros/contract";
+import { type DownloadRequest, NewDownloadBody } from "@uroboros/contract";
 import { Download, Loader } from "lucide-react";
 import { useState, type SubmitEvent } from "react";
 
@@ -16,13 +16,18 @@ export function PasteForm({ onSubmitted }: { onSubmitted: (req: DownloadRequest)
   const [problem, setProblem] = useState<string | null>(null);
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const body = NewDownloadBody.safeParse({
+      url,
+      ...(profileId === "" ? {} : { profileId }),
+    });
+    if (!body.success) {
+      setProblem("Paste a web link.");
+      return;
+    }
     setBusy(true);
     setProblem(null);
     try {
-      const req = await submitDownload({
-        url: url.trim(),
-        ...(profileId === "" ? {} : { profileId }),
-      });
+      const req = await submitDownload(body.data);
       setUrl("");
       onSubmitted(req);
     } catch (err) {
@@ -35,17 +40,21 @@ export function PasteForm({ onSubmitted }: { onSubmitted: (req: DownloadRequest)
     <form
       className="grid gap-3 md:grid-cols-[1fr_16rem_auto] md:items-start"
       onSubmit={(e) => void submit(e)}
+      noValidate
     >
       <Field
         label="Link"
         id="download-url"
         type="url"
+        inputMode="url"
+        autoComplete="off"
         required
         placeholder="https://www.youtube.com/watch?v=…"
         value={url}
         error={problem}
         onChange={(e) => {
           setUrl(e.target.value);
+          setProblem(null);
         }}
       />
       <SelectField

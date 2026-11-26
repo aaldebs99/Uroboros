@@ -212,10 +212,18 @@ describe("format profile words (they reach yt-dlp's arguments)", () => {
 });
 
 describe("other bodies", () => {
-  it("NewDownloadBody takes http(s) links only", () => {
+  it("NewDownloadBody takes http(s) links only, https when a link has no scheme", () => {
     expect(ok(NewDownloadBody, { url: "https://www.youtube.com/watch?v=x" })).toBe(true);
     expect(ok(NewDownloadBody, { url: "http://example.com/v.mp4" })).toBe(true);
-    for (const url of ["file:///etc/passwd", "ftp://example.com/v", "javascript:alert(1)", "x"]) {
+    expect(NewDownloadBody.parse({ url: "twitch.tv/channel" }).url).toBe(
+      "https://twitch.tv/channel",
+    );
+    for (const url of [
+      "file:///etc/passwd",
+      "ftp://example.com/v",
+      "javascript:alert(1)",
+      "not a link",
+    ]) {
       expect([url, ok(NewDownloadBody, { url })]).toEqual([url, false]);
     }
   });

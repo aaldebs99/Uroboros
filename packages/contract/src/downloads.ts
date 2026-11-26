@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { WebLink } from "./links.ts";
 
 /**
  * Why a download or probe failed: every yt-dlp wrapper error kind, plus `storage` for a file that
@@ -125,7 +126,8 @@ export type DefaultProfileBody = z.infer<typeof DefaultProfileBody>;
 
 export const NewDownloadBody = z
   .object({
-    url: z.url({ protocol: /^https?$/ }).max(2048),
+    /** `https://` is assumed when the link has no scheme. */
+    url: WebLink,
     /** Omitted: the default profile. */
     profileId: Id.optional(),
     /**
