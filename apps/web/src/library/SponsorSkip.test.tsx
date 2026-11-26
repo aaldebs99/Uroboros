@@ -150,7 +150,7 @@ describe("SponsorSkip", () => {
     expect(video.currentTime).toBe(69);
   });
 
-  it("goes back and plays a segment through when the notice is pressed, and never skips it again in this view", () => {
+  it("goes back and plays a segment through when the notice is pressed, and keeps it unskipped for a seek less than 5 s before it", () => {
     const { video, notice, playTo, seekTo } = renderPlayer();
     seekTo(48);
     playTo(48.5);
@@ -162,11 +162,27 @@ describe("SponsorSkip", () => {
     playTo(49.3);
     playTo(50);
     expect(video.currentTime).toBe(50);
-    // Played into again from before it, it plays.
+    // Played into again from under 5 s before it, it plays.
+    seekTo(44.1);
+    playTo(46);
+    playTo(47.9);
+    playTo(49.1);
+    expect(video.currentTime).toBe(49.1);
+  });
+
+  it("skips an unskipped segment again once a seek lands 5 s or more before it", () => {
+    const { video, notice, playTo, seekTo } = renderPlayer();
     seekTo(48);
     playTo(48.5);
     playTo(49.1);
-    expect(video.currentTime).toBe(49.1);
+    fireEvent.click(within(notice()).getByRole("button", { name: "Skipped sponsor Unskip" }));
+    expect(video.currentTime).toBe(49.04);
+    seekTo(44.04);
+    playTo(46);
+    playTo(47.9);
+    playTo(49.1);
+    expect(video.currentTime).toBe(69);
+    expect(notice()).toHaveTextContent("Skipped sponsor");
   });
 
   it("names every category of overlapping segments it jumped at once", () => {

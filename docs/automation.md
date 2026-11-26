@@ -191,11 +191,11 @@ those. Format profiles carry no categories, and no file is marked or cut for any
   (`apps/web/src/library/SponsorSkip.tsx`), audio and video alike. Each jump puts a small pill in
   the player's bottom-right corner, "Skipped sponsor Unskip" (`SkipNotice.tsx`; not a page toast).
   The whole pill is the Unskip button, which goes back to the segment's start and plays it through,
-  and that segment isn't skipped again while the video stays open. The pill leaves after 4 s, but not
-  while it is pointed at or focused. It rides above the control bar while that shows; on a phone the
-  center play/pause button steps aside for it meanwhile. Only playback skips: a segment
-  the viewer seeks into plays out (seeking back to a skipped one's start is how to watch it), and a
-  jump of more than 2 s between two looks counts as a seek.
+  and that segment isn't skipped again unless a seek lands 5 s or more before it. The pill leaves
+  after 4 s, but not while it is pointed at or focused. It rides above the control bar while that
+  shows; on a phone the center play/pause button steps aside for it meanwhile. Only playback
+  skips: a segment the viewer seeks into plays out (seeking back to a skipped one's start is how to
+  watch it), and a jump of more than 2 s between two looks counts as a seek.
 - **The highlight** (`poi_highlight`, SponsorBlock's `poi` action: one moment, the part most people
   are looking for) comes with the segments and is kept on the rendition
   (`renditions.sponsor_highlight`, seconds). A start within a second of 0 is 0, and one at or

@@ -4,6 +4,7 @@ import type { SponsorBlockCategory, SponsorSegment } from "@uroboros/contract";
 
 import {
   bandTitle,
+  rearmUnskipped,
   shownSpans,
   skippedTitle,
   skipSpans,
@@ -132,6 +133,24 @@ describe("spanReached", () => {
   it("passes over a span the viewer unskipped", () => {
     expect(spanReached(spans, 48.9, 49.15, new Set([49.04]))).toBeUndefined();
     expect(spanReached(spans, 48.9, 49.15, new Set([10]))?.end).toBe(69);
+  });
+});
+
+describe("rearmUnskipped", () => {
+  it("forgets an Unskip once a seek lands 5 s or more before the segment", () => {
+    const undone = new Set([49.04, 77.69]);
+    // 4.99 s before the first, half a minute before the second.
+    rearmUnskipped(undone, 44.05);
+    expect([...undone]).toEqual([49.04]);
+    rearmUnskipped(undone, 44.04);
+    expect([...undone]).toEqual([]);
+  });
+
+  it("keeps it for a seek into or past the segment", () => {
+    const undone = new Set([49.04]);
+    rearmUnskipped(undone, 49.04);
+    rearmUnskipped(undone, 300);
+    expect([...undone]).toEqual([49.04]);
   });
 });
 

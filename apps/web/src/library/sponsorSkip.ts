@@ -9,6 +9,8 @@ const TAIL = 0.2;
  * jump, or one backwards, is a seek, never playback reaching a segment.
  */
 const MAX_STEP = 2;
+/** A seek landing this far or more before an unskipped segment skips it again once reached. */
+const REARM = 5;
 
 /** One stretch the player jumps over: overlapping or touching segments joined. */
 export interface SkipSpan {
@@ -80,6 +82,14 @@ export function spanReached(
   return spans.find(
     (s) => from < s.start && s.start <= to && to < s.end - TAIL && !undone.has(s.start),
   );
+}
+
+/**
+ * Forgets the Unskips (`undone`, by span start) of the spans a seek to `at` landed 5 s or more
+ * before: playing into one again skips it. A seek closer, into it or past it keeps it unskipped.
+ */
+export function rearmUnskipped(undone: Set<number>, at: number): void {
+  for (const start of undone) if (at <= start - REARM) undone.delete(start);
 }
 
 const LABELS: Record<SponsorBlockCategory, string> = {
