@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 
 /** The one dialog panel, shared by form dialogs and confirmations. */
 const panelClasses =
-  "fixed top-1/2 left-1/2 z-50 grid w-[min(26rem,calc(100vw-3rem))] -translate-x-1/2 -translate-y-1/2 gap-3.5 rounded-[0.75rem] bg-popover p-6 text-popover-foreground shadow-menu outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95";
+  "fixed top-1/2 left-1/2 z-50 grid w-[min(26rem,calc(100vw-3rem))] -translate-x-1/2 -translate-y-1/2 gap-3.5 rounded-[0.75rem] bg-popover p-6 text-popover-foreground shadow-menu outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 max-md:duration-100";
 const overlayClasses =
-  "fixed inset-0 z-50 bg-scrim data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0";
+  "fixed inset-0 z-50 bg-scrim data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 max-md:duration-100";
 const titleClasses = "text-lg font-bold";
 const descriptionClasses = "text-sm text-muted-foreground";
 /** A dialog footer's text-only pill. */
@@ -24,7 +24,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className={overlayClasses} />
+      <DialogPrimitive.Overlay data-slot="dialog-overlay" className={overlayClasses} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(panelClasses, className)}
@@ -58,7 +58,7 @@ function AlertDialogContent({
 }: React.ComponentProps<typeof AlertPrimitive.Content>) {
   return (
     <AlertPrimitive.Portal>
-      <AlertPrimitive.Overlay className={overlayClasses} />
+      <AlertPrimitive.Overlay data-slot="dialog-overlay" className={overlayClasses} />
       <AlertPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(panelClasses, className)}

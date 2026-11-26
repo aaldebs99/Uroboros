@@ -352,6 +352,21 @@ select[data-slot] option {
   }
 }
 
+/*
+ * Phones: quicker motion. The bottom sheet (200 ms in, 150 out) and dialogs (100 ms) set theirs on
+ * their components; Sonner's toasts move in 400 ms of their own, and unmount 200 ms after leaving.
+ */
+@media (width < 48rem) {
+  .drawer-scrim,
+  .drawer-panel {
+    transition-duration: 150ms;
+  }
+  [data-sonner-toaster] [data-sonner-toast],
+  [data-sonner-toaster] [data-sonner-toast] > * {
+    transition-duration: 200ms;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .drawer-scrim,
   .drawer-panel {

@@ -19,7 +19,7 @@ A slim top bar with a menu button, and bottom tabs.
   phones take a swipe from the bezel as Back. A sideways drag that starts on something with its
   own use for one stays theirs: a sideways scroller (the chips, the library's tabs), a field, a
   slider, or anything marked `data-own-swipe` (the player).
-- **Motion:** it slides in and out in 200ms on iOS's curve (`cubic-bezier(0.32, 0.72, 0, 1)`); the
+- **Motion:** it slides in and out in 150ms on iOS's curve (`cubic-bezier(0.32, 0.72, 0, 1)`); the
   close button, the scrim and Escape slide it out, and reduced motion makes it instant.
 - **No section titles:** a section page starts with its content, as on desktop. `PageHeader`
   keeps a section's title and description for screen readers and shows only its action. A page
@@ -56,6 +56,7 @@ A sheet of action rows that slides up from the bottom:
 - Inset 8px from the edges, `bg-popover rounded-2xl`, with a grab handle (36×4, `bg-border`)
   and `bg-scrim` behind.
 - Rows are 48px, `gap-4 px-5`, each with a 22px icon. The destructive row is `text-destructive`.
+- It slides up in 200ms (easing out) and away in 150ms (easing in), its scrim fading alongside.
 - It closes on scrim tap, Escape, or a downward swipe.
 - Build it from the existing radix `Dialog` or `Sheet` with `side="bottom"`. Keep one component
   that renders a dropdown at `md` and up and a sheet below it.
@@ -73,7 +74,7 @@ is a button there (phones have nothing to drag from).
 - Nothing widens a 375px page. Rows wrap, and flex children holding text get `min-w-0`.
 - Touch targets are at least 44px, and nothing is hover-only: actions revealed on hover stay
   visible under `(hover: none)`.
-- What a mouse gets by resting on something, a finger gets by a press and hold (400 ms, under the
+- What a mouse gets by resting on something, a finger gets by a press and hold (200 ms, under the
   phone's own link menu), never by a tap: a video tile's hover preview plays after a hold, keeps
   playing once the finger lifts, and the hold's click and long-press menu are swallowed
   (`library/ThumbnailPreview.tsx`). A tap still opens the video; a finger that moves is scrolling.

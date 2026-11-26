@@ -204,7 +204,7 @@ where the person left off.
 ## Hover previews
 
 A video's tile plays the whole video, smaller, while it is hovered with a mouse (after 300 ms), or
-after a press and hold of 400 ms on a touch screen. It starts at the beginning, muted, with captions
+after a press and hold of 200 ms on a touch screen. It starts at the beginning, muted, with captions
 on, and has its own controls: a scrub bar along the bottom, a sound button in the top right and a
 captions button below it. What it plays is, best first:
 

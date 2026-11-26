@@ -27,8 +27,9 @@ const EXIT = 300;
 /**
  * The side navigation as a drawer over the page (ported from Djinn): the menu on phones, and on
  * the watch page, which gives the navigation's room to the player as YouTube's does. It renders
- * the top bar's menu button and slides in from the left in 200ms. With `swipe` (on phones) a finger
- * drags it in from anywhere on the page, or drags it shut. A native `<dialog>` opened with
+ * the top bar's menu button and slides in from the left in 200ms (150ms on phones, `index.css`).
+ * With `swipe` (on phones) a finger drags it in from anywhere on the page, or drags it shut. A
+ * native `<dialog>` opened with
  * `showModal()`, so the browser supplies the top layer, the focus trap and the inert page; the panel
  * carries its own menu button and brand where the top bar's sit, so it reads as the navigation
  * sliding in. `triggerClassName` limits where the button shows (phones only, where the side

@@ -22,8 +22,11 @@ import { PreviewPlayer } from "./PreviewPlayer";
 
 /** A mouse resting this long starts it, so sweeping across a grid starts nothing. */
 export const HOVER_DELAY_MS = 300;
-/** A press held this long starts it: under the half second phones open their link menus at. */
-export const HOLD_MS = 400;
+/**
+ * A press held this long starts it: well under the half second phones open their link menus at,
+ * and longer than a tap.
+ */
+export const HOLD_MS = 200;
 /** A finger moving further than this is scrolling, not holding. */
 const MOVE_TOLERANCE_PX = 10;
 
