@@ -4,7 +4,7 @@ import { createContext, type ReactNode, useContext, useEffect, useState } from "
 
 import { applyDownloadChange, downloadKeys } from "@/api/downloads";
 import { exportsKey } from "@/api/exports";
-import { itemKey } from "@/api/library";
+import { itemKey, refreshLibraryLists } from "@/api/library";
 import { followLiveEvents } from "@/api/liveEvents";
 import { noticesKey } from "@/api/notices";
 import { previewsKey } from "@/api/previews";
@@ -21,9 +21,11 @@ const lists = { list: downloadKeys.list(false), active: downloadKeys.active };
  * The shell's one live stream (shared by this browser's tabs, `followLiveEvents`): download changes
  * go into the person's cached lists (and fetch a subscription's activity holding the download
  * again), progress into a map by fetch key, and a notice or previews
- * nudge fetches the notifications or the hover previews being made again. A SponsorBlock refetch's
- * outcome fetches its entry and the person's copies to save again, and says how it went (a quiet
- * refresh, as the page opened, says nothing). After a gap all of them are fetched again.
+ * nudge fetches the notifications or the hover previews being made again. A finished download, or
+ * an upload filed (the library nudge), fetches the library's lists again, so a new video shows up
+ * where the person is looking. A SponsorBlock refetch's outcome fetches its entry and the person's
+ * copies to save again, and says how it went (a quiet refresh, as the page opened, says nothing).
+ * After a gap all of them are fetched again.
  */
 export function LiveEventsProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
@@ -36,6 +38,7 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
             void client.invalidateQueries({ queryKey });
           }
           void client.invalidateQueries({ queryKey: downloadKeys.ready, exact: true });
+          void refreshLibraryLists(client);
           return;
         }
         const event = message.event;
@@ -46,6 +49,7 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
           case "state":
             applyDownloadChange(client, lists, { download: event.download });
             refreshActivityHolding(client, event.download.id);
+            if (event.download.state === "done") void refreshLibraryLists(client);
             return;
           case "removed":
             applyDownloadChange(client, lists, { removed: event.id });
@@ -55,6 +59,9 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
             return;
           case "previews":
             void client.invalidateQueries({ queryKey: previewsKey });
+            return;
+          case "library":
+            void refreshLibraryLists(client);
             return;
           case "requests":
             // Only the list: an open preview's own request is the picker's to keep.

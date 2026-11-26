@@ -243,6 +243,22 @@ describe("GET /api/downloads/events", () => {
     expect(events).toEqual([{ type: "requests" }]);
   });
 
+  it("nudges only its person, an admin's everyone view included, when an upload of theirs is filed", async () => {
+    const [a, b] = [
+      await user(),
+      await signedIn(testDb.db, { username: `sselib${String(++n)}`, role: "admin" }),
+    ];
+    const events = await collect(
+      await app(b).request("/api/downloads/events?all=true"),
+      b,
+      async () => {
+        await publishDownloadEvent(testDb.db, { kind: "library", userId: a.userId });
+        await publishDownloadEvent(testDb.db, { kind: "library", userId: b.userId });
+      },
+    );
+    expect(events).toEqual([{ type: "library" }]);
+  });
+
   it("nudges only the people who have a video when its preview is queued", async () => {
     const [a, b] = [await user(), await user()];
     const [first, second] = [

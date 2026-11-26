@@ -769,6 +769,20 @@
           },
           {
             "properties": {
+              "type": {
+                "enum": [
+                  "library"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
               "entryId": {
                 "format": "uuid",
                 "type": "string"

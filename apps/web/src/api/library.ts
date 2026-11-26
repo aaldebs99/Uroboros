@@ -13,6 +13,7 @@ import {
 } from "@uroboros/contract";
 import {
   keepPreviousData,
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -34,6 +35,19 @@ import {
 import { downloadKeys } from "./downloads";
 
 const libraryKey = ["api", "library"] as const;
+
+/**
+ * Fetches the library's lists again (the first page, the grid's pages, the palette's lookup, the
+ * channels), not the entries' own pages: what a finished download or upload changes. Only the lists
+ * on screen fetch at once; the rest do when next shown. A fetch already under way starts over, as
+ * its answer may predate the change.
+ */
+export function refreshLibraryLists(client: QueryClient): Promise<void> {
+  return client.invalidateQueries({
+    queryKey: libraryKey,
+    predicate: (query) => query.queryKey[2] !== "item",
+  });
+}
 
 /** What the library is narrowed to; every field maps to a query parameter of `GET /api/library`. */
 export interface LibraryFilters {

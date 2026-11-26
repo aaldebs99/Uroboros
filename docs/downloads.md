@@ -178,8 +178,13 @@ channel ([jobs.md](jobs.md)).
   table, which the leader sweeps.
 - **The stream.** Every replica's listener feeds `GET /api/downloads/events` (`src/downloads/sse.ts`),
   which streams `DownloadEvent`s for the caller's downloads (`?all=true`: everyone's, admins only),
-  a `notice` event whenever the caller's notification list changes, and a `previews` event whenever
-  their hover previews being made change ([push.md](push.md#the-list-in-the-app)).
+  a `notice` event whenever the caller's notification list changes, a `previews` event whenever
+  their hover previews being made change ([push.md](push.md#the-list-in-the-app)), and a `library`
+  event when an upload of theirs is filed ([uploads.md](uploads.md)).
+- **The library keeps up.** A download reaching `done`, or a `library` event, fetches the library's
+  lists again (the grid, a channel's videos, the search palette, the channels), so a new video
+  shows up where the person is looking without a reload. Only the lists on screen fetch at once,
+  and one already fetching starts over, since its answer may predate the change.
 - **One stream per browser.** The web app follows the caller's stream from the shell, for the bell
   and the Downloads page alike, and only in one tab: a browser allows about six HTTP/1.1
   connections to one origin, so the tab holding a Web Lock streams and passes every message to the

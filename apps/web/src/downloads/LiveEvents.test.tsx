@@ -1,14 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
-import { act } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { act, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { exportsKey } from "@/api/exports";
 import { subscriptionKeys } from "@/api/subscriptions";
-import { itemKey } from "@/api/library";
+import { itemKey, useLibraryPages } from "@/api/library";
 import { followLiveEvents, type LiveMessage } from "@/api/liveEvents";
 import { Toaster } from "@/components/ui/sonner";
 import { downloadFixture } from "@/test/activity";
+import { fakeApi } from "@/test/fakeApi";
 import { itemFixture } from "@/test/subscriptions";
 
 import { LiveEventsProvider } from "./LiveEvents";
@@ -22,7 +23,7 @@ afterEach(() => {
 });
 
 /** The provider on a client holding the entry and the person's copies; returns its stream. */
-function renderLive() {
+function renderLive(children?: ReactNode) {
   let deliver: (m: LiveMessage) => void = () => undefined;
   vi.mocked(followLiveEvents).mockImplementation((onMessage) => {
     deliver = onMessage;
@@ -35,6 +36,7 @@ function renderLive() {
     <QueryClientProvider client={client}>
       <LiveEventsProvider>
         <Toaster />
+        {children}
       </LiveEventsProvider>
     </QueryClientProvider>,
   );
@@ -105,5 +107,124 @@ describe("LiveEventsProvider", () => {
     expect(client.getQueryState(itemKey(ENTRY))?.isInvalidated).toBe(true);
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByText("Found 2 SponsorBlock segments")).toBeNull();
+  });
+});
+
+/** The library's lists: the first page, the grid's pages, the palette's lookup, the channels. */
+const LISTS = [
+  ["api", "library"],
+  ["api", "library", "pages", {}],
+  ["api", "library", "lookup", { q: "bunny" }],
+  ["api", "library", "channels"],
+] as const;
+
+const entry = (n: number) => ({
+  id: `0190a3f2-7c1e-7000-8000-${String(n).padStart(12, "0")}`,
+  mediaId: `0190a3f2-7c1e-7000-9000-${String(n).padStart(12, "0")}`,
+  title: `Video ${String(n)}`,
+  channel: "Blender",
+  uploadDate: "2008-05-20",
+  duration: 596,
+  thumbnailUrl: null,
+  previewUrl: null,
+  hasVideo: false,
+  profileName: "Best up to 1080p (MP4)",
+  origin: "download",
+  sizeBytes: 1024,
+  container: "mp4",
+  addedAt: "2026-11-22T10:00:00.000Z",
+  progress: null,
+  tags: [],
+  kept: false,
+  subscription: null,
+  channelKey: "a2V5",
+});
+
+const finished = (n: number): LiveMessage => ({
+  kind: "event",
+  event: {
+    type: "state",
+    download: downloadFixture({
+      id: `0190a3f2-7c1e-7000-8000-${String(n).padStart(12, "0")}`,
+      state: "done",
+    }),
+  },
+});
+
+/** The grid's titles, as the library page shows them. */
+function Titles() {
+  const pages = useLibraryPages({});
+  return (
+    <ul>
+      {pages.data?.pages
+        .flatMap((p) => p.entries)
+        .map((e) => (
+          <li key={e.id}>{e.title}</li>
+        ))}
+    </ul>
+  );
+}
+
+describe("LiveEventsProvider and the library", () => {
+  /** Caches the library's lists; returns which of them are marked to be fetched again. */
+  function cacheLists(client: QueryClient) {
+    for (const key of LISTS) client.setQueryData(key, {});
+    return () => LISTS.map((key) => client.getQueryState(key)?.isInvalidated);
+  }
+
+  it("fetches its lists again when a download is done, not while it runs, and leaves entry pages", () => {
+    const { client, deliver } = renderLive();
+    const marked = cacheLists(client);
+    deliver({
+      kind: "event",
+      event: { type: "state", download: downloadFixture({ state: "running" }) },
+    });
+    expect(marked()).toEqual([false, false, false, false]);
+    deliver(finished(1));
+    expect(marked()).toEqual([true, true, true, true]);
+    expect(client.getQueryState(itemKey(ENTRY))?.isInvalidated).toBe(false);
+  });
+
+  it("fetches them again when an upload of the person's is filed", () => {
+    const { client, deliver } = renderLive();
+    const marked = cacheLists(client);
+    deliver({ kind: "event", event: { type: "library" } });
+    expect(marked()).toEqual([true, true, true, true]);
+    expect(client.getQueryState(itemKey(ENTRY))?.isInvalidated).toBe(false);
+  });
+
+  it("fetches them again after a gap, when a finish may have gone by unheard", () => {
+    const { client, deliver } = renderLive();
+    const marked = cacheLists(client);
+    deliver({ kind: "gap" });
+    expect(marked()).toEqual([true, true, true, true]);
+  });
+
+  it("asks again for a download that finishes while the last one's fetch is under way", async () => {
+    let shelf = [entry(1)];
+    let hold: Promise<void> | null = null;
+    let release: () => void = () => undefined;
+    const calls = fakeApi({
+      "GET /api/library": async () => {
+        const entries = [...shelf];
+        if (hold !== null) await hold;
+        return Response.json({ entries, nextCursor: null });
+      },
+    });
+    const { deliver } = renderLive(<Titles />);
+    expect(await screen.findByText("Video 1")).toBeInTheDocument();
+    hold = new Promise((resolve) => {
+      release = resolve;
+    });
+    deliver(finished(1));
+    await waitFor(() => {
+      expect(calls).toHaveLength(2);
+    });
+    // The second video lands after that fetch went out: its answer can't have it.
+    shelf = [entry(2), entry(1)];
+    hold = null;
+    deliver(finished(2));
+    release();
+    expect(await screen.findByText("Video 2")).toBeInTheDocument();
   });
 });
