@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 import { Player, type PlayerProps } from "./Player";
@@ -44,7 +44,7 @@ describe("Player seek", () => {
   it("plays from where a seek goes", async () => {
     const video = renderAt({ time: 60 });
     expect(video.currentTime).toBe(60);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(play).toHaveBeenCalled();
     });
     expect(pause).not.toHaveBeenCalled();

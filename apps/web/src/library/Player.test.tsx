@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -147,7 +147,7 @@ describe("Player autoplay and volume", () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
     try {
       const { container } = render(<Player {...base} start={42} autoPlay />);
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(play).toHaveBeenCalledTimes(1);
       });
       expect((container.querySelector("video") as HTMLVideoElement).currentTime).toBe(42);
@@ -163,7 +163,7 @@ describe("Player autoplay and volume", () => {
       .mockRejectedValue(new DOMException("blocked", "NotAllowedError"));
     try {
       expect(() => render(<Player {...base} autoPlay />)).not.toThrow();
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(play).toHaveBeenCalledTimes(1);
       });
       render(<Player {...base} src="/w" autoPlay={false} />);
@@ -320,7 +320,7 @@ describe("Player keyboard", () => {
     try {
       press("Enter");
       expect(video.currentTime).toBe(60);
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(play).toHaveBeenCalled();
       });
       seekTo(10);
@@ -386,7 +386,7 @@ describe("Player keyboard", () => {
     const { press, cleanup } = await playerAt(0);
     try {
       press("k");
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(play).toHaveBeenCalled();
       });
     } finally {
@@ -419,7 +419,7 @@ describe("Player keyboard", () => {
     act(() => {
       video.dispatchEvent(new Event("error"));
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onError).toHaveBeenCalledTimes(1);
     });
     act(() => {

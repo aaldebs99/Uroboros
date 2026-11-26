@@ -1,6 +1,6 @@
 import { act, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Toaster } from "@/components/ui/sonner";
 import { fakeApi } from "@/test/fakeApi";
@@ -28,6 +28,11 @@ afterEach(() => {
 async function openMenu() {
   await userEvent.click(await screen.findByRole("button", { name: "More actions" }));
 }
+
+// The player is a lazy chunk: loaded here, a test's wait covers rendering it, not loading it.
+beforeAll(async () => {
+  await import("./Player");
+});
 
 describe("ItemPage", () => {
   beforeEach(() => undefined);

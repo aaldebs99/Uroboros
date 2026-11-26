@@ -24,10 +24,8 @@ describe("LibraryGrid", () => {
         Response.json({ code: "internal", message: "boom" }, { status: 500 }),
     });
     await renderInRouter(<LibraryGrid filters={{}} empty={<p>nothing</p>} />);
-    // One retry, a second later by TanStack's default: longer than findBy's own wait.
-    expect(await screen.findByRole("paragraph", {}, { timeout: 4000 })).toHaveClass(
-      "text-destructive",
-    );
+    // After one retry, a second later by TanStack's default.
+    expect(await screen.findByRole("paragraph")).toHaveClass("text-destructive");
     expect(calls.filter((c) => c.path === "/api/library")).toHaveLength(2);
   });
 });

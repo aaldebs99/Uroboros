@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
 import { ITEM_ID as ID, itemFixture as item } from "@/test/libraryItem";
@@ -24,6 +24,11 @@ vi.mock("./Player", () => import("@/test/fakePlayer"));
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+// The player is a lazy chunk: loaded here, a test's wait covers rendering it, not loading it.
+beforeAll(async () => {
+  await import("./Player");
 });
 
 describe("ItemPage playback", () => {

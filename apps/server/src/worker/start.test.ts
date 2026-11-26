@@ -15,8 +15,11 @@ import { StartupAborted, startWorker } from "./start.ts";
 let t: TestDb;
 let bus: PgBus;
 const silent = pino({ level: "silent" });
+/** How many jobs the consumers below have begun to run (their `process` called), not just claimed. */
+let begun = 0;
 
 beforeEach(async () => {
+  begun = 0;
   t = await TestDb.create();
   bus = testBus(t);
   await bus.ready;
@@ -34,7 +37,16 @@ function consumers(process: Consumer["process"], onCut: () => void = () => undef
       db: t.db,
       bus,
       logger: silent,
-      consumers: [{ queue: "download", concurrency: 1, process }],
+      consumers: [
+        {
+          queue: "download",
+          concurrency: 1,
+          process: (job) => {
+            begun++;
+            return process(job);
+          },
+        },
+      ],
       pollMs: 100,
     });
     return Promise.resolve({ jobs, abortRunning: onCut, close: () => Promise.resolve() });
@@ -42,9 +54,14 @@ function consumers(process: Consumer["process"], onCut: () => void = () => undef
 }
 
 const add = (key: string) => new JobQueue(t.db, "download").add("fetch", { key }, { key });
-const running = async () =>
-  eventually(async () => {
-    expect((await liveJobs(t.db, "download")).some((j) => j.state === "running")).toBe(true);
+/**
+ * Until the `n`th job has begun to run. Its row reads running from the moment it is claimed, but a
+ * close that lands before the runner launches it gives the claim straight back, rightly, and the
+ * test would close with nothing running (it did in CI).
+ */
+const running = (n = 1) =>
+  eventually(() => {
+    expect(begun).toBeGreaterThanOrEqual(n);
   });
 
 describe("startWorker", () => {
@@ -168,7 +185,7 @@ describe("startWorker", () => {
       ),
     });
     await add("short");
-    await running();
+    await running(2);
     const closed = quick.close();
     release();
     await closed;

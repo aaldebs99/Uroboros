@@ -37,6 +37,21 @@ export default [
     rules: { "no-restricted-imports": ["error", { patterns: [contractDeepImports] }] },
   },
   {
+    // vi.waitFor gives up after vitest's 1 s, which a loaded CI runner misses; testing-library's
+    // waitFor takes the suite's wait (src/test/setup.ts) and wraps its checks in act.
+    files: ["src/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "vi",
+          property: "waitFor",
+          message: "Use waitFor from @testing-library/react: it waits the suite's 5 s.",
+        },
+      ],
+    },
+  },
+  {
     // Plain scripts served as they are (the pre-paint theme script): browser globals.
     files: ["public/**/*.js"],
     languageOptions: { globals: { ...globals.browser } },
