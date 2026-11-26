@@ -40,8 +40,11 @@ export interface PlayerProps {
    * the play button.
    */
   autoPlay: boolean;
-  /** A seek request; a new object seeks again even to the same time. */
-  seek: { time: number } | null;
+  /**
+   * A seek request; a new object seeks again even to the same time. Playback plays on from there,
+   * or with `pause` stops there (Mark as unwatched starting the video over).
+   */
+  seek: { time: number; pause?: boolean } | null;
   /** Drawn on the timeline; the page also lists them. */
   chapters: Chapter[];
   /** SponsorBlock segments: drawn on the timeline and jumped over as playback reaches them. */
@@ -169,10 +172,11 @@ export function Player(p: PlayerProps) {
     };
   }, [p.src, p.start, p.autoPlay]);
   useEffect(() => {
-    if (p.seek !== null && video.current !== null) {
-      video.current.currentTime = p.seek.time;
-      tryPlay(video.current);
-    }
+    const v = video.current;
+    if (p.seek === null || v === null) return;
+    v.currentTime = p.seek.time;
+    if (p.seek.pause === true) v.pause();
+    else tryPlay(v);
   }, [p.seek]);
   const at = (v: HTMLVideoElement) =>
     [v.currentTime, Number.isFinite(v.duration) ? v.duration : 0] as const;

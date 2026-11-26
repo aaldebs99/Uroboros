@@ -17,7 +17,7 @@ export function Player(props: {
   src: string;
   hls?: { native: boolean };
   start: number;
-  seek: { time: number } | null;
+  seek: { time: number; pause?: boolean } | null;
   subtitles: { lang: string }[];
   settings?: Settings;
   overlay?: ReactNode;
@@ -31,6 +31,7 @@ export function Player(props: {
       data-hls={props.hls === undefined ? "" : props.hls.native ? "native" : "mse"}
       data-start={String(props.start)}
       data-seek={props.seek === null ? "" : String(props.seek.time)}
+      data-seek-pause={props.seek?.pause === true ? "true" : ""}
       data-subs={props.subtitles.map((s) => s.lang).join(",")}
     >
       {props.settings?.props.quality?.options.map((o) => (

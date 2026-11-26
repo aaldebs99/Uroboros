@@ -161,6 +161,12 @@ function EditButton({ item }: { item: LibraryItem }) {
   );
 }
 
+interface ActionsProps {
+  item: LibraryItem;
+  /** Mark as unwatched (the ⋮ menu): the page's player goes back to the start, paused. */
+  onStartOver?: (() => void) | undefined;
+}
+
 /** The watch page's icon buttons sit closer from `md` up, where a pointer can't miss. */
 const actionRow = "flex items-center gap-4 md:gap-2";
 
@@ -168,7 +174,7 @@ const actionRow = "flex items-center gap-4 md:gap-2";
  * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
  * upload), Save, Save to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`).
  */
-function OwnActions({ item }: { item: LibraryItem }) {
+function OwnActions({ item, onStartOver }: ActionsProps) {
   const [saving, setSaving] = useState(false);
   return (
     <>
@@ -184,7 +190,7 @@ function OwnActions({ item }: { item: LibraryItem }) {
         />
         <ShareButton kind="entry" id={item.id} title={item.title} iconOnly />
         <RemoveButton item={item} />
-        <ItemMenu item={item} />
+        <ItemMenu item={item} onStartOver={onStartOver} />
       </div>
       {saving ? (
         <AddToPlaylist entryId={item.id} title={item.title} open onOpenChange={setSaving} />
@@ -198,19 +204,19 @@ function OwnActions({ item }: { item: LibraryItem }) {
  * person's own entry those are theirs (docs/library.md); on one shared with them (docs/sharing.md),
  * who shared it, Save and Add to my library.
  */
-export function ItemActions({ item }: { item: LibraryItem }) {
+export function ItemActions({ item, onStartOver }: ActionsProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
       <ChannelLine item={item} />
       {item.sharedBy === null ? (
-        <OwnActions item={item} />
+        <OwnActions item={item} onStartOver={onStartOver} />
       ) : (
         <>
           <span className="text-sm text-muted-foreground">Shared by {item.sharedBy}</span>
           <div className={actionRow}>
             <SaveFile item={item} />
             <AddToMine item={item} />
-            <ItemMenu item={item} />
+            <ItemMenu item={item} onStartOver={onStartOver} />
           </div>
         </>
       )}

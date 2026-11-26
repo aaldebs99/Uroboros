@@ -22,22 +22,35 @@ const offersKeep = (item: LibraryItem) =>
 
 /**
  * The watch page's ⋮ menu (docs/library.md): Mark as watched and Mark as unwatched, the current one
- * checked; Keep, checked while kept, where it matters; Open on original site; and Refresh
+ * checked (neither on a video started but not finished). Mark as unwatched forgets where the person
+ * was and starts the video over (`onStartOver` takes the open player back to the start, paused, so
+ * it doesn't save the old place again). Keep, checked while kept, where it matters; Open on
+ * original site; and Refresh
  * SponsorBlock segments on the owner's video whose profile skips some
  * (docs/automation.md#sponsorblock), whose outcome the live stream's toast reports (`LiveEvents`).
  */
-export function ItemMenu({ item }: { item: LibraryItem }) {
+export function ItemMenu({
+  item,
+  onStartOver,
+}: {
+  item: LibraryItem;
+  /** Mark as unwatched: the open player goes back to the start. */
+  onStartOver?: (() => void) | undefined;
+}) {
   const client = useQueryClient();
   const watched = item.progress?.watched ?? false;
+  /** Unwatched with nowhere to forget: picking Mark as unwatched would change nothing. */
+  const fresh = !watched && (item.progress?.position ?? 0) <= 0;
   const markWatched = (to: boolean) => () => {
-    if (to === watched) return;
+    if (to ? watched : fresh) return;
+    if (!to) onStartOver?.();
     setWatched(item.id, to)
       .then(() => client.invalidateQueries({ queryKey: ["api", "library"] }))
       .catch(fail);
   };
   const actions: MenuAction[] = [
     { label: "Mark as watched", icon: Eye, checked: watched, onSelect: markWatched(true) },
-    { label: "Mark as unwatched", icon: EyeOff, checked: !watched, onSelect: markWatched(false) },
+    { label: "Mark as unwatched", icon: EyeOff, checked: fresh, onSelect: markWatched(false) },
   ];
   if (offersKeep(item)) {
     actions.push({
