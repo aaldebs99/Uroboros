@@ -29,7 +29,7 @@ interface EntryUpdate {
  * What `update_entry` changes, as the REST routes would: tags and Keep on the person's own entry,
  * watched on any they may see; every check before the first write.
  */
-async function updateEntry(db: Kysely<Database>, userId: string, u: EntryUpdate) {
+async function updateEntry(db: Kysely<Database>, userId: string, u: EntryUpdate, maxShort: number) {
   const entry = await visibleEntry(db, { userId }, u.entryId);
   if (u.tags !== undefined || u.kept !== undefined) await ownEntry(db, userId, u.entryId);
   if (u.tags !== undefined) await replaceTags(db, entry.id, u.tags);
@@ -37,7 +37,7 @@ async function updateEntry(db: Kysely<Database>, userId: string, u: EntryUpdate)
   if (u.watched !== undefined) {
     await setWatched(db, userId, { id: entry.media_id, duration: entry.duration }, u.watched);
   }
-  return getItem(db, userId, entry.id);
+  return getItem(db, userId, entry.id, maxShort);
 }
 
 export const curateTools: Tool[] = [
@@ -87,6 +87,6 @@ export const curateTools: Tool[] = [
     output: LibraryItem,
     write: true,
     idempotent: true,
-    run: (u, { db, caller }) => updateEntry(db, caller.userId, u),
+    run: (u, { db, caller, maxShort }) => updateEntry(db, caller.userId, u, maxShort),
   }),
 ];

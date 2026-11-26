@@ -17,6 +17,8 @@ export interface ToolContext {
   db: Kysely<Database>;
   /** Downloads and subscriptions; their tools answer `unavailable` without it. */
   downloads: DownloadContext | undefined;
+  /** The tallest encode (`UROBOROS_TRANSCODE_MAX_HEIGHT`): what an entry's qualities stop at. */
+  maxShort: number;
   logger: Logger;
 }
 

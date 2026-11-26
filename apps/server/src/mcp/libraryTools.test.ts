@@ -105,6 +105,20 @@ describe("the MCP library tools", () => {
     ]);
   });
 
+  it("offers no quality above the server's tallest encode (UROBOROS_TRANSCODE_MAX_HEIGHT)", async () => {
+    await testDb.db
+      .updateTable("renditions")
+      .set({ width: 1920, height: 1080 })
+      .where("id", "=", talk.renditionId)
+      .execute();
+    const capped = createApp(
+      { db: testDb.db, version: "t", logger, transcodeMaxShort: 480 },
+      { webDist: null, mcpEnabled: true },
+    );
+    const r = await callTool(capped, secret, "get_entry", { entryId: talk.entryId });
+    expect(LibraryItem.parse(r.structuredContent).qualities).toEqual(["480", "360"]);
+  });
+
   it("list playlists and read one in its order", async () => {
     const pl = await createPlaylist(testDb.db, owner, { name: "Learning" });
     await appendItems(testDb.db, owner, pl.id, [talk.entryId]);

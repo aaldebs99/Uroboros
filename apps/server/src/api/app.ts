@@ -173,6 +173,9 @@ function exportContext(deps: Deps): ExportContext | undefined {
   return { ...deps.downloads, store: deps.store };
 }
 
+/** The tallest encode (`UROBOROS_TRANSCODE_MAX_HEIGHT`): what every item's qualities stop at. */
+const maxShortOf = (deps: Deps): number => deps.transcodeMaxShort ?? MAX_SHORT;
+
 /** What playback sessions need; without downloads, a store or the bus they answer 503. */
 function playbackContext(deps: Deps): SessionContext | undefined {
   if (deps.downloads === undefined || deps.store === undefined || deps.playbackBus === undefined) {
@@ -183,7 +186,7 @@ function playbackContext(deps: Deps): SessionContext | undefined {
     store: deps.store,
     bus: deps.playbackBus,
     waitMs: deps.playbackWaitMs ?? SEGMENT_WAIT_MS,
-    maxShort: deps.transcodeMaxShort ?? MAX_SHORT,
+    maxShort: maxShortOf(deps),
   };
 }
 
@@ -300,7 +303,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     deps.store,
     deps.storage,
     deps.downloads?.queues.probe,
-    deps.transcodeMaxShort,
+    maxShortOf(deps),
   );
   registerPlaylistRoutes(app, deps.db);
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
@@ -316,11 +319,12 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerExportRoutes(app, exportContext(deps));
   const playback = playbackContext(deps);
   registerPlaybackSessionRoutes(app, playback);
-  registerPublicRoutes(app, deps.db, deps.store, playback);
+  registerPublicRoutes(app, deps.db, deps.store, playback, maxShortOf(deps));
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   registerMcpRoute(app, {
     db: deps.db,
     downloads: deps.downloads,
+    maxShort: maxShortOf(deps),
     logger,
     version: deps.version,
     enabled: opts.mcpEnabled,

@@ -191,9 +191,9 @@ export function registerItemRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
   store: MediaStore | undefined,
-  storage?: StorageConfig,
-  probe?: DownloadQueues["probe"],
-  maxShort?: number,
+  storage: StorageConfig | undefined,
+  probe: DownloadQueues["probe"] | undefined,
+  maxShort: number,
 ): void {
   app.openapi(itemRoute, async (c) =>
     c.json(await getItem(db, currentPrincipal(c).userId, c.req.valid("param").id, maxShort), 200),

@@ -13,7 +13,7 @@ export interface RenditionPlayback {
  * The item's playback facts: codec strings, size, and the rungs it offers, up to the server's
  * tallest encode (`maxShort`).
  */
-export function playbackFacts(r: RenditionPlayback, maxShort?: number): PlaybackFacts {
+export function playbackFacts(r: RenditionPlayback, maxShort: number): PlaybackFacts {
   return {
     videoCodecs: r.video_codecs,
     audioCodecs: r.audio_codecs,

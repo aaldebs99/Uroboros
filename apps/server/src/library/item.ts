@@ -23,7 +23,7 @@ export async function getItem(
   db: Kysely<Database>,
   userId: string,
   entryId: string,
-  maxShort?: number,
+  maxShort: number,
 ): Promise<LibraryItem> {
   const seen = await visibleEntry(db, { userId }, entryId);
   const row = (await base(db, userId, seen.user_id)

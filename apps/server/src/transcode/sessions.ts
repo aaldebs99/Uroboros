@@ -51,7 +51,7 @@ export async function planFor(
   db: Kysely<Database>,
   renditionId: string,
   r: PlaybackRequest,
-  maxShort?: number,
+  maxShort: number,
 ): Promise<{ plan: StoredPlan; boundaries: number[] | null }> {
   const f = await facts(db, renditionId);
   if (f.duration === null || f.duration <= 0) {

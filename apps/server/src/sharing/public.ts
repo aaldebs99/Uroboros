@@ -111,7 +111,7 @@ export async function publicItem(
   db: Db,
   code: string,
   entryId: string,
-  maxShort?: number,
+  maxShort: number,
 ): Promise<PublicItem> {
   const e = await linkEntry(db, code, entryId);
   const base = itemBase(code, entryId);

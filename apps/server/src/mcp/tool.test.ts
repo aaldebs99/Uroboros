@@ -11,6 +11,7 @@ const ctx: ToolContext = {
   caller: { userId: "u", tokenId: "t", readOnly: false },
   db: {} as Kysely<Database>,
   downloads: undefined,
+  maxShort: 2160,
   logger: pino({ level: "silent" }),
 };
 
