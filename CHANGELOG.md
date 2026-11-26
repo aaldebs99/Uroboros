@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.1.1](https://github.com/aaldebs99/Uroboros/compare/0.1.0...0.1.1) (2026-11-26)
+
+
+### Features
+
+* **previews:** download a video's hover preview from its site by default, or transcode it ([2c163ab](https://github.com/aaldebs99/Uroboros/commit/2c163abf0bc61258a1508821b28b996d76dbbd8a))
+* **web:** the watch page leads back to the page the video was opened from ([79c4183](https://github.com/aaldebs99/Uroboros/commit/79c41834690d741d47ea87682514b8225a4f21dd))
+* **playlists:** hide a playlist's videos from the library, per playlist ([6e1b362](https://github.com/aaldebs99/Uroboros/commit/6e1b362c3b27f471e5fcba4c4194af0945f54c6d))
+* **storage:** record every stored file's size, and measure the ones stored before ([69fa3f7](https://github.com/aaldebs99/Uroboros/commit/69fa3f7d4c3561c69a11cbd78610d70009558976))
+* **admin:** Admin › Stats, what the library holds and what it takes up, per person ([d5f5f31](https://github.com/aaldebs99/Uroboros/commit/d5f5f31a3312b08266cda60ad5fe20091c510833))
+* **downloads:** filesystem storage downloads into its own volume and moves files into place ([669f576](https://github.com/aaldebs99/Uroboros/commit/669f576bbe87bebd888e4b9935e1caa84b95bc41))
+* **ytdlp:** report the size of the picked formats before downloading them ([df11ae1](https://github.com/aaldebs99/Uroboros/commit/df11ae1b41bf997aad898dc5ac9b5291a5962d92))
+* **downloads:** downloads over UROBOROS_LARGE_DOWNLOAD_BYTES wait for their owner's OK ([768bd06](https://github.com/aaldebs99/Uroboros/commit/768bd06346261497fa24b9ba3ed92cef2a4d3903))
+* **downloads:** a link typed without https:// gets it ([1785b19](https://github.com/aaldebs99/Uroboros/commit/1785b19cc19151a5c97469b61efb27d886d74912))
+* **subscriptions:** "New from <channel>" opens the video, sent once it's downloaded ([d9ffab0](https://github.com/aaldebs99/Uroboros/commit/d9ffab090a15999ea655ccfc64b6ab6cd6123baa))
+* **web:** Enter jumps to the SponsorBlock highlight ([aa8c154](https://github.com/aaldebs99/Uroboros/commit/aa8c15443bc113cf3120de108fec63039fb9e309))
+* **library:** opening a video refreshes its SponsorBlock segments quietly ([e884cc0](https://github.com/aaldebs99/Uroboros/commit/e884cc05e0317ce587c7698d8fe379c9cec9ab8b))
+* **downloads:** profiles pick a quality, video codec and container from lists, and the built-ins download AV1 in MP4 ([65465ee](https://github.com/aaldebs99/Uroboros/commit/65465ee647bf335e0c5e14c1094da46496cdc410))
+* **transcode:** Original plays a video it can't keep at the source's own size, at a bitrate that follows the source ([8e14ac6](https://github.com/aaldebs99/Uroboros/commit/8e14ac6c8b95a0ff469f1ef2083da93b1029dc85))
+* **web:** a Stats panel over the player, turned on from its settings menu, says how a video plays ([6e434d7](https://github.com/aaldebs99/Uroboros/commit/6e434d7662da2873702f37d7cbeb0f86219fb8b6))
+* **web:** captions are turned on from the player's settings menu alone, without a button of their own ([1808b30](https://github.com/aaldebs99/Uroboros/commit/1808b30c50c0f175dfe77ec26921e719d850f091))
+
+
+### Bug Fixes
+
+* **server:** give shutdown's cleanup 15 s, not 2 s ([8d3fc67](https://github.com/aaldebs99/Uroboros/commit/8d3fc67d955218630c4c16c80945b64aca01fef4))
+* **web:** play every HLS through hls.js, and leave Chrome's own HLS player alone ([a9c61a2](https://github.com/aaldebs99/Uroboros/commit/a9c61a2a2f3ce5ccba5cc1bedd71dd964390c817))
+* **npm:** update package eslint-plugin-sonarjs (4.2.1 → 4.2.2) ([b5d2c67](https://github.com/aaldebs99/Uroboros/commit/b5d2c67bd4b90068bd9f077b02e6d0bbc57fd88d))
+* **npm:** update package jsdom (30.1.2 → 30.1.3) ([6d8eba3](https://github.com/aaldebs99/Uroboros/commit/6d8eba336f9763fc12a56af80f9320c6fcd26985))
+* **sponsorblock:** keep a highlight whatever length of video it was marked on ([ae0e2e3](https://github.com/aaldebs99/Uroboros/commit/ae0e2e36314276df0ab693717e5393cd3ca5b78d))
+* **web:** the SponsorBlock refetch toast says what the video has ([9fd1649](https://github.com/aaldebs99/Uroboros/commit/9fd1649f850e83b301c4d8ea5f97bf7db9d9cac2))
+* **deps:** update dependency charset-normalizer (3.5.2 → 3.5.3) ([0aeee3c](https://github.com/aaldebs99/Uroboros/commit/0aeee3c103a2e0f1ac889ee676ed0a0a62a7a8a1))
+* **npm:** update package hono (4.13.19 → 4.13.20) ([61c75e3](https://github.com/aaldebs99/Uroboros/commit/61c75e3be2a31aab4f39f4ad0c9661571dfd7a6c))
+* **server:** every item's qualities stop at the server's tallest encode, MCP's too ([3e4ea28](https://github.com/aaldebs99/Uroboros/commit/3e4ea28e996648f72c5b861104654bd155d4f48c))
+* **web:** the Stats panel's Network row counts only the session playing ([6e615a3](https://github.com/aaldebs99/Uroboros/commit/6e615a303c739e3efa4ed126eb09d14ab11c56dc))
+* **web:** editing an audio profile keeps a selector its audio format wouldn't write ([e86e248](https://github.com/aaldebs99/Uroboros/commit/e86e2486a92898ba12d0d4404de80848927f670d))
+
+
+### Documentation
+
+* schema changes are new migrations now that 0.1.0 is out ([5641089](https://github.com/aaldebs99/Uroboros/commit/5641089ad90589be408e4cc10a91422204c02809))
+
+
+### Tests
+
+* **contract:** a playback session carries its target bitrate, none from a replica that doesn't say ([bcb400d](https://github.com/aaldebs99/Uroboros/commit/bcb400d8b8199275f2654c8e943b34901ba3901a))
+
+
+### Continuous Integration
+
+* **renovate:** no cap on new or open Renovate PRs, as in Djinn ([ccb6e0f](https://github.com/aaldebs99/Uroboros/commit/ccb6e0f42bb79bf0cec9fea88e786ef39cb4f076))
+
+
+### Miscellaneous Chores
+
+* **ratchet:** find the repository root inside a git hook ([08c2c54](https://github.com/aaldebs99/Uroboros/commit/08c2c544f45105d8f546e20a31408f0aca079091))
 ## [0.1.0](https://github.com/aaldebs99/Uroboros/releases/tag/0.1.0) (2026-11-25)
 
 
