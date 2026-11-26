@@ -17,7 +17,7 @@
     "@uroboros/contract": "workspace:*",
     "@uroboros/ytdlp": "workspace:*",
     "cron-parser": "5.10.6",
-    "hono": "4.13.20",
+    "hono": "4.13.21",
     "kysely": "0.29.9",
     "openid-client": "6.9.0",
     "pg": "8.23.1",
