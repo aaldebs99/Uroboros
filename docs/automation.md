@@ -219,8 +219,8 @@ request (below). A whole file also keeps `media.chapters` on its timeline.
 **Fetching them again.** The segments a download stored are SponsorBlock's at that moment, and
 people keep submitting them, most of all in a video's first days, just when a subscription fetches
 it. The owner of an entry whose file keeps segments (a YouTube file, video or audio, whose extra
-arguments don't move its timeline; the item's `sponsorSegmentsRefetchable`) has a Refetch
-SponsorBlock segments button on its item page: `POST /api/library/{id}/skip-segments/refetch`
+arguments don't move its timeline; the item's `sponsorSegmentsRefetchable`) has Refresh
+SponsorBlock segments in its item page's ⋮ menu: `POST /api/library/{id}/skip-segments/refetch`
 (202; 404 for anyone else's entry, a shared one included; 409 when there is nothing to fetch)
 queues a `skips` job on the `probe` queue, one per entry at a time (key `skips:<entryId>`, one
 attempt). The job (`src/worker/refetchSkips.ts`) finds the video from the latest download that made
@@ -289,8 +289,8 @@ brought, in that person's library:
 - **Remove watched after D days**, counted from `watch_progress.watched_at`, the moment the video
   first counted as watched (unwatching clears it).
 
-An entry marked **Keep** (`PUT /api/library/{id}/kept`; a switch on the item page of an entry from
-a subscription) neither counts toward N nor goes, and neither does one in one of its owner's
+An entry marked **Keep** (`PUT /api/library/{id}/kept`; in the item page's ⋮ menu on an entry from
+a subscription that has retention) neither counts toward N nor goes, and neither does one in one of its owner's
 playlists or shared on its own ([sharing.md](sharing.md)); one reached only through a shared
 YouTube playlist still counts. Removing means deleting the library entry (its
 tags go with it); the video stays in the seen set, so it is not downloaded again, and its file is

@@ -1,31 +1,23 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  ExternalLink,
-  LibraryBig,
-  ListPlus,
-  Pencil,
-  RefreshCw,
-  Trash2,
-  type LucideIcon,
-} from "lucide-react";
+import { LibraryBig, ListPlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
-import { itemKey, refetchSkipSegments, setKept, setWatched, useRemoveEntry } from "@/api/library";
+import { useRemoveEntry } from "@/api/library";
 import { addToLibrary } from "@/api/sharing";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { notify } from "@/components/ui/sonner";
-import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import { formatDuration } from "@/downloads/format";
 
 import { ShareButton } from "../sharing/ShareDialog";
 import { AddToPlaylist } from "./AddToPlaylist";
 import { EditDetailsDialog } from "./EditDetailsDialog";
+import { ItemMenu } from "./ItemMenu";
 import { removeDescription } from "./removeText";
 import { SaveFile } from "./SaveFile";
 
@@ -58,32 +50,6 @@ function ChannelLine({ item }: { item: LibraryItem }) {
         </p>
       </div>
     </div>
-  );
-}
-
-/** Keep, for an entry a subscription brought: retention never removes it. */
-function KeepSwitch({ item }: { item: LibraryItem }) {
-  const client = useQueryClient();
-  if (item.subscription === null) return null;
-  return (
-    <label className="flex items-center gap-2 text-sm" title="Retention never removes this video">
-      <Switch
-        aria-label="Keep"
-        aria-describedby="keep-help"
-        checked={item.kept}
-        onCheckedChange={(kept) => {
-          setKept(item.id, kept)
-            .then(() => client.invalidateQueries({ queryKey: itemKey(item.id) }))
-            .catch((err: unknown) => {
-              notify.error(errorText(err));
-            });
-        }}
-      />
-      Keep
-      <span id="keep-help" className="sr-only">
-        Retention never removes this video
-      </span>
-    </label>
   );
 }
 
@@ -177,36 +143,6 @@ function AddToMine({ item }: { item: LibraryItem }) {
   );
 }
 
-/**
- * Refetch SponsorBlock segments, on the person's own YouTube video whose profile skips some
- * (docs/automation.md#sponsorblock): the server asks again, and the live stream's outcome toast
- * says what it found (`LiveEvents`).
- */
-function RefetchSkipsButton({ item }: { item: LibraryItem }) {
-  const [busy, setBusy] = useState(false);
-  if (!item.sponsorSegmentsRefetchable) return null;
-  return (
-    <IconAction
-      label="Refetch SponsorBlock segments"
-      icon={RefreshCw}
-      disabled={busy}
-      onClick={() => {
-        setBusy(true);
-        refetchSkipSegments(item.id)
-          .then(() => {
-            notify.info("Fetching SponsorBlock segments");
-          })
-          .catch((err: unknown) => {
-            notify.error(errorText(err));
-          })
-          .finally(() => {
-            setBusy(false);
-          });
-      }}
-    />
-  );
-}
-
 /** Edit details, on a video the person uploaded (docs/uploads.md). */
 function EditButton({ item }: { item: LibraryItem }) {
   const [editing, setEditing] = useState(false);
@@ -229,18 +165,15 @@ function EditButton({ item }: { item: LibraryItem }) {
 const actionRow = "flex items-center gap-4 md:gap-2";
 
 /**
- * The person's own actions on their entry: Keep, then the icon buttons, each named in its
- * tooltip: Edit details (an upload), Refetch SponsorBlock segments (a video that skips some), Save,
- * Save to playlist, Share, Remove.
+ * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
+ * upload), Save, Save to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`).
  */
 function OwnActions({ item }: { item: LibraryItem }) {
   const [saving, setSaving] = useState(false);
   return (
     <>
-      <KeepSwitch item={item} />
       <div className={actionRow}>
         <EditButton item={item} />
-        <RefetchSkipsButton item={item} />
         <SaveFile item={item} />
         <IconAction
           label="Save to playlist"
@@ -251,6 +184,7 @@ function OwnActions({ item }: { item: LibraryItem }) {
         />
         <ShareButton kind="entry" id={item.id} title={item.title} iconOnly />
         <RemoveButton item={item} />
+        <ItemMenu item={item} />
       </div>
       {saving ? (
         <AddToPlaylist entryId={item.id} title={item.title} open onOpenChange={setSaving} />
@@ -260,29 +194,14 @@ function OwnActions({ item }: { item: LibraryItem }) {
 }
 
 /**
- * The row under a watch page's title: the channel, Watched, and the actions. On the person's own
- * entry those are theirs (docs/library.md); on one shared with them (docs/sharing.md), who shared
- * it, Save and Add to my library.
+ * The row under a watch page's title: the channel and the actions, the ⋮ menu last. On the
+ * person's own entry those are theirs (docs/library.md); on one shared with them (docs/sharing.md),
+ * who shared it, Save and Add to my library.
  */
 export function ItemActions({ item }: { item: LibraryItem }) {
-  const client = useQueryClient();
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
       <ChannelLine item={item} />
-      <label className="flex items-center gap-2 text-sm">
-        <Switch
-          aria-label="Watched"
-          checked={item.progress?.watched ?? false}
-          onCheckedChange={(watched) => {
-            setWatched(item.id, watched)
-              .then(() => client.invalidateQueries({ queryKey: ["api", "library"] }))
-              .catch((err: unknown) => {
-                notify.error(errorText(err));
-              });
-          }}
-        />
-        Watched
-      </label>
       {item.sharedBy === null ? (
         <OwnActions item={item} />
       ) : (
@@ -291,15 +210,9 @@ export function ItemActions({ item }: { item: LibraryItem }) {
           <div className={actionRow}>
             <SaveFile item={item} />
             <AddToMine item={item} />
+            <ItemMenu item={item} />
           </div>
         </>
-      )}
-      {item.webpageUrl === null ? null : (
-        <Button variant="ghost" asChild>
-          <a href={item.webpageUrl} target="_blank" rel="noreferrer">
-            <ExternalLink aria-hidden /> Open on the site
-          </a>
-        </Button>
       )}
     </div>
   );
