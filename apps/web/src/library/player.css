@@ -45,12 +45,17 @@
 }
 
 /*
- * The buttons' row: play, volume and time at the left, captions, settings, cast, picture in
- * picture and fullscreen at the right. The skin centres them around the inline timeline; with the
- * timeline on its own row, the end group takes the leftover space instead.
+ * The buttons' row: play, volume and time at the left, settings, cast, picture in picture and
+ * fullscreen at the right. The skin centres them around the inline timeline; with the timeline on
+ * its own row, the end group takes the leftover space instead.
  */
 .uro-player .video-controls-end {
   margin-inline-start: auto;
+}
+
+/* Captions are turned on and off from the settings menu's Captions submenu alone. */
+.uro-player .video-controls-captions-button {
+  display: none;
 }
 
 /* Chapters are two pixels apart. */
