@@ -107,8 +107,8 @@ function logMigrations(logger: Logger, { applied, ahead }: MigrationOutcome): vo
 
 /**
  * Listens at once (liveness answers, readiness says `starting`), then migrates on a dedicated
- * connection, attaches the database and starts the leader loop: Djinn's `serve`. Installs no
- * process handlers; the caller owns shutdown.
+ * connection, attaches the database and starts the leader loop. Installs no process handlers;
+ * the caller owns shutdown.
  */
 export async function startApi(
   config: Config,

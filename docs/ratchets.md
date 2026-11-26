@@ -113,8 +113,7 @@ code). Test fixtures that must contain forbidden content live under `tools/ratch
 
 - **Why:** the UI has one size knob, the root font size in `apps/web/src/index.css` (110% on
   phones, times `--ui-scale`, the account menu's Size), and every size is rem so the whole UI
-  follows it. A pixel value is a size the knob cannot reach. Ported from tyrfing's
-  `xtask ratchet css-px`.
+  follows it. A pixel value is a size the knob cannot reach.
 - **Governs:** `*.css`, `*.ts` and `*.tsx` under `apps/web/src/`, skipping tests (`.test.`,
   `.spec.`, `__tests__/`) and generated code.
 - **Measures:** every `<number>px` token per file, in code and comments alike (Tailwind's

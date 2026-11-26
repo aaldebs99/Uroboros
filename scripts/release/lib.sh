@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # Shared helpers for scripts/release/propose.sh and publish.sh. Sourced, not run.
 #
-# Ported from Djinn (which took them from quire, where they replaced release-please once the
-# repository lived on a forge the action cannot talk to). The shape: the version main carries is
-# the source of truth, a release is cut for it when none exists, and the next one is proposed as
-# a pull request a person merges.
+# They stand in for release-please, whose action cannot talk to the forge. The shape: the version
+# main carries is the source of truth, a release is cut for it when none exists, and the next one
+# is proposed as a pull request a person merges.
 #
 # Environment:
 #   FORGE_API              forge API root, e.g. https://forge.example/api/v1

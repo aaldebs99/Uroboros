@@ -16,8 +16,7 @@
 #             refresh the `chore(release): X.Y.Z` PR. Merging that PR is what
 #             cuts a release (the next push to main runs `publish`).
 #
-# Ported from Djinn, which copied it from quire, where it replaced
-# release-please: the action only speaks GitHub's API. The scripts are in
+# It stands in for release-please, whose action only speaks GitHub's API. The scripts are in
 # scripts/release/ and the changelog and bump rules in cliff.toml. This is not
 # a CI gate: `mise run ci` and ci:parity do not know about it.
 #

@@ -1,6 +1,6 @@
 /**
- * Messages between replicas over Postgres LISTEN/NOTIFY (docs/jobs.md), ported from Djinn's
- * `live.rs`: every process keeps one listener connection of its own, outside the pool and never in
+ * Messages between replicas over Postgres LISTEN/NOTIFY (docs/jobs.md): every process keeps
+ * one listener connection of its own, outside the pool and never in
  * a transaction, LISTENing on every channel, and fans what it hears out to in-process listeners.
  * A notify is delivered when its transaction commits, to every listening session (this process's
  * own listener included), and never after a rollback. A connection that drops is dialled again

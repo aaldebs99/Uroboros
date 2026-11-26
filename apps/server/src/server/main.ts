@@ -17,7 +17,7 @@ export interface StartServerOptions extends Omit<StartApiOptions, "consumers"> {
 }
 
 /**
- * One Uroboros replica, Djinn's `serve`: HTTP, migrations and the leader's duties (`startApi`),
+ * One Uroboros replica: HTTP, migrations and the leader's duties (`startApi`),
  * and, once the database is attached, the job consumers on the same pool and listener.
  * Installs no process handlers; the caller owns shutdown.
  */

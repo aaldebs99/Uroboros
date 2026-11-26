@@ -163,7 +163,7 @@ mise run ci
 ## Database and tests
 
 The server reads `DATABASE_URL`; Postgres is its only service besides storage. There is no separate migrate step: the server
-applies the migrations as it starts, the way Djinn's `serve` does. It listens at once (so liveness answers), connects on a connection of its own, retrying an
+applies the migrations as it starts. It listens at once (so liveness answers), connects on a connection of its own, retrying an
 unreachable database every 2 s for `UROBOROS_DB_STARTUP_GRACE_SECS` (0, the default, retries
 until it answers; a wrong password or URL fails at once), applies every pending file with no
 statement, lock or query timeout, and only then attaches the database and reports ready. Every
@@ -188,8 +188,7 @@ connection of its own and pings it every 10 s. When that replica dies or loses i
 server frees the lock and another replica takes it within about 15 s; a stopping replica gives it
 up at once. The leader sweeps expired sessions, sign-ins and short-lived rows, re-adds download jobs
 that went missing, puts back jobs whose worker vanished, and queues the subscriptions' due checks.
-The machinery,
-ported from Djinn, is `apps/server/src/shared/leader.ts`, and every lock key is in
+The machinery is `apps/server/src/shared/leader.ts`, and every lock key is in
 `shared/lockKeys.ts`.
 
 From the first release on, migrations are applied while replicas from the previous release are

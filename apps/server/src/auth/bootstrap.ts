@@ -18,7 +18,7 @@ async function hashFor(current: string | null, password: string): Promise<string
 }
 
 /**
- * Makes the configured bootstrap admin exist, as Djinn does: on every start the flagged account is
+ * Makes the configured bootstrap admin exist: on every start the flagged account is
  * created or re-seeded (username, password, admin role). With no flagged account, a local account
  * of that name is adopted. Concurrent replicas are tolerated. `disabled_at` is never touched.
  */

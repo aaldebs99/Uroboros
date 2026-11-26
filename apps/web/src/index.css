@@ -255,7 +255,7 @@ select[data-slot] option {
 }
 
 /*
- * The navigation drawer (components/NavDrawer.tsx, ported from Djinn): a native dialog covering
+ * The navigation drawer (components/NavDrawer.tsx): a native dialog covering
  * the screen, holding the scrim that dims the page and the panel pinned to the left edge. The
  * scrim is a child rather than ::backdrop because ::backdrop exists only while the dialog is
  * modal, and under a finger the drawer is seen before that. A dialog's own centring, sizing,

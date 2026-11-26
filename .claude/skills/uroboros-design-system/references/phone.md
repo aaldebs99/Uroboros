@@ -11,7 +11,7 @@ A slim top bar with a menu button, and bottom tabs.
   avatar (the account menu). It has no Add button: the tab bar's centred "+" is the only one on
   phones ([below](#add-download-or-upload)).
 - **The menu button** opens the side navigation as a 240px drawer from the left
-  (`components/NavDrawer.tsx`, a native `<dialog>` over the scrim, ported from Djinn), with its own
+  (`components/NavDrawer.tsx`, a native `<dialog>` over the scrim), with its own
   menu button and brand where the top bar's sit. It holds everything the side navigation does on
   desktop (the library's views, Settings, the Admin pages); any navigation closes it.
 - **A finger drags it** in from anywhere on the page and drags it shut, following one to one, and

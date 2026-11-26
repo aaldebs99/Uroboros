@@ -65,8 +65,7 @@ its backend's variables), and the migrate entrypoint only `DATABASE_URL`; `dev:s
 `migrate` default them to the `dev:deps` containers (RustFS for
 storage).
 
-Every replica migrates on start, as Djinn's `serve` does (`src/migrate/onStart.ts`,
-`src/api/main.ts`):
+Every replica migrates on start (`src/migrate/onStart.ts`, `src/api/main.ts`):
 it listens first, connects on a dedicated `pg.Client` (never the pool) retrying an unreachable
 server within `UROBOROS_DB_STARTUP_GRACE_SECS` (0 = forever), sets `statement_timeout` and
 `lock_timeout` to 0 on it (it has no client-side query timeout either), runs the migrations, and
@@ -102,7 +101,7 @@ share one external Postgres at the same time, because each rebuilds the template
 
 ## Sign-in and accounts
 
-Ported from Djinn's authentication (docs/auth.md has the decisions). Every `/api` route outside a
+docs/auth.md has the decisions. Every `/api` route outside a
 small public list (health, ready, info, openapi, docs, `/api/auth/methods`,
 `/api/auth/local/login`, `/api/auth/oidc/*`) needs a session or an API token: `authGuard`
 (`apps/server/src/auth/guard.ts`) resolves it and `currentPrincipal(c)` returns `{ userId, role,

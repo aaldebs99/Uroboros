@@ -108,7 +108,7 @@ function land({ from, parts, setPhase, width }: Touching, current: Drag, release
 }
 
 /**
- * The drawer's touch pipeline (ported from Djinn's NavDrawer): passive listeners on the document,
+ * The drawer's touch pipeline: passive listeners on the document,
  * reinstalled per phase, the gesture itself in a ref that outlives them. A drag may start anywhere
  * but where a sideways drag already means something; the open panel is dragged shut the same way.
  * With `enabled` false (from `md` up) there are no listeners and only the button opens it.

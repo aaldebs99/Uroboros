@@ -38,7 +38,7 @@ new video shows up on an open library page without a reload.
 
 ### Search
 
-A search finds substrings, as Djinn's does: `ILIKE '%…%'` through `pg_trgm` trigram GIN indexes, so
+A search finds substrings: `ILIKE '%…%'` through `pg_trgm` trigram GIN indexes, so
 part of a word finds it ("kube" finds Kubernetes), names, numbers and any language work, and nothing
 is stemmed (`src/library/searchTerms.ts`, `src/library/search.ts`).
 
@@ -73,7 +73,7 @@ is stemmed (`src/library/searchTerms.ts`, `src/library/search.ts`).
   description, else the first caption run holding every term, or null when only its title or
   channel did. So a title match whose captions hold the words too still shows them. A match is
   `in` (`chapter`, `description` or `captions`), a `snippet` of parts with every term marked
-  (`src/library/snippet.ts`, ported from Djinn's: one line, 40 characters before the first match
+  (`src/library/snippet.ts`: one line, 40 characters before the first match
   and 120 after, `…` where it was cut), and `start`, the chapter's start or the start of the
   caption line holding the match (`caption_segments.line_at`/`line_start`), null for a
   description. It is asked of the page's media alone, inside the search's bound, with every

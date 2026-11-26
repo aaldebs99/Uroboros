@@ -4,8 +4,7 @@ Uroboros is an installable web app (a PWA), and it can push native notifications
 and phones a person turns them on for, through Web Push. This step builds the framework: the
 manifest and icons, the service worker, the devices and their Settings section, the key, and the
 sender. What gets pushed comes with the features that have news (a download that finished or
-failed, a subscription that found something); each sends through the same `Pusher`. The design is
-taken from Djinn's (`docs/design/push.md` there), ported in behaviour rather than code.
+failed, a subscription that found something); each sends through the same `Pusher`.
 
 ## The installable app
 
@@ -115,8 +114,7 @@ download.
 ## How a push is sent
 
 Encryption (RFC 8291, `aes128gcm`) and the VAPID signature (RFC 8292) come from the `web-push`
-package, which runs on Node's crypto. Djinn hand-rolled both only because its cargo-deny policy
-banned OpenSSL; nothing like that applies here. The request itself is ours
+package, which runs on Node's crypto. The request itself is ours
 (`apps/server/src/push/sender.ts`): `web-push`'s `generateRequestDetails` builds the body and
 headers and `fetch` posts them, so redirects are never followed and one time limit (15 s) covers
 the whole exchange.
@@ -213,7 +211,7 @@ unasked), so its Turn on is that tap. A browser tab never shows it, nor does a w
 push the player down) or Settings › Notifications (its own button offers the same). Turning
 notifications on in Settings meanwhile settles the permission, and the banner goes.
 
-Not here yet, and deliberately: Djinn's presence reporting (pushing only when no copy of the app is
+Not here yet, and deliberately: presence reporting (pushing only when no copy of the app is
 on screen), which matters for chat replies and not for downloads.
 
 ## Setting it up
