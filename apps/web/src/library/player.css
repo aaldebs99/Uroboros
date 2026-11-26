@@ -36,12 +36,16 @@
 }
 
 /*
- * Phones: the player runs edge to edge (WatchPlayer.tsx), so its corners are square there. The
- * skin rounds itself through this variable; from md up it keeps its 12 pixels.
+ * Phones: the player runs edge to edge (WatchPlayer.tsx), so its corners are square there; from md
+ * up it keeps the skin's 12 pixels. And a play/pause button sits over the middle of the picture,
+ * coming and going with the controls: the skin's own center play button, which it would hide once
+ * playback starts.
  */
 @media (width < 48rem) {
   .uro-player {
     --media-video-border-radius: 0;
+    --media-center-play-started-opacity: 1;
+    --media-center-play-started-pointer-events: auto;
   }
 }
 
