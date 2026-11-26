@@ -4,6 +4,7 @@ import { generateVAPIDKeys } from "web-push";
 import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig, loadMigrateConfig, loadMigrationsDir } from "./config.ts";
 import { DEFAULT_ALLOWED_HOSTS } from "./push/endpoint.ts";
+import { secretsKeyFrom } from "./secrets/key.ts";
 
 const base = {
   DATABASE_URL: "postgres://u:p@h/db",
@@ -375,18 +376,24 @@ describe("loadConfig secrets key", () => {
     expect(loadConfig({ ...base, UROBOROS_SECRETS_KEY: "" }).secretsKey).toBeNull();
   });
 
-  it("decodes 32 bytes of base64", () => {
+  it("keeps a key in the old form, 32 bytes of base64, as the key itself", () => {
     expect(loadConfig({ ...base, UROBOROS_SECRETS_KEY: key }).secretsKey).toEqual(
       Buffer.alloc(32, 7),
     );
   });
 
-  it.each(["short", Buffer.alloc(16).toString("base64"), Buffer.alloc(48).toString("base64")])(
-    "refuses %j",
+  it.each(["hunter22", Buffer.alloc(32, 7).toString("hex"), Buffer.alloc(16).toString("base64")])(
+    "derives a 32-byte key from %j",
     (value) => {
-      expect(() => loadConfig({ ...base, UROBOROS_SECRETS_KEY: value })).toThrow(
-        /UROBOROS_SECRETS_KEY/,
-      );
+      const loaded = loadConfig({ ...base, UROBOROS_SECRETS_KEY: value }).secretsKey;
+      expect(loaded).toEqual(secretsKeyFrom(value));
+      expect(loaded).toHaveLength(32);
     },
   );
+
+  it("refuses a passphrase shorter than 8 characters", () => {
+    expect(() => loadConfig({ ...base, UROBOROS_SECRETS_KEY: "hunter2" })).toThrow(
+      /UROBOROS_SECRETS_KEY must be at least 8 characters \(openssl rand -hex 32/,
+    );
+  });
 });

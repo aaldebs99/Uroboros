@@ -91,8 +91,9 @@ x-server-env: &server-env
   # place, never copied) and the tmpfs below with S3.
   UROBOROS_WORK_DIR: ${UROBOROS_WORK_DIR:-}
   UROBOROS_WORKER_CONCURRENCY: ${UROBOROS_WORKER_CONCURRENCY:-}
-  # The key people's saved site logins (Settings › Logins) are sealed with: 32 random bytes in
-  # base64 (openssl rand -base64 32). Unset, saving logins is off; changing it voids saved ones.
+  # The passphrase people's saved site logins (Settings › Logins) are sealed with: 8 or more
+  # characters (openssl rand -hex 32 makes a strong one). Unset, saving logins is off; changing it
+  # voids saved ones.
   UROBOROS_SECRETS_KEY: ${UROBOROS_SECRETS_KEY:-}
   UROBOROS_SUBTITLE_LANGS: ${UROBOROS_SUBTITLE_LANGS-en.*}
   UROBOROS_AUTO_SUBTITLES: ${UROBOROS_AUTO_SUBTITLES:-}

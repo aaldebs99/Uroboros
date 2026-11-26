@@ -2,9 +2,10 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 /**
  * Sealing for the few secrets the server must read back (saved site logins): AES-256-GCM under
- * `UROBOROS_SECRETS_KEY`. A sealed value is `nonce (12) ‖ ciphertext ‖ tag (16)`; the additional
- * data names what it belongs to, so a sealed value copied onto another row does not open. There
- * is no key rotation: a changed key leaves old values unreadable, and their owners enter them again.
+ * the key made from `UROBOROS_SECRETS_KEY` (`key.ts`). A sealed value is
+ * `nonce (12) ‖ ciphertext ‖ tag (16)`; the additional data names what it belongs to, so a sealed
+ * value copied onto another row does not open. There is no key rotation: a changed key leaves old
+ * values unreadable, and their owners enter them again.
  */
 
 const ALGORITHM = "aes-256-gcm";

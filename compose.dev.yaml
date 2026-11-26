@@ -44,7 +44,8 @@ services:
       UROBOROS_WEB_DIST: /src/apps/web/dist
       UROBOROS_MIGRATIONS_DIR: /src/migrations
       # A fixed key for the dev stack only, so saved site logins work there: never use it for a
-      # real deployment (generate one with openssl rand -base64 32).
+      # real deployment (generate one with openssl rand -hex 32). It is in the older base64 form,
+      # which is used as the key itself (docs/downloads.md#site-logins).
       UROBOROS_SECRETS_KEY: ${UROBOROS_SECRETS_KEY:-ZGV2LW9ubHkta2V5LWRvLW5vdC11c2UtZm9yLXJlYWw=}
       # The dev stack's own bootstrap admin, admin / admin, with the weak-password opt-out that
       # exists for exactly this; compose.yaml has no default account. Never for a real deployment.
