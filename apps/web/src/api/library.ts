@@ -184,6 +184,14 @@ export const setKept = (id: string, kept: boolean) =>
 export const refetchSkipSegments = (id: string) =>
   postNoContent(`/api/library/${encodeURIComponent(id)}/skip-segments/refetch`);
 
+/**
+ * Refresh the video's SponsorBlock segments quietly, as its page opens (its owner's, at most once
+ * an hour per file, docs/automation.md#sponsorblock): a quiet `skips` event follows only if
+ * something changed.
+ */
+export const refreshSkipSegments = (id: string) =>
+  postNoContent(`/api/library/${encodeURIComponent(id)}/skip-segments/refresh`);
+
 /** An uploaded video's new details (its uploader only, docs/uploads.md). */
 export const editDetails = (id: string, details: EntryDetailsBody) =>
   patchJson(`/api/library/${encodeURIComponent(id)}/details`, LibraryItem, details);

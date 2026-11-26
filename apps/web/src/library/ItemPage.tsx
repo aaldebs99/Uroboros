@@ -17,6 +17,7 @@ import { Suggestions } from "./Suggestions";
 import { TagEditor } from "./TagEditor";
 import { nextInQueue, UpNext, useQueue, type PlayQueue } from "./UpNext";
 import { useProgressReporter } from "./useProgressReporter";
+import { useQuietSkipsRefresh } from "./useQuietSkipsRefresh";
 import { WatchBack } from "./WatchBack";
 import { WatchPlayer } from "./WatchPlayer";
 
@@ -146,6 +147,7 @@ export function ItemPage({
   const reporter = useProgressReporter((position, duration) =>
     reportProgress(entryId, position, duration),
   );
+  useQuietSkipsRefresh(entryId, item.data);
   if (item.isError)
     return (
       <Frame>
