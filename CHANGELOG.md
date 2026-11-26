@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.1.2](https://github.com/aaldebs99/Uroboros/compare/0.1.1...0.1.2) (2026-11-26)
+
+
+### Features
+
+* **library:** an entry says whether its subscription has retention, so Keep can show only where it matters ([d26c6a2](https://github.com/aaldebs99/Uroboros/commit/d26c6a2bffc4f03e7740c8ad63bf182a9e16534a))
+* **web:** action menus take toggle rows with a check, groups, and pages that open in a new tab ([c13e08b](https://github.com/aaldebs99/Uroboros/commit/c13e08bbca7cf919899fa6d739eabbbfe5392f54))
+* **web:** the watch page's actions gather in a ⋮ menu, with checked rows for watched and Keep, and Keep only where retention could remove the video ([210b188](https://github.com/aaldebs99/Uroboros/commit/210b188becd8978ce41b21121fa32ecbb8dc9c32))
+* **web:** quicker motion on phones, and a 200 ms hold starts a tile's preview ([dd8a45f](https://github.com/aaldebs99/Uroboros/commit/dd8a45f7e3184f3a98b40884bbafd42b5577c22f))
+* **web:** on phones the watch player runs edge to edge with square corners ([cc7cfa4](https://github.com/aaldebs99/Uroboros/commit/cc7cfa461e0f460f1f958f8fbe195189633e531b))
+* **web:** back links sit closer under the top bar ([704787b](https://github.com/aaldebs99/Uroboros/commit/704787b39ff46523495df574fcef2570f5a5fd39))
+* **library:** short-lived save links that save a file without the session cookie ([e6300e8](https://github.com/aaldebs99/Uroboros/commit/e6300e8768f6af068c726adbdeff7160d7f5794b))
+* **web:** on phones a play/pause button sits over the middle of the player ([96da57c](https://github.com/aaldebs99/Uroboros/commit/96da57cff2c13c9122a7eb4f93c656d53e3e7979))
+* **web:** the player says what SponsorBlock segment it skipped, with Unskip ([0e978d4](https://github.com/aaldebs99/Uroboros/commit/0e978d4c1ccd5c97b7d547086b97c672a4f97a25))
+* **web:** an unskipped segment is skipped again after a seek 5 s or more before it ([d7a89a6](https://github.com/aaldebs99/Uroboros/commit/d7a89a6aed08317a75289cf1a05d10b6702cb405))
+
+
+### Bug Fixes
+
+* **web:** Save in the installed iPhone app opens a window of its own instead of iOS taking the app over ([308abc3](https://github.com/aaldebs99/Uroboros/commit/308abc32ff0b62bd9623acebd0f77e7652290435))
+* **web:** Save in the installed iPhone app hands the file to Safari, which can download it ([f048b12](https://github.com/aaldebs99/Uroboros/commit/f048b12465d045190635197b47e82c3c3d693ffd))
+* **web:** an http address hands Save to Safari too, never the in-app sheet that can't save ([96bd2ac](https://github.com/aaldebs99/Uroboros/commit/96bd2ac556a6f8ee8b9f5d51eb286257dbd02c46))
+* **web:** on an http address Save stays the in-app download link ([7e7469c](https://github.com/aaldebs99/Uroboros/commit/7e7469cc43f9bb4cc36ea54b9bad133692aff17a))
+* **server:** keep save-link tokens out of the request log, and describe the Safari hand-off in the migration and contract ([a561f14](https://github.com/aaldebs99/Uroboros/commit/a561f14056fc2106aaefc38987021451e987ffac))
+* **web:** navigation rows keep their height on a short screen, which scrolls the list instead ([0f9d691](https://github.com/aaldebs99/Uroboros/commit/0f9d691bc909d74c532e7f091edc8e686677cc6f))
+* **web:** Mark as unwatched clears a started video's progress ([0bc155d](https://github.com/aaldebs99/Uroboros/commit/0bc155d937fff4b22f2cd3da03fcda7e738fa640))
+
+
+### Tests
+
+* **web:** a player attaches its store to jsdom's video without an error ([768edfb](https://github.com/aaldebs99/Uroboros/commit/768edfbdc30e08c2048dcfc6e88bb0332b13803d))
 ## [0.1.1](https://github.com/aaldebs99/Uroboros/compare/0.1.0...0.1.1) (2026-11-26)
 
 
