@@ -40,12 +40,19 @@ Picking a rung starts a session at the current position. Picking Original goes b
 the place of the skin's own, which lists only an HLS stream's renditions, through a slot that
 `patches/@videojs__react.patch` adds (`SettingsMenuSlot`).
 
-A line under the player says how it plays:
+The settings menu's **Stats** row turns on a panel over the picture, in fullscreen too
+(`PlaybackStats`, its words in `playbackStats.ts`). It says:
 
-- "Direct play";
-- "Direct stream", with "· converting the audio" when only the audio is converted;
-- "Transcoding to 720p · NVIDIA GPU", with the reason when it is not your pick ("this browser
-  can't play VP9").
+- **Playback**: how it plays. "Direct play"; "Direct stream", with "· converting the audio" when
+  only the audio is converted; or "Transcoding to 720p · NVIDIA GPU", with the reason when it is
+  not your pick ("this browser can't play VP9").
+- **Source**: the file's codecs, container, size, and bitrate (its size over its length).
+- **Output**, for a session: the encode's size and target bitrate (the session's `bitrate`), or
+  the video copied.
+- **Viewport, Frames, Buffer**, read off the player every second: its size on screen and the
+  picture it decodes, the frames dropped of those shown, and the seconds buffered ahead.
+- **Network**, for a session: the newest segment's size and download time, from the browser's
+  Resource Timing.
 
 ## Sessions
 

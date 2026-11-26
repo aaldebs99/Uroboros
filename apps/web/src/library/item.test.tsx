@@ -1,6 +1,5 @@
 import { act, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -18,50 +17,7 @@ vi.mock("./playable", () => ({
   capabilities: () => ({ copyVideo: true, copyAudio: true }),
 }));
 
-/** The settings slot's Quality menu, as buttons: jsdom has no Video.js menus to open. */
-type Settings = ReactElement<{
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
-}>;
-
-vi.mock("./Player", () => ({
-  Player: (props: {
-    src: string;
-    hls?: { native: boolean };
-    start: number;
-    seek: { time: number } | null;
-    subtitles: { lang: string }[];
-    settings?: Settings;
-    onTime: (at: number, duration: number) => void;
-    onError?: () => void;
-  }) => (
-    <div
-      data-testid="player"
-      data-src={props.src}
-      data-hls={props.hls === undefined ? "" : props.hls.native ? "native" : "mse"}
-      data-start={String(props.start)}
-      data-seek={props.seek === null ? "" : String(props.seek.time)}
-      data-subs={props.subtitles.map((s) => s.lang).join(",")}
-    >
-      {props.settings?.props.options.map((o) => (
-        <button key={o.value} type="button" onClick={() => props.settings?.props.onChange(o.value)}>
-          quality {o.label}
-        </button>
-      ))}
-      <button
-        type="button"
-        onClick={() => {
-          props.onTime(30, 596);
-        }}
-      >
-        play to 0:30
-      </button>
-      <button type="button" onClick={() => props.onError?.()}>
-        fail to play
-      </button>
-    </div>
-  ),
-}));
+vi.mock("./Player", () => import("@/test/fakePlayer"));
 
 afterEach(() => {
   vi.useRealTimers();
@@ -116,94 +72,6 @@ describe("ItemPage", () => {
         tags: ["movies", "open"],
       });
     });
-  });
-});
-
-describe("ItemPage playback", () => {
-  const SID = "0190a3f2-7c1e-7000-8000-00000000005e";
-  const url = `/api/library/${ID}/playback/sessions/${SID}`;
-  const session = (over: Record<string, unknown>) => ({
-    id: SID,
-    state: "running",
-    mode: "encode",
-    quality: "720",
-    encoder: "nvenc",
-    width: 1280,
-    height: 720,
-    reason: "picked",
-    url,
-    masterUrl: `${url}/master.m3u8`,
-    error: null,
-    ...over,
-  });
-  const offered = { ...item, qualities: ["1080", "720", "480"] };
-
-  it("plays the original as it is, and says so", async () => {
-    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(offered) });
-    await renderInRouter(<ItemPage entryId={ID} />);
-    expect(await screen.findByTestId("player")).toHaveAttribute("data-src", item.streamUrl);
-    expect(screen.getByText("Direct play")).toBeInTheDocument();
-  });
-
-  it("transcodes at a picked quality from where the viewer is", async () => {
-    const calls = fakeApi({
-      [`GET /api/library/${ID}`]: () => Response.json(offered),
-      [`POST /api/library/${ID}/playback`]: () => Response.json(session({}), { status: 201 }),
-      [`GET ${url}`]: () => Response.json(session({})),
-      [`DELETE ${url}`]: () => new Response(null, { status: 204 }),
-    });
-    await renderInRouter(<ItemPage entryId={ID} />);
-    await userEvent.click(await screen.findByRole("button", { name: "play to 0:30" }));
-    await userEvent.click(screen.getByRole("button", { name: "quality 720p" }));
-    await waitFor(() => {
-      expect(screen.getByTestId("player")).toHaveAttribute("data-src", `${url}/master.m3u8`);
-    });
-    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
-      quality: "720",
-      start: 30,
-      copyVideo: true,
-      copyAudio: true,
-    });
-    expect(screen.getByTestId("player")).toHaveAttribute("data-start", "30");
-    expect(screen.getByText("Transcoding to 720p · NVIDIA GPU")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "quality Original" }));
-    await waitFor(() => {
-      expect(screen.getByTestId("player")).toHaveAttribute("data-src", item.streamUrl);
-    });
-    await waitFor(() => {
-      expect(calls.some((c) => c.method === "DELETE" && c.path === url)).toBe(true);
-    });
-  });
-
-  it("transcodes the original when it fails to play here, from where it stopped", async () => {
-    const calls = fakeApi({
-      [`GET /api/library/${ID}`]: () => Response.json(offered),
-      [`POST /api/library/${ID}/playback`]: () =>
-        Response.json(
-          session({ quality: "original", reason: "video_unsupported", encoder: "libx264" }),
-          {
-            status: 201,
-          },
-        ),
-      [`GET ${url}`]: () =>
-        Response.json(
-          session({ quality: "original", reason: "video_unsupported", encoder: "libx264" }),
-        ),
-    });
-    await renderInRouter(<ItemPage entryId={ID} />);
-    await userEvent.click(await screen.findByRole("button", { name: "play to 0:30" }));
-    await userEvent.click(screen.getByRole("button", { name: "fail to play" }));
-    await waitFor(() => {
-      expect(calls.find((c) => c.method === "POST")?.body).toEqual({
-        quality: "original",
-        start: 30,
-        copyVideo: false,
-        copyAudio: true,
-      });
-    });
-    expect(
-      await screen.findByText("Transcoding to 720p · CPU · this browser can't play H.264"),
-    ).toBeInTheDocument();
   });
 });
 

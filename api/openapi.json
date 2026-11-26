@@ -2445,6 +2445,11 @@
       },
       "PlaybackSession": {
         "properties": {
+          "bitrate": {
+            "default": null,
+            "nullable": true,
+            "type": "integer"
+          },
           "encoder": {
             "$ref": "#/components/schemas/PlaybackEncoder"
           },

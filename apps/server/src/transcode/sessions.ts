@@ -166,6 +166,7 @@ export function toSession(row: SessionRow, base: string): PlaybackSession {
     encoder: row.encoder,
     width: plan.width,
     height: plan.height,
+    bitrate: plan.bitrate,
     reason: plan.reason,
     url,
     masterUrl: `${url}/master.m3u8`,

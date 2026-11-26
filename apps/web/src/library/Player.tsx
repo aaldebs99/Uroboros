@@ -56,6 +56,8 @@ export interface PlayerProps {
   onEnded: (position: number, duration: number) => void;
   /** Shown in the settings menu in place of the skin's Quality submenu (QualityMenu). */
   settings?: ReactNode;
+  /** Shown over the picture, in fullscreen too: the Stats panel (PlaybackStats). */
+  overlay?: ReactNode;
   /** The player failed (once per error): the page may play the video another way. */
   onError?: () => void;
   /**
@@ -201,6 +203,7 @@ export function Player(p: PlayerProps) {
           data-own-swipe=""
         >
           {p.audio === undefined ? null : <AudioArtwork src={p.audio.thumbnailUrl} />}
+          {p.overlay}
           <Media
             ref={video}
             src={p.src}

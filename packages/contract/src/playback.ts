@@ -69,6 +69,8 @@ export const PlaybackSession = z
     encoder: PlaybackEncoder.nullable(),
     width: z.number().int().nullable(),
     height: z.number().int().nullable(),
+    /** The encode's target bits per second; null when the video is copied (or none). */
+    bitrate: z.number().int().nullable().default(null),
     reason: PlaybackReason,
     /** The session itself: GET it to stay alive, DELETE it to stop. */
     url: z.string(),

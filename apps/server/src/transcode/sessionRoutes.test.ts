@@ -109,6 +109,8 @@ describe("creating a playback session", () => {
       encoder: null,
       width: 1280,
       height: 720,
+      // The seeded file is 10 bytes over 20 s, so the encode aims at the floor.
+      bitrate: 500_000,
       reason: "picked",
       url: `${base()}/sessions/${s.id}`,
       masterUrl: `${base()}/sessions/${s.id}/master.m3u8`,
@@ -201,6 +203,8 @@ describe("a session's playlists", () => {
   it("cuts a remux at the keyframes, once they are known (409 before)", async () => {
     const s = await session(alice, { quality: "original", copyVideo: true });
     expect(s.mode).toBe("remux");
+    // A remux copies the video: no encode, no target bitrate.
+    expect(s.bitrate).toBeNull();
     expect((await as(alice).request(`${s.url}/index.m3u8`)).status).toBe(409);
     await t.db
       .insertInto("rendition_keyframes")
