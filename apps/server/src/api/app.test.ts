@@ -293,7 +293,7 @@ describe("spa", () => {
 });
 
 describe("the request log", () => {
-  it("leaves out public share codes, the only secret behind a public link", async () => {
+  it("leaves out public share codes and save-link tokens, the only secrets behind them", async () => {
     const lines: { path?: string; msg?: string }[] = [];
     const capture = pino(
       { level: "info" },
@@ -302,8 +302,14 @@ describe("the request log", () => {
     const a = app({ logger: capture });
     await a.request("/api/public/s/Zm9vYmFyYmF6cXV4MTIzNA/items/x/stream");
     await a.request("/s/Zm9vYmFyYmF6cXV4MTIzNA");
+    await a.request("/api/public/saves/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     await a.request("/api/health");
     const paths = lines.filter((l) => l.msg === "request").map((l) => l.path);
-    expect(paths).toEqual(["/api/public/s/…/items/x/stream", "/s/…", "/api/health"]);
+    expect(paths).toEqual([
+      "/api/public/s/…/items/x/stream",
+      "/s/…",
+      "/api/public/saves/…",
+      "/api/health",
+    ]);
   });
 });

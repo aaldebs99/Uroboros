@@ -5,9 +5,9 @@ import { ApiError } from "../api/errors.ts";
 import type { Database } from "../db/schema.ts";
 
 /**
- * Save links (docs/downloads.md#saving-a-file): the installed iPhone app opens Save in a window of
- * its own, which may not share the app's cookies (iOS gives a home-screen app its own storage), so
- * the window gets a link that needs none. It is a random token, stored only as its SHA-256, naming
+ * Save links (docs/downloads.md#saving-a-file): the installed iPhone app hands Save to Safari, which
+ * doesn't have the app's cookies (iOS gives a home-screen app its own storage), so Safari gets a
+ * link that needs none. It is a random token, stored only as its SHA-256, naming
  * one entry or finished copy of the person's; it works for any number of requests (iOS's downloader
  * resumes with ranges) until it expires an hour on, and access is checked again on every use.
  */

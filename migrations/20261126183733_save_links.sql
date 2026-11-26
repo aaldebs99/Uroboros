@@ -3,11 +3,11 @@
 
 
 -- A short-lived link that saves one file without the session cookie (docs/downloads.md#saving-a-file):
--- the installed iPhone app opens Save in a window of its own, which may not share the app's cookies,
--- so the window gets this link instead. Only the token's SHA-256 is kept, as auth_sessions keeps its
--- tokens'. It names an entry (the person's own, or one shared with them, checked again on each use)
--- or one of their finished copies, and works for any number of requests (ranges) until it expires;
--- the sweeper deletes it after. The release before never reads it.
+-- the installed iPhone app hands Save to Safari, which doesn't have the app's cookies, so Safari
+-- gets this link instead. Only the token's SHA-256 is kept, as auth_sessions keeps its tokens'. It
+-- names an entry (the person's own, or one shared with them, checked again on each use) or one of
+-- their finished copies, and works for any number of requests (ranges) until it expires; the
+-- sweeper deletes it after. The release before never reads it.
 CREATE TABLE save_links (
   token_hash BYTEA PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,

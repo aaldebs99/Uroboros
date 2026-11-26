@@ -120,7 +120,7 @@ export type LibraryItem = z.infer<typeof LibraryItem>;
 
 /**
  * A short-lived link that saves one file without the session cookie (docs/downloads.md#saving-a-file):
- * the installed iPhone app opens it in a window of its own, which may not have the app's cookies.
+ * the installed iPhone app hands it to Safari, which doesn't have the app's cookies.
  */
 export const SaveLink = z
   .object({

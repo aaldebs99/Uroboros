@@ -1,8 +1,8 @@
 import type { ColumnType } from "kysely";
 
 /**
- * `save_links`: a short-lived link that saves one file without the session cookie, for the
- * installed iPhone app's Save window (docs/downloads.md#saving-a-file). It names an entry or a
+ * `save_links`: a short-lived link that saves one file without the session cookie, which the
+ * installed iPhone app hands to Safari (docs/downloads.md#saving-a-file). It names an entry or a
  * finished copy, never both.
  */
 export interface SaveLinksTable {
