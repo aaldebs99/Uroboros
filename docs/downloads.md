@@ -299,9 +299,9 @@ way out either: iOS shows it as an in-app Safari sheet, which can't download a f
 blank page. So in that app (`savesInWindow`, `apps/web/src/library/saveInWindow.ts`) Save hands
 the file to Safari itself, through its `x-safari-https:` scheme (iOS 17 and later; undocumented,
 so it may change), where Safari's downloader saves it to Files › Downloads and the app stays as it
-was. An http address (a LAN dev stack) gets `x-safari-http:`, less certain still, but never the
-in-app sheet that can't save. An app still in front 1.5 s later (an older iOS, or one that doesn't
-know the scheme) says it couldn't open Safari.
+was. An app still in front 1.5 s later (an older iOS) says it couldn't open Safari. iOS has no
+`x-safari-http:`, so on an http address (a LAN install) Save stays the plain download link, and
+iOS's file view takes the app over as before.
 
 Safari doesn't have the app's cookies (iOS gives a home-screen app its own storage), so what it gets
 is a **save link**, which needs none. `POST /api/library/{id}/save-link` (an entry the caller sees,

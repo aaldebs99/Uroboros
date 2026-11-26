@@ -1,3 +1,5 @@
+// The page is served over https here, as a real deployment is: Safari takes over only from one.
+// @vitest-environment-options {"url": "https://uro.example/"}
 import type { Export } from "@uroboros/contract";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -33,7 +35,7 @@ vi.mock("@/push/installed", async (original) => ({
 }));
 
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
-/** What Safari is handed for a token: the page's origin here is http (jsdom's), as on a LAN address. */
+/** What Safari is handed for a token. */
 const savesAt = (token: string) => `x-safari-${window.location.origin}/api/public/saves/${token}`;
 
 /** Catches the hand-off (jsdom navigates nowhere) and any window opened instead. */
@@ -97,15 +99,6 @@ describe("openOutside", () => {
     const to = go();
     openOutside("https://uro.example/api/public/saves/abc");
     expect(to).toHaveBeenCalledWith("x-safari-https://uro.example/api/public/saves/abc");
-  });
-
-  it("hands Safari an http link (a LAN address) too, never the in-app sheet that can't save", () => {
-    const to = go();
-    const open = vi.fn(() => null);
-    vi.stubGlobal("open", open);
-    openOutside("http://192.168.1.5:18080/api/public/saves/abc");
-    expect(to).toHaveBeenCalledWith("x-safari-http://192.168.1.5:18080/api/public/saves/abc");
-    expect(open).not.toHaveBeenCalled();
   });
 
   it("says so when Safari never takes over (iOS before 17)", () => {

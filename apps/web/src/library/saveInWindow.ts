@@ -10,14 +10,19 @@ import { isInstalled, isIos } from "@/push/installed";
  * to the file there hands the app's only page to iOS's file view with no way back (WebKit bug
  * 290847), and a window the app opens is an in-app Safari sheet that can't download (it shows a
  * blank page). So Save hands Safari itself the file, through its `x-safari-https:` scheme (iOS 17
- * and later, undocumented; `x-safari-http:` for a LAN address, less sure still). Safari may not
- * have the app's cookies, so what it gets is a save link,
+ * and later, undocumented). iOS has no `x-safari-http:`, so on an http address (a LAN install)
+ * Save stays the plain download link. Safari may not have the app's cookies, so what it gets is a
+ * save link,
  * which needs none; its token is chosen here, so the link is known inside the tap, and registered
  * with the server alongside (the server waits a moment for a link Safari asks for first).
  */
 
-/** Whether Save hands the file to Safari: only in the installed iPhone or iPad app. */
-export const savesInWindow = (): boolean => isIos() && isInstalled();
+/**
+ * Whether Save hands the file to Safari: only in the installed iPhone or iPad app, and only on an
+ * https address, the only one Safari's scheme takes.
+ */
+export const savesInWindow = (): boolean =>
+  window.location.protocol === "https:" && isIos() && isInstalled();
 
 /** The hand-off's navigation, which tests replace (jsdom goes nowhere). */
 export const navigation = {
@@ -37,17 +42,16 @@ function newToken(): string {
 }
 
 /**
- * Opens `url` (absolute, http or https) in Safari, never in a window of the app's own, which iOS
- * shows as the in-app sheet that can't save. Safari puts the app away; an app still in front after
- * `HANDOFF_MS` (an iOS before 17, or one without the http scheme) says so.
+ * Opens `url` (absolute https) in Safari, never in a window of the app's own, which iOS shows as the
+ * in-app sheet that can't save. Safari puts the app away; an app still in front after `HANDOFF_MS`
+ * (an iOS before 17) says so.
  */
 export function openOutside(url: string): void {
   navigation.go(`x-safari-${url}`);
   window.setTimeout(() => {
     if (document.visibilityState === "visible" && document.hasFocus()) {
       notify.error("Couldn't open Safari to save the file", {
-        detail:
-          "It needs iOS 17 or later, and may need an https address; save it from Safari instead.",
+        detail: "It needs iOS 17 or later; save it from Safari instead.",
       });
     }
   }, HANDOFF_MS);
