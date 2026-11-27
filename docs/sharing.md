@@ -74,11 +74,13 @@ deleting a playlist ends its shares.
 never their own. A shared video opens on the watch page with "Shared by …", Watched and Save; a
 shared playlist on `/shared/{shareId}` (`GET /api/shared/{shareId}` and `…/entries`, a library
 page of the owner's videos with the recipient's own progress, which is per person and media). The
-owner's tags, Keep, subscription and playlists never show. **Add to my library** (`POST
-/api/library/{id}/add`) gives the recipient their own entry on the same stored file at once (an
-existing one on that file is answered as it is); **Save as my playlist** (`POST
-/api/shared/{shareId}/save`) does that for every video of a shared playlist and makes a manual
-playlist of them in order.
+owner's tags, Keep, subscription and playlists never show; a title, description or channel the
+owner gave a video of their own does ([library.md](library.md#your-own-details)), here, on public
+links and on clips alike. **Add to my library** (`POST /api/library/{id}/add`) gives the recipient
+their own entry on the same stored file at once (an existing one on that file is answered as it
+is); **Save as my playlist** (`POST /api/shared/{shareId}/save`) does that for every video of a
+shared playlist and makes a manual playlist of them in order. Both give the recipient the owner's
+own details of a video as theirs, when they held none of it.
 
 **Retention**: a video in one of its owner's manual playlists, or shared on its own, is exempt like
 Keep. A video reached only through a shared YouTube playlist is not, so a subscribed playlist with

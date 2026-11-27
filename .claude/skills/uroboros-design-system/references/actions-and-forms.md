@@ -101,6 +101,9 @@ An outlined box, 56px tall, with the label inside it at the top left and the val
   (matches that start with the text first), the arrow keys move the `bg-accent text-primary` row,
   Enter or a click picks, Escape closes only the list, and text that matches nothing is dropped on
   leaving the field. Keep a native select for short lists.
+- **A free name with suggestions** (a video's channel) is the same field with `free`: the value is
+  what is typed, the list shows only the suggestions holding it (none hides it), nothing is active
+  until an arrow key moves to one, so Enter submits the form, and `maxLength` caps it.
 
 ## Menus
 

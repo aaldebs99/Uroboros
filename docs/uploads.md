@@ -106,8 +106,10 @@ it and holds it in their own library. The dialog shows the title, description, c
 current thumbnail, and previews a picked image from a data: URL (the page's image policy allows
 those; blob: it does not).
 
-`PATCH /api/library/{id}/details` (title, description, creator) and `PUT /api/library/{id}/thumbnail`
-(an image, as above) change an uploaded video for everyone who holds it. Only its uploader may, on
-their own entry; a downloaded video is described by its site and can't be edited (403). A replaced
+`PATCH /api/library/{id}/details` (title, description, creator, each only when given) and `PUT
+/api/library/{id}/thumbnail` (an image, as above) change an uploaded video for everyone who holds
+it. Only its uploader may, on their own entry. Anyone else's PATCH, on a downloaded video or on
+someone's upload in their library, gives it details of their own, for them alone
+([library.md](library.md#your-own-details)); the thumbnail stays the uploader's (403). A replaced
 thumbnail gets a new storage key, so its versioned URL changes and browsers show it at once; the
 old file goes to the trash.
