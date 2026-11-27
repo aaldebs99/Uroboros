@@ -295,6 +295,7 @@ describe("ItemPage editing an upload", () => {
         Response.json({ ...upload, thumbnailUrl: `/api/library/${ID}/thumbnail?v=12345678` }),
     });
     await renderInRouter(<ItemPage entryId={ID} />);
+    await openMenu();
     await userEvent.click(await screen.findByRole("button", { name: "Edit details" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit details" });
     const title = within(dialog).getByLabelText("Title");
@@ -328,6 +329,7 @@ describe("ItemPage editing an upload", () => {
   it("refuses a blank title and an image over 5 MiB", async () => {
     fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(upload) });
     await renderInRouter(<ItemPage entryId={ID} />);
+    await openMenu();
     await userEvent.click(await screen.findByRole("button", { name: "Edit details" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit details" });
     await userEvent.clear(within(dialog).getByLabelText("Title"));
@@ -350,6 +352,8 @@ describe("ItemPage editing an upload", () => {
     fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(shared) });
     await renderInRouter(<ItemPage entryId={ID} />);
     await screen.findByRole("heading", { name: "Big Buck Bunny" });
+    await openMenu();
+    await screen.findByRole("button", { name: "Mark as watched" });
     expect(screen.queryByRole("button", { name: "Edit details" })).not.toBeInTheDocument();
   });
 });

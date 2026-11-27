@@ -1,6 +1,6 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, ExternalLink, MoreVertical, Pin, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, ExternalLink, MoreVertical, Pencil, Pin, RefreshCw } from "lucide-react";
 
 import { errorText } from "@/api/client";
 import { itemKey, refetchSkipSegments, setKept, setWatched } from "@/api/library";
@@ -24,18 +24,21 @@ const offersKeep = (item: LibraryItem) =>
  * The watch page's ⋮ menu (docs/library.md): Mark as watched and Mark as unwatched, the current one
  * checked (neither on a video started but not finished). Mark as unwatched forgets where the person
  * was and starts the video over (`onStartOver` takes the open player back to the start, paused, so
- * it doesn't save the old place again). Keep, checked while kept, where it matters; Open on
- * original site; and Refresh
- * SponsorBlock segments on the owner's video whose profile skips some
+ * it doesn't save the old place again). Keep, checked while kept, where it matters; Edit details on
+ * a video of the person's own (`onEdit`, docs/library.md#your-own-details); Open on original site;
+ * and Refresh SponsorBlock segments on the owner's video whose profile skips some
  * (docs/automation.md#sponsorblock), whose outcome the live stream's toast reports (`LiveEvents`).
  */
 export function ItemMenu({
   item,
   onStartOver,
+  onEdit,
 }: {
   item: LibraryItem;
   /** Mark as unwatched: the open player goes back to the start. */
   onStartOver?: (() => void) | undefined;
+  /** Edit details: opens its dialog; none where the person may not edit them. */
+  onEdit?: (() => void) | undefined;
 }) {
   const client = useQueryClient();
   const watched = item.progress?.watched ?? false;
@@ -66,6 +69,7 @@ export function ItemMenu({
     });
   }
   const more: MenuAction[] = [];
+  if (onEdit !== undefined) more.push({ label: "Edit details", icon: Pencil, onSelect: onEdit });
   if (item.webpageUrl !== null) {
     more.push({
       label: "Open on original site",

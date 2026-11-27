@@ -3,7 +3,7 @@
 People add their own videos to their library from the **Add** menu's **Upload**: a file, a title,
 a description, a creator (their display name unless they name someone), tags, and a thumbnail if
 they have one (without one, a frame of the video stands in). The uploader can change the title,
-description, creator and thumbnail later, from the video's page (Edit details). The file is
+description, creator and thumbnail later, from the video's page (Edit details, in its ⋮ menu). The file is
 stored exactly as it was sent, metadata included.
 
 ## Sending the file
@@ -101,7 +101,7 @@ The leader's upload duty runs every minute:
 
 ## Editing
 
-The video's page offers **Edit details** when the item's `editable` is true: the caller uploaded
+The video's ⋮ menu offers **Edit details** when the item's `editable` is true: the caller uploaded
 it and holds it in their own library. The dialog shows the title, description, creator and the
 current thumbnail, and previews a picked image from a data: URL (the page's image policy allows
 those; blob: it does not).

@@ -13,6 +13,7 @@ import { errorText } from "@/api/client";
 import { editDetails, itemKey, resetDetails, useChannels } from "@/api/library";
 import { Button } from "@/components/ui/button";
 import { ComboboxField } from "@/components/ui/combobox-field";
+import { useConfirm } from "@/components/ui/confirm";
 import { DialogClose, DialogFooter } from "@/components/ui/dialog";
 import { Field, TextareaField } from "@/components/ui/field";
 import { notify } from "@/components/ui/sonner";
@@ -74,7 +75,8 @@ function useChannelNames(): string[] {
 /**
  * A title, description and channel of the person's own for a video they hold and didn't upload
  * (docs/library.md#your-own-details): only what they change is sent; naming a channel moves the
- * video to theirs of that name, or a new one; Reset goes back to the site's (or uploader's).
+ * video to theirs of that name, or a new one; Reset, once confirmed, goes back to the site's (or
+ * uploader's).
  */
 export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: () => void }) {
   const client = useQueryClient();
@@ -89,6 +91,7 @@ export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: ()
     channel: null,
   });
   const [busy, setBusy] = useState(false);
+  const confirm = useConfirm();
   const from = item.origin === "upload" ? "the uploader's" : "the site's";
 
   const set = (key: keyof Fields) => (value: string) => {
@@ -136,11 +139,21 @@ export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: ()
     }, "Saved.");
   };
 
+  // Asked first: the person's own details go, for them and whoever they shared the video with.
   const onReset = () => {
-    run(async () => {
-      await resetDetails(item.id);
-      await refresh(null);
-    }, `Back to ${from} details.`);
+    confirm.ask({
+      title: `Reset to ${from} details?`,
+      description:
+        "Your own title, description and channel for this video go, for you and whoever you shared it with.",
+      confirmLabel: "Reset",
+      destructive: true,
+      onConfirm: () => {
+        run(async () => {
+          await resetDetails(item.id);
+          await refresh(null);
+        }, `Back to ${from} details.`);
+      },
+    });
   };
 
   return (
@@ -200,6 +213,7 @@ export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: ()
           {busy ? "Saving…" : "Save"}
         </Button>
       </DialogFooter>
+      {confirm.dialog}
     </form>
   );
 }

@@ -1,7 +1,7 @@
 import type { ClipRange, LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LibraryBig, ListPlus, Pencil, Scissors, Trash2, type LucideIcon } from "lucide-react";
+import { LibraryBig, ListPlus, Scissors, Trash2, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -148,27 +148,6 @@ function AddToMine({ item }: { item: LibraryItem }) {
   );
 }
 
-/**
- * Edit details, on a video of the person's own: for everyone on their upload (docs/uploads.md), for
- * them alone on any other (docs/library.md#your-own-details).
- */
-function EditButton({ item }: { item: LibraryItem }) {
-  const [editing, setEditing] = useState(false);
-  if (!item.editable && !item.personalEditable) return null;
-  return (
-    <>
-      <IconAction
-        label="Edit details"
-        icon={Pencil}
-        onClick={() => {
-          setEditing(true);
-        }}
-      />
-      {editing ? <EditDetailsDialog item={item} open onOpenChange={setEditing} /> : null}
-    </>
-  );
-}
-
 interface ActionsProps {
   item: LibraryItem;
   /** Mark as unwatched (the ⋮ menu): the page's player goes back to the start, paused. */
@@ -182,8 +161,8 @@ interface ActionsProps {
 }
 
 /**
- * The watch page's icon buttons, 0.5rem apart: seven of them (an upload's Edit details, Clip) fill a
- * 375 pixel phone's row, so the row wraps rather than widen the page.
+ * The watch page's icon buttons, 0.5rem apart: six of them (Clip with the rest) nearly fill a 375
+ * pixel phone's row, so the row wraps rather than widen the page.
  */
 const actionRow = "flex flex-wrap items-center gap-2";
 
@@ -202,16 +181,23 @@ function ClipAction({ clip = null, onClip, canClip = false }: ActionsProps) {
 }
 
 /**
- * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
- * upload), Clip, Save, Save to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`).
+ * The person's own actions on their entry, icon buttons each named in its tooltip: Clip, Save, Save
+ * to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`), which holds Edit details: for everyone on
+ * their upload (docs/uploads.md), for them alone on any other video (docs/library.md#your-own-details).
  */
 function OwnActions(props: ActionsProps) {
   const { item, onStartOver, clip = null } = props;
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const edit =
+    item.editable || item.personalEditable
+      ? () => {
+          setEditing(true);
+        }
+      : undefined;
   return (
     <>
       <div className={actionRow}>
-        <EditButton item={item} />
         <ClipAction {...props} />
         <SaveFile item={item} clip={clip} />
         <IconAction
@@ -223,11 +209,12 @@ function OwnActions(props: ActionsProps) {
         />
         <ShareButton kind="entry" id={item.id} title={item.title} clip={clip} iconOnly />
         <RemoveButton item={item} />
-        <ItemMenu item={item} onStartOver={onStartOver} />
+        <ItemMenu item={item} onStartOver={onStartOver} onEdit={edit} />
       </div>
       {saving ? (
         <AddToPlaylist entryId={item.id} title={item.title} open onOpenChange={setSaving} />
       ) : null}
+      {editing ? <EditDetailsDialog item={item} open onOpenChange={setEditing} /> : null}
     </>
   );
 }

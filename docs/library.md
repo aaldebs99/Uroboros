@@ -184,8 +184,9 @@ Jump to highlight pill in the player's corner goes there while playback is short
 segments again from the page's ⋮ menu (Refresh SponsorBlock segments,
 [automation.md](automation.md#sponsorblock)). That menu (`ItemMenu.tsx`, a dropdown from `md` up
 and a bottom sheet on phones) also holds Mark as watched and Mark as unwatched (which starts the
-video over, below), the current one checked, Keep (below) and Open on original site; the row
-beside it has Edit details (below), Clip (below), Save, Save to playlist, Share and Remove. When the browser
+video over, below), the current one checked, Keep (below), Edit details on a video of the
+person's own (below) and Open on original site; the row beside it has Clip (below), Save, Save to
+playlist, Share and Remove. When the browser
 cannot play the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand
 instead ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.
@@ -217,7 +218,8 @@ can be changed for everyone ([uploads.md](uploads.md#editing)). Any other video 
 ## Your own details
 
 A person can give any video in their library a title, description and channel of their own, from
-Edit details on its page (`OwnDetailsForm.tsx`): for them alone, and for whoever they share it with.
+Edit details in its page's ⋮ menu (`OwnDetailsForm.tsx`): for them alone, and for whoever they
+share it with.
 Another person holding the same video sees its site's details, or their own. An upload's uploader
 still edits its details for everyone ([uploads.md](uploads.md#editing)); anyone else who holds it
 gets details of their own, under any the uploader changes later.
@@ -230,7 +232,7 @@ gets details of their own, under any the uploader changes later.
   through the entry's owner (`src/library/edits.ts`).
 - **Saving.** `PATCH /api/library/{id}/details` takes only the fields that change (`title`,
   `description`, `creator` for the channel), since a site's title may be longer than an upload's
-  limit; `DELETE` drops them all (Reset). An item says `edited` while they show, with the site's
+  limit; `DELETE` drops them all (Reset, which asks first). An item says `edited` while they show, with the site's
   (or uploader's) in `original`, which the dialog shows beside each changed field.
 - **Channels.** Naming the channel moves the video. A name matching one of the person's channels
   (in any case, on any site) joins it, under that channel's own name and key: one named exactly

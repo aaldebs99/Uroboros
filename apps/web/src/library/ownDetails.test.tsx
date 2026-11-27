@@ -62,6 +62,10 @@ async function openEditor(shown: LibraryItem, routes: Record<string, Handler> = 
       <Toaster />
     </>,
   );
+  // In the ⋮ menu (a bottom sheet in jsdom), not the row of icon buttons.
+  const more = await screen.findByRole("button", { name: "More actions" });
+  expect(screen.queryByRole("button", { name: "Edit details" })).toBeNull();
+  await userEvent.click(more);
   await userEvent.click(await screen.findByRole("button", { name: "Edit details" }));
   const dialog = await screen.findByRole("dialog", { name: "Edit details" });
   return { calls, dialog };
@@ -120,8 +124,17 @@ describe("editing a downloaded video's details for oneself", () => {
     expect(within(dialog).getByText("On the site: Blender")).toBeInTheDocument();
     const gets = () => calls.filter((c) => c.method === "GET" && c.path === `/api/library/${ID}`);
     const before = gets().length;
+    const resetButton = within(dialog).getByRole("button", { name: "Reset to the site's details" });
+    // Asked first; Cancel keeps them.
+    await userEvent.click(resetButton);
+    const ask = await screen.findByRole("alertdialog", { name: "Reset to the site's details?" });
+    expect(within(ask).getByText(/your own title, description and channel/i)).toBeInTheDocument();
+    await userEvent.click(within(ask).getByRole("button", { name: "Cancel" }));
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+    expect(screen.getByRole("dialog", { name: "Edit details" })).toBeInTheDocument();
+    await userEvent.click(resetButton);
     await userEvent.click(
-      within(dialog).getByRole("button", { name: "Reset to the site's details" }),
+      within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Reset" }),
     );
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: "Edit details" })).not.toBeInTheDocument();
