@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.1.4](https://github.com/aaldebs99/Uroboros/compare/0.1.3...0.1.4) (2026-11-27)
+
+
+### Features
+
+* **server:** UROBOROS_CLIPS_ENABLED, on by default, and /api/info says whether clips are on ([f9f15bc](https://github.com/aaldebs99/Uroboros/commit/f9f15bc6d23847533ccd97457813a490d6b451a1))
+* **server:** a copy of one range of a video, a clip, to save ([b25414d](https://github.com/aaldebs99/Uroboros/commit/b25414dad9dfd3968cf58458f075de8ab9c8f762))
+* **web:** Copies to save shows a clip's range and asks for the same range again ([1dabba1](https://github.com/aaldebs99/Uroboros/commit/1dabba12628f45078d5d56464feabaf31b92841f))
+* **web:** a Clip button picks a range on the timeline, and Save offers just that clip ([0144140](https://github.com/aaldebs99/Uroboros/commit/0144140de697870d0b94bae43c4b9334769e3b6e))
+* a link opens the whole video at a clip, and its people hear of the clip ([bd84c45](https://github.com/aaldebs99/Uroboros/commit/bd84c45b27abf35d47bfdb137f9c994babf5f4d4))
+* **server:** clip_shares, a clip shared on its own, apart from the shares the release before reads ([5ac2e4c](https://github.com/aaldebs99/Uroboros/commit/5ac2e4cbfde986c8f4c5513403778237ac8c26b1))
+* **server:** share a clip on its own, with people or by a public link ([975a203](https://github.com/aaldebs99/Uroboros/commit/975a20375c71bfb535b7c14b4c82e6da608e7cd0))
+* **web:** share only the clip, or the whole video opened at it ([ca79461](https://github.com/aaldebs99/Uroboros/commit/ca794615e8704a20af488f331a89956760929156))
+* **web:** the Clip button sits beside Save and Share, and its handles above the thumb ([e0f3494](https://github.com/aaldebs99/Uroboros/commit/e0f349481a73a6e98c2af411404e7c8412ab0eb4))
+
+
+### Bug Fixes
+
+* **npm:** update package hono (4.13.20 → 4.13.21) ([d2eddf7](https://github.com/aaldebs99/Uroboros/commit/d2eddf72a6656a2e0c17431c3ddf0e375da72d44))
+* **npm:** update package openid-client (6.9.0 → 6.9.1) ([45f38c3](https://github.com/aaldebs99/Uroboros/commit/45f38c39f5ff5556cefacb7869b9a2964c22d250))
+* **npm:** update package tailwind-merge (3.7.0 → 3.7.1) ([117b30e](https://github.com/aaldebs99/Uroboros/commit/117b30e387e55056af993d27969cb19a09e9aeac))
+* **npm:** update package vite (8.3.4 → 8.3.8) ([1a48b1a](https://github.com/aaldebs99/Uroboros/commit/1a48b1a21d3bdba92aa9e06c90a12455c7ea7420))
+* **web:** the watch page's action row wraps rather than widen a phone's page ([cb8b94c](https://github.com/aaldebs99/Uroboros/commit/cb8b94cb502814e6860285b5433fa5d6cf4790ef))
+* a clip running to the video's end shares and saves like any other ([ae22c7b](https://github.com/aaldebs99/Uroboros/commit/ae22c7b12304c124da6004d4db70a15fb2b0d7ef))
+* **web:** Copies to save offers no Watch for a clip while clips are off ([5b34449](https://github.com/aaldebs99/Uroboros/commit/5b34449b6062e2386d7ed43cdea3d689b54ca0ce))
+
+
+### Code Refactoring
+
+* **server:** people-share handling in sharing/people.ts, by its people table ([44414db](https://github.com/aaldebs99/Uroboros/commit/44414db0652f2816fbbc0986a81d3be2139a626d))
+* **web:** doc comments above what they describe, and no dead Clip button rule ([bd492ed](https://github.com/aaldebs99/Uroboros/commit/bd492edf3d299a2638613cbc8fc1587cde78a4d3))
+
+
+### Documentation
+
+* clips, to save or share on their own or as the whole video opened at them ([8707e16](https://github.com/aaldebs99/Uroboros/commit/8707e16a543cfa644114c064c983c8b03f50a43c))
+
+
+### Tests
+
+* **server:** the group page leaves clip shares out while clips are off ([9537d2b](https://github.com/aaldebs99/Uroboros/commit/9537d2ba4255cb732746247c036e05f9bc28104e))
+
+
+### Build System
+
+* **web:** the player skin gets a slot before its settings button and one over the timeline's marks ([888c7b8](https://github.com/aaldebs99/Uroboros/commit/888c7b8f933170d39876004549cd23398bc1a1b9))
 ## [0.1.3](https://github.com/aaldebs99/Uroboros/compare/0.1.2...0.1.3) (2026-11-26)
 
 
