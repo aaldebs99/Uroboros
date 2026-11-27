@@ -104,6 +104,32 @@ describe("making a clip", () => {
     });
   });
 
+  it("titles a clip of a video its person retitled by their title, in the file and the notice", async () => {
+    const clip = await queuedClip();
+    const media = await t.db
+      .selectFrom("exports as x")
+      .innerJoin("library_entries as e", "e.id", "x.entry_id")
+      .select("e.media_id")
+      .where("x.id", "=", clip.id)
+      .executeTakeFirstOrThrow();
+    await t.db
+      .insertInto("media_edits")
+      .values({ user_id: clip.userId, media_id: media.media_id, title: "My own title" })
+      .execute();
+    const probe = JSON.parse(await fixture("ffprobe-clip.json")) as unknown;
+    const deps = await h.sessionDeps(
+      { steps: [progress(1), { writeFile: OUTPUT, content: "clip bytes" }] },
+      probe,
+    );
+    const ffmpegRun = h.runs.at(-2);
+    await exportProcessor(deps).process(job(clip.id));
+    expect(await ffmpegRun?.argv()).toContain("title=My own title");
+    const notices = await queuedData<NotifyJob>(t.db, "notify");
+    expect(notices.find((j) => j.userId === clip.userId)?.message).toMatchObject({
+      body: "A clip of My own title (0:01–0:03)",
+    });
+  });
+
   it("trims an audio clip's samples from the start of the file, with no seek", async () => {
     const clip = await queuedClip("mp3");
     const deps = await h.sessionDeps(

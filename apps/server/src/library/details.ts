@@ -17,12 +17,15 @@ import { UPLOAD_EXTRACTOR } from "./platform.ts";
  * described by its site.
  */
 
-/** The caller's entry of a video they uploaded; 404 for someone else's entry, 403 otherwise. */
+/**
+ * The caller's entry of a video they uploaded, with its shared title (never anyone's own, which a
+ * storage key must not take); 404 for someone else's entry, 403 otherwise.
+ */
 async function editableUpload(db: Kysely<Database>, userId: string, entryId: string) {
   const entry = await ownEntry(db, userId, entryId);
   const media = await db
     .selectFrom("media")
-    .select(["extractor", "uploaded_by"])
+    .select(["extractor", "uploaded_by", "title"])
     .where("id", "=", entry.media_id)
     .executeTakeFirstOrThrow();
   if (media.extractor !== UPLOAD_EXTRACTOR) {
@@ -30,7 +33,7 @@ async function editableUpload(db: Kysely<Database>, userId: string, entryId: str
   }
   if (media.uploaded_by !== userId)
     throw new ApiError("forbidden", "only its uploader can edit it");
-  return entry;
+  return { ...entry, title: media.title };
 }
 
 export async function editDetails(
