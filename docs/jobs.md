@@ -104,4 +104,5 @@ writes are cheap, and a crash empties them, which costs each one little:
 | `replicas`          | each replica's check-in for Admin › Health ([health.md](health.md)) | each checks in again within 15 s |
 
 Readers skip expired rows, and the leader's hourly sweep deletes them. The playback tables go with
-their session's row.
+their session's row. `replicas` rows unseen for an hour go at every replica's check-in instead
+(`beat` in `src/health/heartbeat.ts`), and a replica that stops cleanly deletes its own.
