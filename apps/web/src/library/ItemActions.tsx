@@ -178,8 +178,11 @@ interface ActionsProps {
   canClip?: boolean;
 }
 
-/** The watch page's icon buttons sit closer from `md` up, where a pointer can't miss. */
-const actionRow = "flex items-center gap-4 md:gap-2";
+/**
+ * The watch page's icon buttons, 0.5rem apart: seven of them (an upload's Edit details, Clip) fill a
+ * 375 pixel phone's row, so the row wraps rather than widen the page.
+ */
+const actionRow = "flex flex-wrap items-center gap-2";
 
 /**
  * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
