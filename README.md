@@ -21,6 +21,8 @@ from your phone as an app. It replaces [ytdl-material](https://github.com/Tzahi1
   or as the whole video opened there.
 - **Notifications** on your phone when a download finishes or something is shared with you.
 - **Accounts** for everyone in the household, with single sign-on if you run one.
+- **Health** for admins: the replicas and the version, and every rate limit a site puts on your
+  downloads ([docs/health.md](docs/health.md)), while the people waiting are told in the app.
 - **Automation**: an API for scripts, and an MCP server so AI tools such as Claude Code can search
   your library ([docs/mcp.md](docs/mcp.md)).
 
@@ -194,6 +196,9 @@ up at once. The leader sweeps expired sessions, sign-ins and short-lived rows, r
 that went missing, puts back jobs whose worker vanished, and queues the subscriptions' due checks.
 The machinery is `apps/server/src/shared/leader.ts`, and every lock key is in
 `shared/lockKeys.ts`.
+
+Every replica also checks in every 15 s (`replicas`), so Admin › Health lists the replicas, which
+one leads, their versions and whether each answers ([docs/health.md](docs/health.md)).
 
 From the first release on, migrations are applied while replicas from the previous release are
 still serving, so each migration must work with the previous release's code: expand, migrate, then contract across

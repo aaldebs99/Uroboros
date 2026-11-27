@@ -83,8 +83,10 @@ download.
 - **The table.** `notices` holds the kind (`downloads`, `shares`, `subscriptions` or `groups`), the
   push's title, body and path, its tag, when, and when it was read. A newer notice with the same
   tag replaces the older one, comes to the top and is unread again (a request's "Ready" replacing
-  its progress, the latest "N new videos"); an untagged one never replaces anything. The leader's
-  sweeper drops notices after 30 days.
+  its progress, the latest "N new videos"); an untagged one never replaces anything. A notice
+  told once (a download, link or download's subtitles waiting out a site's rate limit, never pushed;
+  [downloads.md](downloads.md#rate-limits)) is filed only if its tag isn't there yet, and never
+  replaces anything. The leader's sweeper drops notices after 30 days.
 - **The routes.** `GET /api/notices` answers the newest 50 and the unread count. `POST
   /api/notices/read` with `upTo`, the newest one the person saw, marks those created at or before
   it read, so one that arrived while the panel was open stays unread. `DELETE /api/notices` clears

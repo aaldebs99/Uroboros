@@ -94,13 +94,14 @@ construction.
 What replicas share for minutes, not for good, lives in **unlogged** tables. They skip the WAL, so
 writes are cheap, and a crash empties them, which costs each one little:
 
-| Table               | Holds                                                      | After a crash                    |
-| ------------------- | ---------------------------------------------------------- | -------------------------------- |
-| `job_limits`        | when a rate-limited queue may start its next job           | one job may start early          |
-| `download_progress` | a running fetch's latest progress, kept a minute           | it fills again                   |
-| `signin_failures`   | failed sign-ins in their 15-minute window, per user and IP | the windows start over           |
-| `playback_live`     | a live session's viewer deadline and owning run's token    | pages start their sessions again |
-| `playback_segments` | the segments a live session has stored                     | (with its session)               |
+| Table               | Holds                                                               | After a crash                    |
+| ------------------- | ------------------------------------------------------------------- | -------------------------------- |
+| `job_limits`        | when a rate-limited queue may start its next job                    | one job may start early          |
+| `download_progress` | a running fetch's latest progress, kept a minute                    | it fills again                   |
+| `signin_failures`   | failed sign-ins in their 15-minute window, per user and IP          | the windows start over           |
+| `playback_live`     | a live session's viewer deadline and owning run's token             | pages start their sessions again |
+| `playback_segments` | the segments a live session has stored                              | (with its session)               |
+| `replicas`          | each replica's check-in for Admin › Health ([health.md](health.md)) | each checks in again within 15 s |
 
 Readers skip expired rows, and the leader's hourly sweep deletes them. The playback tables go with
 their session's row.
