@@ -61,6 +61,8 @@ import { createSpaHandler } from "./spa.ts";
 export interface Deps {
   db: Kysely<Database>;
   version: string;
+  /** This replica's check-in id (`replicas`, docs/health.md), so Admin › Health marks it. */
+  replicaId?: string;
   /** Defaults to a JSON-to-stdout pino logger; tests pass a silent one. */
   logger?: Logger;
   /** Web Push; defaults to off (what `gen` uses). */
