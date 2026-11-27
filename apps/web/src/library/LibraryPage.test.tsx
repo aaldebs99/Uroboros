@@ -37,12 +37,24 @@ afterEach(() => {
 });
 
 /**
- * The person's playlists, one hiding its videos from the library or none, and a library that
- * records the `hidden` each page was asked with.
+ * The person's playlists, one hiding its videos from the library or none, their channels, one hiding
+ * or none (`channelHiding`), and a library that records the `hidden` each page was asked with.
  */
-function serveHidden(hiding: boolean, entries: unknown[] = [entry]) {
+function serveHidden(hiding: boolean, entries: unknown[] = [entry], channelHiding = false) {
   const asked: (string | null)[] = [];
   fakeApi({
+    "GET /api/library/channels": () =>
+      Response.json([
+        {
+          key: "WyJ5b3V0dWJlIiwiaWQiLCJVQzEiXQ",
+          name: "Blender",
+          extractor: "youtube",
+          count: 3,
+          latestUpload: null,
+          coverThumbnailUrl: null,
+          hideFromLibrary: channelHiding,
+        },
+      ]),
     "GET /api/playlists": () =>
       Response.json([
         {
@@ -205,6 +217,23 @@ describe("LibraryPage", () => {
     expect(asked).toEqual(["false"]);
   });
 
+  it("offers Show hidden while one of the person's channels hides, though no playlist does", async () => {
+    serveHidden(false, [entry], true);
+    await renderInRouter(<LibraryPage />);
+    expect(await screen.findByRole("button", { name: "Show hidden" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("says when a hidden channel hides everything", async () => {
+    serveHidden(false, [], true);
+    await renderInRouter(<LibraryPage />);
+    expect(
+      await screen.findByText("Everything here is hidden by its playlists or channels."),
+    ).toBeInTheDocument();
+  });
+
   it("offers Show hidden only while one of the person's playlists hides", async () => {
     serveHidden(false);
     const { unmount } = await renderInRouter(<LibraryPage />);
@@ -256,7 +285,7 @@ describe("LibraryPage", () => {
     const onFilters = vi.fn();
     await renderInRouter(<LibraryPage onFilters={onFilters} />);
     expect(
-      await screen.findByText("Everything here is hidden by its playlists."),
+      await screen.findByText("Everything here is hidden by its playlists or channels."),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Show hidden videos" }));
     expect(onFilters).toHaveBeenLastCalledWith({ showHidden: true });
@@ -322,7 +351,7 @@ describe("LibraryPage's Videos and Audio views", () => {
     const { asked } = serveHidden(true, []);
     await renderInRouter(<LibraryPage kind="audio" />);
     expect(
-      await screen.findByText("Everything here is hidden by its playlists."),
+      await screen.findByText("Everything here is hidden by its playlists or channels."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show hidden audio" })).toBeInTheDocument();
     expect(asked).toEqual(["false"]);

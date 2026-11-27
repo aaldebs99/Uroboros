@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { SEARCH_MIN_CHARS, type LibraryKind } from "@uroboros/contract";
 import { Download, Eye, EyeOff, Library, Music, SearchX } from "lucide-react";
 
-import type { LibraryFilters } from "@/api/library";
+import { useChannels, type LibraryFilters } from "@/api/library";
 import { usePlaylists } from "@/api/playlists";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -37,8 +37,9 @@ function without(f: LibraryViewFilters, key: keyof LibraryViewFilters): LibraryV
 }
 
 /**
- * What the grid asks for: the view's kind, and nothing a playlist hides from the library unless Show
- * hidden is on (docs/library.md "Hidden playlists"); a search finds both kinds, hidden or not.
+ * What the grid asks for: the view's kind, and nothing a playlist or a channel hides from the library
+ * unless Show hidden is on (docs/library.md "Hiding from the library"); a search finds both kinds,
+ * hidden or not.
  */
 function gridFilters(
   { showHidden, ...filters }: LibraryViewFilters,
@@ -48,14 +49,16 @@ function gridFilters(
   return { ...filters, kind, ...(showHidden === true ? {} : { hidden: false }) };
 }
 
-/** Whether one of the person's playlists keeps its videos out of the library. */
+/** Whether one of the person's playlists or channels keeps its videos out of the library. */
 function useSomeHidden(): boolean {
-  return usePlaylists().data?.some((p) => p.hideFromLibrary) ?? false;
+  const playlists = usePlaylists().data?.some((p) => p.hideFromLibrary) ?? false;
+  const channels = useChannels().data?.some((c) => c.hideFromLibrary) ?? false;
+  return playlists || channels;
 }
 
 /**
- * What an empty page says: a filter left nothing, the playlists that hide their videos hid
- * everything (`hiding`), or there's nothing yet.
+ * What an empty page says: a filter left nothing, the playlists and channels that hide their videos
+ * hid everything (`hiding`), or there's nothing yet.
  */
 function EmptyLibrary({
   kind,
@@ -79,7 +82,7 @@ function EmptyLibrary({
     return (
       <EmptyState
         icon={EyeOff}
-        title="Everything here is hidden by its playlists."
+        title="Everything here is hidden by its playlists or channels."
         action={
           <Button onClick={onShowHidden}>
             <Eye aria-hidden />
@@ -88,8 +91,8 @@ function EmptyLibrary({
         }
       >
         {kind === "audio"
-          ? "A playlist's Hide from library keeps its audio out of here."
-          : "A playlist's Hide from library keeps its videos out of here."}
+          ? "A playlist's or channel's Hide from library keeps its audio out of here."
+          : "A playlist's or channel's Hide from library keeps its videos out of here."}
       </EmptyState>
     );
   }

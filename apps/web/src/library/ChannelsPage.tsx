@@ -9,7 +9,10 @@ import { PageHeader } from "@/components/ui/page-header";
 
 import { ViewTabs } from "./ViewTabs";
 
-/** The channels in the person's library, most downloaded first. */
+/**
+ * The channels in the person's library, most downloaded first, each saying whether it is hidden from
+ * the library (docs/library.md "Hiding from the library").
+ */
 export function ChannelsPage() {
   const channels = useChannels();
   const list = channels.data ?? [];
@@ -37,6 +40,7 @@ export function ChannelsPage() {
                   <span className="block text-xs text-muted-foreground">
                     {c.count} downloaded
                     {c.latestUpload === null ? "" : ` · latest ${c.latestUpload}`}
+                    {c.hideFromLibrary ? " · Hidden from library" : ""}
                   </span>
                 </span>
               </Link>

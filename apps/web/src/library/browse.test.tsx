@@ -145,6 +145,7 @@ describe("library browsing", () => {
           count: 12,
           latestUpload: "2026-11-01",
           coverThumbnailUrl: null,
+          hideFromLibrary: false,
         },
       ],
     });
@@ -164,6 +165,7 @@ describe("library browsing", () => {
           count: 1,
           latestUpload: null,
           coverThumbnailUrl: null,
+          hideFromLibrary: false,
         },
       ],
       "/api/library": () => ({ entries: [entry(1)], nextCursor: null }),
