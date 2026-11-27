@@ -34,6 +34,38 @@
         ],
         "type": "object"
       },
+      "AdminHealth": {
+        "properties": {
+          "cooldowns": {
+            "items": {
+              "$ref": "#/components/schemas/SiteCooldown"
+            },
+            "type": "array"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RateLimitEvent"
+            },
+            "type": "array"
+          },
+          "replicas": {
+            "items": {
+              "$ref": "#/components/schemas/Replica"
+            },
+            "type": "array"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "replicas",
+          "cooldowns",
+          "events"
+        ],
+        "type": "object"
+      },
       "AdminStats": {
         "properties": {
           "containers": {
@@ -548,6 +580,13 @@
           "bytes"
         ],
         "type": "object"
+      },
+      "CooldownScope": {
+        "enum": [
+          "site",
+          "subtitles"
+        ],
+        "type": "string"
       },
       "DefaultProfileBody": {
         "properties": {
@@ -3381,6 +3420,80 @@
         ],
         "type": "object"
       },
+      "RateLimitEvent": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "entryId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "hinted": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/CooldownScope"
+          },
+          "site": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/RateLimitSource"
+          },
+          "strikes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "until": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "url": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "site",
+          "scope",
+          "source",
+          "message",
+          "url",
+          "title",
+          "entryId",
+          "until",
+          "hinted",
+          "strikes"
+        ],
+        "type": "object"
+      },
+      "RateLimitSource": {
+        "enum": [
+          "download",
+          "link",
+          "search",
+          "subscription",
+          "preview",
+          "subtitles"
+        ],
+        "type": "string"
+      },
       "Readiness": {
         "properties": {
           "failing": {
@@ -3448,6 +3561,74 @@
           "expiresAt"
         ],
         "type": "object"
+      },
+      "Replica": {
+        "properties": {
+          "current": {
+            "type": "boolean"
+          },
+          "failing": {
+            "items": {
+              "$ref": "#/components/schemas/ReplicaCheck"
+            },
+            "type": "array"
+          },
+          "host": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "leader": {
+            "type": "boolean"
+          },
+          "runningJobs": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "seenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReplicaStatus"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "host",
+          "version",
+          "startedAt",
+          "seenAt",
+          "leader",
+          "status",
+          "failing",
+          "runningJobs",
+          "current"
+        ],
+        "type": "object"
+      },
+      "ReplicaCheck": {
+        "enum": [
+          "storage"
+        ],
+        "type": "string"
+      },
+      "ReplicaStatus": {
+        "enum": [
+          "ok",
+          "degraded",
+          "not_answering"
+        ],
+        "type": "string"
       },
       "RequestState": {
         "enum": [
@@ -3872,6 +4053,45 @@
           "owner",
           "sharedAt",
           "expiresAt"
+        ],
+        "type": "object"
+      },
+      "SiteCooldown": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/CooldownScope"
+          },
+          "site": {
+            "type": "string"
+          },
+          "strikes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "until": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "waitingDownloads": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "waitingLinks": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "site",
+          "scope",
+          "until",
+          "strikes",
+          "active",
+          "waitingDownloads",
+          "waitingLinks"
         ],
         "type": "object"
       },
@@ -4775,6 +4995,36 @@
           }
         },
         "summary": "Delete any group (admins)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/health": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminHealth"
+                }
+              }
+            },
+            "description": "Health"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not an admin"
+          }
+        },
+        "summary": "The replicas, the version, and the rate limits sites put on the server (admins)",
         "tags": [
           "admin"
         ]
