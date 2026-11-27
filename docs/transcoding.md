@@ -278,7 +278,33 @@ re-encoded:
 - **Copies stay** until their person removes them. Deleting a row any way (Remove, or its person,
   entry or source file going) puts its file in `storage_trash` for the reaper. The leader's sweep
   (`src/exports/sweep.ts`) only fails a copy whose job is gone, so it can be asked for again.
-- **Public links** offer no copies: a link's download is the original file.
+- **Public links** offer no copies: a link's download is the original file. A clip shared on its
+  own is the exception: its link's download is the clip ([sharing.md](sharing.md#clips)).
+
+## Clips
+
+A clip ([sharing.md](sharing.md#clips)) is a copy that keeps one range of the file rather than
+cutting its SponsorBlock segments: `POST /api/library/{id}/export` with `{ "clip": { "start", "end" } }`
+(seconds on the file's timeline).
+
+- **Asking**: the range is at least a second long and inside the file (an end within a second past
+  it ends at the end; a file whose length isn't known can't be clipped), rounded to milliseconds
+  (`src/exports/clip.ts`). The same range answers the same copy; a clip and a copy without sponsors
+  never answer for each other. Everything in the range stays, segments and all, so a clip never goes
+  stale (`current` is always true) and a shared one doesn't change with its owner's settings.
+- **The release before**: the row keeps the range (`clip_start`, `clip_end`) and also its
+  complement as `cuts`, so a worker of the release before, which reads only `cuts`, makes the same
+  clip from the job rather than the whole video.
+- **The encode** (`src/worker/exportRanges.ts`): a video clip seeks the input to its start (`-ss`
+  before `-i`; re-encoding, ffmpeg decodes from the keyframe before and drops the frames ahead of
+  it, so the cut stays exact) and trims its length from there, skipping the decode of everything
+  before. An audio clip trims its range from the start of the file, as a seek in a VBR MP3 lands on
+  an estimate and decoding sound up to it is cheap. Its chapters are the ones it overlaps, on its
+  timeline. Progress counts against its length.
+- **Done**: it saves as `<title> (clip 1m02s–1m30s).<format>` (no colon, which Windows and macOS
+  don't take in a file name), and "Ready to save" says "A clip of _title_ (1:02–1:30)".
+- **Off** (`UROBOROS_CLIPS_ENABLED=false`): asking for a clip is 409; clips already made still save,
+  and a job already queued still runs.
 
 ## Not yet
 

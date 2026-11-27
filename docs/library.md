@@ -184,6 +184,17 @@ beside it has Edit details (an upload), Save, Save to playlist, Share and Remove
 cannot play the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand
 instead ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.
+With `&end=<seconds>` too (a video shared opened at a clip), the player marks the range on the
+timeline and pauses once at its end.
+
+With clips on (`UROBOROS_CLIPS_ENABLED`, [sharing.md](sharing.md#clips)), a Clip button sits just
+before the player's settings button (`ClipControls.tsx`, through a slot the skin's patch adds).
+Pressed, it picks 30 s from the playhead (the whole video when shorter), drawn as a band on the
+timeline between two handles: sliders of their own, "Clip start" and "Clip end", dragged, or moved
+by key (the arrows a second, Shift or the page keys ten, Home and End to the bounds), never seeking
+the timeline or reaching the player's shortcuts; Escape or the button again drops the clip. A label
+over the picture says the range and its length, and playback pauses at its end. Save then offers
+**This clip** first, and Share asks whether to share only the clip or the whole video opened at it.
 Above the player, a back link names the page the video was opened from and returns to it as the
 browser's Back would, past the videos played since, so its search and filters are as they were; a
 page opened from outside the app (a link, a notification) leads to the Library

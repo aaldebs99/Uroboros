@@ -253,7 +253,9 @@ is only logged.
 
 To save a file to a device without the segments its person skips, the item page's Save offers a
 copy re-encoded without them, cut exactly and in sync
-([transcoding.md](transcoding.md#saving-without-sponsorblock-segments)).
+([transcoding.md](transcoding.md#saving-without-sponsorblock-segments)). A clip picked in the player
+([sharing.md](sharing.md#clips)) keeps everything in its range, the segments in it too: it is cut
+by its range alone, and plays as it was cut.
 
 Exact cuts in the stored file need a re-encode too: extra arguments `--sponsorblock-remove=…
 --force-keyframes-at-cuts` do that, with ffmpeg's default encoder for the container, slowly and at

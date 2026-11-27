@@ -15,6 +15,8 @@ from your phone as an app. It replaces [ytdl-material](https://github.com/Tzahi1
   preview when you hover over a video. A file your browser can't play is converted as you watch.
 - **Uploads**: your own videos, beside the ones you saved.
 - **Sharing**: with people, with groups you set up, or by a public link.
+- **Clips**: pick a part of a video in the player, then save just that part or share it, on its own
+  or as the whole video opened there.
 - **Notifications** on your phone when a download finishes or something is shared with you.
 - **Accounts** for everyone in the household, with single sign-on if you run one.
 - **Automation**: an API for scripts, and an MCP server so AI tools such as Claude Code can search

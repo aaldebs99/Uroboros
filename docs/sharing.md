@@ -136,6 +136,40 @@ order. For link previews in chats, whose crawlers run no script, the SPA handler
 with absolute URLs on `UROBOROS_PUBLIC_BASE_URL` (else the request's origin), plus a robots
 `noindex`.
 
+## Clips
+
+A clip is a range of a video picked in the player (the Clip button; [library.md](library.md#the-item-page)):
+a start and an end, at least a second apart. Nothing is stored until it is saved or shared.
+
+- **Saving** one makes a copy of just that range, cut by the server, under Downloads › Copies to
+  save ([transcoding.md](transcoding.md#clips)). A viewer of a video shared with them can save a
+  clip of it too.
+- **Sharing** one is for a video of the person's own. The Share dialog asks what is shared:
+  - **Only the clip** (the default): its copy, made at the first share action and shareable while
+    it is being made, shares with people and groups or by a public link like a video, through the
+    same routes as kind `clip` with the copy's id (`src/sharing/clipShares.ts`), into `clip_shares`
+    and `clip_share_people`. Its people open it at `/shared/clips/{id}` (`GET /api/clips/{id}`, and
+    its `…/stream`, `…/file` and `…/thumbnail`, `src/clips/routes.ts`); a link's
+    `/api/public/s/{code}` answers `kind: "clip"` with the clip (`ClipItem`), its file under
+    `…/clip/stream`, `…/clip/file` (when the link allows downloads) and `…/clip/thumbnail`.
+    Neither reaches anything else of the video: `visibleEntry` reads only `shares`. A clip has no
+    description, since a video's own can list moments of all of it, and its chapters are the ones it
+    overlaps, on its timeline. Removing the copy ends its shares, and Copies to save asks first.
+    Retention keeps a video with a shared clip, as it keeps a shared video.
+  - **The whole video, opened at the clip**: an ordinary share of the video. Its link carries the
+    range (`/s/{code}?t=62&end=90`, and `/library/{id}?t=…&end=…` in the app), so the video opens at
+    the clip, the player marks it and pauses at its end, and the viewer can watch the rest. The
+    people it newly reaches hear of the clip (`PeopleShareBody.clip`); for people it already reaches,
+    the dialog copies the range link to send them.
+- **Rollout**: `clip_shares` is apart from `shares` because the release before reads every `shares`
+  row as a video, playlist or YouTube playlist; it never reads `clip_shares`, so on it a clip link is
+  a dead link and the lists leave clips out.
+- **Off** (`UROBOROS_CLIPS_ENABLED=false`, read at start; `/api/info` says `clips`): the player has
+  no Clip button and a range link opens at `t` only; asking for a clip copy, sharing a clip and a
+  people-share with a `clip` are 409; clip links and `/api/clips/*` are 404, and With me and the
+  group pages leave clips out. Copies already made still list and save, and owners still see and
+  stop their clips' shares under By me.
+
 ## Notifications
 
 Through `sendNotice` (`docs/push.md`): each is filed in the person's notification list, and pushed
@@ -153,7 +187,9 @@ unless the person turned the kind's pushes off in Settings › Notifications (`G
   videos" covers them).
 - **Shared with me**: "_Name_ shared _title_ with you" (or "the playlist _title_") to each person a
   people-share newly reaches when it is made or gains people, never the owner and never someone it
-  already reached.
+  already reached. A video shared opened at a clip says "shared a clip of _title_", with its range,
+  and opens at it; a clip shared on its own says "shared _title_ (clip 1:02–1:30)" and opens its
+  page ([Clips](#clips)). Under the share's tag, a later notice of a share replaces the earlier.
 - **Groups**: "_Name_ added you to _group_", opening the group, to each person a manager adds.
   Joining a group sends no "shared with you" for what was already shared with it.
 

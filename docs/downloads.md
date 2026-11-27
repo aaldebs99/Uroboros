@@ -321,6 +321,11 @@ checks access again as its person, so a share revoked since stops it, and serves
 file route would (ranges, or the presigned redirect). The leader's sweeper deletes expired links. A
 public link's file needs no session, so it is handed to Safari as it is.
 
+A clip ([sharing.md](sharing.md#clips)) saves from Copies to save like any copy, and a clip shared
+on its own from `GET /api/clips/{id}/file` (or its link's `…/clip/file`). In the installed iPhone app
+a clip shared with someone saves through a plain link: save links resolve a copy as its own
+person's, so a recipient's Save hits iOS's file view, as on an http address.
+
 ## Scratch space
 
 yt-dlp and ffmpeg need a real folder for a download's parts, their merge and any post-processing:
