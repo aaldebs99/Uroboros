@@ -25,6 +25,7 @@ const settingsMenu = (build: "dev" | "default") =>
   skinFile(build, "neutral-video/skins/shared/video/menus/settings-menu.js");
 const timeSlider = (build: "dev" | "default") =>
   skinFile(build, "neutral-video/components/sliders/time-slider.js");
+const controls = (build: "dev" | "default") => skinFile(build, "neutral-video/layout/controls.js");
 /** A preset module of the package, in one of its two builds. */
 const presetFile = (build: "dev" | "default", name: string) =>
   readFileSync(
@@ -140,7 +141,48 @@ describe("patches/@videojs__react.patch", () => {
       // highlight ("point:…") aren't. The id's second part, the category, picks the color.
       expect(slider).toContain('"data-skips": marker.cue.id.startsWith("skip:") ? "" : void 0');
       expect(slider).toContain('"data-category": marker.cue.id.split(":")[1]');
-      expect(slider).toMatch(/children: \[\s*t4,\s*uroSkipMarkers,\s*t5,\s*t11\s*\]/);
+      expect(slider).toMatch(
+        /children: \[\s*t4,\s*uroSkipMarkers,\s*uroTimeSliderSlot,\s*t5,\s*t11\s*\]/,
+      );
+    },
+  );
+
+  it.each(["dev", "default"] as const)(
+    "makes the controls and time slider slots, both empty by default (%s build)",
+    (build) => {
+      expect(presetFile(build, "controls-slot.js")).toMatch(
+        /const ControlsSlot = createContext\(null\);\s*const TimeSliderSlot = createContext\(null\);[\s\S]*export \{ ControlsSlot, TimeSliderSlot \}/,
+      );
+    },
+  );
+
+  it.each(["dev", "default"] as const)(
+    "shows what the controls slot holds just before the settings button (%s build)",
+    (build) => {
+      const row = controls(build);
+      expect(row).toContain(
+        'import { ControlsSlot } from "../../../../presets/video/controls-slot.js";',
+      );
+      expect(row).toMatch(
+        /function ControlsSlotOutlet\(\) \{\s*return useContext\(ControlsSlot\);/,
+      );
+      // t10 is the (hidden) captions button, t11 the settings menu.
+      expect(row).toMatch(
+        /className: "video-controls-end",\s*children: \[\s*t10,\s*uroControlsSlot,\s*t11,/,
+      );
+    },
+  );
+
+  it.each(["dev", "default"] as const)(
+    "draws what the time slider slot holds over the SponsorBlock marks, under the thumb (%s build)",
+    (build) => {
+      const slider = timeSlider(build);
+      expect(slider).toContain(
+        'import { TimeSliderSlot } from "../../../../../presets/video/controls-slot.js";',
+      );
+      expect(slider).toMatch(
+        /function TimeSliderSlotOutlet\(\) \{\s*return useContext\(TimeSliderSlot\);/,
+      );
     },
   );
 });

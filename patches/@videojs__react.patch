@@ -12,18 +12,20 @@ index 02dfa37fc053a390bc94cc35d8d5e9bafd8cdcbf..27f1c8cc719a795f9d0fa6e98a509a0b
  			side,
  			...props,
 diff --git a/dist/default/internal/skins/neutral-video/components/sliders/time-slider.js b/dist/default/internal/skins/neutral-video/components/sliders/time-slider.js
-index de9d004a07c24ee27f4e6054ecec121b5bfe25e9..4a96c0e5f99ce7ef81d8b8419d63a67a20dfb8c7 100644
+index de9d004a07c24ee27f4e6054ecec121b5bfe25e9..30f596a7295595e386eae14cc6db37bc298bc4e2 100644
 --- a/dist/default/internal/skins/neutral-video/components/sliders/time-slider.js
 +++ b/dist/default/internal/skins/neutral-video/components/sliders/time-slider.js
-@@ -8,6 +8,7 @@ import { SliderTrack } from "../../../../../ui/slider/track.js";
+@@ -8,13 +8,33 @@ import { SliderTrack } from "../../../../../ui/slider/track.js";
  import { SliderValue } from "../../../../../ui/slider/value.js";
  import { TimeSliderChapterTitle } from "../../../../../ui/time-slider/chapter-title.js";
  import { TimeSliderChapters } from "../../../../../ui/time-slider/chapters.js";
 +import { TimeSliderMarkers } from "../../../../../ui/time-slider/markers.js";
  import { TimeSliderRoot } from "../../../../../ui/time-slider/root.js";
++import { TimeSliderSlot } from "../../../../../presets/video/controls-slot.js";
  import ForwardRef from "../../../../../icons/dist/react/neutral/spinner.js";
  import { SliderBuffer as SliderBuffer$1, SliderFill as SliderFill$1, SliderThumb as SliderThumb$1, SliderTrack as SliderTrack$1 } from "../../../shared/components/sliders/slider.js";
-@@ -15,6 +16,18 @@ import { c } from "react-compiler-runtime";
+ import { c } from "react-compiler-runtime";
++import { useContext } from "react";
  import { jsx, jsxs } from "react/jsx-runtime";
  import { cn, resolveClassName } from "@videojs/utils/style";
  //#region src/internal/skins/neutral-video/components/sliders/time-slider.tsx
@@ -38,18 +40,55 @@ index de9d004a07c24ee27f4e6054ecec121b5bfe25e9..4a96c0e5f99ce7ef81d8b8419d63a67a
 +		...props
 +	})
 +});
++/** The time slider slot's content (the app's clip range), over the marks and under the thumb. */
++function TimeSliderSlotOutlet() {
++	return useContext(TimeSliderSlot);
++}
++const uroTimeSliderSlot = /* @__PURE__ */ jsx(TimeSliderSlotOutlet, {});
 +//#endregion
  function TimeSlider(t0) {
  	const $ = c(25);
  	let t1;
-@@ -120,6 +133,7 @@ function TimeSlider(t0) {
+@@ -120,6 +140,8 @@ function TimeSlider(t0) {
  			...props,
  			children: [
  				t4,
 +				uroSkipMarkers,
++				uroTimeSliderSlot,
  				t5,
  				t11
  			]
+diff --git a/dist/default/internal/skins/neutral-video/layout/controls.js b/dist/default/internal/skins/neutral-video/layout/controls.js
+index 4a48460059e2c2ebd2a192f85217c94f3920b7e8..c3efeaddebf821be37acf75fc1f007b3c1121922 100644
+--- a/dist/default/internal/skins/neutral-video/layout/controls.js
++++ b/dist/default/internal/skins/neutral-video/layout/controls.js
+@@ -17,9 +17,18 @@ import { PlayButton } from "../components/buttons/play-button.js";
+ import { VolumePopover } from "../components/menus/volume-popover.js";
+ import { TimeSlider } from "../components/sliders/time-slider.js";
+ import { VideoSettingsMenu } from "../skins/shared/video/menus/settings-menu.js";
++import { ControlsSlot } from "../../../../presets/video/controls-slot.js";
+ import { c } from "react-compiler-runtime";
++import { useContext } from "react";
+ import { jsx, jsxs } from "react/jsx-runtime";
+ import { cn } from "@videojs/utils/style";
++//#region uroboros: patches/@videojs__react.patch
++/** The controls slot's content, just before the settings button (the row is memoized; this reads the context). */
++function ControlsSlotOutlet() {
++	return useContext(ControlsSlot);
++}
++const uroControlsSlot = /* @__PURE__ */ jsx(ControlsSlotOutlet, {});
++//#endregion
+ //#region src/internal/skins/neutral-video/layout/controls.tsx
+ /** @jsxImportSource react */
+ function NeutralVideoControls(t0) {
+@@ -161,6 +170,7 @@ function NeutralVideoControls(t0) {
+ 			className: "video-controls-end",
+ 			children: [
+ 				t10,
++				uroControlsSlot,
+ 				t11,
+ 				/* @__PURE__ */ jsxs(ControlsGroup, {
+ 					className: "video-controls-trailing",
 diff --git a/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js b/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
 index b07ba1786560ba13e2dafa973c1f0acd93fddb26..4e7ffa523f2408fde7020bb567c91b48928d9cf1 100644
 --- a/dist/default/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
@@ -98,6 +137,23 @@ index 171d55b0f784a91f19e7e4ffe2816642da6dd71a..430859c9e8bbd6d21242a5e8f1d9d979
  				region: "right"
  			})
  		] });
+diff --git a/dist/default/presets/video/controls-slot.js b/dist/default/presets/video/controls-slot.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..565eff28fdf880bea1a436a59d03e2069ddeec00
+--- /dev/null
++++ b/dist/default/presets/video/controls-slot.js
+@@ -0,0 +1,11 @@
++import { createContext } from "react";
++//#region uroboros: patches/@videojs__react.patch
++/**
++* What the video skin's controls row shows just before its settings button (the app's Clip button),
++* and what its time slider draws over the SponsorBlock marks, under the thumb (the app's clip
++* range). Null shows nothing.
++*/
++const ControlsSlot = createContext(null);
++const TimeSliderSlot = createContext(null);
++//#endregion
++export { ControlsSlot, TimeSliderSlot };
 diff --git a/dist/default/presets/video/settings-slot.js b/dist/default/presets/video/settings-slot.js
 new file mode 100644
 index 0000000000000000000000000000000000000000..8af83167e385e26da773fc66e14375cd5b07ffce
@@ -127,18 +183,20 @@ index cf103ec4b511eaaf5bf99386a48c3c5f4db60981..89b99266d6a0a14daeb654028ed90f04
  			side,
  			...props,
 diff --git a/dist/dev/internal/skins/neutral-video/components/sliders/time-slider.js b/dist/dev/internal/skins/neutral-video/components/sliders/time-slider.js
-index 8e48d9aa92cdff3cbd7c0bba865d665174cabf7a..85c2e2182b15df84e1b104fd442d654857cf15e1 100644
+index 8e48d9aa92cdff3cbd7c0bba865d665174cabf7a..5f898b7930fcc5307cbe3207bd91b914df2d213d 100644
 --- a/dist/dev/internal/skins/neutral-video/components/sliders/time-slider.js
 +++ b/dist/dev/internal/skins/neutral-video/components/sliders/time-slider.js
-@@ -8,6 +8,7 @@ import { SliderTrack } from "../../../../../ui/slider/track.js";
+@@ -8,13 +8,33 @@ import { SliderTrack } from "../../../../../ui/slider/track.js";
  import { SliderValue } from "../../../../../ui/slider/value.js";
  import { TimeSliderChapterTitle } from "../../../../../ui/time-slider/chapter-title.js";
  import { TimeSliderChapters } from "../../../../../ui/time-slider/chapters.js";
 +import { TimeSliderMarkers } from "../../../../../ui/time-slider/markers.js";
  import { TimeSliderRoot } from "../../../../../ui/time-slider/root.js";
++import { TimeSliderSlot } from "../../../../../presets/video/controls-slot.js";
  import ForwardRef from "../../../../../icons/dist/react/neutral/spinner.js";
  import { SliderBuffer as SliderBuffer$1, SliderFill as SliderFill$1, SliderThumb as SliderThumb$1, SliderTrack as SliderTrack$1 } from "../../../shared/components/sliders/slider.js";
-@@ -15,6 +16,18 @@ import { c } from "react-compiler-runtime";
+ import { c } from "react-compiler-runtime";
++import { useContext } from "react";
  import { jsx, jsxs } from "react/jsx-runtime";
  import { cn, resolveClassName } from "@videojs/utils/style";
  //#region src/internal/skins/neutral-video/components/sliders/time-slider.tsx
@@ -153,18 +211,55 @@ index 8e48d9aa92cdff3cbd7c0bba865d665174cabf7a..85c2e2182b15df84e1b104fd442d6548
 +		...props
 +	})
 +});
++/** The time slider slot's content (the app's clip range), over the marks and under the thumb. */
++function TimeSliderSlotOutlet() {
++	return useContext(TimeSliderSlot);
++}
++const uroTimeSliderSlot = /* @__PURE__ */ jsx(TimeSliderSlotOutlet, {});
 +//#endregion
  function TimeSlider(t0) {
  	const $ = c(25);
  	let t1;
-@@ -120,6 +133,7 @@ function TimeSlider(t0) {
+@@ -120,6 +140,8 @@ function TimeSlider(t0) {
  			...props,
  			children: [
  				t4,
 +				uroSkipMarkers,
++				uroTimeSliderSlot,
  				t5,
  				t11
  			]
+diff --git a/dist/dev/internal/skins/neutral-video/layout/controls.js b/dist/dev/internal/skins/neutral-video/layout/controls.js
+index 57d46d8c06e41a0026bc90bfacf1b0abd14ae164..a0a18455667f728877ec0f781812b52892eb9333 100644
+--- a/dist/dev/internal/skins/neutral-video/layout/controls.js
++++ b/dist/dev/internal/skins/neutral-video/layout/controls.js
+@@ -17,9 +17,18 @@ import { PlayButton } from "../components/buttons/play-button.js";
+ import { VolumePopover } from "../components/menus/volume-popover.js";
+ import { TimeSlider } from "../components/sliders/time-slider.js";
+ import { VideoSettingsMenu } from "../skins/shared/video/menus/settings-menu.js";
++import { ControlsSlot } from "../../../../presets/video/controls-slot.js";
+ import { c } from "react-compiler-runtime";
++import { useContext } from "react";
+ import { jsx, jsxs } from "react/jsx-runtime";
+ import { cn } from "@videojs/utils/style";
++//#region uroboros: patches/@videojs__react.patch
++/** The controls slot's content, just before the settings button (the row is memoized; this reads the context). */
++function ControlsSlotOutlet() {
++	return useContext(ControlsSlot);
++}
++const uroControlsSlot = /* @__PURE__ */ jsx(ControlsSlotOutlet, {});
++//#endregion
+ //#region src/internal/skins/neutral-video/layout/controls.tsx
+ /** @jsxImportSource react */
+ function NeutralVideoControls(t0) {
+@@ -161,6 +170,7 @@ function NeutralVideoControls(t0) {
+ 			className: "video-controls-end",
+ 			children: [
+ 				t10,
++				uroControlsSlot,
+ 				t11,
+ 				/* @__PURE__ */ jsxs(ControlsGroup, {
+ 					className: "video-controls-trailing",
 diff --git a/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js b/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
 index f7af89b6d7e9125f524bf3714bbf20097d71ea2d..8c88cd408dc375d89d5fd54c4f7325e2e10f6868 100644
 --- a/dist/dev/internal/skins/neutral-video/skins/shared/video/menus/settings-menu.js
@@ -213,6 +308,37 @@ index cbb482da7db1f59a70f7f5cb7ccc6f81cfa91220..3f2b3491975c7c323069cf84a911a4f8
  				region: "right"
  			})
  		] });
+diff --git a/dist/dev/presets/video/controls-slot.d.ts b/dist/dev/presets/video/controls-slot.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8283dd60665367af25722bbe9ad34824047afa4
+--- /dev/null
++++ b/dist/dev/presets/video/controls-slot.d.ts
+@@ -0,0 +1,8 @@
++import type { Context, ReactNode } from "react";
++/**
++ * What the video skin's controls row shows just before its settings button, and what its time
++ * slider draws over the SponsorBlock marks, under the thumb (uroboros:
++ * patches/@videojs__react.patch). Null shows nothing.
++ */
++export declare const ControlsSlot: Context<ReactNode>;
++export declare const TimeSliderSlot: Context<ReactNode>;
+diff --git a/dist/dev/presets/video/controls-slot.js b/dist/dev/presets/video/controls-slot.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..565eff28fdf880bea1a436a59d03e2069ddeec00
+--- /dev/null
++++ b/dist/dev/presets/video/controls-slot.js
+@@ -0,0 +1,11 @@
++import { createContext } from "react";
++//#region uroboros: patches/@videojs__react.patch
++/**
++* What the video skin's controls row shows just before its settings button (the app's Clip button),
++* and what its time slider draws over the SponsorBlock marks, under the thumb (the app's clip
++* range). Null shows nothing.
++*/
++const ControlsSlot = createContext(null);
++const TimeSliderSlot = createContext(null);
++//#endregion
++export { ControlsSlot, TimeSliderSlot };
 diff --git a/dist/dev/presets/video/settings-slot.d.ts b/dist/dev/presets/video/settings-slot.d.ts
 new file mode 100644
 index 0000000000000000000000000000000000000000..273bfa4ae122c414d35f8b42a770f44de39ecf9c
