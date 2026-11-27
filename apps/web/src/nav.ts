@@ -1,4 +1,5 @@
 import {
+  Activity,
   ChartColumn,
   Download,
   Library,
@@ -19,7 +20,8 @@ export type NavItem = {
     | "/settings"
     | "/admin/users"
     | "/admin/groups"
-    | "/admin/stats";
+    | "/admin/stats"
+    | "/admin/health";
   label: string;
   icon: LucideIcon;
   blurb: string;
@@ -121,5 +123,11 @@ export const ADMIN_ITEMS: readonly NavItem[] = [
     label: "Stats",
     icon: ChartColumn,
     blurb: "What the library holds, and what it takes up.",
+  },
+  {
+    to: "/admin/health",
+    label: "Health",
+    icon: Activity,
+    blurb: "The replicas, the version, and the sites limiting requests.",
   },
 ];

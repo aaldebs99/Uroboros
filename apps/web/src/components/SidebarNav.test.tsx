@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { fakeApi } from "@/test/fakeApi";
@@ -14,5 +14,18 @@ describe("SidebarNav", () => {
     fakeApi({ "GET /api/info": () => Response.json({ name: "Uroboros", version: "0.0.0" }) });
     await renderInRouter(<SidebarNav isAdmin />);
     expect(screen.getByRole("navigation", { name: "Primary" })).toHaveClass("*:shrink-0");
+  });
+
+  it("lists the admin pages for an admin, Health last", async () => {
+    fakeApi({ "GET /api/info": () => Response.json({ name: "Uroboros", version: "0.0.0" }) });
+    await renderInRouter(<SidebarNav isAdmin />);
+    const nav = within(screen.getByRole("navigation", { name: "Primary" }));
+    const health = nav.getByRole("link", { name: "Health" });
+    expect(health).toHaveAttribute("href", "/admin/health");
+    const admin = nav
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"))
+      .filter((href) => href?.startsWith("/admin/"));
+    expect(admin).toEqual(["/admin/users", "/admin/groups", "/admin/stats", "/admin/health"]);
   });
 });
