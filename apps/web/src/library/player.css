@@ -290,10 +290,11 @@
   background-color: rgb(255 255 255 / 45%);
 }
 
+/* Above the timeline's thumb (the skin's 10): a press on a handle with the playhead under it moves the handle. */
 .uro-player .uro-clip-handle {
   position: absolute;
   top: 50%;
-  z-index: 1;
+  z-index: 11;
   display: grid;
   place-items: center;
   width: 2.75rem;

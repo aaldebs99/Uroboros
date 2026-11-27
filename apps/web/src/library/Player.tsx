@@ -71,8 +71,8 @@ export interface PlayerProps {
    */
   audio?: { thumbnailUrl: string | null };
   /**
-   * The page's clip (docs/sharing.md#clips): with this the controls have a Clip button, and a
-   * picked clip is drawn on the timeline with its two handles. Undefined for no Clip button.
+   * The page's clip (docs/sharing.md#clips): a picked one is drawn on the timeline with its two
+   * handles, which change it.
    */
   clip?: ClipControl | undefined;
   /** A range only to show (a link opening the whole video at a clip): drawn, paused at its end. */
@@ -133,8 +133,8 @@ function tryPlay(v: HTMLVideoElement): void {
  * HighlightJump Enter for the highlight), a captions menu for the subtitle tracks, chapters on the
  * timeline, SponsorBlock segments skipped with a notice to unskip (SponsorSkip), resume, seek, autoplay, and the volume and
  * mute remembered in this browser. Subtitles stay off until the viewer turns them on; then the same
- * language is remembered in this browser too (useSubtitlePref). With `clip`, a Clip button picks a
- * range on the timeline (ClipControls); a picked clip, or a `range` to show, pauses at its end.
+ * language is remembered in this browser too (useSubtitlePref). A `clip` the page picked is a range
+ * on the timeline its handles change (ClipControls); it, or a `range` to show, pauses at its end.
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
@@ -206,7 +206,7 @@ export function Player(p: PlayerProps) {
   return (
     <VideoPlayer>
       <SettingsMenuSlot.Provider value={p.settings ?? null}>
-        <ClipSlots video={video} clip={p.clip} range={range}>
+        <ClipSlots clip={p.clip} range={range}>
           {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
           {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
           navigation drawer (components/useDrawerDrag.ts). */}

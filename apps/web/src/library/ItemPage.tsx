@@ -143,7 +143,7 @@ export function ItemPage({
   range?: ClipRange | null;
 }) {
   const item = useItem(entryId);
-  const picked = usePickedClip(entryId, range);
+  const picked = usePickedClip(entryId, range, item.data);
   const colors = useSponsorColors();
   const client = useQueryClient();
   const [seek, setSeek] = useState<{ time: number; pause?: boolean } | null>(null);
@@ -197,6 +197,10 @@ export function ItemPage({
             seek={seek}
             sponsorColors={colors}
             {...reporter}
+            onTime={(position, duration) => {
+              picked.track(position);
+              reporter.onTime(position, duration);
+            }}
             onEnded={onEnded}
             clip={picked.control}
             range={picked.shown}
@@ -205,6 +209,8 @@ export function ItemPage({
           <ItemActions
             item={it}
             clip={picked.clip}
+            onClip={picked.toggle}
+            canClip={picked.canClip}
             onStartOver={() => {
               setSeek({ time: 0, pause: true });
             }}

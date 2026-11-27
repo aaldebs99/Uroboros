@@ -1,7 +1,7 @@
 import type { ClipRange, LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LibraryBig, ListPlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
+import { LibraryBig, ListPlus, Pencil, Scissors, Trash2, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -59,12 +59,15 @@ function IconAction({
   icon: Icon,
   variant = "icon",
   disabled = false,
+  pressed,
   onClick,
 }: {
   label: string;
   icon: LucideIcon;
   variant?: "icon" | "destructive";
   disabled?: boolean;
+  /** A toggle's state (aria-pressed), in the accent while on. */
+  pressed?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -73,6 +76,8 @@ function IconAction({
         variant={variant}
         size="icon"
         aria-label={label}
+        aria-pressed={pressed}
+        className={pressed === true ? "bg-accent text-primary" : undefined}
         disabled={disabled}
         onClick={onClick}
       >
@@ -167,6 +172,10 @@ interface ActionsProps {
   onStartOver?: (() => void) | undefined;
   /** The clip picked in the player (docs/sharing.md#clips): Save and Share offer just it. */
   clip?: ClipRange | null;
+  /** The Clip button's press, picking a clip or dropping it; no button without it (clips off). */
+  onClip?: (() => void) | undefined;
+  /** Whether a clip can be picked yet (the video's length is known). */
+  canClip?: boolean;
 }
 
 /** The watch page's icon buttons sit closer from `md` up, where a pointer can't miss. */
@@ -176,12 +185,28 @@ const actionRow = "flex items-center gap-4 md:gap-2";
  * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
  * upload), Save, Save to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`).
  */
-function OwnActions({ item, onStartOver, clip = null }: ActionsProps) {
+/** Clip (docs/sharing.md#clips): picks a range on the timeline, or drops the one picked. */
+function ClipAction({ clip = null, onClip, canClip = false }: ActionsProps) {
+  if (onClip === undefined) return null;
+  return (
+    <IconAction
+      label="Clip"
+      icon={Scissors}
+      pressed={clip !== null}
+      disabled={!canClip}
+      onClick={onClip}
+    />
+  );
+}
+
+function OwnActions(props: ActionsProps) {
+  const { item, onStartOver, clip = null } = props;
   const [saving, setSaving] = useState(false);
   return (
     <>
       <div className={actionRow}>
         <EditButton item={item} />
+        <ClipAction {...props} />
         <SaveFile item={item} clip={clip} />
         <IconAction
           label="Save to playlist"
@@ -206,16 +231,18 @@ function OwnActions({ item, onStartOver, clip = null }: ActionsProps) {
  * person's own entry those are theirs (docs/library.md); on one shared with them (docs/sharing.md),
  * who shared it, Save and Add to my library.
  */
-export function ItemActions({ item, onStartOver, clip = null }: ActionsProps) {
+export function ItemActions(props: ActionsProps) {
+  const { item, onStartOver, clip = null } = props;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
       <ChannelLine item={item} />
       {item.sharedBy === null ? (
-        <OwnActions item={item} onStartOver={onStartOver} clip={clip} />
+        <OwnActions {...props} />
       ) : (
         <>
           <span className="text-sm text-muted-foreground">Shared by {item.sharedBy}</span>
           <div className={actionRow}>
+            <ClipAction {...props} />
             <SaveFile item={item} clip={clip} />
             <AddToMine item={item} />
             <ItemMenu item={item} onStartOver={onStartOver} />

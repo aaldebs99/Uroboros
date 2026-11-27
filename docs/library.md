@@ -180,17 +180,18 @@ segments again from the page's ⋮ menu (Refresh SponsorBlock segments,
 [automation.md](automation.md#sponsorblock)). That menu (`ItemMenu.tsx`, a dropdown from `md` up
 and a bottom sheet on phones) also holds Mark as watched and Mark as unwatched (which starts the
 video over, below), the current one checked, Keep (below) and Open on original site; the row
-beside it has Edit details (an upload), Save, Save to playlist, Share and Remove. When the browser
+beside it has Edit details (an upload), Clip (below), Save, Save to playlist, Share and Remove. When the browser
 cannot play the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand
 instead ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.
 With `&end=<seconds>` too (a video shared opened at a clip), the player marks the range on the
 timeline and pauses once at its end.
 
-With clips on (`UROBOROS_CLIPS_ENABLED`, [sharing.md](sharing.md#clips)), a Clip button sits just
-before the player's settings button (`ClipControls.tsx`, through a slot the skin's patch adds).
-Pressed, it picks 30 s from the playhead (the whole video when shorter), drawn as a band on the
-timeline between two handles: sliders of their own, "Clip start" and "Clip end", dragged, or moved
+With clips on (`UROBOROS_CLIPS_ENABLED`, [sharing.md](sharing.md#clips)), a Clip button sits in the
+row under the title, before Save and Share (`ItemActions.tsx`). Pressed, it picks 30 s from the
+playhead (the whole video when shorter), drawn as a band on the timeline (`ClipControls.tsx`,
+through a slot the skin's patch adds) between two handles: sliders of their own, "Clip start" and
+"Clip end", above the timeline's thumb, dragged, or moved
 by key (the arrows a second, Shift or the page keys ten, Home and End to the bounds), never seeking
 the timeline or reaching the player's shortcuts; Escape or the button again drops the clip. A label
 over the picture says the range and its length, and playback pauses at its end. Save then offers

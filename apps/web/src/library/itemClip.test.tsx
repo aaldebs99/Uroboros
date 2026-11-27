@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { createAppRouter } from "@/router";
@@ -76,5 +77,33 @@ describe("a link to a video opened at a clip", () => {
     await screen.findByRole("heading", { name: "Big Buck Bunny" });
     expect(player).toHaveAttribute("data-range", "");
     expect(player).toHaveAttribute("data-clip", "");
+  });
+});
+
+describe("the Clip button beside Save and Share", () => {
+  it("picks 30 s from where playback is, which Save then offers, and drops it again", async () => {
+    open(`/library/${ID}`, true);
+    const player = await screen.findByTestId("player");
+    const clip = await screen.findByRole("button", { name: "Clip" });
+    expect(clip).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(within(player).getByRole("button", { name: "play to 0:30" }));
+    await userEvent.click(clip);
+    expect(player).toHaveAttribute("data-clip-range", "30-60");
+    expect(screen.getByRole("button", { name: "Clip" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      await screen.findByRole("button", { name: "This clip (0:30–1:00)" }),
+    ).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Clip" }));
+    expect(player).toHaveAttribute("data-clip-range", "");
+  });
+
+  it("isn't there while clips are off", async () => {
+    open(`/library/${ID}`, false);
+    await screen.findByRole("heading", { name: "Big Buck Bunny" });
+    // Save is the file itself here: no clip, and nothing skipped to cut.
+    await screen.findByRole("link", { name: "Save" });
+    expect(screen.queryByRole("button", { name: "Clip" })).toBeNull();
   });
 });

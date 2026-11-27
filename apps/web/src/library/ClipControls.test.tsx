@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } fr
 import { Player } from "./Player";
 
 /**
- * Picking a clip in the player (docs/sharing.md#clips): the Clip button just before settings, and
- * the two handles on the timeline, by pointer and by key, never seeking or playing the video.
+ * A clip picked (docs/sharing.md#clips): its two handles on the timeline, by pointer and by key,
+ * never seeking or playing the video.
  */
 
 const noop = () => undefined;
@@ -87,27 +87,6 @@ async function clipping(at = 100, initial: ClipRange | null = null) {
   return { container, video, changes };
 }
 
-describe("the Clip button", () => {
-  it("sits just before the settings button and is pressed while clipping, picking 30 s from the playhead", async () => {
-    const { container, changes } = await clipping(100);
-    const button = screen.getByRole("button", { name: "Clip" });
-    const settings = container.querySelector(".video-controls-settings-button");
-    expect(settings).not.toBeNull();
-    expect(button.compareDocumentPosition(settings as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(button).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(button);
-    expect(changes).toEqual([{ start: 100, end: 130 }]);
-    expect(screen.getByRole("button", { name: "Clip" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Clip" }));
-    expect(changes.at(-1)).toBeNull();
-  });
-
-  it("isn't there without a clip to pick", () => {
-    render(<Player {...base} />);
-    expect(screen.queryByRole("button", { name: "Clip" })).toBeNull();
-  });
-});
-
 describe("the clip's handles", () => {
   it("are two sliders, named, with their times", async () => {
     await clipping(100, { start: 62, end: 90 });
@@ -157,10 +136,14 @@ describe("the clip's handles", () => {
     });
   });
 
+  it("aren't there without a clip picked", () => {
+    render(<Player {...base} clip={{ value: null, onChange: noop }} />);
+    expect(screen.queryByRole("slider", { name: "Clip start" })).toBeNull();
+  });
+
   it("draw a range given to show, alone, without handles", () => {
     const { container } = render(<Player {...base} range={{ start: 62, end: 90 }} />);
     expect(container.querySelector(".uro-clip-band")).not.toBeNull();
     expect(screen.queryByRole("slider", { name: "Clip start" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Clip" })).toBeNull();
   });
 });

@@ -34,8 +34,7 @@ allowBuilds:
 #   - a double tap at the sides seeks 10 s by touch only, so on desktop a double-click anywhere is
 #     fullscreen (the centre's gesture then covers the whole player), as on YouTube;
 #   - the timeline draws the SponsorBlock segments' track as marks;
-#   - slots the app fills: the settings menu's Quality submenu (presets/video/settings-slot.js), a
-#     button just before settings and a layer over the timeline's marks (controls-slot.js, the
-#     Clip button and the clip's range).
+#   - slots the app fills: the settings menu's Quality submenu (presets/video/settings-slot.js) and
+#     a layer over the timeline's marks (time-slider-slot.js, a clip's range and its handles).
 patchedDependencies:
   "@videojs/react": patches/@videojs__react.patch

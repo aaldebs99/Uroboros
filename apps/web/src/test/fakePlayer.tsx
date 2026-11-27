@@ -37,6 +37,11 @@ export function Player(props: {
       data-seek-pause={props.seek?.pause === true ? "true" : ""}
       data-subs={props.subtitles.map((s) => s.lang).join(",")}
       data-clip={props.clip === undefined ? "" : "on"}
+      data-clip-range={
+        props.clip?.value == null
+          ? ""
+          : `${String(props.clip.value.start)}-${String(props.clip.value.end)}`
+      }
       data-range={
         props.range == null ? "" : `${String(props.range.start)}-${String(props.range.end)}`
       }

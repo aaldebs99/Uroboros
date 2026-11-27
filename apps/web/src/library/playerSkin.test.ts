@@ -25,7 +25,6 @@ const settingsMenu = (build: "dev" | "default") =>
   skinFile(build, "neutral-video/skins/shared/video/menus/settings-menu.js");
 const timeSlider = (build: "dev" | "default") =>
   skinFile(build, "neutral-video/components/sliders/time-slider.js");
-const controls = (build: "dev" | "default") => skinFile(build, "neutral-video/layout/controls.js");
 /** A preset module of the package, in one of its two builds. */
 const presetFile = (build: "dev" | "default", name: string) =>
   readFileSync(
@@ -148,27 +147,10 @@ describe("patches/@videojs__react.patch", () => {
   );
 
   it.each(["dev", "default"] as const)(
-    "makes the controls and time slider slots, both empty by default (%s build)",
+    "makes the time slider slot, empty by default (%s build)",
     (build) => {
-      expect(presetFile(build, "controls-slot.js")).toMatch(
-        /const ControlsSlot = createContext\(null\);\s*const TimeSliderSlot = createContext\(null\);[\s\S]*export \{ ControlsSlot, TimeSliderSlot \}/,
-      );
-    },
-  );
-
-  it.each(["dev", "default"] as const)(
-    "shows what the controls slot holds just before the settings button (%s build)",
-    (build) => {
-      const row = controls(build);
-      expect(row).toContain(
-        'import { ControlsSlot } from "../../../../presets/video/controls-slot.js";',
-      );
-      expect(row).toMatch(
-        /function ControlsSlotOutlet\(\) \{\s*return useContext\(ControlsSlot\);/,
-      );
-      // t10 is the (hidden) captions button, t11 the settings menu.
-      expect(row).toMatch(
-        /className: "video-controls-end",\s*children: \[\s*t10,\s*uroControlsSlot,\s*t11,/,
+      expect(presetFile(build, "time-slider-slot.js")).toMatch(
+        /const TimeSliderSlot = createContext\(null\);[\s\S]*export \{ TimeSliderSlot \}/,
       );
     },
   );
@@ -178,7 +160,7 @@ describe("patches/@videojs__react.patch", () => {
     (build) => {
       const slider = timeSlider(build);
       expect(slider).toContain(
-        'import { TimeSliderSlot } from "../../../../../presets/video/controls-slot.js";',
+        'import { TimeSliderSlot } from "../../../../../presets/video/time-slider-slot.js";',
       );
       expect(slider).toMatch(
         /function TimeSliderSlotOutlet\(\) \{\s*return useContext\(TimeSliderSlot\);/,

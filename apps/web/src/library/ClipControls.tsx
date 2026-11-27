@@ -1,8 +1,6 @@
 import { CLIP_MIN_SECONDS, type ClipRange } from "@uroboros/contract";
-import { Tooltip } from "@videojs/react";
 import { usePlayer } from "@videojs/react/video";
-import { ControlsSlot, TimeSliderSlot } from "@videojs/react/video/controls-slot";
-import { Scissors } from "lucide-react";
+import { TimeSliderSlot } from "@videojs/react/video/time-slider-slot";
 import {
   type KeyboardEvent,
   type PointerEvent,
@@ -13,12 +11,12 @@ import {
 
 import { formatDuration } from "@/downloads/format";
 
-import { clipLabel, defaultRange, keyDelta, moveEnd, moveStart, percent } from "./clipRange";
+import { clipLabel, keyDelta, moveEnd, moveStart, percent } from "./clipRange";
 import { PauseAtEnd } from "./PauseAtEnd";
 
 /**
- * Picking a clip in the player (docs/sharing.md#clips): a Clip button just before the settings
- * button, and, while a clip is picked, its range on the timeline between two handles. A handle is a
+ * Picking a clip in the player (docs/sharing.md#clips): while the page has one picked (its Clip
+ * button, beside Save and Share), its range on the timeline between two handles. A handle is a
  * slider of its own: dragged, or moved by key (the arrows a second, Shift or the page keys ten,
  * Home and End to the bounds), it never seeks the timeline or reaches the player's shortcuts;
  * Escape leaves clip mode. A range given only to show (a link that opens the whole video at a
@@ -33,10 +31,6 @@ export interface ClipControl {
 
 type Video = RefObject<HTMLVideoElement | null>;
 
-/** The skin's tooltip dress, as its own buttons wear it. */
-const TOOLTIP =
-  "media-popup media-popup-safe-area media-popup-transition media-popup-surface media-tooltip";
-
 /** The video's length once known, from the player's state. */
 function useDuration(): number | null {
   const duration = usePlayer((s) => s.duration);
@@ -46,40 +40,6 @@ function useDuration(): number | null {
 const stop = (e: { stopPropagation: () => void }) => {
   e.stopPropagation();
 };
-
-function ClipButton({ video, clip }: { video: Video; clip: ClipControl }) {
-  const duration = useDuration();
-  const on = clip.value !== null;
-  const toggle = () => {
-    const v = video.current;
-    if (on) clip.onChange(null);
-    else if (v !== null && duration !== null) clip.onChange(defaultRange(v.currentTime, duration));
-  };
-  return (
-    <Tooltip.Root side="top">
-      <Tooltip.Trigger
-        render={
-          <button
-            type="button"
-            className="media-button uro-clip-button"
-            aria-label="Clip"
-            aria-pressed={on}
-            disabled={duration === null}
-            // The skin's own gestures (a tap toggles playback) never see a press meant for this.
-            onPointerDown={stop}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggle();
-            }}
-          >
-            <Scissors className="media-button-icon" aria-hidden />
-          </button>
-        }
-      />
-      <Tooltip.Popup className={TOOLTIP}>{on ? "Stop clipping" : "Clip"}</Tooltip.Popup>
-    </Tooltip.Root>
-  );
-}
 
 interface HandleProps {
   which: "start" | "end";
@@ -198,17 +158,12 @@ function ClipLayer({
   );
 }
 
-/**
- * The skin's two slots, filled: the Clip button (with `clip`) before settings, and over the
- * timeline the picked clip with its handles, or `range` alone to show.
- */
+/** The skin's time slider slot, filled: the picked clip with its handles, or `range` alone to show. */
 export function ClipSlots({
-  video,
   clip,
   range,
   children,
 }: {
-  video: Video;
   clip: ClipControl | undefined;
   range: ClipRange | null;
   children: ReactNode;
@@ -219,13 +174,7 @@ export function ClipSlots({
     shown === null ? null : (
       <ClipLayer range={shown} onChange={picked === null ? undefined : clip?.onChange} />
     );
-  return (
-    <ControlsSlot.Provider
-      value={clip === undefined ? null : <ClipButton video={video} clip={clip} />}
-    >
-      <TimeSliderSlot.Provider value={layer}>{children}</TimeSliderSlot.Provider>
-    </ControlsSlot.Provider>
-  );
+  return <TimeSliderSlot.Provider value={layer}>{children}</TimeSliderSlot.Provider>;
 }
 
 /** Over the picture while a clip is picked: its range and length, coming and going with the controls. */

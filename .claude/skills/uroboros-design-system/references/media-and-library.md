@@ -127,12 +127,13 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
   `bg-overlay` pill in the player's top-right corner, 44px tall (36px from `md`), a `Sparkles`
   icon in the highlight's color beside the label. It comes and goes with the controls and keeps
   the skin's gestures off its press.
-- Under the timeline, play, volume and the time sit at the left; captions, clip, settings, cast,
+- Under the timeline, play, volume and the time sit at the left; captions, settings, cast,
   picture-in-picture and fullscreen sit at the right.
-- **Clip** (`ClipControls.tsx`, in the slots the patch adds; with clips on): a skin-classed icon
-  button (`Scissors`, `aria-pressed`, in the accent while on) just before settings. A picked clip is
-  a white band over the timeline, as thick as the bar, between two accent handles that are
-  `role="slider"` (2.75rem hit areas below `md`, 1.5rem from it, the 3px focus ring); a `bg-overlay`
+- **Clip** (with clips on): an icon button in the watch page's row under the title, before Save
+  (`ItemActions.tsx`; `Scissors`, `aria-pressed`, `bg-accent text-primary` while on). A picked clip
+  is a white band over the timeline (`ClipControls.tsx`, in the slot the patch adds), as thick as
+  the bar, between two accent handles that are `role="slider"` above the thumb (2.75rem hit areas
+  below `md`, 1.5rem from it, the 3px focus ring); a `bg-overlay`
   pill in the top-left corner says its range and length, coming and going with the controls. A
   range a link opens at is the band alone. With a clip picked, Save's menu starts with "This clip
   (1:02–1:30)", and the Share dialog opens on a radio group (Only the clip, The whole video opened
