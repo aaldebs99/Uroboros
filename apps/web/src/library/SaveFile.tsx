@@ -1,4 +1,10 @@
-import { type ClipRange, type Export, type LibraryItem, roundClip } from "@uroboros/contract";
+import {
+  answersClip,
+  type ClipRange,
+  type Export,
+  type LibraryItem,
+  roundClip,
+} from "@uroboros/contract";
 import { useNavigate } from "@tanstack/react-router";
 import { Download, type LucideIcon, Scissors, ScissorsLineDashed } from "lucide-react";
 
@@ -96,7 +102,7 @@ export function SaveFile({
           copyAction(
             `This clip (${clipLabel(asked)})`,
             ScissorsLineDashed,
-            ready((c) => c.clip?.start === asked.start && c.clip.end === asked.end),
+            ready((c) => answersClip(asked, c)),
             ask(asked),
           ),
         ]),

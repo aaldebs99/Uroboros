@@ -37,7 +37,7 @@ const link = {
   expiresAt: null,
   expired: false,
 };
-const copy = (clip: unknown = CLIP) => ({
+const copy = (clip: unknown = CLIP, over: Record<string, unknown> = {}) => ({
   id: COPY,
   entryId: ENTRY,
   title: "Holiday",
@@ -52,14 +52,20 @@ const copy = (clip: unknown = CLIP) => ({
   fileUrl: null,
   current: true,
   clip,
+  ...over,
 });
+// A clip to the player's end, a frame past the file's: the server ends it at the file's end, 600.
+const TO_END = { start: 62, end: 600.04 };
+const ended = (over: Record<string, unknown> = {}) =>
+  copy({ start: 62, end: 600 }, { cutSeconds: 62, keptSeconds: 538, ...over });
+
 const directory = { users: [{ id: BOB, name: "Bob", handle: "bob" }], groups: [] };
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function open(routes: Record<string, Handler>) {
+async function open(routes: Record<string, Handler>, clip = CLIP) {
   const calls = fakeApi({
     [`GET /api/shares/entry/${ENTRY}`]: () => Response.json(state("entry", { link })),
     "GET /api/directory": () => Response.json(directory),
@@ -73,7 +79,7 @@ async function open(routes: Record<string, Handler>) {
         kind="entry"
         id={ENTRY}
         title="Holiday"
-        clip={CLIP}
+        clip={clip}
         open
         onOpenChange={() => undefined}
       />
@@ -113,6 +119,44 @@ describe("sharing with a clip picked", () => {
       ]);
     });
     expect(calls.find((c) => c.method === "POST")?.body).toEqual({ clip: CLIP });
+  });
+
+  it("shares a clip running to the end, which the server ends at the file's end", async () => {
+    let made = false;
+    const calls = await open(
+      {
+        "GET /api/exports": () => Response.json(made ? [ended()] : []),
+        [`POST /api/library/${ENTRY}/export`]: () => {
+          made = true;
+          return Response.json(ended(), { status: 201 });
+        },
+        [`GET /api/shares/clip/${COPY}`]: () => Response.json(state("clip")),
+        [`PUT /api/shares/clip/${COPY}/link`]: () => Response.json(state("clip", { link })),
+      },
+      TO_END,
+    );
+    await userEvent.click(await screen.findByRole("switch", { name: "Public link" }));
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method !== "GET").map((c) => `${c.method} ${c.path}`)).toEqual([
+        `POST /api/library/${ENTRY}/export`,
+        `PUT /api/shares/clip/${COPY}/link`,
+      ]);
+    });
+  });
+
+  it("finds that clip's copy, and its link, when the dialog opens again", async () => {
+    const calls = await open(
+      {
+        "GET /api/exports": () => Response.json([ended({ state: "done" })]),
+        [`GET /api/shares/clip/${COPY}`]: () => Response.json(state("clip", { link })),
+      },
+      TO_END,
+    );
+    expect(await screen.findByText("The clip is ready.")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("switch", { name: "Public link" })).toBeChecked();
+    });
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
   });
 
   it("shares nothing when the server answers a copy that isn't the clip (an older one)", async () => {

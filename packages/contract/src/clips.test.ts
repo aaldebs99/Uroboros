@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { CLIP_MIN_SECONDS, ClipRange, Export, ExportBody, roundClip } from "./index.ts";
+import {
+  answersClip,
+  CLIP_END_SLACK,
+  CLIP_MIN_SECONDS,
+  ClipRange,
+  Export,
+  ExportBody,
+  roundClip,
+} from "./index.ts";
 
 describe("clips contract", () => {
   it("takes a range of at least a second, starting at 0 or later", () => {
@@ -13,6 +21,27 @@ describe("clips contract", () => {
 
   it("rounds a range to milliseconds", () => {
     expect(roundClip({ start: 62.12349, end: 90.98765 })).toEqual({ start: 62.123, end: 90.988 });
+  });
+
+  it("takes a copy the server ended at the file's end, a hair before the asked end, as the clip asked", () => {
+    const asked = { start: 10, end: 24.04 };
+    // A clip copy cuts what lies before its start and after its end: only the start, once it runs to the end.
+    const copy = (start: number, end: number, cutSeconds: number) => ({
+      clip: { start, end },
+      cutSeconds,
+    });
+    expect(answersClip(asked, copy(10, 24.04, 10))).toBe(true);
+    expect(answersClip(asked, copy(10, 24.04, 10.5))).toBe(true);
+    // The player's length was a frame past the file's, so the server ended it at the file's end.
+    expect(answersClip(asked, copy(10, 24, 10))).toBe(true);
+    expect(answersClip(asked, copy(10, 24.04 - CLIP_END_SLACK, 10))).toBe(true);
+    // A shorter clip that stops before the end is another clip.
+    expect(answersClip(asked, copy(10, 23.04, 10.96))).toBe(false);
+    expect(answersClip(asked, copy(10, 23, 10))).toBe(false);
+    expect(answersClip(asked, copy(10, 25, 10))).toBe(false);
+    expect(answersClip(asked, copy(10.5, 24.04, 10.5))).toBe(false);
+    // An older server makes a copy without sponsors instead.
+    expect(answersClip(asked, { clip: null, cutSeconds: 3 })).toBe(false);
   });
 
   it("asks for a copy with or without a clip", () => {

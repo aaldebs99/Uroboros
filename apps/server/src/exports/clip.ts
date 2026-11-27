@@ -1,4 +1,4 @@
-import { CLIP_MIN_SECONDS, roundClip, type ClipRange } from "@uroboros/contract";
+import { CLIP_END_SLACK, CLIP_MIN_SECONDS, roundClip, type ClipRange } from "@uroboros/contract";
 import { ApiError } from "../api/errors.ts";
 import { sanitizeSegment } from "../storage/index.ts";
 import type { Span } from "./cuts.ts";
@@ -8,9 +8,6 @@ import type { Span } from "./cuts.ts";
  * SponsorBlock segments. Everything in the range stays, so a clip never goes stale and a shared one
  * doesn't change with its owner's settings.
  */
-
-/** How far past the file's end a clip may reach and still end at the end (a frame or so). */
-const END_SLACK = 1;
 
 /**
  * The range a clip of a file `duration` long keeps, rounded to milliseconds: one a hair past the
@@ -22,7 +19,7 @@ export function checkClip(range: ClipRange, duration: number | null): ClipRange 
     throw new ApiError("bad_request", "this file's length isn't known, so it can't be clipped");
   }
   const r = roundClip(range);
-  if (r.end > duration + END_SLACK) {
+  if (r.end > duration + CLIP_END_SLACK) {
     throw new ApiError("bad_request", "the clip runs past the end of the video");
   }
   const end = Math.min(r.end, duration);

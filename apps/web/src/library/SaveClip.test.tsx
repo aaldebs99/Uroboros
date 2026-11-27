@@ -74,4 +74,29 @@ describe("Save with a clip picked", () => {
       await within(menu).findByRole("link", { name: "This clip (1:02–1:30)" }),
     ).toHaveAttribute("href", fileUrl);
   });
+
+  it("saves at once a finished clip to the end, which the server ended at the file's end", async () => {
+    const fileUrl = "/api/exports/0190a3f2-7c1e-7000-8000-0000000000e2/file";
+    // Asked to the player's end, a frame past the file's (1000): it cuts only what precedes it.
+    const asked = { start: 970, end: 1000.04 };
+    fakeApi({
+      "GET /api/exports": () =>
+        Response.json([
+          // A clip that stops a hair short of the end is another clip.
+          copy({
+            clip: { start: 970, end: 999.5 },
+            cutSeconds: 970.5,
+            state: "done",
+            fileUrl: "/x",
+          }),
+          copy({ clip: { start: 970, end: 1000 }, cutSeconds: 970, state: "done", fileUrl }),
+        ]),
+    });
+    await renderInRouter(<SaveFile item={{ id: ID, sponsorSegments: [] }} clip={asked} />);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    const menu = await screen.findByRole("dialog", { name: "Save" });
+    expect(
+      await within(menu).findByRole("link", { name: "This clip (16:10–16:40)" }),
+    ).toHaveAttribute("href", fileUrl);
+  });
 });
