@@ -51,6 +51,7 @@ export function apiConfig(databaseUrl: string, over: Partial<Config> = {}): Conf
       previewMethod: "download",
     },
     mcpEnabled: false,
+    clipsEnabled: true,
     secretsKey: null,
     ...over,
   };

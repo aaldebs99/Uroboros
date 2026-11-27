@@ -26,6 +26,12 @@ export const Info = z
     version: z.string(),
     /** `UROBOROS_PUBLIC_BASE_URL`, when set: the origin public links are copied with. */
     publicBaseUrl: z.string().nullable(),
+    /**
+     * Whether people can make clips of their videos, to save or share (`UROBOROS_CLIPS_ENABLED`,
+     * read at start; docs/sharing.md#clips). An older server, which has none, answers without it:
+     * off.
+     */
+    clips: z.boolean().default(false),
   })
   .openapi("Info");
 export type Info = z.infer<typeof Info>;

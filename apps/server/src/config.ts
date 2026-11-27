@@ -51,6 +51,12 @@ export interface Config {
    * docs/mcp.md), read at start. Off, `/api/mcp` answers 404 and no token can be made for MCP.
    */
   mcpEnabled: boolean;
+  /**
+   * Whether people can make clips of their videos, to save or share (`UROBOROS_CLIPS_ENABLED`, on
+   * unless false; docs/sharing.md#clips), read at start. Off, new clips and clip shares are refused
+   * and clip links stop working; copies already made still save.
+   */
+  clipsEnabled: boolean;
 }
 
 /** What the manual migrate command needs: the database and where the SQL files are. */
@@ -214,6 +220,9 @@ const workerEnvSchema = z.object({
   ),
   UROBOROS_MCP_ENABLED: unsetIfEmpty(
     z.enum(["true", "false"], { error: "UROBOROS_MCP_ENABLED must be true or false" }).optional(),
+  ),
+  UROBOROS_CLIPS_ENABLED: unsetIfEmpty(
+    z.enum(["true", "false"], { error: "UROBOROS_CLIPS_ENABLED must be true or false" }).optional(),
   ),
   UROBOROS_TRANSCODE_CONCURRENCY: unsetIfEmpty(
     z
@@ -384,6 +393,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     },
     secretsKey: e.UROBOROS_SECRETS_KEY ?? null,
     mcpEnabled: e.UROBOROS_MCP_ENABLED !== "false",
+    clipsEnabled: e.UROBOROS_CLIPS_ENABLED !== "false",
   };
 }
 

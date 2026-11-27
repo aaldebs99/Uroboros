@@ -1358,6 +1358,10 @@
       },
       "Info": {
         "properties": {
+          "clips": {
+            "default": false,
+            "type": "boolean"
+          },
           "name": {
             "enum": [
               "uroboros"
