@@ -1,10 +1,12 @@
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { EDITED_COLUMNS } from "../library/edits.ts";
 
 /**
- * One library entry with what serving and listing it needs. The profile is a left join: an
- * upload's rendition has none, nor has one whose profile went with its owner's account.
+ * One library entry with what serving and listing it needs, in its owner's own details of the video
+ * (docs/library.md#your-own-details). The profile is a left join: an upload's rendition has none,
+ * nor has one whose profile went with its owner's account.
  */
 export function entryQuery(db: Kysely<Database>) {
   return db
@@ -12,16 +14,17 @@ export function entryQuery(db: Kysely<Database>) {
     .innerJoin("media as m", "m.id", "e.media_id")
     .innerJoin("renditions as r", "r.id", "e.rendition_id")
     .leftJoin("format_profiles as p", "p.id", "r.profile_id")
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+    )
     .select([
       "e.id",
       "e.user_id",
       "e.media_id",
       "e.rendition_id",
       "e.added_at",
-      "m.title",
+      ...EDITED_COLUMNS,
       "m.video_id",
-      "m.channel",
-      "m.channel_id",
       "m.extractor",
       "m.uploader",
       "m.upload_date",

@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import type { Database, ShareMode } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { clipOf, clipTitle } from "../exports/clip.ts";
+import { eff } from "../library/edits.ts";
 import { thumbnailUrl } from "../library/thumbnailUrl.ts";
 import { newCode } from "./codes.ts";
 import { checkGroups, checkPeople, reached, replacePeople, toLink, toPeople } from "./people.ts";
@@ -29,11 +30,14 @@ export async function clipFacts(
     )
     .innerJoin("renditions as r", "r.id", "x.rendition_id")
     .innerJoin("media as m", "m.id", "r.media_id")
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+    )
     .select([
       "x.entry_id",
       "x.clip_start",
       "x.clip_end",
-      "m.title",
+      eff.title.as("title"),
       "m.video_id",
       "m.thumbnail_key",
       "r.video_codec",

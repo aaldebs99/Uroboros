@@ -25,6 +25,7 @@ import type { Processor } from "../jobs/queues.ts";
 import { sendNotice } from "../notices/send.ts";
 import { choosePipeline, encoderOf, pipelinesFor, sourceKey } from "../transcode/hwaccel.ts";
 import { h264Level, outputSize, rungFor } from "../transcode/ladder.ts";
+import { eff } from "../library/edits.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { audioPlanFor } from "./exportAudio.ts";
 import { rangesOf } from "./exportRanges.ts";
@@ -123,11 +124,16 @@ async function backToQueue(deps: WorkerDeps, id: string): Promise<void> {
     .execute();
 }
 
+/** The copy, titled as the owner of the entry it was cut from shows it (docs/library.md#your-own-details). */
 async function loadCopy(deps: WorkerDeps, id: string) {
   return deps.db
     .selectFrom("exports as x")
     .innerJoin("renditions as r", "r.id", "x.rendition_id")
     .innerJoin("media as m", "m.id", "r.media_id")
+    .innerJoin("library_entries as e", "e.id", "x.entry_id")
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+    )
     .select([
       "x.id",
       "x.user_id",
@@ -137,7 +143,7 @@ async function loadCopy(deps: WorkerDeps, id: string) {
       "x.clip_start",
       "x.clip_end",
       "r.storage_key",
-      "m.title",
+      eff.title.as("title"),
       "m.video_id",
       "m.chapters",
     ])

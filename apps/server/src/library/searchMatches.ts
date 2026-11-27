@@ -1,6 +1,7 @@
 import type { SearchMatch } from "@uroboros/contract";
 import { sql, type Kysely, type RawBuilder } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { eff } from "./edits.ts";
 import { TIER } from "./search.ts";
 import { likePattern } from "./searchTerms.ts";
 import { snippet, startAt } from "./snippet.ts";
@@ -45,12 +46,21 @@ async function chapterMatches(db: Kysely<Database>, ids: string[], p: string[], 
   ]);
 }
 
-async function descriptionMatches(db: Kysely<Database>, ids: string[], terms: string[]) {
+/** The description `ownerId` shows: their own (docs/library.md#your-own-details), else the site's. */
+async function descriptionMatches(
+  db: Kysely<Database>,
+  ownerId: string,
+  ids: string[],
+  terms: string[],
+) {
   if (ids.length === 0) return [];
   const rows = await db
-    .selectFrom("media")
-    .select(["id", "description"])
-    .where("id", "in", ids)
+    .selectFrom("media as m")
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "m.id").on("ed.user_id", "=", ownerId),
+    )
+    .select(["m.id", eff.description.as("description")])
+    .where("m.id", "in", ids)
     .execute();
   return rows.map((r): [string, SearchMatch] => [
     r.id,
@@ -79,9 +89,13 @@ async function captionMatches(db: Kysely<Database>, ids: string[], p: string[], 
   });
 }
 
-/** Each row's match, by media id; a row that matched only in its title or channel has none. */
+/**
+ * Each row's match, by media id, in the words of `ownerId` (whose entries they are); a row that
+ * matched only in its title or channel has none.
+ */
 export async function matchesFor(
   db: Kysely<Database>,
+  ownerId: string,
   terms: string[],
   rows: readonly MatchedRow[],
 ): Promise<Map<string, SearchMatch>> {
@@ -93,7 +107,7 @@ export async function matchesFor(
   }
   const found = await Promise.all([
     chapterMatches(db, byTier.get(TIER.chapter) ?? [], p, terms),
-    descriptionMatches(db, byTier.get(TIER.description) ?? [], terms),
+    descriptionMatches(db, ownerId, byTier.get(TIER.description) ?? [], terms),
     captionMatches(db, byTier.get(TIER.captions) ?? [], p, terms),
   ]);
   return new Map(found.flat());

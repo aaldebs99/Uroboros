@@ -2,6 +2,7 @@ import type { ShareKind } from "@uroboros/contract";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { eff } from "../library/edits.ts";
 import { thumbnailUrl } from "../library/thumbnailUrl.ts";
 import { getPlaylist } from "../playlists/listing.ts";
 import { clipFacts } from "./clipShares.ts";
@@ -36,14 +37,18 @@ export async function describeTarget(
   id: string,
 ): Promise<TargetFacts> {
   if (kind === "entry") {
+    // In the owner's own details (docs/library.md#your-own-details).
     const row = await db
       .selectFrom("library_entries as e")
       .innerJoin("media as m", "m.id", "e.media_id")
       .innerJoin("renditions as r", "r.id", "e.rendition_id")
+      .leftJoin("media_edits as ed", (j) =>
+        j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+      )
       .select([
-        "m.title",
+        eff.title.as("title"),
         "m.video_id",
-        "m.description",
+        eff.description.as("description"),
         "m.thumbnail_key",
         "m.preview_key",
         "r.video_codec",

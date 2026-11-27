@@ -21,6 +21,7 @@ import type {
 import type { NoticesTable } from "./noticesSchema.ts";
 import type { UserPreferencesTable } from "./preferencesSchema.ts";
 import type { SiteCooldownsTable } from "./rateLimitsSchema.ts";
+import type { MediaEditsTable } from "./editsSchema.ts";
 import type { SaveLinksTable } from "./saveLinksSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
 import type {
@@ -440,6 +441,7 @@ export interface Database {
   source_items: SourceItemsTable;
   entry_tags: EntryTagsTable;
   watch_progress: WatchProgressTable;
+  media_edits: MediaEditsTable;
   subscriptions: SubscriptionsTable;
   subscription_items: SubscriptionItemsTable;
   storage_trash: StorageTrashTable;

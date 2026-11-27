@@ -2,24 +2,33 @@ import type { ChannelSummary } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { channelKey } from "./channelKey.ts";
+import { eff } from "./edits.ts";
 import { thumbnailUrl } from "./thumbnailUrl.ts";
 const dashed = (d: string | null) =>
   d === null ? null : `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
 
-/** The channels in the caller's library, most entries first. Videos with no channel are left out. */
+/**
+ * The channels in the caller's library, most entries first, each video in the one it shows in: its
+ * site's, or the one the caller moved it to (docs/library.md#your-own-details). Videos with no
+ * channel are left out.
+ */
 export async function listChannels(
   db: Kysely<Database>,
   userId: string,
 ): Promise<ChannelSummary[]> {
+  const name = sql<string>`max(coalesce(${eff.channel}, m.uploader, ${eff.channelId}))`;
   const rows = await db
     .selectFrom("library_entries as e")
     .innerJoin("media as m", "m.id", "e.media_id")
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+    )
     .where("e.user_id", "=", userId)
-    .where(sql<boolean>`(m.channel_id IS NOT NULL OR coalesce(m.channel, m.uploader) IS NOT NULL)`)
+    .where(sql<boolean>`(${eff.channelId} IS NOT NULL OR ${eff.channelName} IS NOT NULL)`)
     .select([
-      "m.extractor",
-      "m.channel_id",
-      sql<string>`max(coalesce(m.channel, m.uploader, m.channel_id))`.as("name"),
+      eff.channelExtractor.as("extractor"),
+      eff.channelId.as("channel_id"),
+      name.as("name"),
       sql<string>`count(*)`.as("count"),
       sql<string | null>`max(m.upload_date)`.as("latest"),
       sql<
@@ -34,12 +43,12 @@ export async function listChannels(
       ),
     ])
     .groupBy([
-      "m.extractor",
-      "m.channel_id",
-      sql`CASE WHEN m.channel_id IS NULL THEN coalesce(m.channel, m.uploader) END`,
+      eff.channelExtractor,
+      eff.channelId,
+      sql`CASE WHEN ${eff.channelId} IS NULL THEN ${eff.channelName} END`,
     ])
     .orderBy(sql`count(*)`, "desc")
-    .orderBy(sql`max(coalesce(m.channel, m.uploader, m.channel_id))`)
+    .orderBy(name)
     .execute();
   return rows.map((r) => ({
     key: channelKey(r.extractor, r.channel_id, r.name) ?? "",

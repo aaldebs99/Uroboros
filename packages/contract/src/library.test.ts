@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LibraryEntry, LibraryPage, TagsBody } from "./index.ts";
+import { EntryDetailsBody, LibraryEntry, LibraryItem, LibraryPage, TagsBody } from "./index.ts";
 
 describe("library contract", () => {
   it("normalizes tags and limits them", () => {
@@ -9,6 +9,24 @@ describe("library contract", () => {
     ).toThrow();
     expect(() => TagsBody.parse({ tags: ["x".repeat(33)] })).toThrow();
     expect(() => TagsBody.parse({ tags: ["   "] })).toThrow();
+  });
+
+  it("takes only the details that change, each as an upload's", () => {
+    expect(EntryDetailsBody.parse({})).toEqual({});
+    expect(EntryDetailsBody.parse({ creator: " Me " })).toEqual({ creator: "Me" });
+    expect(EntryDetailsBody.parse({ description: "  " })).toEqual({ description: null });
+    expect(EntryDetailsBody.parse({ title: "T", description: null, creator: "C" })).toEqual({
+      title: "T",
+      description: null,
+      creator: "C",
+    });
+    expect(() => EntryDetailsBody.parse({ title: " " })).toThrow();
+    expect(() => EntryDetailsBody.parse({ title: "x".repeat(201) })).toThrow();
+  });
+
+  it("reads an item from an older server as nobody's own details, and not editable for oneself", () => {
+    const fields = LibraryItem.pick({ personalEditable: true, edited: true, original: true });
+    expect(fields.parse({})).toEqual({ personalEditable: false, edited: false, original: null });
   });
 
   it("parses a page", () => {

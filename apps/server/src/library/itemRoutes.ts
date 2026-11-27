@@ -26,6 +26,7 @@ import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { extname } from "node:path";
 import { editDetails, replaceThumbnail } from "./details.ts";
+import { resetOwnDetails } from "./ownDetails.ts";
 import { getItem } from "./item.ts";
 import { setKept } from "./kept.ts";
 import { saveProgress, setWatched } from "./progress.ts";
@@ -162,12 +163,25 @@ const detailsRoute = createRoute({
   method: "patch",
   path: "/api/library/{id}/details",
   tags: ["library"],
-  summary: "Change an uploaded video's title, description and creator (its uploader only)",
+  summary:
+    "Change the video's title, description and channel (creator), each only when given: for everyone on the caller's own upload, for the caller alone on any other video of theirs",
   request: { params: z.object({ id }), ...body(EntryDetailsBody) },
   responses: {
     200: json(LibraryItem, "The item as it is now"),
     400: error("A blank title or creator, or one too long"),
-    403: error("A downloaded video, or someone else's upload"),
+    404: error("Not the caller's entry"),
+  },
+});
+
+const detailsResetRoute = createRoute({
+  method: "delete",
+  path: "/api/library/{id}/details",
+  tags: ["library"],
+  summary:
+    "Drop the caller's own title, description and channel of the video, back to its site's (or its uploader's)",
+  request: { params: z.object({ id }) },
+  responses: {
+    204: { description: "Reset, or nothing of the caller's own to reset" },
     404: error("Not the caller's entry"),
   },
 });
@@ -291,6 +305,11 @@ export function registerItemRoutes(
     const { id: entryId } = c.req.valid("param");
     await editDetails(db, userId, entryId, c.req.valid("json"));
     return c.json(await getItem(db, userId, entryId, maxShort), 200);
+  });
+
+  app.openapi(detailsResetRoute, async (c) => {
+    await resetOwnDetails(db, currentPrincipal(c).userId, c.req.valid("param").id);
+    return c.body(null, 204);
   });
 
   app.openapi(thumbnailPutRoute, async (c) => {

@@ -24,9 +24,13 @@ import {
 import { Field, TextareaField } from "@/components/ui/field";
 import { notify } from "@/components/ui/sonner";
 
+import { OwnDetailsForm } from "./OwnDetailsForm";
+
 /**
- * "Edit details" on an uploaded video's page (its uploader only, docs/uploads.md): the title,
- * description, creator and thumbnail, changed for everyone who holds it.
+ * "Edit details" on a video's page: on an upload, its uploader changes the title, description,
+ * creator and thumbnail for everyone who holds it (docs/uploads.md); on any other video of theirs,
+ * a person gives it a title, description and channel of their own (`OwnDetailsForm`,
+ * docs/library.md#your-own-details).
  */
 export function EditDetailsDialog({
   item,
@@ -37,20 +41,30 @@ export function EditDetailsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const done = () => {
+    onOpenChange(false);
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* A phone's screen is shorter than the form: the dialog scrolls inside it. */}
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogTitle>Edit details</DialogTitle>
-        <DialogDescription className="sr-only">
-          Change this video&apos;s title, description, creator and thumbnail.
-        </DialogDescription>
-        <DetailsForm
-          item={item}
-          onDone={() => {
-            onOpenChange(false);
-          }}
-        />
+        {item.editable ? (
+          <>
+            <DialogDescription className="sr-only">
+              Change this video&apos;s title, description, creator and thumbnail.
+            </DialogDescription>
+            <DetailsForm item={item} onDone={done} />
+          </>
+        ) : (
+          <>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Your own title, description and channel: only you see them, and whoever you share it
+              with.
+            </DialogDescription>
+            <OwnDetailsForm item={item} onDone={done} />
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

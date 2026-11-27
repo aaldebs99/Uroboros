@@ -220,9 +220,16 @@ export const refetchSkipSegments = (id: string) =>
 export const refreshSkipSegments = (id: string) =>
   postNoContent(`/api/library/${encodeURIComponent(id)}/skip-segments/refresh`);
 
-/** An uploaded video's new details (its uploader only, docs/uploads.md). */
+/**
+ * A video's new details, only those given: for everyone on the person's own upload
+ * (docs/uploads.md), for them alone on any other video of theirs (docs/library.md#your-own-details).
+ */
 export const editDetails = (id: string, details: EntryDetailsBody) =>
   patchJson(`/api/library/${encodeURIComponent(id)}/details`, LibraryItem, details);
+
+/** Drops the person's own details of a video, back to its site's (or its uploader's). */
+export const resetDetails = (id: string) =>
+  deleteJson(`/api/library/${encodeURIComponent(id)}/details`);
 
 /** An uploaded video's new thumbnail (its uploader only). */
 export const replaceThumbnail = (id: string, image: Blob) =>

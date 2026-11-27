@@ -14,6 +14,8 @@ from your phone as an app. It replaces [ytdl-material](https://github.com/Tzahi1
 - **Watching**: picks up where you left off, with chapters, subtitles and SponsorBlock skips, and a
   preview when you hover over a video. A file your browser can't play is converted as you watch.
 - **Uploads**: your own videos, beside the ones you saved.
+- **Your own details**: rename a video, rewrite its description or move it to another channel, just
+  for you.
 - **Sharing**: with people, with groups you set up, or by a public link.
 - **Clips**: pick a part of a video in the player, then save just that part or share it, on its own
   or as the whole video opened there.

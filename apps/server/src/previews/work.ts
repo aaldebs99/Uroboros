@@ -1,6 +1,7 @@
 import type { PreviewWork } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { eff } from "../library/edits.ts";
 import { hasStoredVideo, previewsStalled } from "./stall.ts";
 
 /**
@@ -47,13 +48,16 @@ export async function previewWork(
           .selectFrom("jobs as j")
           .innerJoin("media as m", (join) => join.on(sql<boolean>`j.key = 'preview:' || m.id`))
           .innerJoin("library_entries as e", "e.media_id", "m.id")
+          .leftJoin("media_edits as ed", (join) =>
+            join.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+          )
           .where("j.queue", "=", "preview")
           .where("e.user_id", "=", userId)
           .where(pending)
           .where(hasStoredVideo)
           .select([
             "e.id as entry_id",
-            sql<string>`coalesce(m.title, m.video_id)`.as("title"),
+            sql<string>`coalesce(${eff.title}, m.video_id)`.as("title"),
             sql<boolean>`j.state = 'running'`.as("running"),
           ])
           .orderBy(sql`j.state = 'running'`, "desc")
