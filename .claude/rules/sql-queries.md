@@ -52,10 +52,17 @@ A new one goes into this table in the same change, with the reason it cannot be 
 
 ## Raw `pg` clients
 
-Only the dedicated connections use `pg` directly: the pool's ping (`src/db/kysely.ts`), the
-LISTEN/NOTIFY listener (`src/db/notifications.ts`, which `LISTEN`s only on the constant
-`CHANNELS`), the migration connection (`src/migrate/onStart.ts`) and the leader lock
-(`src/shared/leader.ts`). They send fixed strings, or `$1` parameters with a values array.
+In server code, only the dedicated connections use `pg` directly: the pool's ping
+(`src/db/kysely.ts`), the LISTEN/NOTIFY listener (`src/db/notifications.ts`, which `LISTEN`s only
+on the constant `CHANNELS`), the migration connection (`src/migrate/onStart.ts`) and the leader
+lock (`src/shared/leader.ts`). They send fixed strings, or `$1` parameters with a values array.
+
+Tests open their own `pg` clients too, to hold advisory locks, end backends, and create, drop and
+alter test databases (`withAdmin` in `test/pgAdmin.ts`, `test/testDb.ts`, `test/globalSetup.ts`,
+`src/migrate/onStart.test.ts`). They follow the same rule with one exception: Postgres cannot bind
+a database name, so `CREATE`, `DROP` and `ALTER DATABASE` put it into the text. That name only
+ever comes from `TEMPLATE_DB` or `uniqueTestName()` (`test/dbUrl.ts`, lowercase hex), or from the
+URL of a database a test made with them, never from anything else.
 
 ## Text a person typed
 
