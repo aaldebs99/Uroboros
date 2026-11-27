@@ -310,6 +310,7 @@ export async function listLibraryPage(
         ? null
         : await matchesFor(
             tx,
+            as?.ownerId ?? userId,
             terms,
             pageRows.map((r) => ({ media_id: r.media_id, tiers: r.tiers ?? [] })),
           );

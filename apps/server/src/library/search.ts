@@ -1,6 +1,7 @@
 import { sql, type Kysely, type RawBuilder, type Transaction } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { eff } from "./edits.ts";
 import { likePattern } from "./searchTerms.ts";
 
 /**
@@ -24,10 +25,21 @@ const holdsAll = (expr: RawBuilder<unknown>, patterns: string[]) =>
     sql` AND `,
   )})`;
 
+/** Where a video's title (`title`) and byline (`channel`) put a match: the title, else the channel, else the description. */
+function tierOf(title: RawBuilder<unknown>, channel: RawBuilder<unknown>, p: string[]) {
+  const t = sql`coalesce(${title}, '')`;
+  const byline = sql`${t} || E'\\n' || coalesce(${channel}, '')`;
+  return sql<number>`CASE WHEN ${holdsAll(t, p)} THEN ${sql.lit(TIER.title)}
+    WHEN ${holdsAll(byline, p)} THEN ${sql.lit(TIER.channel)}
+    ELSE ${sql.lit(TIER.description)} END`;
+}
+
 /**
  * The media of `ownerId`'s entries that hold every term, each with its best tier and every tier it
  * matched in: a derived table (`media_id`, `tier`, `tiers`) to join. The matches are made first (materialised), through the indexes,
  * and only then kept to the owner's, so the planner never walks a whole library to filter it.
+ * A video the owner gave details of their own (docs/library.md#your-own-details) is matched on
+ * those instead, outside the index: one person's edits are few.
  */
 export function hitsTable(
   ownerId: string,
@@ -35,20 +47,24 @@ export function hitsTable(
 ): RawBuilder<{ media_id: string; tier: number; tiers: number[] }> {
   const p = terms.map(likePattern);
   const owned = sql`(m.id IN (SELECT media_id FROM owned)) IS TRUE`;
-  const title = sql`coalesce(m.title, '')`;
-  const byline = sql`coalesce(m.title, '') || E'\\n' || coalesce(m.channel, m.uploader, '')`;
   return sql`(
     WITH owned AS MATERIALIZED (
       SELECT DISTINCT media_id FROM library_entries WHERE user_id = ${ownerId}
     ),
+    edited AS MATERIALIZED (
+      SELECT * FROM media_edits
+      WHERE user_id = ${ownerId} AND (media_id IN (SELECT media_id FROM owned)) IS TRUE
+    ),
     meta AS MATERIALIZED (
-      SELECT m.id AS media_id,
-        CASE WHEN ${holdsAll(title, p)} THEN ${sql.lit(TIER.title)}
-             WHEN ${holdsAll(byline, p)} THEN ${sql.lit(TIER.channel)}
-             ELSE ${sql.lit(TIER.description)} END AS tier
+      SELECT m.id AS media_id, ${tierOf(sql`m.title`, sql`coalesce(m.channel, m.uploader)`, p)} AS tier
       FROM media m
       WHERE ${holdsAll(sql`media_search_text(m.title, m.channel, m.uploader, m.description)`, p)}
         AND ${owned}
+        AND (m.id IN (SELECT media_id FROM edited)) IS NOT TRUE
+      UNION ALL
+      SELECT m.id AS media_id, ${tierOf(eff.title, eff.channelName, p)} AS tier
+      FROM edited ed JOIN media m ON m.id = ed.media_id
+      WHERE ${holdsAll(sql`media_search_text(${eff.title}, ${eff.channel}, m.uploader, ${eff.description})`, p)}
     ),
     chap AS MATERIALIZED (
       SELECT m.id AS media_id, ${sql.lit(TIER.chapter)} AS tier
