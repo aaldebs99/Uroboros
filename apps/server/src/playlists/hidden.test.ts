@@ -8,7 +8,7 @@ import { seedYouTubePlaylist } from "../../test/playlists.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { createApp } from "../api/app.ts";
 
-/** `PUT /api/playlists/{id}/hidden` (docs/library.md "Hidden playlists"). */
+/** `PUT /api/playlists/{id}/hidden` (docs/library.md "Hiding from the library"). */
 
 const logger = pino({ level: "silent" });
 let testDb: TestDb;

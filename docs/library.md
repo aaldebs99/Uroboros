@@ -20,8 +20,9 @@ public links in [sharing.md](sharing.md).
   404, and `source` with `playlist` is 400.
 - `inPlaylist`: `true` keeps only the videos in one of the caller's playlists, of either kind, and
   `false` only those in none.
-- `hidden`: `false` leaves out the videos one of the caller's playlists hides from the library, and
-  `true` keeps only those (see [Hidden playlists](#hidden-playlists)).
+- `hidden`: `false` leaves out the videos the caller keeps out of the library, by a playlist or a
+  channel that hides, and `true` keeps only those (see
+  [Hiding from the library](#hiding-from-the-library)).
 - `kind`: `video` keeps only the files with a picture and `audio` only those with sound alone (see
   [Videos and audio](#videos-and-audio)).
 - `sort`: `added` (newest first; the default), `uploaded`, `title`, `duration`, `relevance` (best
@@ -122,7 +123,7 @@ row until it is fetched). A YouTube playlist shows only to the people who have i
 not recorded. People also make playlists of their own; `GET /api/playlists` lists both kinds
 ([sharing.md](sharing.md)).
 
-### Hidden playlists
+### Hiding from the library
 
 Each playlist the person has, one they made or a YouTube one, has a **Hide from library** button in
 its header (`PUT /api/playlists/{id}/hidden` with `{ hidden }`; `hideFromLibrary` on a
@@ -134,12 +135,23 @@ YouTube playlist, which everyone who queued it shares, hides for each person apa
 A video is hidden when any of the person's playlists that hide holds it (a manual one by entry, a
 YouTube one by extractor and video id), whatever other playlists it is in.
 
+A **channel** hides the same way: its page has the same **Hide from library** button
+(`PUT /api/library/channels/{key}/hidden` with `{ hidden }`; `hideFromLibrary` on a
+`ChannelSummary`), and while it is pressed its page and its tile on Channels say "Hidden from
+library". It hides for the person alone (`hidden_channels`, keyed as a channel key is: the
+extractor, then the site's channel id or, without one, the name), and keeps out every video of
+theirs in that channel, the ones they download later included. Which channel a video is in is
+decided in one place (`src/library/channelMatch.ts`), so a channel's page and hiding always agree.
+Hiding a channel needs a video of the person's in it (404 otherwise); showing it again always
+works, so a channel whose videos all left the library can still be let back.
+
 Library › Videos and Audio ask for `hidden=false`, tag and watched filters included. While one of
-the person's playlists hides, the chip row has a **Show hidden** chip after All, Unwatched and
-Watched, off on every visit and kept in the address (`?showHidden=true`), which asks for everything;
-when hiding leaves a view empty, the page says "Everything here is hidden by its playlists." with a
-button that does the same. A search finds hidden videos too, and so do playlist and channel pages,
-the search palette, Up next, Shared and API callers that don't ask for `hidden`.
+the person's playlists or channels hides, the chip row has a **Show hidden** chip after All,
+Unwatched and Watched, off on every visit and kept in the address (`?showHidden=true`), which asks
+for everything; when hiding leaves a view empty, the page says "Everything here is hidden by its
+playlists or channels." with a button that does the same. A search finds hidden videos too, and so
+do playlist and channel pages, the search palette, Up next, Shared and API callers that don't ask
+for `hidden`.
 
 This replaced an account-wide **Hide playlist videos** chip (0.1.0), which hid every playlist's
 videos: the migration that brought the per-playlist setting marked every playlist of whoever had

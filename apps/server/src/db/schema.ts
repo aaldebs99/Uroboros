@@ -391,7 +391,10 @@ export interface PlaylistsTable {
   user_id: string;
   name: string;
   description: string | null;
-  /** Its videos stay out of Library › Videos and Audio (docs/library.md "Hidden playlists"). */
+  /**
+   * Its videos stay out of Library › Videos and Audio (docs/library.md "Hiding from the
+   * library").
+   */
   hide_from_library: Generated<boolean>;
   created_at: Created;
   updated_at: Defaulted<Date | string>;
