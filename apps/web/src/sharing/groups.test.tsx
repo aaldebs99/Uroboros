@@ -246,6 +246,14 @@ describe("a group's page", () => {
     expect(within(members).getByText("Disabled")).toBeInTheDocument();
   });
 
+  it("centers its column, as Settings does", async () => {
+    await showGroup("member");
+    expect(screen.getByRole("heading", { name: "Family" }).closest("section")).toHaveClass(
+      "mx-auto",
+      "max-w-3xl",
+    );
+  });
+
   it("leads back to Settings › Groups", async () => {
     await showGroup("member");
     expect(screen.getByRole("link", { name: "Groups" })).toHaveAttribute(

@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 import { Section } from "@/account/Section";
 import { PageHeader } from "@/components/ui/page-header";
+import { settingsColumn } from "@/components/ui/settings-column";
+import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/nav";
 import { MyNotifications } from "@/settings/MyNotifications";
 import { NotificationKinds } from "@/settings/NotificationKinds";
@@ -17,12 +19,11 @@ const settings = NAV_ITEMS.find((item) => item.to === "/settings");
 
 /**
  * Settings' frame: the (screen-reader) header and, on phones, the view tabs (the side navigation
- * lists the views from `md` up), in a column capped at the left margin (a settings column reads
- * badly stretched).
+ * lists the views from `md` up), in a capped column centered in the page (`settingsColumn`).
  */
 function SettingsFrame({ children }: { children: ReactNode }) {
   return (
-    <section className="grid w-full max-w-3xl gap-6">
+    <section className={cn(settingsColumn, "gap-6")}>
       <PageHeader title={settings?.label ?? "Settings"} description={settings?.blurb} />
       <SettingsTabs />
       {/* Its own block, so the view's first section draws no rule under the tabs' hairline. */}

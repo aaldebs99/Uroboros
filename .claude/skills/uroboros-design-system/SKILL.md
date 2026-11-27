@@ -55,10 +55,12 @@ skill, this skill wins. The existing files are listed in each reference.
    the feature behind it exists. The bell exists: the top bar's notifications and work in
    progress ([shell](references/shell-and-navigation.md#notifications)).
 10. **Pages use the whole page.** A page fills the main area from its left margin to its right:
-    grids, lists, tables and the watch page grow with the window. Never centre a page in an
+    grids, lists, tables and the watch page grow with the window. Never center a page in an
     `mx-auto max-w-*` column that leaves empty bands either side. A block that reads badly
-    stretched (a form, a settings column, a paragraph) caps its own width and stays at the left
-    margin. Details in [shell-and-navigation](references/shell-and-navigation.md#page-width).
+    stretched (a form, a paragraph) caps its own width and stays at the left margin. The one
+    exception is a settings page (Settings' views, a group's page, Account): its column caps at
+    `max-w-3xl` and is centered (`settingsColumn`). Details in
+    [shell-and-navigation](references/shell-and-navigation.md#page-width).
 11. **Sizes are rem, never pixels.** One knob sizes the whole UI: the root font size, 100% of the
     reader's browser size on desktop and 110% on phones, times `--ui-scale` (the account menu's
     Size). The pixel figures in this skill are design pixels at a 16px rem: write a Tailwind
@@ -98,19 +100,19 @@ sheets, `rounded-[0.25rem]` (4) duration badges, and `rounded-full` pills. Write
 
 ## Common mistakes
 
-| Mistake                                                         | Instead                                                                      |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `variant="destructive"` solid red, or an outlined Cancel        | Tonal destructive; in dialogs, text-only pill actions                        |
-| A filled or dotted status badge (`bg-warning`, a colored dot)   | An outlined pill with tone text                                              |
-| A video in a bordered card with the title in a padded body      | A bare tile: thumbnail, then avatar, two-line title, meta, ⋮                 |
-| A dashed box for an empty list                                  | `EmptyState`: a 96px circle with a glyph, a title, a line, one action        |
-| A section title ("Library", "Downloads") atop a page            | `PageHeader` keeps it for screen readers; the navigation says where you are  |
-| A label above an input                                          | The outlined field with the label inside the box                             |
-| Geist or Bricolage, body text at 16px, `font-display`           | Roboto 14/20 body; titles are Roboto 700                                     |
-| A 6px flat `bg-primary` progress bar                            | An 8px pill bar with an accent gradient and glow, plus `role="progressbar"`  |
-| `bg-black/75` on a duration badge                               | `bg-overlay text-overlay-foreground`                                         |
-| A navy sidebar (`bg-sidebar`)                                   | Side navigation on the canvas color, with the current row filled `bg-raised` |
-| A Pause button or a subscriber count                            | Only when the feature exists                                                 |
-| A pixel size (`w-[168px]`, `rounded-[12px]`, `text-[13px]`)     | A spacing step or rem: `w-42`, `rounded-[0.75rem]`, `text-[0.8125rem]`       |
-| A page centred in `mx-auto max-w-4xl` with empty bands beside   | The page at full width; a form or settings column capped and left-aligned    |
-| A detail page with no way back, or back only once it has loaded | `BackLink` to its list above the title, in every state of the page           |
+| Mistake                                                         | Instead                                                                                                      |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `variant="destructive"` solid red, or an outlined Cancel        | Tonal destructive; in dialogs, text-only pill actions                                                        |
+| A filled or dotted status badge (`bg-warning`, a colored dot)   | An outlined pill with tone text                                                                              |
+| A video in a bordered card with the title in a padded body      | A bare tile: thumbnail, then avatar, two-line title, meta, ⋮                                                 |
+| A dashed box for an empty list                                  | `EmptyState`: a 96px circle with a glyph, a title, a line, one action                                        |
+| A section title ("Library", "Downloads") atop a page            | `PageHeader` keeps it for screen readers; the navigation says where you are                                  |
+| A label above an input                                          | The outlined field with the label inside the box                                                             |
+| Geist or Bricolage, body text at 16px, `font-display`           | Roboto 14/20 body; titles are Roboto 700                                                                     |
+| A 6px flat `bg-primary` progress bar                            | An 8px pill bar with an accent gradient and glow, plus `role="progressbar"`                                  |
+| `bg-black/75` on a duration badge                               | `bg-overlay text-overlay-foreground`                                                                         |
+| A navy sidebar (`bg-sidebar`)                                   | Side navigation on the canvas color, with the current row filled `bg-raised`                                 |
+| A Pause button or a subscriber count                            | Only when the feature exists                                                                                 |
+| A pixel size (`w-[168px]`, `rounded-[12px]`, `text-[13px]`)     | A spacing step or rem: `w-42`, `rounded-[0.75rem]`, `text-[0.8125rem]`                                       |
+| A page centered in `mx-auto max-w-4xl` with empty bands beside  | The page at full width; a form capped and left-aligned; a settings page's column centered (`settingsColumn`) |
+| A detail page with no way back, or back only once it has loaded | `BackLink` to its list above the title, in every state of the page                                           |

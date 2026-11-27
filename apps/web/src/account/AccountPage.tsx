@@ -4,8 +4,10 @@ import { ChevronRight, Lock, Monitor, UserRound } from "lucide-react";
 
 import { Avatar } from "@/components/Avatar";
 import { PageHeader } from "@/components/ui/page-header";
+import { settingsColumn } from "@/components/ui/settings-column";
 import { SettingsRow } from "@/components/ui/settings-row";
 import { ADMIN_ITEMS, NAV_ITEMS, type NavItem } from "@/nav";
+import { cn } from "@/lib/utils";
 
 import { PasswordForm } from "./PasswordForm";
 import { Section } from "./Section";
@@ -40,7 +42,7 @@ function PhoneLinks({ isAdmin }: { isAdmin: boolean }) {
 /** The signed-in user's own account: profile, password and sessions (tokens are in Settings). */
 export function AccountPage({ me }: { me: Me }) {
   return (
-    <section className="grid w-full max-w-3xl grid-cols-1 gap-6">
+    <section className={cn(settingsColumn, "gap-6")}>
       <PageHeader title="Account" description="Who you are here, and where you are signed in." />
       <div className="flex items-center gap-4">
         <Avatar name={me.displayName} className="size-16 text-2xl" />
