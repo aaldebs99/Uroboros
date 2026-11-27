@@ -1,6 +1,15 @@
 import type { LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, ExternalLink, MoreVertical, Pencil, Pin, RefreshCw } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  ExternalLink,
+  MoreVertical,
+  Pencil,
+  Pin,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 
 import { errorText } from "@/api/client";
 import { itemKey, refetchSkipSegments, setKept, setWatched } from "@/api/library";
@@ -26,19 +35,23 @@ const offersKeep = (item: LibraryItem) =>
  * was and starts the video over (`onStartOver` takes the open player back to the start, paused, so
  * it doesn't save the old place again). Keep, checked while kept, where it matters; Edit details on
  * a video of the person's own (`onEdit`, docs/library.md#your-own-details); Open on original site;
- * and Refresh SponsorBlock segments on the owner's video whose profile skips some
- * (docs/automation.md#sponsorblock), whose outcome the live stream's toast reports (`LiveEvents`).
+ * Refresh SponsorBlock segments on the owner's video whose profile skips some
+ * (docs/automation.md#sponsorblock), whose outcome the live stream's toast reports (`LiveEvents`);
+ * and, last and in danger text, Remove on the person's own entry (`onRemove`, which asks first).
  */
 export function ItemMenu({
   item,
   onStartOver,
   onEdit,
+  onRemove,
 }: {
   item: LibraryItem;
   /** Mark as unwatched: the open player goes back to the start. */
   onStartOver?: (() => void) | undefined;
   /** Edit details: opens its dialog; none where the person may not edit them. */
   onEdit?: (() => void) | undefined;
+  /** Remove: asks, then removes the entry; none on a video shared with the person. */
+  onRemove?: (() => void) | undefined;
 }) {
   const client = useQueryClient();
   const watched = item.progress?.watched ?? false;
@@ -93,6 +106,15 @@ export function ItemMenu({
   }
   const [first, ...rest] = more;
   if (first !== undefined) actions.push({ ...first, separated: true }, ...rest);
+  if (onRemove !== undefined) {
+    actions.push({
+      label: "Remove",
+      icon: Trash2,
+      destructive: true,
+      separated: true,
+      onSelect: onRemove,
+    });
+  }
   return (
     <ResponsiveMenu
       title="More actions"

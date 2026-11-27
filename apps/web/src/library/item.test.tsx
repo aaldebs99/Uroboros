@@ -220,7 +220,7 @@ describe("ItemPage actions", () => {
     fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
     await renderInRouter(<ItemPage entryId={ID} />);
     const share = await screen.findByRole("button", { name: "Share" });
-    for (const name of ["Save to playlist", "Share", "Remove", "More actions"]) {
+    for (const name of ["Save to playlist", "Share", "More actions"]) {
       expect(screen.getByRole("button", { name })).toHaveTextContent("");
     }
     expect(screen.getByRole("link", { name: "Save" })).toHaveTextContent("");
@@ -266,8 +266,12 @@ describe("ItemPage actions", () => {
       "href",
       "/?tag=movies",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Remove" }));
+    // In the ⋮ menu (a bottom sheet in jsdom), not the row of icon buttons.
+    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+    await openMenu();
     await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
+    const ask = await screen.findByRole("alertdialog");
+    await userEvent.click(within(ask).getByRole("button", { name: "Remove" }));
     await waitFor(() => {
       expect(calls.some((c) => c.method === "DELETE")).toBe(true);
     });
@@ -343,6 +347,7 @@ describe("ItemPage editing an upload", () => {
   it("warns that removing it deletes the upload", async () => {
     fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(upload) });
     await renderInRouter(<ItemPage entryId={ID} />);
+    await openMenu();
     await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
     expect(await screen.findByText(/an upload can't be downloaded again/i)).toBeInTheDocument();
   });

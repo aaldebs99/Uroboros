@@ -92,8 +92,9 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   description, tags, the playlists it is in, and chapters.
 - The actions: Watched, Keep on a subscription's entry, then a row of
   [icon buttons](actions-and-forms.md#icon-buttons) each named in a tooltip (Clip, Save, Save to
-  playlist, Share, Remove, the last one tonal danger; `gap-4`, `md:gap-2`), and the ⋮ menu, whose
-  rows include Edit details on any video of the person's own and Open on the site.
+  playlist, Share; `gap-4`, `md:gap-2`), and the ⋮ menu, whose rows include Edit details on any
+  video of the person's own, Open on the site and, last in a group of its own, Remove in danger
+  text (it asks first).
 - Edit details (from the ⋮ menu) on an upload of the person's: title, description, creator and thumbnail, for
   everyone. On any other video of theirs (their own details, docs/library.md#your-own-details): a
   muted line saying only they see them, title, description and a free `ComboboxField` Channel

@@ -185,8 +185,8 @@ segments again from the page's ⋮ menu (Refresh SponsorBlock segments,
 [automation.md](automation.md#sponsorblock)). That menu (`ItemMenu.tsx`, a dropdown from `md` up
 and a bottom sheet on phones) also holds Mark as watched and Mark as unwatched (which starts the
 video over, below), the current one checked, Keep (below), Edit details on a video of the
-person's own (below) and Open on original site; the row beside it has Clip (below), Save, Save to
-playlist, Share and Remove. When the browser
+person's own (below), Open on original site and, last in danger text, Remove (which asks first);
+the row beside it has Clip (below), Save, Save to playlist and Share. When the browser
 cannot play the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand
 instead ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.
