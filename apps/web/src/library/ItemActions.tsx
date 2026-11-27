@@ -1,4 +1,4 @@
-import type { LibraryItem } from "@uroboros/contract";
+import type { ClipRange, LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LibraryBig, ListPlus, Pencil, Trash2, type LucideIcon } from "lucide-react";
@@ -165,6 +165,8 @@ interface ActionsProps {
   item: LibraryItem;
   /** Mark as unwatched (the ⋮ menu): the page's player goes back to the start, paused. */
   onStartOver?: (() => void) | undefined;
+  /** The clip picked in the player (docs/sharing.md#clips): Save and Share offer just it. */
+  clip?: ClipRange | null;
 }
 
 /** The watch page's icon buttons sit closer from `md` up, where a pointer can't miss. */
@@ -174,13 +176,13 @@ const actionRow = "flex items-center gap-4 md:gap-2";
  * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
  * upload), Save, Save to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`).
  */
-function OwnActions({ item, onStartOver }: ActionsProps) {
+function OwnActions({ item, onStartOver, clip = null }: ActionsProps) {
   const [saving, setSaving] = useState(false);
   return (
     <>
       <div className={actionRow}>
         <EditButton item={item} />
-        <SaveFile item={item} />
+        <SaveFile item={item} clip={clip} />
         <IconAction
           label="Save to playlist"
           icon={ListPlus}
@@ -204,17 +206,17 @@ function OwnActions({ item, onStartOver }: ActionsProps) {
  * person's own entry those are theirs (docs/library.md); on one shared with them (docs/sharing.md),
  * who shared it, Save and Add to my library.
  */
-export function ItemActions({ item, onStartOver }: ActionsProps) {
+export function ItemActions({ item, onStartOver, clip = null }: ActionsProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
       <ChannelLine item={item} />
       {item.sharedBy === null ? (
-        <OwnActions item={item} onStartOver={onStartOver} />
+        <OwnActions item={item} onStartOver={onStartOver} clip={clip} />
       ) : (
         <>
           <span className="text-sm text-muted-foreground">Shared by {item.sharedBy}</span>
           <div className={actionRow}>
-            <SaveFile item={item} />
+            <SaveFile item={item} clip={clip} />
             <AddToMine item={item} />
             <ItemMenu item={item} onStartOver={onStartOver} />
           </div>

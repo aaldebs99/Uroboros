@@ -5,6 +5,7 @@ import {
   DEFAULT_SPONSORBLOCK_COLORS,
   SPONSORBLOCK_COLOR_KEYS,
   type Chapter,
+  type ClipRange,
   type SponsorBlockColors,
   type SponsorSegment,
   type SubtitleTrack,
@@ -20,6 +21,7 @@ import { readVolume, storeVolume } from "@/lib/playerPrefs";
 
 import { AudioArtwork } from "./AudioArtwork";
 import { centerCaptions } from "./captions";
+import { type ClipControl, ClipOverlay, ClipSlots } from "./ClipControls";
 import { HighlightJump } from "./HighlightJump";
 import { PlayerErrorWatch } from "./PlayerErrorWatch";
 import { PlayerHotkeys } from "./PlayerHotkeys";
@@ -68,6 +70,13 @@ export interface PlayerProps {
    * (AudioArtwork). Undefined for a video.
    */
   audio?: { thumbnailUrl: string | null };
+  /**
+   * The page's clip (docs/sharing.md#clips): with this the controls have a Clip button, and a
+   * picked clip is drawn on the timeline with its two handles. Undefined for no Clip button.
+   */
+  clip?: ClipControl | undefined;
+  /** A range only to show (a link opening the whole video at a clip): drawn, paused at its end. */
+  range?: ClipRange | null;
 }
 
 /** The design system's tokens on the skin's styling hooks (docs: "Customize skins"). */
@@ -124,7 +133,8 @@ function tryPlay(v: HTMLVideoElement): void {
  * HighlightJump Enter for the highlight), a captions menu for the subtitle tracks, chapters on the
  * timeline, SponsorBlock segments skipped with a notice to unskip (SponsorSkip), resume, seek, autoplay, and the volume and
  * mute remembered in this browser. Subtitles stay off until the viewer turns them on; then the same
- * language is remembered in this browser too (useSubtitlePref).
+ * language is remembered in this browser too (useSubtitlePref). With `clip`, a Clip button picks a
+ * range on the timeline (ClipControls); a picked clip, or a `range` to show, pauses at its end.
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
@@ -192,58 +202,64 @@ export function Player(p: PlayerProps) {
   const highlight = p.sponsorHighlight ?? null;
   // The same element and props either way: a file, or an HLS copy.
   const Media = p.hls === undefined ? Video : p.hls.native ? NativeHlsVideo : HlsJsVideo;
+  const range = p.range ?? null;
   return (
     <VideoPlayer>
       <SettingsMenuSlot.Provider value={p.settings ?? null}>
-        {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
-        {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
+        <ClipSlots video={video} clip={p.clip} range={range}>
+          {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}
+          {/* data-own-swipe: a sideways drag over the player is the player's, never the phone's
           navigation drawer (components/useDrawerDrag.ts). */}
-        <NeutralVideoSkin
-          style={style}
-          className="uro-player overflow-hidden bg-black md:rounded-[0.75rem]"
-          data-own-swipe=""
-        >
-          {p.audio === undefined ? null : <AudioArtwork src={p.audio.thumbnailUrl} />}
-          {p.overlay}
-          <Media
-            ref={video}
-            src={p.src}
-            // Named for screen readers; a `title` would hang a tooltip over the picture.
-            aria-label={p.title}
-            playsInline
-            preload="metadata"
-            onTimeUpdate={(e) => {
-              p.onTime(...at(e.currentTarget));
-            }}
-            onPause={(e) => {
-              p.onPause(...at(e.currentTarget));
-            }}
-            onEnded={(e) => {
-              p.onEnded(...at(e.currentTarget));
-            }}
-            onError={report}
-            onVolumeChange={(e) => {
-              storeVolume({ volume: e.currentTarget.volume, muted: e.currentTarget.muted });
-            }}
+          <NeutralVideoSkin
+            style={style}
+            className="uro-player overflow-hidden bg-black md:rounded-[0.75rem]"
+            data-own-swipe=""
           >
-            {p.subtitles.map((s, i) => (
-              <track
-                key={s.id}
-                src={s.url}
-                kind="subtitles"
-                srcLang={s.lang}
-                label={s.name ?? `${s.lang}${s.automatic ? " (auto)" : ""}`}
-                ref={i === picked ? pickedTrack : undefined}
-              />
-            ))}
-          </Media>
-          <PlayerHotkeys video={video} />
-          {segments.length === 0 && highlight === null ? null : (
-            <SponsorSkip video={video} segments={segments} highlight={highlight} />
-          )}
-          {highlight === null ? null : <HighlightJump video={video} at={highlight} onJump={jump} />}
-          <PlayerErrorWatch onError={report} />
-        </NeutralVideoSkin>
+            {p.audio === undefined ? null : <AudioArtwork src={p.audio.thumbnailUrl} />}
+            {p.overlay}
+            <Media
+              ref={video}
+              src={p.src}
+              // Named for screen readers; a `title` would hang a tooltip over the picture.
+              aria-label={p.title}
+              playsInline
+              preload="metadata"
+              onTimeUpdate={(e) => {
+                p.onTime(...at(e.currentTarget));
+              }}
+              onPause={(e) => {
+                p.onPause(...at(e.currentTarget));
+              }}
+              onEnded={(e) => {
+                p.onEnded(...at(e.currentTarget));
+              }}
+              onError={report}
+              onVolumeChange={(e) => {
+                storeVolume({ volume: e.currentTarget.volume, muted: e.currentTarget.muted });
+              }}
+            >
+              {p.subtitles.map((s, i) => (
+                <track
+                  key={s.id}
+                  src={s.url}
+                  kind="subtitles"
+                  srcLang={s.lang}
+                  label={s.name ?? `${s.lang}${s.automatic ? " (auto)" : ""}`}
+                  ref={i === picked ? pickedTrack : undefined}
+                />
+              ))}
+            </Media>
+            <PlayerHotkeys video={video} />
+            {segments.length === 0 && highlight === null ? null : (
+              <SponsorSkip video={video} segments={segments} highlight={highlight} />
+            )}
+            {highlight === null ? null : (
+              <HighlightJump video={video} at={highlight} onJump={jump} />
+            )}
+            <PlayerErrorWatch onError={report} />
+            <ClipOverlay video={video} clip={p.clip} range={range} />
+          </NeutralVideoSkin>
+        </ClipSlots>
       </SettingsMenuSlot.Provider>
     </VideoPlayer>
   );
