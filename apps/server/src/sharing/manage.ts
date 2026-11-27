@@ -1,31 +1,31 @@
-import type {
-  PeopleShare,
-  PeopleShareBody,
-  PublicLink,
-  PublicLinkBody,
-  ShareKind,
-  ShareState,
-} from "@uroboros/contract";
+import type { PeopleShareBody, PublicLinkBody, ShareKind, ShareState } from "@uroboros/contract";
 import type { Kysely, Selectable } from "kysely";
 import type { Database, ShareMode, SharesTable } from "../db/schema.ts";
 import { newCode } from "./codes.ts";
-import { checkGroups, checkPeople, peopleOf, reached, replacePeople } from "./people.ts";
+import {
+  clipShareState,
+  listMyClipShares,
+  setClipLink,
+  setClipPeople,
+  stopClipSharing,
+} from "./clipShares.ts";
+import { checkGroups, checkPeople, reached, replacePeople, toLink, toPeople } from "./people.ts";
 import { describeTarget } from "./targets.ts";
 
 type Db = Kysely<Database>;
 type ShareRow = Selectable<SharesTable>;
 
+/** What `shares` holds: every kind but a clip, which `clip_shares` holds (clipShares.ts). */
+type ThingKind = Exclude<ShareKind, "clip">;
+
 /** The `shares` column naming each kind of target. */
 const COLUMN = { entry: "entry_id", playlist: "playlist_id", youtube: "source_id" } as const;
 
-const kindOf = (r: ShareRow): ShareKind =>
+const kindOf = (r: ShareRow): ThingKind =>
   r.entry_id !== null ? "entry" : r.playlist_id !== null ? "playlist" : "youtube";
 const targetOf = (r: ShareRow): string => r.entry_id ?? r.playlist_id ?? r.source_id ?? "";
 
-const expired = (at: Date | null) => at !== null && at.getTime() <= Date.now();
-const iso = (at: Date | null) => (at === null ? null : at.toISOString());
-
-function shareRow(db: Db, ownerId: string, kind: ShareKind, id: string, mode: ShareMode) {
+function shareRow(db: Db, ownerId: string, kind: ThingKind, id: string, mode: ShareMode) {
   return db
     .selectFrom("shares")
     .selectAll()
@@ -35,26 +35,6 @@ function shareRow(db: Db, ownerId: string, kind: ShareKind, id: string, mode: Sh
     .executeTakeFirst();
 }
 
-async function toPeople(db: Db, row: ShareRow | undefined): Promise<PeopleShare | null> {
-  if (row === undefined) return null;
-  return {
-    people: await peopleOf(db, "share_people", row.id),
-    expiresAt: iso(row.expires_at),
-    expired: expired(row.expires_at),
-  };
-}
-
-function toLink(row: ShareRow | undefined): PublicLink | null {
-  if (row?.code == null) return null;
-  return {
-    code: row.code,
-    path: `/s/${row.code}`,
-    allowDownload: row.allow_download,
-    expiresAt: iso(row.expires_at),
-    expired: expired(row.expires_at),
-  };
-}
-
 /** How one of the owner's things is shared; 404 when it is not theirs. */
 export async function shareState(
   db: Db,
@@ -62,6 +42,7 @@ export async function shareState(
   kind: ShareKind,
   id: string,
 ): Promise<ShareState> {
+  if (kind === "clip") return clipShareState(db, ownerId, id);
   const facts = await describeTarget(db, ownerId, kind, id);
   const [people, link] = await Promise.all([
     shareRow(db, ownerId, kind, id, "people"),
@@ -73,7 +54,7 @@ export async function shareState(
     id,
     title: facts.title,
     thumbnailUrl: facts.thumbnailUrl,
-    people: await toPeople(db, people),
+    people: await toPeople(db, "share_people", people),
     link: toLink(link),
     updatedAt:
       changed.length === 0 ? null : new Date(Math.max(...changed.map(Number))).toISOString(),
@@ -92,6 +73,7 @@ export async function setPeople(
   id: string,
   body: PeopleShareBody,
 ): Promise<{ state: ShareState; shareId: string | null; newlyReached: string[] }> {
+  if (kind === "clip") return setClipPeople(db, ownerId, id, body);
   await describeTarget(db, ownerId, kind, id);
   const { userIds, groups } = await checkPeople(db, ownerId, body);
   const result = await db.transaction().execute(async (tx) => {
@@ -143,6 +125,7 @@ export async function setLink(
   id: string,
   body: PublicLinkBody,
 ): Promise<ShareState> {
+  if (kind === "clip") return setClipLink(db, ownerId, id, body);
   await describeTarget(db, ownerId, kind, id);
   const expiresAt = body.expiresAt === null ? null : new Date(body.expiresAt);
   const existing = await shareRow(db, ownerId, kind, id, "link");
@@ -176,6 +159,10 @@ export async function stopSharing(
   id: string,
   mode: ShareMode,
 ): Promise<void> {
+  if (kind === "clip") {
+    await stopClipSharing(db, ownerId, id, mode);
+    return;
+  }
   await describeTarget(db, ownerId, kind, id);
   await db
     .deleteFrom("shares")
@@ -201,5 +188,10 @@ export async function listMyShares(db: Db, ownerId: string): Promise<ShareState[
     seen.add(key);
     return [{ kind: kindOf(r), id: targetOf(r) }];
   });
-  return Promise.all(things.map((x) => shareState(db, ownerId, x.kind, x.id)));
+  const [states, clips] = await Promise.all([
+    Promise.all(things.map((x) => shareState(db, ownerId, x.kind, x.id))),
+    listMyClipShares(db, ownerId),
+  ]);
+  // Clips (docs/sharing.md#clips) among the rest, the latest change first.
+  return [...states, ...clips].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
 }

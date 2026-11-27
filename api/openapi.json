@@ -421,6 +421,82 @@
           }
         ]
       },
+      "ClipItem": {
+        "properties": {
+          "audioOnly": {
+            "type": "boolean"
+          },
+          "channel": {
+            "nullable": true,
+            "type": "string"
+          },
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/Chapter"
+            },
+            "type": "array"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "error": {
+            "nullable": true,
+            "type": "string"
+          },
+          "fileUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "owner": {
+            "nullable": true,
+            "type": "string"
+          },
+          "progress": {
+            "maximum": 1,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "range": {
+            "$ref": "#/components/schemas/ClipRange"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ExportState"
+          },
+          "streamUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "thumbnailUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "channel",
+          "range",
+          "duration",
+          "state",
+          "progress",
+          "error",
+          "thumbnailUrl",
+          "chapters",
+          "streamUrl",
+          "fileUrl",
+          "audioOnly",
+          "owner"
+        ],
+        "type": "object"
+      },
       "ClipRange": {
         "properties": {
           "end": {
@@ -3046,6 +3122,16 @@
           "allowDownload": {
             "type": "boolean"
           },
+          "clip": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClipItem"
+              },
+              {
+                "nullable": true
+              }
+            ]
+          },
           "description": {
             "nullable": true,
             "type": "string"
@@ -3059,7 +3145,8 @@
           "kind": {
             "enum": [
               "entry",
-              "playlist"
+              "playlist",
+              "clip"
             ],
             "type": "string"
           },
@@ -3501,7 +3588,8 @@
         "enum": [
           "entry",
           "playlist",
-          "youtube"
+          "youtube",
+          "clip"
         ],
         "type": "string"
       },
@@ -5135,6 +5223,207 @@
         "summary": "Start signing in with the OIDC provider (redirects to it)",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/clips/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClipItem"
+                }
+              }
+            },
+            "description": "The clip"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such clip, not shared with the caller, or clips are off"
+          }
+        },
+        "summary": "A clip the caller made or that is shared with them, with what its player needs",
+        "tags": [
+          "clips"
+        ]
+      }
+    },
+    "/api/clips/{id}/file": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The clip"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range of it"
+          },
+          "302": {
+            "description": "A presigned URL"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such clip, not shared with the caller, or clips are off"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "summary": "Save a clip's file",
+        "tags": [
+          "clips"
+        ]
+      }
+    },
+    "/api/clips/{id}/stream": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The clip"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range of it"
+          },
+          "302": {
+            "description": "A presigned URL"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such clip, not shared with the caller, or clips are off"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "summary": "A clip's file inline, for the player",
+        "tags": [
+          "clips"
+        ]
+      }
+    },
+    "/api/clips/{id}/thumbnail": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The image"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such clip, not shared with the caller, or clips are off"
+          }
+        },
+        "summary": "A clip's thumbnail: its video's",
+        "tags": [
+          "clips"
         ]
       }
     },
@@ -9546,6 +9835,169 @@
         ]
       }
     },
+    "/api/public/s/{code}/clip/file": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The clip"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range of it"
+          },
+          "302": {
+            "description": "A presigned URL"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "security": [],
+        "summary": "Save a clip link's file, when the link allows downloads",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/clip/stream": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The clip"
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A byte range of it"
+          },
+          "302": {
+            "description": "A presigned URL"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          },
+          "416": {
+            "description": "The range is past the end"
+          }
+        },
+        "security": [],
+        "summary": "A clip link's file inline, for the player",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
+    "/api/public/s/{code}/clip/thumbnail": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The image"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The link doesn't work any more"
+          }
+        },
+        "security": [],
+        "summary": "A clip link's thumbnail: its video's",
+        "tags": [
+          "public links"
+        ]
+      }
+    },
     "/api/public/s/{code}/items/{id}": {
       "get": {
         "parameters": [
@@ -10674,6 +11126,16 @@
               }
             },
             "description": "Not one of the caller's things"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A clip while clips are off on this server (UROBOROS_CLIPS_ENABLED)"
           }
         },
         "summary": "Turn the public link on (a new code) or change it (the same code)",

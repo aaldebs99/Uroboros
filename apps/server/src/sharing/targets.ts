@@ -4,6 +4,7 @@ import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { thumbnailUrl } from "../library/thumbnailUrl.ts";
 import { getPlaylist } from "../playlists/listing.ts";
+import { clipFacts } from "./clipShares.ts";
 
 /** What a shared thing looks like from its owner's library. */
 export interface TargetFacts {
@@ -24,7 +25,10 @@ export interface TargetFacts {
 const coverOf = (url: string | null) =>
   /^\/api\/library\/([0-9a-f-]+)\/thumbnail(?:\?.*)?$/.exec(url ?? "")?.[1] ?? null;
 
-/** The facts of `ownerId`'s entry, manual playlist or YouTube playlist; 404 when it is not theirs. */
+/**
+ * The facts of `ownerId`'s entry, manual playlist, YouTube playlist or clip (clipShares.ts); 404
+ * when it is not theirs.
+ */
 export async function describeTarget(
   db: Kysely<Database>,
   ownerId: string,
@@ -58,6 +62,7 @@ export async function describeTarget(
       coverEntryId: row.thumbnail_key === null ? null : id,
     };
   }
+  if (kind === "clip") return clipFacts(db, ownerId, id);
   const playlist = await getPlaylist(db, ownerId, id);
   if (playlist.kind !== (kind === "playlist" ? "manual" : "youtube")) {
     throw new ApiError("not_found", "no such playlist");

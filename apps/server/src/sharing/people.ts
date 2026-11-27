@@ -1,4 +1,4 @@
-import type { PeopleShareBody, SharePerson } from "@uroboros/contract";
+import type { PeopleShare, PeopleShareBody, PublicLink, SharePerson } from "@uroboros/contract";
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
@@ -128,4 +128,41 @@ export async function replacePeople(
       ...people.groups.map((group_id) => ({ share_id: shareId, group_id })),
     ])
     .execute();
+}
+
+const expired = (at: Date | null) => at !== null && at.getTime() <= Date.now();
+const iso = (at: Date | null) => (at === null ? null : at.toISOString());
+
+/** A share's row as its people and link views need it, from `shares` or `clip_shares`. */
+interface Row {
+  id: string;
+  code: string | null;
+  allow_download: boolean;
+  expires_at: Date | null;
+}
+
+/** A people-share as its owner sees it: who it names and its expiry. */
+export async function toPeople(
+  db: Db,
+  table: PeopleTable,
+  row: Row | undefined,
+): Promise<PeopleShare | null> {
+  if (row === undefined) return null;
+  return {
+    people: await peopleOf(db, table, row.id),
+    expiresAt: iso(row.expires_at),
+    expired: expired(row.expires_at),
+  };
+}
+
+/** A public link as its owner sees it. */
+export function toLink(row: Row | undefined): PublicLink | null {
+  if (row?.code == null) return null;
+  return {
+    code: row.code,
+    path: `/s/${row.code}`,
+    allowDownload: row.allow_download,
+    expiresAt: iso(row.expires_at),
+    expired: expired(row.expires_at),
+  };
 }

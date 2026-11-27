@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
+import { seedClip } from "../../test/clips.ts";
 import { seededDefault } from "../../test/downloads.ts";
 import { insertSubscription, listing } from "../../test/listings.ts";
 import { TestDb } from "../../test/testDb.ts";
@@ -141,6 +142,26 @@ describe("retention", () => {
       .execute();
     await applyRetention(t.db);
     expect(await remaining([shared, plain])).toEqual([shared]);
+  });
+
+  it("a video with a clip shared on its own is spared (docs/sharing.md#clips)", async () => {
+    const u = await signedIn(t.db, { username: "r-clip" });
+    const sub = await rule(u.userId, { delete_watched_after_days: 1 });
+    const clipped = await entry(u.userId, { subscriptionId: sub, watchedDaysAgo: 30 });
+    const plain = await entry(u.userId, { subscriptionId: sub, watchedDaysAgo: 30 });
+    const c = await seedClip(t.db, u.userId, { entryId: clipped });
+    await t.db
+      .insertInto("clip_shares")
+      .values({
+        owner_id: u.userId,
+        export_id: c.exportId,
+        entry_id: clipped,
+        mode: "link",
+        code: `c-${clipped}`,
+      })
+      .execute();
+    await applyRetention(t.db);
+    expect(await remaining([clipped, plain])).toEqual([clipped]);
   });
 
   it("keeps the newest N by upload date", async () => {

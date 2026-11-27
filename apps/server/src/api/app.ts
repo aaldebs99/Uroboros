@@ -29,6 +29,7 @@ import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerUploadRoutes } from "../uploads/routes.ts";
+import { registerClipRoutes } from "../clips/routes.ts";
 import { registerExportRoutes, type ExportContext } from "../exports/routes.ts";
 import { registerNoticeRoutes } from "../notices/routes.ts";
 import { registerMcpRoute } from "../mcp/route.ts";
@@ -246,7 +247,10 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   const spa =
     opts.webDist === null
       ? null
-      : createSpaHandler(opts.webDist, linkPreviews(deps.db, opts.publicBaseUrl ?? null));
+      : createSpaHandler(
+          opts.webDist,
+          linkPreviews(deps.db, opts.publicBaseUrl ?? null, clipsOn(opts)),
+        );
   const attached = deps.attached ?? (() => true);
 
   app.use("*", async (c, next) => {
@@ -314,7 +318,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   );
   registerPlaylistRoutes(app, deps.db);
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify, clipsOn(opts));
-  registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);
+  registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify, clipsOn(opts));
   registerStatsRoutes(app, deps.db);
   registerNotificationPrefRoutes(app, deps.db);
   registerPreferenceRoutes(app, deps.db);
@@ -325,9 +329,10 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerUploadRoutes(app, uploadContext(deps));
   registerExportRoutes(app, exportContext(deps), clipsOn(opts));
   registerSaveLinkRoutes(app, deps.db, deps.store);
+  registerClipRoutes(app, deps.db, deps.store, clipsOn(opts));
   const playback = playbackContext(deps);
   registerPlaybackSessionRoutes(app, playback);
-  registerPublicRoutes(app, deps.db, deps.store, playback, maxShortOf(deps));
+  registerPublicRoutes(app, deps.db, deps.store, playback, maxShortOf(deps), clipsOn(opts));
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   registerMcpRoute(app, {
     db: deps.db,

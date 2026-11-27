@@ -13,14 +13,44 @@ import { playlistEntryIds } from "../playlists/listing.ts";
 import { copyEntries } from "../playlists/store.ts";
 import { shareFor, sharesReaching, type LiveShare } from "./access.ts";
 import { addManyToLibrary } from "./add.ts";
+import { clipSharesReaching, type LiveClipShare } from "./clipAccess.ts";
+import { clipFacts } from "./clipShares.ts";
 import { describeTarget } from "./targets.ts";
 
 type Db = Kysely<Database>;
 
-/** Everything shared with the caller and still live, newest change first (Shared › With me). */
-export async function listSharedWithMe(db: Db, userId: string): Promise<SharedWithMe[]> {
-  const shares = await sharesReaching(db, { userId });
-  return Promise.all(
+/** A clip share reaching someone, as their list shows it (docs/sharing.md#clips). */
+export async function clipShared(db: Db, s: LiveClipShare): Promise<SharedWithMe> {
+  const facts = await clipFacts(db, s.ownerId, s.exportId);
+  return {
+    shareId: s.id,
+    kind: "clip",
+    id: s.exportId,
+    title: facts.title,
+    thumbnailUrl: facts.thumbnailUrl,
+    previewUrl: null,
+    hasVideo: facts.hasVideo,
+    count: null,
+    owner: s.ownerName,
+    sharedAt: s.sharedAt.toISOString(),
+    expiresAt: s.expiresAt === null ? null : s.expiresAt.toISOString(),
+  };
+}
+
+/**
+ * Everything shared with the caller and still live, newest change first (Shared › With me): with
+ * `clips` on, the clips shared with them on their own too.
+ */
+export async function listSharedWithMe(
+  db: Db,
+  userId: string,
+  clips = true,
+): Promise<SharedWithMe[]> {
+  const [shares, clipShares] = await Promise.all([
+    sharesReaching(db, { userId }),
+    clips ? clipSharesReaching(db, userId) : Promise.resolve([]),
+  ]);
+  const things = await Promise.all(
     shares.map(async (s) => {
       const facts = await describeTarget(db, s.ownerId, s.target.kind, s.target.id);
       return {
@@ -38,6 +68,8 @@ export async function listSharedWithMe(db: Db, userId: string): Promise<SharedWi
       };
     }),
   );
+  const clipped = await Promise.all(clipShares.map((s) => clipShared(db, s)));
+  return [...things, ...clipped].sort((a, b) => b.sharedAt.localeCompare(a.sharedAt));
 }
 
 async function reaching(db: Db, userId: string, shareId: string): Promise<LiveShare> {

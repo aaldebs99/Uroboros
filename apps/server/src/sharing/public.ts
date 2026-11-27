@@ -13,6 +13,7 @@ import { dashed } from "../library/query.ts";
 import { sponsorSegmentsFor } from "../library/sponsorSegments.ts";
 import { playlistEntryIds } from "../playlists/listing.ts";
 import { linkShare, visibleEntry, type LiveShare, type VisibleEntry } from "./access.ts";
+import { publicClip } from "./clipPublic.ts";
 import { describeTarget } from "./targets.ts";
 import { playbackFacts } from "../transcode/itemFacts.ts";
 import { platformName } from "../library/platform.ts";
@@ -87,9 +88,17 @@ async function listItems(db: Db, code: string, ids: string[]): Promise<PublicLis
   });
 }
 
-/** What a public link shows; it never names who shared it. */
-export async function publicShare(db: Db, code: string): Promise<PublicShare> {
-  const share = await liveLink(db, code);
+/**
+ * What a public link shows; it never names who shared it. A code that is no video's or playlist's
+ * may be a clip's (docs/sharing.md#clips), while clips are on.
+ */
+export async function publicShare(db: Db, code: string, clips = true): Promise<PublicShare> {
+  const share = await linkShare(db, code);
+  if (share === undefined) {
+    const clip = await publicClip(db, code, clips);
+    if (clip === null) throw new ApiError("not_found", DEAD);
+    return clip;
+  }
   const facts = await describeTarget(db, share.ownerId, share.target.kind, share.target.id);
   return {
     kind: share.target.kind === "entry" ? "entry" : "playlist",
@@ -97,6 +106,7 @@ export async function publicShare(db: Db, code: string): Promise<PublicShare> {
     description: facts.description,
     allowDownload: share.allowDownload,
     items: await listItems(db, code, await heldIds(db, share)),
+    clip: null,
   };
 }
 

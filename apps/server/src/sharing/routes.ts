@@ -90,7 +90,11 @@ const linkRoute = createRoute({
   tags,
   summary: "Turn the public link on (a new code) or change it (the same code)",
   request: { params: target, ...body(PublicLinkBody) },
-  responses: { 200: json(ShareState, "Its sharing"), 404: notYours },
+  responses: {
+    200: json(ShareState, "Its sharing"),
+    404: notYours,
+    409: error("A clip while clips are off on this server (UROBOROS_CLIPS_ENABLED)"),
+  },
 });
 
 const stopLinkRoute = createRoute({
@@ -185,7 +189,7 @@ export function registerSharingRoutes(
     const t = c.req.valid("param");
     const sent = c.req.valid("json");
     const clip = sent.clip === undefined ? undefined : roundClip(sent.clip);
-    if (clip !== undefined && !clipsEnabled) {
+    if ((clip !== undefined || t.kind === "clip") && !clipsEnabled) {
       throw new ApiError("conflict", "clips are off on this server");
     }
     if (clip !== undefined && t.kind !== "entry") {
@@ -215,6 +219,9 @@ export function registerSharingRoutes(
   });
   app.openapi(linkRoute, async (c) => {
     const t = c.req.valid("param");
+    if (t.kind === "clip" && !clipsEnabled) {
+      throw new ApiError("conflict", "clips are off on this server");
+    }
     return c.json(await setLink(db, me(c), t.kind, t.id, c.req.valid("json")), 200);
   });
   app.openapi(stopLinkRoute, async (c) => {
@@ -222,7 +229,9 @@ export function registerSharingRoutes(
     await stopSharing(db, me(c), t.kind, t.id, "link");
     return c.body(null, 204);
   });
-  app.openapi(withMeRoute, async (c) => c.json(await listSharedWithMe(db, me(c)), 200));
+  app.openapi(withMeRoute, async (c) =>
+    c.json(await listSharedWithMe(db, me(c), clipsEnabled), 200),
+  );
   app.openapi(sharedRoute, async (c) =>
     c.json(await sharedDetail(db, me(c), c.req.valid("param").shareId), 200),
   );

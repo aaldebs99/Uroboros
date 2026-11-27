@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { linkShare } from "./access.ts";
+import { publicClip } from "./clipPublic.ts";
 import { itemBase } from "./public.ts";
 import { describeTarget } from "./targets.ts";
 
@@ -30,13 +31,41 @@ export function linkCodeOf(path: string): string | null {
   return /^\/s\/([A-Za-z0-9_-]{1,64})\/?$/.exec(path)?.[1] ?? null;
 }
 
+/** A clip link's tags (docs/sharing.md#clips): its title, its length, its video's thumbnail. */
+async function clipTags(
+  db: Kysely<Database>,
+  code: string,
+  base: string,
+  clips: boolean,
+): Promise<LinkPage> {
+  const shared = await publicClip(db, code, clips);
+  const clip = shared?.clip ?? null;
+  if (shared === null || clip === null) return { title: null, tags: ROBOTS };
+  const image = clip.thumbnailUrl === null ? null : `${base}${clip.thumbnailUrl}`;
+  const tags = [
+    meta("property", "og:title", shared.title),
+    meta("property", "og:description", `A ${String(Math.round(clip.duration))} s clip on Uroboros`),
+    meta("property", "og:type", "video.other"),
+    meta("property", "og:url", `${base}/s/${code}`),
+    ...(image === null ? [] : [meta("property", "og:image", image)]),
+    meta("name", "twitter:card", image === null ? "summary" : "summary_large_image"),
+    ROBOTS,
+  ];
+  return { title: shared.title, tags: tags.join("\n    ") };
+}
+
 /**
  * Open Graph tags for a public link, so a chat that unfurls it shows the title and thumbnail
  * (crawlers run no script). `base` is the public origin. A dead code gets only the robots tag.
  */
-export async function ogTags(db: Kysely<Database>, code: string, base: string): Promise<LinkPage> {
+export async function ogTags(
+  db: Kysely<Database>,
+  code: string,
+  base: string,
+  clips = true,
+): Promise<LinkPage> {
   const share = await linkShare(db, code);
-  if (share === undefined) return { title: null, tags: ROBOTS };
+  if (share === undefined) return clipTags(db, code, base, clips);
   const facts = await describeTarget(db, share.ownerId, share.target.kind, share.target.id);
   const isVideo = share.target.kind === "entry";
   const description =

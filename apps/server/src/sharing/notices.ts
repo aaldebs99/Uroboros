@@ -30,6 +30,10 @@ export function sharedNotice(
   if (target.kind === "entry") {
     return { title: `${owner} shared ${title} with you`, path: `/library/${target.id}`, tag };
   }
+  // A clip on its own: its title says it is one, and its range.
+  if (target.kind === "clip") {
+    return { title: `${owner} shared ${title} with you`, path: `/shared/clips/${target.id}`, tag };
+  }
   return {
     title: `${owner} shared the playlist ${title} with you`,
     path: `/shared/${target.shareId}`,
