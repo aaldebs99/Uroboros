@@ -98,6 +98,18 @@ describe("editing a downloaded video's details for oneself", () => {
     expect(await screen.findByText("Saved.")).toBeInTheDocument();
   });
 
+  it("says why a description or channel left over its limit can't be saved", async () => {
+    const long = { ...mine, description: "d".repeat(5010), channel: "c".repeat(110) };
+    const { calls, dialog } = await openEditor(long);
+    // A site's can be longer than one's own may be: edited, it must come within the limit.
+    await userEvent.type(within(dialog).getByLabelText("Description"), "{Backspace}");
+    await userEvent.type(within(dialog).getByRole("combobox", { name: "Channel" }), "{Backspace}");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(await within(dialog).findByText("Up to 5000 characters.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Up to 100 characters.")).toBeInTheDocument();
+    expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+  });
+
   it("suggests the person's channels, and keeps a name of a new one", async () => {
     const { calls, dialog } = await openEditor(mine, {
       [`PATCH /api/library/${ID}/details`]: saved({ channel: "Fiddling" }),

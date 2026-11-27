@@ -45,18 +45,25 @@ export function changedDetails(
   };
 }
 
-/** Each refused field's message, or none; a site's long title is fine left as it is. */
-function problems(item: LibraryItem, f: Fields): { title: string | null; channel: string | null } {
-  const title = f.title.trim();
-  const tooLong = title.length > UPLOAD_TITLE_CHARS && title !== item.title.trim();
+type Problems = Record<keyof Fields, string | null>;
+
+/** A field's message: blank where it must be filled, or over `limit` once changed from `shown`. */
+function problem(value: string, shown: string, limit: number, blank: string | null) {
+  const text = value.trim();
+  if (text === "") return blank;
+  if (text.length > limit && text !== shown.trim()) return `Up to ${String(limit)} characters.`;
+  return null;
+}
+
+/**
+ * Each refused field's message, or none. A site's details may be longer than one's own may be:
+ * left as they are, they're fine; changed, they must come within the limit.
+ */
+function problems(item: LibraryItem, f: Fields): Problems {
   return {
-    title:
-      title === ""
-        ? "Give it a title."
-        : tooLong
-          ? `Up to ${String(UPLOAD_TITLE_CHARS)} characters.`
-          : null,
-    channel: f.channel.trim() === "" ? "Name its channel." : null,
+    title: problem(f.title, item.title, UPLOAD_TITLE_CHARS, "Give it a title."),
+    description: problem(f.description, item.description ?? "", UPLOAD_DESCRIPTION_CHARS, null),
+    channel: problem(f.channel, item.channel ?? "", UPLOAD_CREATOR_CHARS, "Name its channel."),
   };
 }
 
@@ -86,8 +93,9 @@ export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: ()
     description: item.description ?? "",
     channel: item.channel ?? "",
   });
-  const [errors, setErrors] = useState<ReturnType<typeof problems>>({
+  const [errors, setErrors] = useState<Problems>({
     title: null,
+    description: null,
     channel: null,
   });
   const [busy, setBusy] = useState(false);
@@ -96,7 +104,7 @@ export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: ()
 
   const set = (key: keyof Fields) => (value: string) => {
     setFields((f) => ({ ...f, [key]: value }));
-    if (key !== "description") setErrors((e) => ({ ...e, [key]: null }));
+    setErrors((e) => ({ ...e, [key]: null }));
   };
 
   // A video's details show on its pages, in lists, shares and copies.
@@ -129,7 +137,7 @@ export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: ()
     const found = problems(item, fields);
     setErrors(found);
     const body = EntryDetailsBody.safeParse(changedDetails(item, fields));
-    if (found.title !== null || found.channel !== null || !body.success) return;
+    if (Object.values(found).some((p) => p !== null) || !body.success) return;
     if (Object.keys(body.data).length === 0) {
       onDone();
       return;
@@ -173,6 +181,7 @@ export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: ()
         label="Description"
         value={fields.description}
         maxLength={Math.max(UPLOAD_DESCRIPTION_CHARS, (item.description ?? "").length)}
+        error={errors.description}
         counter={`${String(fields.description.length)}/${String(UPLOAD_DESCRIPTION_CHARS)}`}
         onChange={(event) => {
           set("description")(event.target.value);
@@ -183,7 +192,7 @@ export function OwnDetailsForm({ item, onDone }: { item: LibraryItem; onDone: ()
         free
         options={names}
         value={fields.channel}
-        maxLength={UPLOAD_CREATOR_CHARS}
+        maxLength={Math.max(UPLOAD_CREATOR_CHARS, (item.channel ?? "").length)}
         help={
           beside(item, item.channel, item.original?.channel) ??
           "Moves it to your channel of that name, or a new one."
