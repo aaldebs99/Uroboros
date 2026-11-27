@@ -4,9 +4,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
 import { seededDefault } from "../../test/downloads.ts";
 import { listing } from "../../test/listings.ts";
+import { listedNotices } from "../../test/notices.ts";
+import { holdSite, loggedLimits } from "../../test/rateLimits.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
-import { activeCooldown, noteRateLimit } from "../downloads/rateLimits.ts";
+import { activeCooldown } from "../downloads/rateLimits.ts";
 import { RequeueError } from "../jobs/errors.ts";
 import { checkProcessor } from "./check.ts";
 
@@ -25,9 +27,12 @@ afterAll(async () => {
   await t.close();
 });
 
-/** A subscription to a channel on `site`, following its Videos tab. */
+let lastUser = "";
+
+/** A subscription to a channel on `site`, following its Videos tab (its person: `lastUser`). */
 async function subscription(site: string): Promise<string> {
   const u = await signedIn(t.db, { username: `crl${String(++n)}` });
+  lastUser = u.userId;
   const url = `https://${site}/@chan`;
   const feeds = JSON.stringify([{ name: "Videos", url: `${url}/videos` }]);
   const row = await t.db
@@ -78,11 +83,21 @@ describe("a subscription check the site rate-limits", () => {
       last_error_kind: null,
     });
     expect(await activeCooldown(t.db, "crl1.example", "site")).not.toBeNull();
+    // Logged for the admin as a check of the subscription; nobody's item waits, so no one is told.
+    expect(await loggedLimits(t.db, "crl1.example")).toEqual([
+      expect.objectContaining({
+        source: "subscription",
+        message: "[youtube:tab] x: HTTP Error 429: Too Many Requests",
+        url: "https://crl1.example/@chan",
+        title: "Chan",
+      }),
+    ]);
+    expect(await listedNotices(t.db, lastUser)).toEqual([]);
   });
 
   it("asks nothing of a site that is cooling down", async () => {
     const id = await subscription("crl2.example");
-    await noteRateLimit(t.db, "crl2.example", "site", 600_000);
+    await holdSite(t.db, "crl2.example", "site", 600_000);
     const err = await check(id, {
       steps: [{ stdout: listing("https://crl2.example/@chan/videos", []) }],
     });

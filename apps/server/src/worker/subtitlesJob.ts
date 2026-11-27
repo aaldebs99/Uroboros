@@ -8,6 +8,7 @@ import {
   requeueDelay,
   siteOf,
 } from "../downloads/rateLimits.ts";
+import { mediaTitle } from "../downloads/rateLimitLog.ts";
 import { RequeueError } from "../jobs/errors.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { withLoginsOf } from "./logins.ts";
@@ -87,7 +88,13 @@ export function subtitlesProcessor(deps: WorkerDeps) {
         const scope = err.stderrTail.some((l) => l.includes(SUBTITLE_FAILED))
           ? "subtitles"
           : "site";
-        const next = await noteRateLimit(deps.db, site, scope, err.retryAfterMs);
+        const next = await noteRateLimit(deps.db, site, scope, err.retryAfterMs, {
+          source: "subtitles",
+          message: err.message,
+          url,
+          title: await mediaTitle(deps.db, mediaId),
+          mediaId,
+        });
         throw new RequeueError(requeueDelay(next), { cause: err });
       }
       deps.logger.warn({ err, mediaId }, "fetching held-back subtitles failed");

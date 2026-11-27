@@ -6,32 +6,45 @@ import {
   requeueDelay,
   siteOf,
 } from "../downloads/rateLimits.ts";
+import { noticeHeldRequest } from "../downloads/waitNotices.ts";
 import { RequeueError } from "../jobs/errors.ts";
 import type { WorkerDeps } from "./deps.ts";
 
 /**
  * A pasted link's probe under its site's rate limit (docs/downloads.md "Rate limits"): it stays
- * probing, saying when it tries again (`retry_at`, error_kind "rate_limited"), and its job goes
- * back to the queue without spending an attempt.
+ * probing, saying when it tries again (`retry_at`, error_kind "rate_limited"), its person is told
+ * once, in their bell, and its job goes back to the queue without spending an attempt.
  */
 
 interface ProbingRequest {
   id: string;
+  user_id: string;
   url: string;
+  intent: "download" | "subscribe" | "search";
   retry_at: Date | null;
 }
 
-async function waitOut(deps: WorkerDeps, id: string, until: Date): Promise<never> {
-  await deps.db
+async function waitOut(deps: WorkerDeps, req: ProbingRequest, until: Date): Promise<never> {
+  // Only a link that starts waiting now is told of: the passes that wait out the cooldown tell
+  // nothing more, even to someone who cleared their bell meanwhile.
+  const before = await deps.db
+    .selectFrom("download_requests")
+    .select("error_kind")
+    .where("id", "=", req.id)
+    .executeTakeFirst();
+  const held = await deps.db
     .updateTable("download_requests")
     .set({
       error_kind: "rate_limited",
       error_message: "the site is limiting requests",
       retry_at: until,
     })
-    .where("id", "=", id)
+    .where("id", "=", req.id)
     .where("state", "=", "probing")
-    .execute();
+    .executeTakeFirst();
+  if (held.numUpdatedRows > 0n && before?.error_kind !== "rate_limited") {
+    await noticeHeldRequest(deps.db, req, siteOf(req.url));
+  }
   throw new RequeueError(requeueDelay(until));
 }
 
@@ -41,7 +54,7 @@ async function waitOut(deps: WorkerDeps, id: string, until: Date): Promise<never
  */
 export async function waitForProbeSite(deps: WorkerDeps, req: ProbingRequest): Promise<void> {
   const until = await activeCooldown(deps.db, siteOf(req.url), "site");
-  if (until !== null) await waitOut(deps, req.id, until);
+  if (until !== null) await waitOut(deps, req, until);
   if (req.retry_at === null) return;
   await deps.db
     .updateTable("download_requests")
@@ -54,9 +67,14 @@ export async function waitForProbeSite(deps: WorkerDeps, req: ProbingRequest): P
 export async function waitIfProbeLimited(deps: WorkerDeps, req: ProbingRequest, err: unknown) {
   if (!(err instanceof YtDlpError) || err.kind !== "rate_limited") return;
   const site = siteOf(req.url);
-  const until = await noteRateLimit(deps.db, site, "site", err.retryAfterMs);
+  const until = await noteRateLimit(deps.db, site, "site", err.retryAfterMs, {
+    source: req.intent === "search" ? "search" : "link",
+    message: err.message,
+    url: req.url,
+    title: null,
+  });
   deps.logger.info({ site, until, requestId: req.id }, "site rate-limited a probe");
-  await waitOut(deps, req.id, until);
+  await waitOut(deps, req, until);
 }
 
 /** The probe was answered: the site's limits in a row are over. */

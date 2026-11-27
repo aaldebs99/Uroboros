@@ -37,6 +37,33 @@ export async function fileNotice(
     .execute();
 }
 
+/**
+ * Files notices that are told once (each `tag` once per person, ever): one already filed with the
+ * tag stays as it is, read or not. Returns the people a notice was filed for.
+ */
+export async function fileNoticesOnce(
+  db: Kysely<Database>,
+  notices: readonly { userId: string; kind: NoticeKind; message: Message & { tag: string } }[],
+): Promise<string[]> {
+  if (notices.length === 0) return [];
+  const rows = await db
+    .insertInto("notices")
+    .values(
+      notices.map(({ userId, kind, message }) => ({
+        user_id: userId,
+        kind,
+        title: message.title,
+        body: message.body ?? null,
+        path: message.path,
+        tag: message.tag,
+      })),
+    )
+    .onConflict((oc) => oc.columns(["user_id", "tag"]).doNothing())
+    .returning("user_id")
+    .execute();
+  return rows.map((r) => r.user_id);
+}
+
 /** The newest notices and how many of all of them are unread. */
 export async function listNotices(
   db: Kysely<Database>,

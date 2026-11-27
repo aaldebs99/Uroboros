@@ -9,6 +9,7 @@ import {
   requeueDelay,
   siteOf,
 } from "../downloads/rateLimits.ts";
+import { mediaTitle } from "../downloads/rateLimitLog.ts";
 import { RequeueError } from "../jobs/errors.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { withLoginsOf } from "./logins.ts";
@@ -100,7 +101,13 @@ export async function downloadPreviewCopy(
   } catch (err) {
     if (signal.aborted) throw err;
     if (isRateLimit(err)) {
-      const next = await noteRateLimit(deps.db, site, "site", err.retryAfterMs);
+      const next = await noteRateLimit(deps.db, site, "site", err.retryAfterMs, {
+        source: "preview",
+        message: err.message,
+        url: page,
+        title: await mediaTitle(deps.db, mediaId),
+        mediaId,
+      });
       deps.logger.info({ site, until: next, mediaId }, "site rate-limited a hover preview");
       throw new RequeueError(requeueDelay(next), { cause: err });
     }

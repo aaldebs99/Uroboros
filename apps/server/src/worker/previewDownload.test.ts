@@ -5,10 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
 import { downloadScenario } from "../../test/fetchJobs.ts";
 import { seedEntry, seedProfileless } from "../../test/library.ts";
+import { holdSite, loggedLimits } from "../../test/rateLimits.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { PreviewJob } from "../downloads/queues.ts";
-import { activeCooldown, noteRateLimit } from "../downloads/rateLimits.ts";
+import { activeCooldown } from "../downloads/rateLimits.ts";
 import { RequeueError } from "../jobs/errors.ts";
 import { previewKey } from "../previews/queue.ts";
 import { saveLogin } from "../siteLogins/store.ts";
@@ -177,11 +178,25 @@ describe("downloading a hover preview from the video's site", () => {
     expect(await activeCooldown(t.db, "pd4.example", "site")).not.toBeNull();
     expect(await mediaOf(v.id)).toEqual({ preview_key: null, preview_failed_at: null });
     expect(await started(ffmpegRun)).toBe(false);
+    const media = await t.db
+      .selectFrom("media")
+      .select("title")
+      .where("id", "=", v.id)
+      .executeTakeFirstOrThrow();
+    expect(await loggedLimits(t.db, "pd4.example")).toEqual([
+      expect.objectContaining({
+        source: "preview",
+        message: "[generic] x: HTTP Error 429: Too Many Requests",
+        url: pageOf(4),
+        title: media.title,
+        media_id: v.id,
+      }),
+    ]);
   });
 
   it("asks nothing of a site cooling down, and waits", async () => {
     const v = await storedVideo(pageOf(5));
-    await noteRateLimit(t.db, "pd5.example", "site", 600_000);
+    await holdSite(t.db, "pd5.example", "site", 600_000);
     const { deps, ffmpegRun, ytdlpRun } = await depsFor(await downloadScenario(), WRITES_CLIP);
     await expect(previewProcessor(deps).process(job(v.id))).rejects.toBeInstanceOf(RequeueError);
     expect(await started(ytdlpRun)).toBe(false);

@@ -206,7 +206,12 @@ async function waitForSite(deps: WorkerDeps, sub: SubscriptionRow): Promise<void
  */
 async function waitIfLimited(deps: WorkerDeps, sub: SubscriptionRow, err: unknown) {
   if (!isRateLimit(err)) return;
-  const until = await noteRateLimit(deps.db, siteOf(sub.url), "site", err.retryAfterMs);
+  const until = await noteRateLimit(deps.db, siteOf(sub.url), "site", err.retryAfterMs, {
+    source: "subscription",
+    message: err.message,
+    url: sub.url,
+    title: sub.title,
+  });
   deps.logger.info({ subscriptionId: sub.id, until }, "site rate-limited a subscription check");
   await freeLease(deps.db, sub.id);
   throw new RequeueError(requeueDelay(until), { cause: err });
