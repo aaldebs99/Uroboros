@@ -184,10 +184,6 @@ interface ActionsProps {
  */
 const actionRow = "flex flex-wrap items-center gap-2";
 
-/**
- * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
- * upload), Save, Save to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`).
- */
 /** Clip (docs/sharing.md#clips): picks a range on the timeline, or drops the one picked. */
 function ClipAction({ clip = null, onClip, canClip = false }: ActionsProps) {
   if (onClip === undefined) return null;
@@ -202,6 +198,10 @@ function ClipAction({ clip = null, onClip, canClip = false }: ActionsProps) {
   );
 }
 
+/**
+ * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
+ * upload), Clip, Save, Save to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`).
+ */
 function OwnActions(props: ActionsProps) {
   const { item, onStartOver, clip = null } = props;
   const [saving, setSaving] = useState(false);

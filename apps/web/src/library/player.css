@@ -264,8 +264,8 @@
  * A clip (ClipControls, docs/sharing.md#clips): its range on the timeline, a light band over the
  * bar, as thick as it is and thicker while pointed at like the SponsorBlock marks, between two
  * accent handles while it is picked. A handle's hit area is a finger's below md and smaller from md.
- * A range only shown (a link opening the whole video at a clip) has no handles. The Clip button
- * wears the accent while on, and the label over the picture comes and goes with the controls.
+ * A range only shown (a link opening the whole video at a clip) has no handles. The label over the
+ * picture comes and goes with the controls.
  */
 .uro-player .uro-clip-layer {
   position: absolute;
@@ -325,10 +325,6 @@
     width: 1.5rem;
     height: 1.5rem;
   }
-}
-
-.uro-player .uro-clip-button[aria-pressed="true"] {
-  color: var(--primary);
 }
 
 .uro-player .uro-clip-label {
