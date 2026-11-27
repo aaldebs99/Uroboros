@@ -23,7 +23,24 @@ export interface SharesTable {
   updated_at: Defaulted<Date | string>;
 }
 
-/** `share_people`: who a people-share reaches, a user or one of the owner's groups. */
+/**
+ * `clip_shares`: a clip shared on its own (docs/sharing.md#clips), the owner's copy of one range
+ * of their entry, with people or by a public link.
+ */
+export interface ClipSharesTable {
+  id: Generated<string>;
+  owner_id: string;
+  export_id: string;
+  entry_id: string;
+  mode: ShareMode;
+  code: string | null;
+  allow_download: Defaulted<boolean>;
+  expires_at: Timestamp | null;
+  created_at: Created;
+  updated_at: Defaulted<Date | string>;
+}
+
+/** `share_people` (and `clip_share_people`): who a people-share reaches, a user or one of the owner's groups. */
 export interface SharePeopleTable {
   share_id: string;
   user_id: string | null;
