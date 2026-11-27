@@ -1,4 +1,4 @@
-import type { LibraryItem } from "@uroboros/contract";
+import type { ClipRange, LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ListVideo, SearchX, Share2 } from "lucide-react";
@@ -16,6 +16,7 @@ import { ItemActions } from "./ItemActions";
 import { Suggestions } from "./Suggestions";
 import { TagEditor } from "./TagEditor";
 import { nextInQueue, UpNext, useQueue, type PlayQueue } from "./UpNext";
+import { usePickedClip } from "./usePickedClip";
 import { useProgressReporter } from "./useProgressReporter";
 import { useQuietSkipsRefresh } from "./useQuietSkipsRefresh";
 import { WatchBack } from "./WatchBack";
@@ -132,13 +133,17 @@ export function ItemPage({
   entryId,
   queue = null,
   startAt = null,
+  range,
 }: {
   entryId: string;
   queue?: PlayQueue | null;
   /** Where to start (a search match's moment, `?t=`), over where the person left off. */
   startAt?: number | null;
+  /** A clip a link opens the whole video at (`?t=&end=`): drawn, paused at its end. */
+  range?: ClipRange | null;
 }) {
   const item = useItem(entryId);
+  const picked = usePickedClip(entryId, range, item.data);
   const colors = useSponsorColors();
   const client = useQueryClient();
   const [seek, setSeek] = useState<{ time: number; pause?: boolean } | null>(null);
@@ -192,11 +197,20 @@ export function ItemPage({
             seek={seek}
             sponsorColors={colors}
             {...reporter}
+            onTime={(position, duration) => {
+              picked.track(position);
+              reporter.onTime(position, duration);
+            }}
             onEnded={onEnded}
+            clip={picked.control}
+            range={picked.shown}
           />
           <h1 className="text-xl font-bold">{it.title}</h1>
           <ItemActions
             item={it}
+            clip={picked.clip}
+            onClip={picked.toggle}
+            canClip={picked.canClip}
             onStartOver={() => {
               setSeek({ time: 0, pause: true });
             }}

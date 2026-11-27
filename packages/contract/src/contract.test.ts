@@ -1,12 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import {
-  ApiErrorBody,
-  ApiErrorCode,
-  type Info,
-  Liveness,
-  Readiness,
-  apiErrorStatus,
-} from "./index.ts";
+import { ApiErrorBody, ApiErrorCode, Info, Liveness, Readiness, apiErrorStatus } from "./index.ts";
 
 describe("contract", () => {
   it("parses a valid error body and rejects an unknown code", () => {
@@ -39,5 +32,11 @@ describe("contract", () => {
 
   it("types Info.name as the uroboros literal", () => {
     expectTypeOf<Info["name"]>().toEqualTypeOf<"uroboros">();
+  });
+
+  it("reads an older server's info, without clips, as clips off", () => {
+    expect(Info.parse({ name: "uroboros", version: "0.1.3", publicBaseUrl: null }).clips).toBe(
+      false,
+    );
   });
 });

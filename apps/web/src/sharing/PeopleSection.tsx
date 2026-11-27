@@ -1,4 +1,10 @@
-import type { Directory, PeopleShare, ShareKind, SharePersonRef } from "@uroboros/contract";
+import type {
+  ClipRange,
+  Directory,
+  PeopleShare,
+  ShareKind,
+  SharePersonRef,
+} from "@uroboros/contract";
 import { X } from "lucide-react";
 
 import { errorText } from "@/api/client";
@@ -9,17 +15,25 @@ import { notify } from "@/components/ui/sonner";
 import { ExpirySelect } from "./ExpirySelect";
 import { describe, keyOf, PeoplePicker, refOf } from "./PeoplePicker";
 
-/** Who a video or playlist is shared with: add people or groups, remove them, and an expiry. */
+/**
+ * Who a video, playlist or clip is shared with: add people or groups, remove them, and an expiry.
+ * With `clip`, a video shared opened at it: the people it newly reaches hear of the clip. With
+ * `prepare`, the thing is made first (a clip's copy; docs/sharing.md#clips), answering its id.
+ */
 export function PeopleSection({
   kind,
   id,
   people,
   directory,
+  clip = null,
+  prepare,
 }: {
   kind: ShareKind;
   id: string;
   people: PeopleShare | null;
   directory: Directory | undefined;
+  clip?: ClipRange | null;
+  prepare?: (() => Promise<string>) | undefined;
 }) {
   const set = useShareAction(setPeople);
   const stop = useShareAction(stopPeople);
@@ -29,11 +43,16 @@ export function PeopleSection({
     notify.error(`Could not change who it is shared with: ${errorText(error)}`);
   };
   const save = (refs: SharePersonRef[], expiresAt: string | null) => {
-    if (refs.length === 0) {
-      stop.mutate({ kind, id }, { onError: fail });
-    } else {
-      set.mutate({ kind, id, body: { people: refs, expiresAt } }, { onError: fail });
-    }
+    const go = (target: string) => {
+      if (refs.length === 0) {
+        stop.mutate({ kind, id: target }, { onError: fail });
+      } else {
+        const body = { people: refs, expiresAt, ...(clip === null ? {} : { clip }) };
+        set.mutate({ kind, id: target, body }, { onError: fail });
+      }
+    };
+    if (prepare === undefined) go(id);
+    else prepare().then(go, fail);
   };
   const refs = chosen.map(refOf);
   const busy = set.isPending || stop.isPending;

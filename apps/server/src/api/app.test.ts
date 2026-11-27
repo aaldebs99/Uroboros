@@ -130,7 +130,19 @@ describe("pool resilience", () => {
 describe("info", () => {
   it("returns name and version, and no public address when none is set", async () => {
     const res = await app().request("/api/info");
-    expect(await res.json()).toEqual({ name: "uroboros", version: "1.2.3", publicBaseUrl: null });
+    expect(await res.json()).toEqual({
+      name: "uroboros",
+      version: "1.2.3",
+      publicBaseUrl: null,
+      clips: true,
+    });
+  });
+
+  it("says clips are off on a server without them", async () => {
+    const res = await createApp(deps(), { webDist: null, clipsEnabled: false }).request(
+      "/api/info",
+    );
+    expect(await res.json()).toMatchObject({ clips: false });
   });
 });
 

@@ -26,7 +26,7 @@ import { RootLayout } from "./routes/root";
 import { NewSubscriptionRoute, SubscriptionRoute } from "./routes/subscriptions";
 import { SubscriptionsPage } from "./subscriptions/SubscriptionsPage";
 import { PublicRoute } from "./routes/public";
-import { SharedPlaylistRoute } from "./routes/shared";
+import { SharedClipRoute, SharedPlaylistRoute } from "./routes/shared";
 import { SharedByMe } from "./sharing/SharedByMe";
 import { SharedPage } from "./sharing/SharedPage";
 
@@ -89,6 +89,11 @@ const routeTree = rootRoute.addChildren([
     beforeLoad: ({ params }) => {
       redirect({ to: "/settings/groups/$groupId", params, replace: true, throw: true });
     },
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/shared/clips/$exportId",
+    component: SharedClipRoute,
   }),
   createRoute({
     getParentRoute: () => rootRoute,

@@ -9,6 +9,7 @@ import { needStore, serve } from "../downloads/libraryRoutes.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import { sanitizeSegment, type MediaStore } from "../storage/index.ts";
 import { registerSessionScope, type SessionContext } from "../transcode/sessionRoutes.ts";
+import { registerClipPublicRoutes } from "./clipPublic.ts";
 import { itemBase, linkEntry, publicItem, publicShare } from "./public.ts";
 
 const json = <S extends z.ZodType>(schema: S, description: string) => ({
@@ -110,6 +111,7 @@ export function registerPublicRoutes(
   store: MediaStore | undefined,
   playback: SessionContext | undefined,
   maxShort: number,
+  clips = true,
 ): void {
   // Before the routes, so it wraps them: a link's pages are never for search engines.
   app.use("/api/public/*", async (c, next) => {
@@ -119,7 +121,7 @@ export function registerPublicRoutes(
   const params = (c: Context) => ({ code: c.req.param("code") ?? "", id: c.req.param("id") ?? "" });
 
   app.openapi(shareRoute, async (c) =>
-    c.json(await publicShare(db, c.req.valid("param").code), 200, noStore),
+    c.json(await publicShare(db, c.req.valid("param").code, clips), 200, noStore),
   );
   app.openapi(itemRoute, async (c) => {
     const p = c.req.valid("param");
@@ -183,4 +185,5 @@ export function registerPublicRoutes(
     },
     playback,
   );
+  registerClipPublicRoutes(app, db, store, clips);
 }

@@ -6,7 +6,8 @@ export const RETENTION_EVERY_MS = 3_600_000;
 /** Not kept, not in one of its owner's playlists, and not shared on its own. */
 const notExempt = (e: ReturnType<typeof sql>) => sql`NOT ${e}.kept
   AND NOT EXISTS (SELECT 1 FROM playlist_items pi WHERE pi.entry_id = ${e}.id)
-  AND NOT EXISTS (SELECT 1 FROM shares sh WHERE sh.entry_id = ${e}.id)`;
+  AND NOT EXISTS (SELECT 1 FROM shares sh WHERE sh.entry_id = ${e}.id)
+  AND NOT EXISTS (SELECT 1 FROM clip_shares cs WHERE cs.entry_id = ${e}.id)`;
 
 /**
  * Applies every subscription's retention to its owner's library (docs/automation.md): beyond the

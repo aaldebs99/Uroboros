@@ -168,13 +168,17 @@ export async function startApi(
           : [],
       publicBaseUrl: config.push.publicBaseUrl,
       mcpEnabled: config.mcpEnabled,
+      clipsEnabled: config.clipsEnabled,
     },
   );
   opts.configure?.(app, db);
   const server = await listen(app, config.bind);
   const address = server.address();
   const port = typeof address === "object" && address !== null ? address.port : config.bind.port;
-  logger.info({ host: config.bind.host, port, mcp: config.mcpEnabled }, "api listening");
+  logger.info(
+    { host: config.bind.host, port, mcp: config.mcpEnabled, clips: config.clipsEnabled },
+    "api listening",
+  );
 
   const stop = new AbortController();
   // Discovery retries in the background; until it succeeds the sign-in button says so.

@@ -182,6 +182,7 @@ export function registerGroupRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
   notify?: JobQueue<NotifyJob>,
+  clipsEnabled = true,
 ): void {
   app.openapi(listRoute, async (c) => c.json(await listGroups(db, me(c)), 200));
   app.openapi(createGroupRoute, async (c) =>
@@ -221,7 +222,7 @@ export function registerGroupRoutes(
     return c.body(null, 204);
   });
   app.openapi(sharesRoute, async (c) =>
-    c.json(await groupShares(db, me(c), c.req.valid("param").id), 200),
+    c.json(await groupShares(db, me(c), c.req.valid("param").id, clipsEnabled), 200),
   );
   app.openapi(adminListRoute, async (c) => {
     requireAdmin(currentPrincipal(c));

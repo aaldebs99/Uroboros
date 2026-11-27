@@ -140,7 +140,31 @@ describe("patches/@videojs__react.patch", () => {
       // highlight ("point:…") aren't. The id's second part, the category, picks the color.
       expect(slider).toContain('"data-skips": marker.cue.id.startsWith("skip:") ? "" : void 0');
       expect(slider).toContain('"data-category": marker.cue.id.split(":")[1]');
-      expect(slider).toMatch(/children: \[\s*t4,\s*uroSkipMarkers,\s*t5,\s*t11\s*\]/);
+      expect(slider).toMatch(
+        /children: \[\s*t4,\s*uroSkipMarkers,\s*uroTimeSliderSlot,\s*t5,\s*t11\s*\]/,
+      );
+    },
+  );
+
+  it.each(["dev", "default"] as const)(
+    "makes the time slider slot, empty by default (%s build)",
+    (build) => {
+      expect(presetFile(build, "time-slider-slot.js")).toMatch(
+        /const TimeSliderSlot = createContext\(null\);[\s\S]*export \{ TimeSliderSlot \}/,
+      );
+    },
+  );
+
+  it.each(["dev", "default"] as const)(
+    "draws what the time slider slot holds over the SponsorBlock marks, under the thumb (%s build)",
+    (build) => {
+      const slider = timeSlider(build);
+      expect(slider).toContain(
+        'import { TimeSliderSlot } from "../../../../../presets/video/time-slider-slot.js";',
+      );
+      expect(slider).toMatch(
+        /function TimeSliderSlotOutlet\(\) \{\s*return useContext\(TimeSliderSlot\);/,
+      );
     },
   );
 });

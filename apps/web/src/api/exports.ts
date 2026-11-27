@@ -1,12 +1,12 @@
-import { Export, SaveLink } from "@uroboros/contract";
+import { type ClipRange, Export, roundClip, SaveLink } from "@uroboros/contract";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { deleteJson, getJson, postJson } from "./client";
 
 /**
- * Copies to save without SponsorBlock segments (docs/transcoding.md): ask for one of an entry,
- * watch it being made, save it, remove it.
+ * Copies to save (docs/transcoding.md): without SponsorBlock segments, or a clip of one range
+ * (docs/sharing.md#clips). Ask for one of an entry, watch it being made, save it, remove it.
  */
 
 export const exportsKey = ["api", "exports"] as const;
@@ -23,12 +23,19 @@ export function useExports(enabled = true) {
   });
 }
 
-/** Asks for a copy of an entry without its sponsor segments (the same one again if asked already). */
+/**
+ * Asks for a copy of an entry without its sponsor segments, or with `clip` of just that range (the
+ * same one again if asked already).
+ */
 export function useStartExport() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (entryId: string) =>
-      postJson(`/api/library/${encodeURIComponent(entryId)}/export`, Export),
+    mutationFn: ({ entryId, clip }: { entryId: string; clip?: ClipRange | null }) =>
+      postJson(
+        `/api/library/${encodeURIComponent(entryId)}/export`,
+        Export,
+        clip == null ? undefined : { clip: roundClip(clip) },
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: exportsKey }),
   });
 }

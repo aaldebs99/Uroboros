@@ -8,6 +8,7 @@ import {
   PeopleShareBody,
   PlaylistDetail,
   PublicLinkBody,
+  roundClip,
   SharedDetail,
   SharedWithMe,
   ShareKind,
@@ -17,6 +18,7 @@ import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import type { NotifyJob } from "../downloads/queues.ts";
+import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { listDirectory } from "./directory.ts";
 import { listMyShares, setLink, setPeople, shareState, stopSharing } from "./manage.ts";
@@ -67,8 +69,9 @@ const peopleRoute = createRoute({
   request: { params: target, ...body(PeopleShareBody) },
   responses: {
     200: json(ShareState, "Its sharing"),
-    400: error("Yourself, no such user, or a group the caller isn't in"),
+    400: error("Yourself, no such user, a group the caller isn't in, or a clip of a playlist"),
     404: notYours,
+    409: error("A clip while clips are off on this server (UROBOROS_CLIPS_ENABLED)"),
   },
 });
 
@@ -87,7 +90,11 @@ const linkRoute = createRoute({
   tags,
   summary: "Turn the public link on (a new code) or change it (the same code)",
   request: { params: target, ...body(PublicLinkBody) },
-  responses: { 200: json(ShareState, "Its sharing"), 404: notYours },
+  responses: {
+    200: json(ShareState, "Its sharing"),
+    404: notYours,
+    409: error("A clip while clips are off on this server (UROBOROS_CLIPS_ENABLED)"),
+  },
 });
 
 const stopLinkRoute = createRoute({
@@ -171,6 +178,7 @@ export function registerSharingRoutes(
   app: OpenAPIHono,
   db: Kysely<Database>,
   notify?: JobQueue<NotifyJob>,
+  clipsEnabled = true,
 ): void {
   app.openapi(mineRoute, async (c) => c.json(await listMyShares(db, me(c)), 200));
   app.openapi(stateRoute, async (c) => {
@@ -179,18 +187,27 @@ export function registerSharingRoutes(
   });
   app.openapi(peopleRoute, async (c) => {
     const t = c.req.valid("param");
-    const result = await setPeople(db, me(c), t.kind, t.id, c.req.valid("json"));
+    const sent = c.req.valid("json");
+    const clip = sent.clip === undefined ? undefined : roundClip(sent.clip);
+    if ((clip !== undefined || t.kind === "clip") && !clipsEnabled) {
+      throw new ApiError("conflict", "clips are off on this server");
+    }
+    if (clip !== undefined && t.kind !== "entry") {
+      throw new ApiError("bad_request", "only a video is shared opened at a clip");
+    }
+    const result = await setPeople(db, me(c), t.kind, t.id, sent);
     if (notify !== undefined && result.shareId !== null && result.newlyReached.length > 0) {
       const owner = await db
         .selectFrom("users")
         .select("display_name")
         .where("id", "=", me(c))
         .executeTakeFirstOrThrow();
-      const message = sharedNotice(owner.display_name, result.state.title, {
-        kind: t.kind,
-        id: t.id,
-        shareId: result.shareId,
-      });
+      const message = sharedNotice(
+        owner.display_name,
+        result.state.title,
+        { kind: t.kind, id: t.id, shareId: result.shareId },
+        clip,
+      );
       await noticeShared(db, notify, result.newlyReached, message);
     }
     return c.json(result.state, 200);
@@ -202,6 +219,9 @@ export function registerSharingRoutes(
   });
   app.openapi(linkRoute, async (c) => {
     const t = c.req.valid("param");
+    if (t.kind === "clip" && !clipsEnabled) {
+      throw new ApiError("conflict", "clips are off on this server");
+    }
     return c.json(await setLink(db, me(c), t.kind, t.id, c.req.valid("json")), 200);
   });
   app.openapi(stopLinkRoute, async (c) => {
@@ -209,7 +229,9 @@ export function registerSharingRoutes(
     await stopSharing(db, me(c), t.kind, t.id, "link");
     return c.body(null, 204);
   });
-  app.openapi(withMeRoute, async (c) => c.json(await listSharedWithMe(db, me(c)), 200));
+  app.openapi(withMeRoute, async (c) =>
+    c.json(await listSharedWithMe(db, me(c), clipsEnabled), 200),
+  );
   app.openapi(sharedRoute, async (c) =>
     c.json(await sharedDetail(db, me(c), c.req.valid("param").shareId), 200),
   );

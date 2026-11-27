@@ -19,6 +19,13 @@ export interface ExportPlan {
   output: string;
   /** The ranges to keep, in order; a null `end` runs to the end of the file. */
   ranges: readonly { start: number; end: number | null }[];
+  /**
+   * Where to seek the input before decoding, for a clip (docs/sharing.md#clips): the ranges are
+   * then on a timeline that starts there. Re-encoding, ffmpeg decodes from the keyframe before and
+   * drops the frames ahead of it, so the cut stays exact; it skips decoding the file up to there.
+   * Null or absent for none.
+   */
+  seek?: number | null;
   /** The video stream's index in the input, and how it is encoded. */
   video: { index: number } & EncodeSettings;
   /** The audio stream's index, when there is one. */
@@ -70,6 +77,7 @@ export function exportArgs(p: ExportPlan): string[] {
     "-nostats",
     ...videoInputArgs(p.video.pipeline, p.vaapiDevice),
     ...mediaInputArgs(p.input),
+    ...(p.seek === undefined || p.seek === null ? [] : ["-ss", t(p.seek)]),
     "-i",
     p.input,
     ...(p.chapters === null ? [] : ["-f", "ffmetadata", "-i", p.chapters]),

@@ -129,6 +129,15 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
   the skin's gestures off its press.
 - Under the timeline, play, volume and the time sit at the left; captions, settings, cast,
   picture-in-picture and fullscreen sit at the right.
+- **Clip** (with clips on): an icon button in the watch page's row under the title, before Save
+  (`ItemActions.tsx`; `Scissors`, `aria-pressed`, `bg-accent text-primary` while on). A picked clip
+  is a white band over the timeline (`ClipControls.tsx`, in the slot the patch adds), as thick as
+  the bar, between two accent handles that are `role="slider"` above the thumb (2.75rem hit areas
+  below `md`, 1.5rem from it, the 3px focus ring); a `bg-overlay`
+  pill in the top-left corner says its range and length, coming and going with the controls. A
+  range a link opens at is the band alone. With a clip picked, Save's menu starts with "This clip
+  (1:02–1:30)", and the Share dialog opens on a radio group (Only the clip, The whole video opened
+  at it) with a help line under each choice (`components/ui/radio.tsx`).
 - The settings menu's **Quality** submenu is ours (`library/QualityMenu.tsx`, in the slot the
   patch adds): Original, then the rungs a video offers, in the skin's own menu classes
   (`playerSkin.test.ts` checks they exist). Under the player, one muted 12px line says how it plays

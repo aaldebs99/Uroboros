@@ -23,6 +23,7 @@ const COPY = {
   createdAt: "2026-11-24T18:00:00.000Z",
   fileUrl: null,
   current: true,
+  clip: null,
 };
 
 afterEach(() => {

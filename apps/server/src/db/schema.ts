@@ -23,7 +23,12 @@ import type { UserPreferencesTable } from "./preferencesSchema.ts";
 import type { SiteCooldownsTable } from "./rateLimitsSchema.ts";
 import type { SaveLinksTable } from "./saveLinksSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
-import type { NotificationPrefsTable, SharePeopleTable, SharesTable } from "./sharingSchema.ts";
+import type {
+  ClipSharesTable,
+  NotificationPrefsTable,
+  SharePeopleTable,
+  SharesTable,
+} from "./sharingSchema.ts";
 import type { UploadPartsTable, UploadsTable } from "./uploadsSchema.ts";
 
 export type { ShareMode, SharesTable } from "./sharingSchema.ts";
@@ -446,6 +451,8 @@ export interface Database {
   playlist_items: PlaylistItemsTable;
   shares: SharesTable;
   share_people: SharePeopleTable;
+  clip_shares: ClipSharesTable;
+  clip_share_people: SharePeopleTable;
   groups: GroupsTable;
   group_members: GroupMembersTable;
   notification_prefs: NotificationPrefsTable;

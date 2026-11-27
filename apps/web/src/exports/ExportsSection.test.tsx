@@ -3,9 +3,10 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { useInfo } from "@/api/client";
 import { useExports } from "@/api/exports";
 import { fakeApi } from "@/test/fakeApi";
-import { renderWithQuery } from "@/test/render";
+import { renderInRouter, renderWithQuery } from "@/test/render";
 
 import { ExportsSection } from "./ExportsSection";
 
@@ -25,8 +26,12 @@ const copy = (n: number, over: Partial<Export>): Export => ({
   createdAt: "2026-11-24T18:00:00.000Z",
   fileUrl: null,
   current: true,
+  clip: null,
   ...over,
 });
+
+const info = (clips: boolean) => () =>
+  Response.json({ name: "uroboros", version: "0", publicBaseUrl: null, clips });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -103,5 +108,64 @@ describe("ExportsSection", () => {
         ]),
       );
     });
+  });
+
+  it("says which range a clip keeps, and asks for the same range again when it failed", async () => {
+    const clip = { start: 62, end: 90 };
+    const calls = fakeApi({
+      "GET /api/exports": () =>
+        Response.json([
+          copy(6, {
+            clip,
+            state: "done",
+            sizeBytes: 4096,
+            fileUrl: `/api/exports/${id(6)}/file`,
+          }),
+          copy(7, { clip, state: "failed", error: "boom" }),
+        ]),
+      [`POST /api/library/${id(107)}/export`]: () =>
+        Response.json(copy(8, { entryId: id(107), clip }), { status: 201 }),
+      "GET /api/info": info(true),
+    });
+    await renderInRouter(<ExportsSection />);
+    const list = within(await screen.findByRole("region", { name: "Copies to save" }));
+    const rows = list.getAllByRole("listitem");
+    expect(within(rows[0] as HTMLElement).getByText("Clip 1:02–1:30 · 4.0 KB")).toBeInTheDocument();
+    expect(within(rows[1] as HTMLElement).getByText("Clip 1:02–1:30")).toBeInTheDocument();
+    expect(
+      await within(rows[0] as HTMLElement).findByRole("link", { name: /Watch/ }),
+    ).toHaveAttribute("href", `/shared/clips/${id(6)}`);
+    await userEvent.click(screen.getByRole("button", { name: "Try Video 7 again" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "POST")?.body).toEqual({ clip });
+    });
+  });
+
+  it("still saves a clip while clips are off on the server, with no Watch (its page is gone)", async () => {
+    fakeApi({
+      "GET /api/exports": () =>
+        Response.json([
+          copy(6, {
+            clip: { start: 62, end: 90 },
+            state: "done",
+            sizeBytes: 4096,
+            fileUrl: `/api/exports/${id(6)}/file`,
+          }),
+        ]),
+      "GET /api/info": info(false),
+    });
+    // A probe on the same query says when the server's answer is in.
+    function Settled() {
+      return useInfo().isSuccess ? <p>settled</p> : null;
+    }
+    await renderInRouter(
+      <>
+        <ExportsSection />
+        <Settled />
+      </>,
+    );
+    await screen.findByText("settled");
+    expect(await screen.findByRole("link", { name: "Save Video 6" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Watch/ })).toBeNull();
   });
 });

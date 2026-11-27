@@ -27,11 +27,14 @@ allowBuilds:
 
 # Local patches to dependencies, keyed by name so every version gets them and an upgrade the patch
 # no longer applies to fails the install instead of silently dropping it.
-# - @videojs/react, two changes to the Neutral video skin, in both builds (dist/dev and
-#   dist/default), neither of which has a prop or CSS setting
-#   (apps/web/src/library/playerSkin.test.ts checks both applied):
+# - @videojs/react, changes to the Neutral video skin, in both builds (dist/dev and dist/default),
+#   none of which has a prop or CSS setting (apps/web/src/library/playerSkin.test.ts checks each
+#   applied):
 #   - the volume slider opens as soon as the pointer reaches the mute button, not 200 ms later;
 #   - a double tap at the sides seeks 10 s by touch only, so on desktop a double-click anywhere is
-#     fullscreen (the centre's gesture then covers the whole player), as on YouTube.
+#     fullscreen (the centre's gesture then covers the whole player), as on YouTube;
+#   - the timeline draws the SponsorBlock segments' track as marks;
+#   - slots the app fills: the settings menu's Quality submenu (presets/video/settings-slot.js) and
+#     a layer over the timeline's marks (time-slider-slot.js, a clip's range and its handles).
 patchedDependencies:
   "@videojs/react": patches/@videojs__react.patch

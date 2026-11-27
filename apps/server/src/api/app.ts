@@ -29,6 +29,7 @@ import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { StorageConfig } from "../storage/config.ts";
 import type { MediaStore } from "../storage/index.ts";
 import { registerUploadRoutes } from "../uploads/routes.ts";
+import { registerClipRoutes } from "../clips/routes.ts";
 import { registerExportRoutes, type ExportContext } from "../exports/routes.ts";
 import { registerNoticeRoutes } from "../notices/routes.ts";
 import { registerMcpRoute } from "../mcp/route.ts";
@@ -153,7 +154,12 @@ export interface AppOptions {
   publicBaseUrl?: string | null;
   /** `UROBOROS_MCP_ENABLED`: whether `/api/mcp` answers and tokens may be made for it. Default on. */
   mcpEnabled?: boolean;
+  /** `UROBOROS_CLIPS_ENABLED`: whether people may make and share clips. Default on. */
+  clipsEnabled?: boolean;
 }
+
+/** Whether clips are on (`AppOptions.clipsEnabled`, default on). */
+export const clipsOn = (opts: AppOptions): boolean => opts.clipsEnabled ?? true;
 
 /** What uploads need; without downloads, a store or its settings they answer 503. */
 function uploadContext(deps: Deps): UploadContext | undefined {
@@ -241,7 +247,10 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   const spa =
     opts.webDist === null
       ? null
-      : createSpaHandler(opts.webDist, linkPreviews(deps.db, opts.publicBaseUrl ?? null));
+      : createSpaHandler(
+          opts.webDist,
+          linkPreviews(deps.db, opts.publicBaseUrl ?? null, clipsOn(opts)),
+        );
   const attached = deps.attached ?? (() => true);
 
   app.use("*", async (c, next) => {
@@ -291,6 +300,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     name: "uroboros" as const,
     version: deps.version,
     publicBaseUrl: opts.publicBaseUrl ?? null,
+    clips: clipsOn(opts),
   };
   app.openapi(infoRoute, (c) => c.json(info, 200));
   registerAuthRoutes(app, deps, logger, opts.mcpEnabled);
@@ -307,8 +317,8 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     maxShortOf(deps),
   );
   registerPlaylistRoutes(app, deps.db);
-  registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
-  registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);
+  registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify, clipsOn(opts));
+  registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify, clipsOn(opts));
   registerStatsRoutes(app, deps.db);
   registerNotificationPrefRoutes(app, deps.db);
   registerPreferenceRoutes(app, deps.db);
@@ -317,11 +327,12 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
   registerUploadRoutes(app, uploadContext(deps));
-  registerExportRoutes(app, exportContext(deps));
+  registerExportRoutes(app, exportContext(deps), clipsOn(opts));
   registerSaveLinkRoutes(app, deps.db, deps.store);
+  registerClipRoutes(app, deps.db, deps.store, clipsOn(opts));
   const playback = playbackContext(deps);
   registerPlaybackSessionRoutes(app, playback);
-  registerPublicRoutes(app, deps.db, deps.store, playback, maxShortOf(deps));
+  registerPublicRoutes(app, deps.db, deps.store, playback, maxShortOf(deps), clipsOn(opts));
   registerPushRoutes(app, deps.db, deps.push ?? disabledPush);
   registerMcpRoute(app, {
     db: deps.db,

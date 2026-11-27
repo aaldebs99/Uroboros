@@ -1,7 +1,9 @@
 import { getRouteApi, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { LibraryKind } from "@uroboros/contract";
+import { useMemo } from "react";
 
 import { ChannelPage } from "@/library/ChannelPage";
+import { rangeOf } from "@/library/clipRange";
 import { ItemPage } from "@/library/ItemPage";
 import { LibraryPage, type LibraryViewFilters } from "@/library/LibraryPage";
 import { PlaylistPage } from "@/library/PlaylistPage";
@@ -79,13 +81,16 @@ export function PlaylistRoute() {
 /**
  * A watch page; `?list=<playlist id>` plays one of the person's playlists in order from it,
  * `?share=<share id>` a playlist shared with them, and `?t=<seconds>` starts there (a search
- * match's moment) instead of where the person left off.
+ * match's moment) instead of where the person left off. With `&end=<seconds>` too, the video opens
+ * at a clip (docs/sharing.md#clips), which the player marks.
  */
 export function ItemRoute() {
   const entryId = itemRoute.useParams({ select: (p: { entryId: string }) => p.entryId });
   const queue = itemRoute.useSearch({ select: queueOf });
   const startAt = itemRoute.useSearch({ select: startOf });
-  return <ItemPage entryId={entryId} queue={queue} startAt={startAt} />;
+  const end = itemRoute.useSearch({ select: (s: { end?: unknown }) => startOf({ t: s.end }) });
+  const range = useMemo(() => rangeOf({ t: startAt, end }), [startAt, end]);
+  return <ItemPage entryId={entryId} queue={queue} startAt={startAt} range={range} />;
 }
 
 /** `?t=`: seconds, 0 or more (the router reads `?t=754` as a number); anything else is none. */

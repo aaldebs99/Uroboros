@@ -53,6 +53,21 @@ describe("exportFilterGraph", () => {
 });
 
 describe("exportArgs", () => {
+  it("seeks a clip's input with -ss right before its -i, never the chapters'", () => {
+    const args = exportArgs(
+      plan({ seek: 62, ranges: [{ start: 0, end: 28 }], chapters: "/work/chapters.txt" }),
+    );
+    const media = args.indexOf("/media/a.webm");
+    expect(args.slice(media - 3, media + 1)).toEqual(["-ss", "62.000", "-i", "/media/a.webm"]);
+    expect(args.filter((a) => a === "-ss")).toHaveLength(1);
+    expect(args.indexOf("-ss")).toBeLessThan(args.indexOf("/work/chapters.txt"));
+  });
+
+  it("seeks nothing without a seek", () => {
+    expect(exportArgs(plan())).not.toContain("-ss");
+    expect(exportArgs(plan({ seek: null }))).not.toContain("-ss");
+  });
+
   it("encodes H.264 and AAC into an MP4 with progress on stdout and no source chapters", () => {
     const args = exportArgs(plan());
     const after = (flag: string) => args[args.indexOf(flag) + 1];

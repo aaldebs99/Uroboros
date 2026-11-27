@@ -26,6 +26,13 @@ const peopleText = (s: ShareState) =>
 
 function ThingLink({ share }: { share: ShareState }) {
   const cls = "line-clamp-2 font-medium hover:underline";
+  if (share.kind === "clip") {
+    return (
+      <Link to="/shared/clips/$exportId" params={{ exportId: share.id }} className={cls}>
+        {share.title}
+      </Link>
+    );
+  }
   if (share.kind === "entry") {
     return (
       <Link to="/library/$entryId" params={{ entryId: share.id }} className={cls}>

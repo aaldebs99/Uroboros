@@ -76,6 +76,8 @@ x-server-env: &server-env
   UROBOROS_OIDC_SYNC_INTERVAL_SECS: ${UROBOROS_OIDC_SYNC_INTERVAL_SECS:-}
   # The MCP server at /api/mcp (docs/mcp.md): on unless false. Read at start.
   UROBOROS_MCP_ENABLED: ${UROBOROS_MCP_ENABLED:-}
+  # Clips of videos, to save or share (docs/sharing.md#clips): on unless false. Read at start.
+  UROBOROS_CLIPS_ENABLED: ${UROBOROS_CLIPS_ENABLED:-}
   UROBOROS_PUSH_MAX_DEVICES: ${UROBOROS_PUSH_MAX_DEVICES:-}
   # The largest request body /api/* accepts (default 65536 bytes).
   UROBOROS_BODY_LIMIT_BYTES: ${UROBOROS_BODY_LIMIT_BYTES:-}

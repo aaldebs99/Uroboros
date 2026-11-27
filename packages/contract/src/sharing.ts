@@ -1,10 +1,15 @@
 import { z } from "@hono/zod-openapi";
+import { ClipItem } from "./clipItem.ts";
+import { ClipRange } from "./clips.ts";
 import { SponsorSegment } from "./downloads.ts";
 import { Chapter, SubtitleTrack } from "./library.ts";
 import { PlaybackFacts } from "./playback.ts";
 
-/** What is shared: a library entry, a manual playlist, or a YouTube playlist (docs/sharing.md). */
-export const ShareKind = z.enum(["entry", "playlist", "youtube"]).openapi("ShareKind");
+/**
+ * What is shared: a library entry, a manual playlist, a YouTube playlist (docs/sharing.md), or a
+ * clip of an entry on its own (its copy's id; docs/sharing.md#clips).
+ */
+export const ShareKind = z.enum(["entry", "playlist", "youtube", "clip"]).openapi("ShareKind");
 export type ShareKind = z.infer<typeof ShareKind>;
 
 /** Someone a people-share reaches: one account, or everyone in one of the owner's groups. */
@@ -72,7 +77,15 @@ export type ShareState = z.infer<typeof ShareState>;
 
 /** The whole set of people; an empty list stops sharing with people. */
 export const PeopleShareBody = z
-  .object({ people: z.array(SharePersonRef).max(100), expiresAt: Expiry })
+  .object({
+    people: z.array(SharePersonRef).max(100),
+    expiresAt: Expiry,
+    /**
+     * A video shared opened at a clip (docs/sharing.md#clips): the people it newly reaches are told
+     * of the clip, opening the video at its range. The share is of the whole video either way.
+     */
+    clip: ClipRange.optional(),
+  })
   .openapi("PeopleShareBody");
 export type PeopleShareBody = z.infer<typeof PeopleShareBody>;
 
@@ -142,11 +155,14 @@ export type PublicListItem = z.infer<typeof PublicListItem>;
 /** What a public link shows (`/s/<code>`): never who shared it. */
 export const PublicShare = z
   .object({
-    kind: z.enum(["entry", "playlist"]),
+    kind: z.enum(["entry", "playlist", "clip"]),
     title: z.string(),
     description: z.string().nullable(),
     allowDownload: z.boolean(),
+    /** An entry's or a playlist's videos; none for a clip, which is `clip`. */
     items: z.array(PublicListItem),
+    /** A clip shared on its own (docs/sharing.md#clips); null otherwise, and from an older server. */
+    clip: ClipItem.nullable().default(null),
   })
   .openapi("PublicShare");
 export type PublicShare = z.infer<typeof PublicShare>;

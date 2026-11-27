@@ -22,17 +22,19 @@ export interface LiveShare {
 }
 
 /** Usable now: not expired, and its owner neither disabled nor revoked. `s` and `o` are bound. */
-const LIVE = sql<boolean>`(s.expires_at IS NULL OR s.expires_at > now())
+export const LIVE = sql<boolean>`(s.expires_at IS NULL OR s.expires_at > now())
   AND o.disabled_at IS NULL AND o.revoked_at IS NULL`;
 
 /**
  * A people-share naming this user, or one of the owner's groups this user is in; never their own.
- * A group counts only while the owner is still in it too (leaving ends their shares to it).
+ * A group counts only while the owner is still in it too (leaving ends their shares to it). `s` is
+ * the share, its people in `people` (`share_people`, or `clip_share_people` for a clip's).
  */
-const reachesUser = (userId: string) => sql<boolean>`s.mode = 'people'
+export const reachesUserIn = (people: "share_people" | "clip_share_people", userId: string) =>
+  sql<boolean>`s.mode = 'people'
   AND s.owner_id <> ${userId}
   AND EXISTS (
-    SELECT 1 FROM share_people sp
+    SELECT 1 FROM ${sql.table(people)} sp
     WHERE sp.share_id = s.id AND (
       sp.user_id = ${userId}
       OR (sp.group_id IS NOT NULL
@@ -40,6 +42,8 @@ const reachesUser = (userId: string) => sql<boolean>`s.mode = 'people'
           WHERE gm.group_id = sp.group_id AND gm.user_id = ${userId})
         AND EXISTS (SELECT 1 FROM group_members gm
           WHERE gm.group_id = sp.group_id AND gm.user_id = s.owner_id))))`;
+
+const reachesUser = (userId: string) => reachesUserIn("share_people", userId);
 
 const reachesCode = (code: string) => sql<boolean>`s.mode = 'link' AND s.code = ${code}`;
 

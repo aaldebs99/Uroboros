@@ -1,18 +1,22 @@
 import type { Export } from "@uroboros/contract";
-import { Download, RotateCcw, Scissors, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Download, Play, RotateCcw, Scissors, X } from "lucide-react";
 
-import { errorText } from "@/api/client";
+import { errorText, useInfo } from "@/api/client";
 import { exportSaveLink, useExports, useRemoveExport, useStartExport } from "@/api/exports";
 import { ExportBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { notify } from "@/components/ui/sonner";
 import { formatBytes, formatDuration } from "@/downloads/format";
+import { clipLabel } from "@/library/clipRange";
 import { SaveButton } from "@/library/SaveButton";
 
-/** The muted line beside the badge: what the copy is, and how far or how big. */
+/** The muted line beside the badge: what the copy is (a clip, or what it cuts), and how far or how big. */
 function detail(copy: Export): string {
-  const cut = `${formatDuration(copy.cutSeconds)} cut`;
+  const cut =
+    copy.clip === null ? `${formatDuration(copy.cutSeconds)} cut` : `Clip ${clipLabel(copy.clip)}`;
   switch (copy.state) {
     case "queued":
       return cut;
@@ -28,8 +32,14 @@ function detail(copy: Export): string {
 function ExportRow({ copy }: { copy: Export }) {
   const remove = useRemoveExport();
   const again = useStartExport();
+  const confirm = useConfirm();
+  // A clip's page is gone while clips are off on the server; its file still saves.
+  const watchable = useInfo().data?.clips === true;
   const fail = (err: unknown) => {
     notify.error(errorText(err));
+  };
+  const drop = () => {
+    remove.mutate(copy.id, { onError: fail });
   };
   return (
     <li className="flex gap-3 border-t border-border py-3.5 first:border-t-0 md:gap-4">
@@ -53,6 +63,14 @@ function ExportRow({ copy }: { copy: Export }) {
         ) : null}
       </div>
       <div className="flex shrink-0 items-start gap-1">
+        {!watchable || copy.clip === null || copy.fileUrl === null ? null : (
+          <Button asChild variant="ghost" size="compact">
+            <Link to="/shared/clips/$exportId" params={{ exportId: copy.id }}>
+              <Play aria-hidden /> <span className="hidden md:inline">Watch</span>
+              <span className="sr-only md:hidden">Watch {copy.title}</span>
+            </Link>
+          </Button>
+        )}
         {copy.fileUrl === null ? null : (
           <SaveButton
             variant="secondary"
@@ -72,7 +90,7 @@ function ExportRow({ copy }: { copy: Export }) {
             aria-label={`Try ${copy.title} again`}
             disabled={again.isPending}
             onClick={() => {
-              again.mutate(copy.entryId, { onError: fail });
+              again.mutate({ entryId: copy.entryId, clip: copy.clip }, { onError: fail });
             }}
           >
             <RotateCcw className="size-5" />
@@ -84,12 +102,23 @@ function ExportRow({ copy }: { copy: Export }) {
           aria-label={`Remove ${copy.title}`}
           disabled={remove.isPending}
           onClick={() => {
-            remove.mutate(copy.id, { onError: fail });
+            // A clip may be shared on its own (docs/sharing.md#clips): its shares go with it.
+            if (copy.clip === null) drop();
+            else {
+              confirm.ask({
+                title: "Remove this clip?",
+                description: "Anyone it is shared with, by people or a link, loses it too.",
+                confirmLabel: "Remove",
+                destructive: true,
+                onConfirm: drop,
+              });
+            }
           }}
         >
           <X className="size-5" />
         </Button>
       </div>
+      {confirm.dialog}
     </li>
   );
 }

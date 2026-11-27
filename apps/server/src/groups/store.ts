@@ -11,6 +11,9 @@ import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { sharesToGroup } from "../sharing/access.ts";
+import { clipSharesToGroup } from "../sharing/clipAccess.ts";
+import { endClipPeopleInGroup } from "../sharing/clipShares.ts";
+import { clipShared } from "../sharing/shared.ts";
 import { describeTarget } from "../sharing/targets.ts";
 import { lockKey } from "../shared/lockKeys.ts";
 
@@ -306,7 +309,7 @@ export async function removeMember(
       }
     }
     // Their shares to the group end with their place in it (a share left with nobody ends too,
-    // by a trigger at commit).
+    // by a trigger at commit), their clips' too.
     await tx
       .deleteFrom("share_people")
       .where("group_id", "=", groupId)
@@ -314,6 +317,7 @@ export async function removeMember(
         eb.selectFrom("shares").select("id").where("owner_id", "=", memberId),
       )
       .execute();
+    await endClipPeopleInGroup(tx, groupId, memberId);
     await tx
       .deleteFrom("group_members")
       .where("group_id", "=", groupId)
@@ -323,7 +327,12 @@ export async function removeMember(
 }
 
 /** What the group's members share with it, live, newest change first; `mine` for the caller's. */
-export async function groupShares(db: Db, userId: string, groupId: string): Promise<GroupShare[]> {
+export async function groupShares(
+  db: Db,
+  userId: string,
+  groupId: string,
+  withClips = true,
+): Promise<GroupShare[]> {
   const me = await db
     .selectFrom("group_members")
     .select("user_id")
@@ -331,8 +340,11 @@ export async function groupShares(db: Db, userId: string, groupId: string): Prom
     .where("user_id", "=", userId)
     .executeTakeFirst();
   if (me === undefined) throw new ApiError("not_found", NOT_FOUND);
-  const shares = await sharesToGroup(db, groupId);
-  return Promise.all(
+  const [shares, clips] = await Promise.all([
+    sharesToGroup(db, groupId),
+    withClips ? clipSharesToGroup(db, groupId) : Promise.resolve([]),
+  ]);
+  const things = await Promise.all(
     shares.map(async (s) => {
       const facts = await describeTarget(db, s.ownerId, s.target.kind, s.target.id);
       return {
@@ -351,6 +363,10 @@ export async function groupShares(db: Db, userId: string, groupId: string): Prom
       };
     }),
   );
+  const clipped = await Promise.all(
+    clips.map(async (s) => ({ ...(await clipShared(db, s)), mine: s.ownerId === userId })),
+  );
+  return [...things, ...clipped].sort((a, b) => b.sharedAt.localeCompare(a.sharedAt));
 }
 
 /** Every group, for admins: its name, enabled members and managers' names. */

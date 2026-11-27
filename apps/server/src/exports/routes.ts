@@ -1,5 +1,5 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { ApiErrorBody, Export } from "@uroboros/contract";
+import { ApiErrorBody, Export, ExportBody } from "@uroboros/contract";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
@@ -8,10 +8,14 @@ import { currentPrincipal } from "../api/principal.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { serve } from "../downloads/libraryRoutes.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
-import { sanitizeSegment, type MediaStore } from "../storage/index.ts";
+import type { MediaStore } from "../storage/index.ts";
+import { copyFilename } from "./clip.ts";
 import { createExport, listExports, ownExport, removeExport } from "./store.ts";
 
-/** Copies to save without SponsorBlock segments (docs/transcoding.md): ask, list, save, remove. */
+/**
+ * Copies to save (docs/transcoding.md): without SponsorBlock segments, or a clip of one range
+ * (docs/sharing.md#clips). Ask, list, save, remove.
+ */
 
 export interface ExportContext extends DownloadContext {
   store: MediaStore;
@@ -28,13 +32,20 @@ const createRouteDef = createRoute({
   method: "post",
   path: "/api/library/{id}/export",
   tags: ["library"],
-  summary: "Ask for a copy of an entry without its SponsorBlock segments, re-encoded to save",
-  request: { params: idParams },
+  summary:
+    "Ask for a copy of an entry, re-encoded to save: without its SponsorBlock segments, or with `clip` just that range",
+  request: {
+    params: idParams,
+    body: { required: false, content: { "application/json": { schema: ExportBody } } },
+  },
   responses: {
     200: json(Export, "The same copy, already asked for"),
     201: json(Export, "Queued"),
-    400: error("The video has no segments to cut"),
+    400: error(
+      "The video has no segments to cut, or the clip is past its end, too short, or of a file whose length isn't known",
+    ),
     404: error("No such entry"),
+    409: error("Clips are off on this server (UROBOROS_CLIPS_ENABLED)"),
   },
 });
 
@@ -96,19 +107,35 @@ export async function exportFile(
   id: string,
 ) {
   const row = await finishedExport(db, userId, id);
-  const filename = `${sanitizeSegment(row.title ?? row.video_id)} (no sponsors).${row.format}`;
+  const filename = copyFilename(row);
   const url = await store.downloadUrl(row.storage_key, filename);
   if (url !== null) return c.redirect(url, 302);
   return serve(c, store, row.storage_key, contentTypeOf(row.format), filename);
 }
 
-export function registerExportRoutes(app: OpenAPIHono, ctx: ExportContext | undefined): void {
+/** Optional: without one, a copy without sponsors. */
+const bodyOf = (sent: ExportBody | undefined): ExportBody => sent ?? {};
+
+export function registerExportRoutes(
+  app: OpenAPIHono,
+  ctx: ExportContext | undefined,
+  clipsEnabled = true,
+): void {
   const need = (): ExportContext => {
     if (ctx === undefined) throw new ApiError("unavailable", "copies are not available");
     return ctx;
   };
   app.openapi(createRouteDef, async (c) => {
-    const made = await createExport(need(), currentPrincipal(c).userId, c.req.valid("param").id);
+    const { clip } = bodyOf(c.req.valid("json"));
+    if (clip !== undefined && !clipsEnabled) {
+      throw new ApiError("conflict", "clips are off on this server");
+    }
+    const made = await createExport(
+      need(),
+      currentPrincipal(c).userId,
+      c.req.valid("param").id,
+      clip,
+    );
     return c.json(made.export, made.created ? 201 : 200);
   });
   app.openapi(listRoute, async (c) =>
