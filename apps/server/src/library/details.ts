@@ -9,20 +9,25 @@ import { contentTypeOf } from "../storage/contentType.ts";
 import type { MediaStore } from "../storage/store.ts";
 import { imageExt } from "../uploads/images.ts";
 import { uploadThumbnailKey } from "../uploads/keys.ts";
+import { saveOwnDetails } from "./ownDetails.ts";
 import { UPLOAD_EXTRACTOR } from "./platform.ts";
 
 /**
- * Editing an uploaded video (docs/uploads.md#editing): its uploader, on their own entry, changes
- * its title, description, creator or thumbnail, for everyone who holds it. A downloaded video is
- * described by its site.
+ * Editing a video's details: its uploader, on their own entry, changes an upload's title,
+ * description, creator or thumbnail for everyone who holds it (docs/uploads.md#editing); anyone
+ * else gives any video of theirs a title, description and channel of their own, for themselves
+ * alone (docs/library.md#your-own-details).
  */
 
-/** The caller's entry of a video they uploaded; 404 for someone else's entry, 403 otherwise. */
+/**
+ * The caller's entry of a video they uploaded, with its shared title (never anyone's own, which a
+ * storage key must not take); 404 for someone else's entry, 403 otherwise.
+ */
 async function editableUpload(db: Kysely<Database>, userId: string, entryId: string) {
   const entry = await ownEntry(db, userId, entryId);
   const media = await db
     .selectFrom("media")
-    .select(["extractor", "uploaded_by"])
+    .select(["extractor", "uploaded_by", "title"])
     .where("id", "=", entry.media_id)
     .executeTakeFirstOrThrow();
   if (media.extractor !== UPLOAD_EXTRACTOR) {
@@ -30,23 +35,32 @@ async function editableUpload(db: Kysely<Database>, userId: string, entryId: str
   }
   if (media.uploaded_by !== userId)
     throw new ApiError("forbidden", "only its uploader can edit it");
-  return entry;
+  return { ...entry, title: media.title };
 }
 
+/** Changes the details given: for everyone on the caller's own upload, for them alone otherwise. */
 export async function editDetails(
   db: Kysely<Database>,
   userId: string,
   entryId: string,
   body: z.output<typeof EntryDetailsBody>,
 ): Promise<void> {
-  const entry = await editableUpload(db, userId, entryId);
+  const entry = await ownEntry(db, userId, entryId);
+  const media = await db
+    .selectFrom("media")
+    .select(["extractor", "uploaded_by"])
+    .where("id", "=", entry.media_id)
+    .executeTakeFirstOrThrow();
+  if (media.extractor !== UPLOAD_EXTRACTOR || media.uploaded_by !== userId) {
+    await saveOwnDetails(db, userId, entryId, body);
+    return;
+  }
   await db
     .updateTable("media")
     .set({
-      title: body.title,
-      description: body.description,
-      channel: body.creator,
-      uploader: body.creator,
+      ...(body.title === undefined ? {} : { title: body.title }),
+      ...(body.description === undefined ? {} : { description: body.description }),
+      ...(body.creator === undefined ? {} : { channel: body.creator, uploader: body.creator }),
       updated_at: new Date(),
     })
     .where("id", "=", entry.media_id)

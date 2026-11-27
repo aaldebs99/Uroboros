@@ -91,9 +91,17 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
 - Under the player: the title (20/700), the channel row with the actions, the clamped
   description, tags, the playlists it is in, and chapters.
 - The actions: Watched, Keep on a subscription's entry, then a row of
-  [icon buttons](actions-and-forms.md#icon-buttons) each named in a tooltip (Edit details on an
-  upload, Save, Save to playlist, Share, Remove, the last one tonal danger; `gap-4`, `md:gap-2`),
-  and Open on the site.
+  [icon buttons](actions-and-forms.md#icon-buttons) each named in a tooltip (Clip, Save, Save to
+  playlist, Share; `gap-4`, `md:gap-2`), and the ⋮ menu, whose rows include Edit details on any
+  video of the person's own, Open on the site and, last in a group of its own, Remove in danger
+  text (it asks first).
+- Edit details (from the ⋮ menu) on an upload of the person's: title, description, creator and thumbnail, for
+  everyone. On any other video of theirs (their own details, docs/library.md#your-own-details): a
+  muted line saying only they see them, title, description and a free `ComboboxField` Channel
+  suggesting their channels, no thumbnail. While their own show, each changed field's help says
+  "On the site: …" ("From the uploader: …" on an upload), and the footer leads with a quiet
+  **Reset to the site's details** (`mr-auto`, the footer wraps on a phone) before Cancel and Save,
+  which asks first in a confirmation whose Reset is danger text.
 - The description's http(s) URLs are accent links opening in a new tab (`LinkifiedText`); nothing
   else in it becomes markup. Playlist descriptions and a public link's do the same.
 - The player has no `title` (it is `aria-label`led, so no tooltip hangs over the picture) and no

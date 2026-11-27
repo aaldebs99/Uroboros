@@ -8,6 +8,7 @@ import type { Kysely } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { eff } from "../library/edits.ts";
 import { sponsorBlockOf } from "../library/preferences.ts";
 import { dashed } from "../library/query.ts";
 import { sponsorSegmentsFor } from "../library/sponsorSegments.ts";
@@ -54,16 +55,20 @@ async function heldIds(db: Db, share: LiveShare): Promise<string[]> {
 
 async function listItems(db: Db, code: string, ids: string[]): Promise<PublicListItem[]> {
   if (ids.length === 0) return [];
+  // In the owner's own details (docs/library.md#your-own-details).
   const rows = await db
     .selectFrom("library_entries as e")
     .innerJoin("media as m", "m.id", "e.media_id")
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+    )
     .select([
       "e.id",
-      "m.title",
+      eff.title.as("title"),
       "m.video_id",
       "m.extractor",
       "m.webpage_url",
-      "m.channel",
+      eff.channel.as("channel"),
       "m.uploader",
       "m.duration",
       "m.upload_date",
@@ -129,8 +134,11 @@ export async function publicItem(
     db
       .selectFrom("media as m")
       .innerJoin("renditions as r", "r.media_id", "m.id")
+      .leftJoin("media_edits as ed", (j) =>
+        j.onRef("ed.media_id", "=", "m.id").on("ed.user_id", "=", e.user_id),
+      )
       .select([
-        "m.description",
+        eff.description.as("description"),
         "m.chapters",
         "m.webpage_url",
         "r.skip_segments",

@@ -94,11 +94,12 @@ describe("editing an upload's details", () => {
     expect(page.entries.map((x) => x.id)).toEqual([e.entryId]);
   });
 
-  it("is the uploader's alone, on their own entry, and never a downloaded video's", async () => {
+  it("is the uploader's alone, on their own entry; anyone else's edits are their own", async () => {
     const e = await mine();
     expect(
       (await patch(bob, e.entryId, { title: "X", description: null, creator: "X" })).status,
     ).toBe(404);
+    // A downloaded video's details are the editor's own (docs/library.md#your-own-details).
     const download = await seedEntry(t.db, alice.userId);
     expect((await item(alice, download.entryId)).editable).toBe(false);
     const res = await patch(alice, download.entryId, {
@@ -106,7 +107,8 @@ describe("editing an upload's details", () => {
       description: null,
       creator: "X",
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(LibraryItem.parse(await res.json())).toMatchObject({ editable: false, edited: true });
     const theirs = await seedProfileless(t.db, alice.userId, { uploadedBy: bob.userId });
     expect((await item(alice, theirs.entryId)).editable).toBe(false);
     expect((await putThumb(alice, theirs.entryId, PNG)).status).toBe(403);

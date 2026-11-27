@@ -77,8 +77,16 @@ export const Upload = z
   .openapi("Upload");
 export type Upload = z.infer<typeof Upload>;
 
-/** An uploaded video's details its uploader may change (title, description, creator). */
+/**
+ * A video's details to change, each only when given: for everyone on the caller's own upload, for
+ * the caller alone on any other video of theirs (docs/library.md#your-own-details). `creator` is the
+ * channel. A site's title may be longer than an upload's, so a client sends only what changed.
+ */
 export const EntryDetailsBody = z
-  .object({ title: Title, description: Description.nullable(), creator: Creator })
+  .object({
+    title: Title.optional(),
+    description: Description.nullable().optional(),
+    creator: Creator.optional(),
+  })
   .openapi("EntryDetailsBody");
 export type EntryDetailsBody = z.input<typeof EntryDetailsBody>;

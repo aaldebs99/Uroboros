@@ -52,6 +52,9 @@ is stemmed (`src/library/searchTerms.ts`, `src/library/search.ts`).
   together (the channel is the uploader when there is none), one chapter title, or one run of
   caption lines (see [Subtitles and chapters](#subtitles-and-chapters)). A word in the title and
   another in a chapter don't match, nor do words in neighbouring runs.
+- **Your own details.** A video the searcher (or, through a share, its owner) gave details of their
+  own ([below](#your-own-details)) is matched on those instead: their title finds it and the site's
+  old one doesn't. Those few are matched outside `media_search_idx`, every other video through it.
 - **Rank.** The best place a video matched (title, then channel, then a chapter, then the
   description, then the captions), then the newest entry; the cursor carries both.
 - **Indexes.** `media_search_idx` is an expression index over `media_search_text(title, channel,
@@ -114,7 +117,9 @@ no channel: their `channel` is the site's name instead (`src/library/platform.ts
 and other well-known sites by name, any other site, a direct link included, by its page's host),
 with a null `channelKey`, so the web shows the site where the channel would be and links nowhere.
 `GET /api/library/channels` lists the caller's channels, most entries first. An uploaded video's
-channel is its creator, under the `upload` extractor ([uploads.md](uploads.md)).
+channel is its creator, under the `upload` extractor ([uploads.md](uploads.md)). A video someone
+moved to another channel ([Your own details](#your-own-details)) is in that one, for them: on the
+channels page, its channel's page and its own link.
 
 Queueing a **playlist** from a preview, or following one with a subscription, records it
 (`sources`, shared by extractor and id), that this person has it (`user_sources`), and its entries
@@ -140,8 +145,10 @@ A **channel** hides the same way: its page has the same **Hide from library** bu
 `ChannelSummary`), and while it is pressed its page and its tile on Channels say "Hidden from
 library". It hides for the person alone (`hidden_channels`, keyed as a channel key is: the
 extractor, then the site's channel id or, without one, the name), and keeps out every video of
-theirs in that channel, the ones they download later included. Which channel a video is in is
-decided in one place (`src/library/channelMatch.ts`), so a channel's page and hiding always agree.
+theirs that shows in that channel, the ones they download later included: its site's channel, or
+the one they moved it to ([Your own details](#your-own-details)), so a video moved into a hidden
+channel hides and one moved out of it shows. Which channel a video is in is decided in one place
+(`src/library/channelMatch.ts`), so a channel's page and hiding always agree.
 Hiding a channel needs a video of the person's in it (404 otherwise); showing it again always
 works, so a channel whose videos all left the library can still be let back.
 
@@ -191,8 +198,9 @@ Jump to highlight pill in the player's corner goes there while playback is short
 segments again from the page's ⋮ menu (Refresh SponsorBlock segments,
 [automation.md](automation.md#sponsorblock)). That menu (`ItemMenu.tsx`, a dropdown from `md` up
 and a bottom sheet on phones) also holds Mark as watched and Mark as unwatched (which starts the
-video over, below), the current one checked, Keep (below) and Open on original site; the row
-beside it has Edit details (an upload), Clip (below), Save, Save to playlist, Share and Remove. When the browser
+video over, below), the current one checked, Keep (below), Edit details on a video of the
+person's own (below), Open on original site and, last in danger text, Remove (which asks first);
+the row beside it has Clip (below), Save, Save to playlist and Share. When the browser
 cannot play the file (MKV, or a codec it lacks), it plays a compatible HLS copy made on demand
 instead ([transcoding.md](transcoding.md)). The page starts where the person left off, or at `?t=<seconds>`
 (a search match's moment) when the address has it; the next video of a queue never carries it.
@@ -218,7 +226,41 @@ and its format profile's name (`profileName`, null for an upload, or once a down
 with its owner's account; the queries left-join the profile). Thumbnail URLs end in `?v=` and a hash
 of the thumbnail's storage key, so a replaced thumbnail shows at once although browsers cache them
 for a day. An item the caller uploaded is `editable`: its title, description, creator and thumbnail
-can be changed ([uploads.md](uploads.md#editing)).
+can be changed for everyone ([uploads.md](uploads.md#editing)). Any other video of their own is
+`personalEditable`: they may give it details of their own (below).
+
+## Your own details
+
+A person can give any video in their library a title, description and channel of their own, from
+Edit details in its page's ⋮ menu (`OwnDetailsForm.tsx`): for them alone, and for whoever they
+share it with.
+Another person holding the same video sees its site's details, or their own. An upload's uploader
+still edits its details for everyone ([uploads.md](uploads.md#editing)); anyone else who holds it
+gets details of their own, under any the uploader changes later.
+
+- **Storage.** `media_edits` keeps them per person and media, like watch progress, apart from the
+  media row that every paste and fetch of the video rewrites from its site, so they outlast those,
+  hold for every profile's copy, and come back when the video is removed and added again. Only what
+  differs from the site's is kept (a field equal to it is the site's, and follows it); a cleared
+  description is `''`. Every query that shows a video's title, description or channel reads them
+  through the entry's owner (`src/library/edits.ts`).
+- **Saving.** `PATCH /api/library/{id}/details` takes only the fields that change (`title`,
+  `description`, `creator` for the channel), since a site's title may be longer than an upload's
+  limit; `DELETE` drops them all (Reset, which asks first). An item says `edited` while they show, with the site's
+  (or uploader's) in `original`, which the dialog shows beside each changed field.
+- **Channels.** Naming the channel moves the video. A name matching one of the person's channels
+  (in any case, on any site) joins it, under that channel's own name and key: one named exactly
+  so first, then one of the video's site, then one keyed by the site's id, then the biggest
+  (`pickChannel`). Any other name starts a channel of its own, keyed by name on the video's site.
+  Naming the site's own channel (or, without one, the site's name) is no move. A subscription still
+  links to the site's channel, which the video has left.
+- **Shares and copies.** Whoever a share or public link reaches sees the owner's version, in its
+  Open Graph tags too, and a saved file is named by it. A copy or clip is named as the owner of the
+  entry it was cut from shows it. Add to my library and Save as my playlist give the recipient the
+  owner's version as theirs, for videos they held none of ([sharing.md](sharing.md)).
+- **Left as they were.** Stored files (their paths, and the title an MP3 or M4A carries inside),
+  the Downloads list and notices already sent keep the site's title. The MCP tools read a person's
+  own details and can't change them.
 
 ## Watch progress
 

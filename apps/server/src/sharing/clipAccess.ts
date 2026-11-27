@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { eff } from "../library/edits.ts";
 import { LIVE, reachesUserIn, type Viewer } from "./access.ts";
 
 /**
@@ -104,36 +105,43 @@ function visibleRow(db: Db, viewer: Viewer, exportId: string) {
     "userId" in viewer
       ? sql<boolean>`true`
       : sql<boolean>`coalesce((SELECT bool_or(s.allow_download) ${reachingShares(viewer)}), false)`;
-  return db
-    .selectFrom("exports as x")
-    .innerJoin("renditions as r", "r.id", "x.rendition_id")
-    .innerJoin("media as m", "m.id", "r.media_id")
-    .innerJoin("users as owner", "owner.id", "x.user_id")
-    .select([
-      "x.id",
-      "x.user_id",
-      "x.state",
-      "x.progress",
-      "x.error",
-      "x.storage_key",
-      "x.format",
-      "x.clip_start",
-      "x.clip_end",
-      "m.title",
-      "m.video_id",
-      "m.channel",
-      "m.chapters",
-      "m.thumbnail_key",
-      "r.video_codec",
-      sql<number | null>`coalesce(r.duration, m.duration)`.as("duration"),
-      "owner.display_name as owner_name",
-      own.as("own"),
-      download.as("allow_download"),
-    ])
-    .where("x.id", "=", exportId)
-    .where("x.clip_start", "is not", null)
-    .where(sql<boolean>`(${own} OR EXISTS (SELECT 1 ${reachingShares(viewer)}))`)
-    .executeTakeFirst();
+  return (
+    db
+      .selectFrom("exports as x")
+      .innerJoin("renditions as r", "r.id", "x.rendition_id")
+      .innerJoin("media as m", "m.id", "r.media_id")
+      .innerJoin("users as owner", "owner.id", "x.user_id")
+      // Named as the owner of the entry it was cut from shows it (docs/library.md#your-own-details).
+      .innerJoin("library_entries as e", "e.id", "x.entry_id")
+      .leftJoin("media_edits as ed", (j) =>
+        j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+      )
+      .select([
+        "x.id",
+        "x.user_id",
+        "x.state",
+        "x.progress",
+        "x.error",
+        "x.storage_key",
+        "x.format",
+        "x.clip_start",
+        "x.clip_end",
+        eff.title.as("title"),
+        "m.video_id",
+        eff.channel.as("channel"),
+        "m.chapters",
+        "m.thumbnail_key",
+        "r.video_codec",
+        sql<number | null>`coalesce(r.duration, m.duration)`.as("duration"),
+        "owner.display_name as owner_name",
+        own.as("own"),
+        download.as("allow_download"),
+      ])
+      .where("x.id", "=", exportId)
+      .where("x.clip_start", "is not", null)
+      .where(sql<boolean>`(${own} OR EXISTS (SELECT 1 ${reachingShares(viewer)}))`)
+      .executeTakeFirst()
+  );
 }
 
 /** A clip copy with what serving it needs, and how the viewer reaches it. */

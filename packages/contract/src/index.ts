@@ -71,6 +71,7 @@ export {
   EntryRef,
   LIBRARY_PAGE_SIZE,
   LibraryItem,
+  OriginalDetails,
   LibraryKind,
   LibraryPage,
   LibraryPageEntry,

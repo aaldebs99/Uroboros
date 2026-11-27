@@ -11,9 +11,9 @@ import { inChannel } from "./channelMatch.ts";
  */
 
 /**
- * Hides channel `key` for `userId`, or shows it again. Hiding needs one of their videos in the
- * channel (404 otherwise); showing always works, so a channel whose videos all left the library can
- * still be let back. A key that is not one is 400.
+ * Hides channel `key` for `userId`, or shows it again. Hiding needs one of their videos showing in
+ * the channel, its site's or the one they moved it to (404 otherwise); showing always works, so a
+ * channel whose videos all left the library can still be let back. A key that is not one is 400.
  */
 export async function setChannelHidden(
   db: Kysely<Database>,
@@ -37,6 +37,9 @@ export async function setChannelHidden(
   const held = await db
     .selectFrom("library_entries as e")
     .innerJoin("media as m", "m.id", "e.media_id")
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+    )
     .select("e.id")
     .where("e.user_id", "=", userId)
     .where(inChannel(c))

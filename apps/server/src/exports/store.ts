@@ -5,6 +5,7 @@ import type { Database } from "../db/schema.ts";
 import type { ExportsTable } from "../db/exportsSchema.ts";
 import type { DownloadContext } from "../downloads/dispatch.ts";
 import { ApiError } from "../api/errors.ts";
+import { eff } from "../library/edits.ts";
 import { sponsorBlockOf } from "../library/preferences.ts";
 import { skippedSegments } from "../library/sponsorSegments.ts";
 import { visibleEntry } from "../sharing/access.ts";
@@ -105,15 +106,23 @@ export function describeExport(row: Described, settings: SponsorBlockSettings): 
   };
 }
 
-/** Copies with what describes them: the entry's title and the file's length. */
+/**
+ * Copies with what describes them: the entry's title, as the entry's owner shows it
+ * (docs/library.md#your-own-details; a copy of a shared video is named as it was shared), and the
+ * file's length.
+ */
 function described(db: Kysely<Database>) {
   return db
     .selectFrom("exports as x")
     .innerJoin("renditions as r", "r.id", "x.rendition_id")
     .innerJoin("media as m", "m.id", "r.media_id")
+    .innerJoin("library_entries as e", "e.id", "x.entry_id")
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+    )
     .selectAll("x")
     .select([
-      "m.title",
+      eff.title.as("title"),
       "m.video_id",
       "r.skip_segments",
       "r.video_codec",

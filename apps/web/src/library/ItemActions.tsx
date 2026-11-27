@@ -1,7 +1,7 @@
 import type { ClipRange, LibraryItem } from "@uroboros/contract";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LibraryBig, ListPlus, Pencil, Scissors, Trash2, type LucideIcon } from "lucide-react";
+import { LibraryBig, ListPlus, Scissors, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -57,14 +57,12 @@ function ChannelLine({ item }: { item: LibraryItem }) {
 function IconAction({
   label,
   icon: Icon,
-  variant = "icon",
   disabled = false,
   pressed,
   onClick,
 }: {
   label: string;
   icon: LucideIcon;
-  variant?: "icon" | "destructive";
   disabled?: boolean;
   /** A toggle's state (aria-pressed), in the accent while on. */
   pressed?: boolean;
@@ -73,7 +71,7 @@ function IconAction({
   return (
     <Tooltip label={label}>
       <Button
-        variant={variant}
+        variant="icon"
         size="icon"
         aria-label={label}
         aria-pressed={pressed}
@@ -87,36 +85,31 @@ function IconAction({
   );
 }
 
-function RemoveButton({ item }: { item: LibraryItem }) {
+/**
+ * Remove, from the ⋮ menu: asks first (what goes with it, `removeDescription`), then removes the
+ * entry and goes back to the Library. `dialog` must be rendered once.
+ */
+function useRemoval(item: LibraryItem) {
   const confirm = useConfirm();
   const remove = useRemoveEntry();
   const navigate = useNavigate();
-  return (
-    <>
-      <IconAction
-        label="Remove"
-        icon={Trash2}
-        variant="destructive"
-        onClick={() => {
-          confirm.ask({
-            title: `Remove "${item.title}"?`,
-            description: removeDescription(item.origin),
-            confirmLabel: "Remove",
-            destructive: true,
-            onConfirm: () => {
-              remove.mutate(item.id, {
-                onSuccess: () => void navigate({ to: "/" }),
-                onError: (err) => {
-                  notify.error(errorText(err));
-                },
-              });
-            },
-          });
-        }}
-      />
-      {confirm.dialog}
-    </>
-  );
+  const ask = () => {
+    confirm.ask({
+      title: `Remove "${item.title}"?`,
+      description: removeDescription(item.origin),
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: () => {
+        remove.mutate(item.id, {
+          onSuccess: () => void navigate({ to: "/" }),
+          onError: (err) => {
+            notify.error(errorText(err));
+          },
+        });
+      },
+    });
+  };
+  return { ask, dialog: confirm.dialog };
 }
 
 /** Add to my library, for a video someone shared: the person's own entry on the same file. */
@@ -148,24 +141,6 @@ function AddToMine({ item }: { item: LibraryItem }) {
   );
 }
 
-/** Edit details, on a video the person uploaded (docs/uploads.md). */
-function EditButton({ item }: { item: LibraryItem }) {
-  const [editing, setEditing] = useState(false);
-  if (!item.editable) return null;
-  return (
-    <>
-      <IconAction
-        label="Edit details"
-        icon={Pencil}
-        onClick={() => {
-          setEditing(true);
-        }}
-      />
-      {editing ? <EditDetailsDialog item={item} open onOpenChange={setEditing} /> : null}
-    </>
-  );
-}
-
 interface ActionsProps {
   item: LibraryItem;
   /** Mark as unwatched (the ⋮ menu): the page's player goes back to the start, paused. */
@@ -179,8 +154,8 @@ interface ActionsProps {
 }
 
 /**
- * The watch page's icon buttons, 0.5rem apart: seven of them (an upload's Edit details, Clip) fill a
- * 375 pixel phone's row, so the row wraps rather than widen the page.
+ * The watch page's icon buttons, 0.5rem apart; the row wraps rather than widen a 375 pixel phone's
+ * page.
  */
 const actionRow = "flex flex-wrap items-center gap-2";
 
@@ -199,16 +174,25 @@ function ClipAction({ clip = null, onClip, canClip = false }: ActionsProps) {
 }
 
 /**
- * The person's own actions on their entry, icon buttons each named in its tooltip: Edit details (an
- * upload), Clip, Save, Save to playlist, Share, Remove, and the ⋮ menu (`ItemMenu`).
+ * The person's own actions on their entry, icon buttons each named in its tooltip: Clip, Save, Save
+ * to playlist, Share, and the ⋮ menu (`ItemMenu`), which holds Edit details (for everyone on their
+ * upload, docs/uploads.md; for them alone on any other video, docs/library.md#your-own-details) and
+ * Remove.
  */
 function OwnActions(props: ActionsProps) {
   const { item, onStartOver, clip = null } = props;
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const removal = useRemoval(item);
+  const edit =
+    item.editable || item.personalEditable
+      ? () => {
+          setEditing(true);
+        }
+      : undefined;
   return (
     <>
       <div className={actionRow}>
-        <EditButton item={item} />
         <ClipAction {...props} />
         <SaveFile item={item} clip={clip} />
         <IconAction
@@ -219,12 +203,13 @@ function OwnActions(props: ActionsProps) {
           }}
         />
         <ShareButton kind="entry" id={item.id} title={item.title} clip={clip} iconOnly />
-        <RemoveButton item={item} />
-        <ItemMenu item={item} onStartOver={onStartOver} />
+        <ItemMenu item={item} onStartOver={onStartOver} onEdit={edit} onRemove={removal.ask} />
       </div>
       {saving ? (
         <AddToPlaylist entryId={item.id} title={item.title} open onOpenChange={setSaving} />
       ) : null}
+      {editing ? <EditDetailsDialog item={item} open onOpenChange={setEditing} /> : null}
+      {removal.dialog}
     </>
   );
 }

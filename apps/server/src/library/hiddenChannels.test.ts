@@ -164,6 +164,44 @@ describe("hiding a channel from the library", () => {
     expect(await titles(alice, "?hidden=false")).toContain("Beta one");
   });
 
+  it("follows a video the caller moved to another channel (docs/library.md#your-own-details)", async () => {
+    const carol = await signedIn(testDb.db, { username: "hccarol" });
+    const moved = async (
+      videoId: string,
+      title: string,
+      from: string,
+      to: Record<string, string | null>,
+    ) => {
+      await entry(carol, videoId, title, { channelId: from, name: from });
+      const media = await testDb.db
+        .selectFrom("media")
+        .select("id")
+        .where("video_id", "=", videoId)
+        .executeTakeFirstOrThrow();
+      await testDb.db
+        .insertInto("media_edits")
+        .values({ user_id: carol.userId, media_id: media.id, ...to })
+        .execute();
+    };
+    await entry(carol, "hc-c1", "Alpha's own", { channelId: "UC-alpha", name: "Alpha" });
+    await moved("hc-c2", "Moved into Alpha", "UC-gamma", {
+      channel: "Alpha",
+      channel_extractor: "youtube",
+      channel_id: "UC-alpha",
+    });
+    await moved("hc-c3", "Moved out of Alpha", "UC-alpha", {
+      channel: "Elsewhere",
+      channel_extractor: "youtube",
+      channel_id: null,
+    });
+    expect((await hide(carol, ALPHA, true)).status).toBe(204);
+    expect(await titles(carol, "?hidden=false")).toEqual(["Moved out of Alpha"]);
+    expect(await titles(carol, "?hidden=true")).toEqual(["Alpha's own", "Moved into Alpha"]);
+    const elsewhere = channelKey("youtube", null, "Elsewhere") ?? "";
+    expect((await hide(carol, elsewhere, true)).status).toBe(204);
+    expect(await titles(carol, "?hidden=false")).toEqual([]);
+  });
+
   it("refuses a key that is not one (400), and hides only a channel in the library (404)", async () => {
     expect((await hide(alice, "not-a-key", true)).status).toBe(400);
     expect((await hide(alice, ALPHA, "yes")).status).toBe(400);

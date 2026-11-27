@@ -1,16 +1,18 @@
 import { sql } from "kysely";
+import { eff } from "./edits.ts";
 
 /**
- * The channel a library entry's video is in, as SQL over its media row `m` (docs/library.md
- * "Channels and playlists"): the extractor, the site's channel id, and the name, the channel's or
- * else the uploader's. A channel key names a channel by its id or, when the site gives none, by its
+ * The channel a library entry's video shows in for the entry's owner (docs/library.md "Channels
+ * and playlists"): its site's, or the one they moved it to (docs/library.md#your-own-details), so
+ * SQL over the media row `m` and the owner's `media_edits` row `ed`, which a query reading it must
+ * left-join. A channel key names a channel by its extractor and id or, when there is none, by its
  * name (`channelKey.ts`). The channel filter and hiding both read it here, so they always agree on
  * which channel a video is in.
  */
 export const channelOf = {
-  extractor: sql<string>`m.extractor`,
-  id: sql<string | null>`m.channel_id`,
-  name: sql<string | null>`coalesce(m.channel, m.uploader)`,
+  extractor: eff.channelExtractor,
+  id: eff.channelId,
+  name: eff.channelName,
 };
 
 /** A channel as a parsed key names it. */

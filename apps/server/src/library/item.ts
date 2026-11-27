@@ -1,11 +1,12 @@
 import { Chapter, type LibraryItem } from "@uroboros/contract";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { playlistsHolding } from "../playlists/listing.ts";
 import { visibleEntry } from "../sharing/access.ts";
-import { UPLOAD_EXTRACTOR } from "./platform.ts";
+import { eff } from "./edits.ts";
+import { detailsFacts, type DetailsRow } from "./ownDetails.ts";
 import { base, ENTRY_COLUMNS, toEntry, type EntryRow } from "./query.ts";
 import { sponsorBlockOf } from "./preferences.ts";
 import { refetchSource } from "./skipRefetch.ts";
@@ -30,7 +31,11 @@ export async function getItem(
     .where("e.id", "=", entryId)
     .select([
       ...ENTRY_COLUMNS,
-      "m.description",
+      eff.description.as("description"),
+      eff.edited.as("edited"),
+      "m.title as site_title",
+      "m.description as site_description",
+      sql<string | null>`coalesce(m.channel, m.uploader)`.as("site_channel"),
       "m.chapters",
       "m.webpage_url",
       "m.uploaded_by",
@@ -44,16 +49,17 @@ export async function getItem(
       "r.height",
     ] as never)
     .executeTakeFirst()) as
-    | (EntryRow & {
-        description: string | null;
-        chapters: unknown;
-        webpage_url: string | null;
-        uploaded_by: string | null;
-        rendition_id: string;
-        skip_segments: unknown;
-        sponsor_highlight: number | null;
-        audio_codec: string | null;
-      } & RenditionPlayback)
+    | (EntryRow &
+        DetailsRow & {
+          description: string | null;
+          chapters: unknown;
+          webpage_url: string | null;
+          uploaded_by: string | null;
+          rendition_id: string;
+          skip_segments: unknown;
+          sponsor_highlight: number | null;
+          audio_codec: string | null;
+        } & RenditionPlayback)
     | undefined;
   if (row === undefined) throw new ApiError("not_found", "no such library entry");
   const [subs, sources, playlists, refetchable, sponsorBlock] = await Promise.all([
@@ -87,7 +93,7 @@ export async function getItem(
     audioCodec: row.audio_codec,
     playbackUrl: `/api/library/${entryId}/playback`,
     sharedBy: seen.own ? null : seen.owner_name,
-    editable: seen.own && row.extractor === UPLOAD_EXTRACTOR && row.uploaded_by === userId,
+    ...detailsFacts(row, userId, seen.own),
     ...playbackFacts(row, maxShort),
   };
 }

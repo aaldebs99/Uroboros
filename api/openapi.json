@@ -1088,11 +1088,6 @@
             "type": "string"
           }
         },
-        "required": [
-          "title",
-          "description",
-          "creator"
-        ],
         "type": "object"
       },
       "EntryOrigin": {
@@ -1695,9 +1690,20 @@
               "editable": {
                 "type": "boolean"
               },
+              "edited": {
+                "default": false,
+                "type": "boolean"
+              },
               "height": {
                 "nullable": true,
                 "type": "integer"
+              },
+              "original": {
+                "$ref": "#/components/schemas/OriginalDetails"
+              },
+              "personalEditable": {
+                "default": false,
+                "type": "boolean"
               },
               "playbackUrl": {
                 "type": "string"
@@ -2461,6 +2467,29 @@
           "downloads",
           "shares",
           "groups"
+        ],
+        "type": "object"
+      },
+      "OriginalDetails": {
+        "default": null,
+        "nullable": true,
+        "properties": {
+          "channel": {
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "channel"
         ],
         "type": "object"
       },
@@ -7293,6 +7322,38 @@
       }
     },
     "/api/library/{id}/details": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Reset, or nothing of the caller's own to reset"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not the caller's entry"
+          }
+        },
+        "summary": "Drop the caller's own title, description and channel of the video, back to its site's (or its uploader's)",
+        "tags": [
+          "library"
+        ]
+      },
       "patch": {
         "parameters": [
           {
@@ -7336,16 +7397,6 @@
             },
             "description": "A blank title or creator, or one too long"
           },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorBody"
-                }
-              }
-            },
-            "description": "A downloaded video, or someone else's upload"
-          },
           "404": {
             "content": {
               "application/json": {
@@ -7357,7 +7408,7 @@
             "description": "Not the caller's entry"
           }
         },
-        "summary": "Change an uploaded video's title, description and creator (its uploader only)",
+        "summary": "Change the video's title, description and channel (creator), each only when given: for everyone on the caller's own upload, for the caller alone on any other video of theirs",
         "tags": [
           "library"
         ]
