@@ -107,8 +107,9 @@ link's host without `www.`, `m.`, `mobile.` or `music.`; youtu.be is youtube.com
 `src/downloads/rateLimits.ts`). It lasts as long as the site said, when its message says
 (`cooldownHintMs` in `@uroboros/ytdlp`: YouTube's "for up to an hour", "try again in 30 seconds",
 a quoted Retry-After; yt-dlp never prints the response's headers), and otherwise an estimate that
-doubles with each limit in a row: 1, 2, 4… minutes, up to an hour. A cooldown already running
-longer stands, and the first run the site answers after it ends clears the count.
+doubles with each limit in a row: 5, 10, 20… minutes, up to 2 hours, and for subtitles (which nobody
+waits on to watch) 15, 30, 60… minutes, up to 6 hours. A cooldown already running longer stands,
+and the first run the site answers after it ends clears the count.
 
 While a site cools down, nothing asks it anything: a fetch, a pasted link's probe, a
 subscription check and a hover preview's download ([library.md](library.md#hover-previews)) each go

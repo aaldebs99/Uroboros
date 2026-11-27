@@ -76,7 +76,7 @@ describe("a subscription check the site rate-limits", () => {
       exitCode: 1,
     });
     expect(err).toBeInstanceOf(RequeueError);
-    expect((err as RequeueError).delayMs).toBeGreaterThanOrEqual(58_000);
+    expect((err as RequeueError).delayMs).toBeGreaterThanOrEqual(298_000);
     expect(await state(id)).toMatchObject({
       failures: 0,
       lease_until: null,

@@ -163,8 +163,8 @@ describe("a fetch the site rate-limits", () => {
     const data = await queued("rl1.example");
     const deps = await h.deps({ steps: [LIMITED], exitCode: 1 });
     const err = await requeued(fetchProcessor(deps, createCancelRegistry())(job(data)));
-    expect(err.delayMs).toBeGreaterThanOrEqual(58_000);
-    expect(err.delayMs).toBeLessThanOrEqual(76_000);
+    expect(err.delayMs).toBeGreaterThanOrEqual(298_000);
+    expect(err.delayMs).toBeLessThanOrEqual(316_000);
     const r = await row(data);
     expect(r).toMatchObject({ state: "queued", error_kind: "rate_limited", attempts: 0 });
     expect(r.retry_at).not.toBeNull();
@@ -309,7 +309,7 @@ describe("subtitles the site rate-limits", () => {
     expect(await activeCooldown(testDb.db, "rl5.example", "site")).toBeNull();
     const jobs = await subtitleJobs(data.videoId);
     expect(jobs).toEqual([expect.objectContaining({ queue: "probe", name: "subtitles" })]);
-    expect(Number(jobs[0]?.in_s)).toBeGreaterThan(55);
+    expect(Number(jobs[0]?.in_s)).toBeGreaterThan(895);
     // Logged as subtitles, and the person told their subtitles wait.
     expect(await loggedLimits(testDb.db, "rl5.example")).toEqual([
       expect.objectContaining({

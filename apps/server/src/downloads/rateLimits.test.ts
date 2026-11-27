@@ -66,16 +66,42 @@ describe("siteOf", () => {
 });
 
 describe("a site's cooldown", () => {
-  it("waits 1, 2, then 4 minutes for limits in a row when the site gives no time", async () => {
+  it("waits 5, 10, then 20 minutes for limits in a row when the site gives no time", async () => {
     expect(await activeCooldown(t.db, "a.test", "site")).toBeNull();
-    expect(await secondsTo(await noteRateLimit(t.db, "a.test", "site", null))).toBe(60);
+    expect(await secondsTo(await noteRateLimit(t.db, "a.test", "site", null))).toBe(300);
     await expire("a.test");
-    expect(await secondsTo(await noteRateLimit(t.db, "a.test", "site", null))).toBe(120);
+    expect(await secondsTo(await noteRateLimit(t.db, "a.test", "site", null))).toBe(600);
     await expire("a.test");
-    expect(await secondsTo(await noteRateLimit(t.db, "a.test", "site", null))).toBe(240);
+    expect(await secondsTo(await noteRateLimit(t.db, "a.test", "site", null))).toBe(1200);
     expect(await activeCooldown(t.db, "a.test", "site")).toBeInstanceOf(Date);
     // The other scope is its own.
     expect(await activeCooldown(t.db, "a.test", "subtitles")).toBeNull();
+  });
+
+  it("waits at most 2 hours for a site, however many limits in a row", async () => {
+    await noteRateLimit(t.db, "cap.test", "site", null);
+    await t.db
+      .updateTable("site_cooldowns")
+      .set({ strikes: 12 })
+      .where("site", "=", "cap.test")
+      .execute();
+    await expire("cap.test");
+    expect(await secondsTo(await noteRateLimit(t.db, "cap.test", "site", null))).toBe(7200);
+  });
+
+  it("waits longer for subtitles, which nobody waits to watch: 15, 30, 60 minutes, at most 6 hours", async () => {
+    expect(await secondsTo(await noteRateLimit(t.db, "subs.test", "subtitles", null))).toBe(900);
+    await expire("subs.test");
+    expect(await secondsTo(await noteRateLimit(t.db, "subs.test", "subtitles", null))).toBe(1800);
+    await expire("subs.test");
+    expect(await secondsTo(await noteRateLimit(t.db, "subs.test", "subtitles", null))).toBe(3600);
+    await t.db
+      .updateTable("site_cooldowns")
+      .set({ strikes: 12 })
+      .where("site", "=", "subs.test")
+      .execute();
+    await expire("subs.test");
+    expect(await secondsTo(await noteRateLimit(t.db, "subs.test", "subtitles", null))).toBe(21_600);
   });
 
   it("waits as long as the site said, and never less than it already waits", async () => {
@@ -90,8 +116,8 @@ describe("a site's cooldown", () => {
     expect(await activeCooldown(t.db, "c.test", "subtitles")).not.toBeNull();
     await expire("c.test");
     await clearRateLimit(t.db, "c.test", "subtitles");
-    // Cleared, so the next limit starts the estimate over at a minute.
-    expect(await secondsTo(await noteRateLimit(t.db, "c.test", "subtitles", null))).toBe(60);
+    // Cleared, so the next limit starts the estimate over: 15 minutes for subtitles.
+    expect(await secondsTo(await noteRateLimit(t.db, "c.test", "subtitles", null))).toBe(900);
   });
 
   it("puts waiting jobs back just after it ends, spread over 15 seconds", () => {

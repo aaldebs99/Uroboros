@@ -8,13 +8,20 @@ import type { Database } from "../db/schema.ts";
  * answers with a rate limit (yt-dlp's `rate_limited`) records a cooldown for the site; every run
  * that would ask the site something checks it first and, while it lasts, goes back to its queue
  * without asking. A cooldown is as long as the site said (`YtDlpError.retryAfterMs`), or else an
- * estimate that doubles with each limit in a row: 1, 2, 4… minutes, up to an hour. `subtitles`
- * holds back only the subtitle requests, which YouTube limits on their own.
+ * estimate that doubles with each limit in a row (`ESTIMATES`). `subtitles` holds back only the
+ * subtitle requests, which YouTube limits on their own.
  */
 export type CooldownScope = "site" | "subtitles";
 
-const FIRST_WAIT_S = 60;
-const LONGEST_WAIT_S = 3600;
+/**
+ * The estimated cooldown's first wait and its longest, in seconds, doubling in between: a site's
+ * 5, 10, 20… minutes up to 2 hours; its subtitles', which nobody waits on to watch, 15, 30, 60…
+ * minutes up to 6 hours.
+ */
+const ESTIMATES = {
+  site: { first: 5 * 60, longest: 2 * 3600 },
+  subtitles: { first: 15 * 60, longest: 6 * 3600 },
+} as const satisfies Record<CooldownScope, { first: number; longest: number }>;
 /** Waiting jobs come back spread over this much past the cooldown, rather than all at once. */
 const SPREAD_MS = 15_000;
 
@@ -100,17 +107,18 @@ export async function noteRateLimitLogged(
   event: LimitEvent,
 ): Promise<{ until: Date; eventId: string }> {
   const hint = hintMs === null ? null : hintMs / 1000;
+  const { first, longest } = ESTIMATES[scope];
   const wait = (estimate: ReturnType<typeof sql>) =>
     sql`now() + make_interval(secs => coalesce(${hint}::double precision, ${estimate}))`;
   const { rows } = await sql<{ until: Date; event_id: string }>`
     WITH cooldown AS (
       INSERT INTO site_cooldowns AS c (site, scope, until, strikes)
-      VALUES (${site}, ${scope}, ${wait(sql`${FIRST_WAIT_S}::double precision`)}, 1)
+      VALUES (${site}, ${scope}, ${wait(sql`${first}::double precision`)}, 1)
       ON CONFLICT (site, scope) DO UPDATE SET
         strikes = c.strikes + 1,
         until = greatest(
           c.until,
-          ${wait(sql`least(${LONGEST_WAIT_S}, ${FIRST_WAIT_S} * power(2, c.strikes))::double precision`)})
+          ${wait(sql`least(${longest}, ${first} * power(2, c.strikes))::double precision`)})
       RETURNING until, strikes
     ), logged AS (
       INSERT INTO rate_limit_events
