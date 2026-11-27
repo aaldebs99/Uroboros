@@ -175,9 +175,15 @@ export const ChannelSummary = z
     count: z.number().int(),
     latestUpload: z.string().nullable(),
     coverThumbnailUrl: z.string().nullable(),
+    /** Whether the caller keeps this channel's videos out of the library (`hidden=false`). */
+    hideFromLibrary: z.boolean(),
   })
   .openapi("ChannelSummary");
 export type ChannelSummary = z.infer<typeof ChannelSummary>;
+
+/** `PUT /api/library/channels/{key}/hidden`: whether the channel keeps its videos out of the library. */
+export const ChannelHiddenBody = z.object({ hidden: z.boolean() }).openapi("ChannelHiddenBody");
+export type ChannelHiddenBody = z.infer<typeof ChannelHiddenBody>;
 
 export const ProgressBody = z
   .object({ position: z.number().min(0), duration: z.number().positive() })

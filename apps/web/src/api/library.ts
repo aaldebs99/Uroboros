@@ -137,6 +137,19 @@ export function useChannels() {
   });
 }
 
+/**
+ * Keeps a channel's videos out of Library › Videos and Audio, or lets them back (docs/library.md
+ * "Hiding from the library"), refreshing the channels and every library list.
+ */
+export function useSetChannelHidden() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, hidden }: { key: string; hidden: boolean }) =>
+      putNoContent(`/api/library/channels/${encodeURIComponent(key)}/hidden`, { hidden }),
+    onSettled: () => client.invalidateQueries({ queryKey: libraryKey }),
+  });
+}
+
 export function useRemoveEntry() {
   const client = useQueryClient();
   return useMutation({

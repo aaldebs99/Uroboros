@@ -118,9 +118,9 @@ export async function updatePlaylist(
 
 /**
  * Whether one of the caller's playlists keeps its videos out of Library › Videos and Audio
- * (docs/library.md "Hidden playlists"): a manual playlist for its owner, a YouTube playlist on the
- * caller's own `user_sources` row, so for them alone. It isn't a change to the playlist: its place
- * in the list stays. Another person's is 404.
+ * (docs/library.md "Hiding from the library"): a manual playlist for its owner, a YouTube playlist
+ * on the caller's own `user_sources` row, so for them alone. It isn't a change to the playlist: its
+ * place in the list stays. Another person's is 404.
  */
 export async function setPlaylistHidden(
   db: Kysely<Database>,

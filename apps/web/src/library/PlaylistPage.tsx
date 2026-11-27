@@ -1,15 +1,6 @@
 import type { PlaylistDetail } from "@uroboros/contract";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  Copy,
-  ExternalLink,
-  EyeOff,
-  ListOrdered,
-  Pencil,
-  Play,
-  SearchX,
-  Trash2,
-} from "lucide-react";
+import { Copy, ExternalLink, ListOrdered, Pencil, Play, SearchX, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { errorText } from "@/api/client";
@@ -35,6 +26,7 @@ import { LibraryGrid } from "./LibraryGrid";
 import { playlistMeta } from "./playlistMeta";
 import { PlaylistDialog } from "./PlaylistDialog";
 import { PlaylistEditor } from "./PlaylistEditor";
+import { HideFromLibraryButton } from "./HideFromLibraryButton";
 
 /** "Play all": the first video, playing the playlist in order (`?list=`). */
 function PlayAll({ playlistId, first }: { playlistId: string; first: string | undefined }) {
@@ -48,38 +40,15 @@ function PlayAll({ playlistId, first }: { playlistId: string; first: string | un
   );
 }
 
-/**
- * Hide from library, for either kind: the playlist's videos stay out of Library › Videos and Audio
- * until it is pressed again (docs/library.md "Hidden playlists").
- */
+/** Hide from library, for either kind (docs/library.md "Hiding from the library"). */
 function HideFromLibrary({ playlist }: { playlist: PlaylistDetail }) {
   const hide = usePlaylistAction(setPlaylistHidden);
-  const hidden = playlist.hideFromLibrary;
   return (
-    <Button
-      variant="secondary"
-      aria-pressed={hidden}
-      disabled={hide.isPending}
-      onClick={() => {
-        hide.mutate(
-          { id: playlist.id, hidden: !hidden },
-          {
-            onSuccess: () => {
-              notify.success(
-                hidden
-                  ? "Its videos show in your library again."
-                  : "Its videos are hidden from your library.",
-              );
-            },
-            onError: (error) => {
-              notify.error(errorText(error));
-            },
-          },
-        );
-      }}
-    >
-      <EyeOff aria-hidden /> Hide from library
-    </Button>
+    <HideFromLibraryButton
+      hidden={playlist.hideFromLibrary}
+      pending={hide.isPending}
+      toggle={(hidden) => hide.mutateAsync({ id: playlist.id, hidden })}
+    />
   );
 }
 

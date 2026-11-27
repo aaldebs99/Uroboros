@@ -19,7 +19,7 @@ import type {
   UserDefaultProfilesTable,
 } from "./profilesSchema.ts";
 import type { NoticesTable } from "./noticesSchema.ts";
-import type { UserPreferencesTable } from "./preferencesSchema.ts";
+import type { HiddenChannelsTable, UserPreferencesTable } from "./preferencesSchema.ts";
 import type { SiteCooldownsTable } from "./rateLimitsSchema.ts";
 import type { MediaEditsTable } from "./editsSchema.ts";
 import type { SaveLinksTable } from "./saveLinksSchema.ts";
@@ -392,7 +392,10 @@ export interface PlaylistsTable {
   user_id: string;
   name: string;
   description: string | null;
-  /** Its videos stay out of Library › Videos and Audio (docs/library.md "Hidden playlists"). */
+  /**
+   * Its videos stay out of Library › Videos and Audio (docs/library.md "Hiding from the
+   * library").
+   */
   hide_from_library: Generated<boolean>;
   created_at: Created;
   updated_at: Defaulted<Date | string>;
@@ -459,6 +462,7 @@ export interface Database {
   group_members: GroupMembersTable;
   notification_prefs: NotificationPrefsTable;
   user_preferences: UserPreferencesTable;
+  hidden_channels: HiddenChannelsTable;
   site_cooldowns: SiteCooldownsTable;
   jobs: JobsTable;
   job_limits: JobLimitsTable;

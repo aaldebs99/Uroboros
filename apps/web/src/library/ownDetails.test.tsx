@@ -47,6 +47,7 @@ const channel = (name: string) => ({
   count: 1,
   latestUpload: null,
   coverThumbnailUrl: null,
+  hideFromLibrary: false,
 });
 
 async function openEditor(shown: LibraryItem, routes: Record<string, Handler> = {}) {

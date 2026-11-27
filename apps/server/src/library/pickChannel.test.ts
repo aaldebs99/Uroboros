@@ -17,6 +17,7 @@ const channel = (
   count,
   latestUpload: null,
   coverThumbnailUrl: null,
+  hideFromLibrary: false,
 });
 
 describe("pickChannel", () => {

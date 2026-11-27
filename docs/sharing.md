@@ -30,7 +30,7 @@ order.
 
 `PUT /api/playlists/{id}/hidden` keeps a playlist of either kind out of the library, or lets it
 back, for the caller alone (a YouTube one on their own `user_sources` row); `hideFromLibrary` says
-which ([library.md](library.md#hidden-playlists)).
+which ([library.md](library.md#hiding-from-the-library)).
 
 `POST /api/playlists/{id}/copy` is **Save as my playlist**: a manual playlist of the person's
 videos from either kind, in its order. On the watch page, `?list={id}` plays a playlist in order:
