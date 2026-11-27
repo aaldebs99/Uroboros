@@ -9,6 +9,7 @@ import { sql, type Kysely, type RawBuilder, type SelectQueryBuilder } from "kyse
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
 import { channelKey, parseChannelKey } from "./channelKey.ts";
+import { channelHides, inChannel } from "./channelMatch.ts";
 import { linkMatch } from "./linkMatch.ts";
 import { originOf, platformName } from "./platform.ts";
 import { thumbnailUrl } from "./thumbnailUrl.ts";
@@ -31,7 +32,10 @@ export interface LibraryFilters {
   watched?: boolean | undefined;
   /** Only the entries in one of the owner's playlists, of either kind (true), or in none (false). */
   inPlaylist?: boolean | undefined;
-  /** Only the entries one of the owner's playlists hides from the library (true), or none hides (false). */
+  /**
+   * Only the entries the owner keeps out of the library, by a playlist or a channel that hides
+   * (true), or those nothing keeps out (false).
+   */
   hidden?: boolean | undefined;
   /** Only the files with a picture (video), or only those without (audio). */
   kind?: LibraryKind | undefined;
@@ -112,12 +116,7 @@ type Base = ReturnType<typeof base>;
 function channelFilter(qb: Base, key: string): Base {
   const c = parseChannelKey(key);
   if (c === null) throw new ApiError("bad_request", "not a valid channel key");
-  const scoped = qb.where("m.extractor", "=", c.extractor);
-  return c.kind === "id"
-    ? scoped.where("m.channel_id", "=", c.value)
-    : scoped
-        .where("m.channel_id", "is", null)
-        .where(sql<string>`coalesce(m.channel, m.uploader)`, "=", c.value);
+  return qb.where(inChannel(c));
 }
 
 /** The entries of the video a pasted link points at (`linkMatch`). */
@@ -131,9 +130,10 @@ function linkFilter(qb: Base, link: string): Base {
 /**
  * The entries in one of the owner's playlists (`listed`), or in none: one they made
  * (`playlist_items`), or a YouTube one they have (`user_sources`), which lists videos by extractor
- * and id. With `hiding`, only the playlists that keep their videos out of the library count
- * (docs/library.md "Hidden playlists"). Both lookups are on an index: `playlist_items_entry_idx`
- * and `source_items`' key.
+ * and id. With `hiding`, only what keeps videos out of the library counts (docs/library.md "Hiding
+ * from the library"): the playlists that hide, and the channels the owner hides. The playlist
+ * lookups are on an index, `playlist_items_entry_idx` and `source_items`' key, and the channel's on
+ * `hidden_channels`' key.
  */
 function playlistFilter(qb: Base, listed: boolean, hiding = false): Base {
   return qb.where((eb) => {
@@ -152,6 +152,7 @@ function playlistFilter(qb: Base, listed: boolean, hiding = false): Base {
     const inAny = eb.or([
       eb.exists(hiding ? made.where("p.hide_from_library", "=", true) : made),
       eb.exists(hiding ? youtube.where("us.hide_from_library", "=", true) : youtube),
+      ...(hiding ? [channelHides] : []),
     ]);
     return listed ? inAny : eb.not(inAny);
   });

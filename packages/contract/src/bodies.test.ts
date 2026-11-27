@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ChannelHiddenBody,
   FormatProfilePatch,
   GroupMembersBody,
   McpUpdateEntryInput,
@@ -165,6 +166,12 @@ describe("tags and preferences", () => {
     expect(PlaylistHiddenBody.parse({ hidden: true })).toEqual({ hidden: true });
     expect(ok(PlaylistHiddenBody, { hidden: "yes" })).toBe(false);
     expect(ok(PlaylistHiddenBody, {})).toBe(false);
+  });
+
+  it("a channel is hidden from the library or not, nothing else", () => {
+    expect(ChannelHiddenBody.parse({ hidden: false })).toEqual({ hidden: false });
+    expect(ok(ChannelHiddenBody, { hidden: 1 })).toBe(false);
+    expect(ok(ChannelHiddenBody, {})).toBe(false);
   });
 });
 

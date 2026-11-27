@@ -66,6 +66,7 @@ export {
 } from "./downloads.ts";
 export {
   Chapter,
+  ChannelHiddenBody,
   ChannelSummary,
   EntryRef,
   LIBRARY_PAGE_SIZE,

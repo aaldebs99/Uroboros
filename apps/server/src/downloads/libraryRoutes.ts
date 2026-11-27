@@ -2,6 +2,7 @@ import { extname } from "node:path";
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   ApiErrorBody,
+  ChannelHiddenBody,
   ChannelSummary,
   LIBRARY_PAGE_SIZE,
   LibraryKind,
@@ -16,6 +17,7 @@ import { currentPrincipal } from "../api/principal.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import { sanitizeSegment, type MediaStore } from "../storage/index.ts";
 import { listChannels } from "../library/channels.ts";
+import { setChannelHidden } from "../library/hiddenChannels.ts";
 import { listLibraryPage } from "../library/query.ts";
 import { visibleEntry } from "../sharing/access.ts";
 import { removeEntry } from "./library.ts";
@@ -85,7 +87,7 @@ const libraryQuery = z.object({
     .openapi({
       param: { name: "hidden", in: "query" },
       description:
-        "false: leave out the videos one of the caller's playlists hides from the library (PUT /api/playlists/{id}/hidden), as Library › Videos and Audio do; true: only those",
+        "false: leave out the videos the caller keeps out of the library, by a playlist (PUT /api/playlists/{id}/hidden) or a channel (PUT /api/library/channels/{key}/hidden), as Library › Videos and Audio do; true: only those",
     }),
   kind: LibraryKind.optional().openapi({
     param: { name: "kind", in: "query" },
@@ -132,6 +134,23 @@ const channelsRoute = createRoute({
   tags: ["library"],
   summary: "The channels in the caller's library, most entries first",
   responses: { 200: json(z.array(ChannelSummary), "Channels") },
+});
+
+const channelHiddenRoute = createRoute({
+  method: "put",
+  path: "/api/library/channels/{key}/hidden",
+  tags: ["library"],
+  summary:
+    "Keep a channel's videos out of the library (GET /api/library?hidden=false), or let them back; for the caller alone",
+  request: {
+    params: z.object({ key: z.string().min(1).max(2000) }),
+    body: { required: true, content: { "application/json": { schema: ChannelHiddenBody } } },
+  },
+  responses: {
+    204: { description: "Done" },
+    400: error("Not a channel key"),
+    404: error("No such channel in the caller's library"),
+  },
 });
 
 const removeRoute = createRoute({
@@ -279,6 +298,11 @@ export function registerLibraryRoutes(
   app.openapi(channelsRoute, async (c) =>
     c.json(await listChannels(db, currentPrincipal(c).userId), 200),
   );
+  app.openapi(channelHiddenRoute, async (c) => {
+    const { hidden } = c.req.valid("json");
+    await setChannelHidden(db, currentPrincipal(c).userId, c.req.valid("param").key, hidden);
+    return c.body(null, 204);
+  });
 
   app.openapi(removeRoute, async (c) => {
     await removeEntry(db, currentPrincipal(c).userId, c.req.valid("param").id);

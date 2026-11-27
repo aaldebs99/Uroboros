@@ -13,3 +13,16 @@ export interface UserPreferencesTable {
   /** JSONB: the SponsorBlock colors changed from the extension's (key → `#rrggbb`). */
   sponsorblock_colors: ColumnType<unknown, string | undefined, string>;
 }
+
+/**
+ * `hidden_channels`: the channels a person keeps out of Library › Videos and Audio
+ * (docs/library.md#hiding-from-the-library), keyed as a channel key is: the extractor, then the
+ * site's channel id (`id`) or, without one, the channel's name (`name`).
+ */
+export interface HiddenChannelsTable {
+  user_id: string;
+  extractor: string;
+  kind: "id" | "name";
+  value: string;
+  created_at: ColumnType<Date, Date | string | undefined, never>;
+}

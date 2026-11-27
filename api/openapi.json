@@ -303,6 +303,17 @@
         ],
         "type": "object"
       },
+      "ChannelHiddenBody": {
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "hidden"
+        ],
+        "type": "object"
+      },
       "ChannelSummary": {
         "properties": {
           "count": {
@@ -314,6 +325,9 @@
           },
           "extractor": {
             "type": "string"
+          },
+          "hideFromLibrary": {
+            "type": "boolean"
           },
           "key": {
             "type": "string"
@@ -332,7 +346,8 @@
           "extractor",
           "count",
           "latestUpload",
-          "coverThumbnailUrl"
+          "coverThumbnailUrl",
+          "hideFromLibrary"
         ],
         "type": "object"
       },
@@ -6975,12 +6990,12 @@
             }
           },
           {
-            "description": "false: leave out the videos one of the caller's playlists hides from the library (PUT /api/playlists/{id}/hidden), as Library › Videos and Audio do; true: only those",
+            "description": "false: leave out the videos the caller keeps out of the library, by a playlist (PUT /api/playlists/{id}/hidden) or a channel (PUT /api/library/channels/{key}/hidden), as Library › Videos and Audio do; true: only those",
             "in": "query",
             "name": "hidden",
             "required": false,
             "schema": {
-              "description": "false: leave out the videos one of the caller's playlists hides from the library (PUT /api/playlists/{id}/hidden), as Library › Videos and Audio do; true: only those",
+              "description": "false: leave out the videos the caller keeps out of the library, by a playlist (PUT /api/playlists/{id}/hidden) or a channel (PUT /api/library/channels/{key}/hidden), as Library › Videos and Audio do; true: only those",
               "enum": [
                 "true",
                 "false"
@@ -7093,6 +7108,61 @@
           }
         },
         "summary": "The channels in the caller's library, most entries first",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/library/channels/{key}/hidden": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelHiddenBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Done"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Not a channel key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such channel in the caller's library"
+          }
+        },
+        "summary": "Keep a channel's videos out of the library (GET /api/library?hidden=false), or let them back; for the caller alone",
         "tags": [
           "library"
         ]

@@ -19,7 +19,7 @@ import type {
   UserDefaultProfilesTable,
 } from "./profilesSchema.ts";
 import type { NoticesTable } from "./noticesSchema.ts";
-import type { UserPreferencesTable } from "./preferencesSchema.ts";
+import type { HiddenChannelsTable, UserPreferencesTable } from "./preferencesSchema.ts";
 import type { SiteCooldownsTable } from "./rateLimitsSchema.ts";
 import type { SaveLinksTable } from "./saveLinksSchema.ts";
 import type { GroupMembersTable, GroupsTable } from "./groupsSchema.ts";
@@ -457,6 +457,7 @@ export interface Database {
   group_members: GroupMembersTable;
   notification_prefs: NotificationPrefsTable;
   user_preferences: UserPreferencesTable;
+  hidden_channels: HiddenChannelsTable;
   site_cooldowns: SiteCooldownsTable;
   jobs: JobsTable;
   job_limits: JobLimitsTable;
