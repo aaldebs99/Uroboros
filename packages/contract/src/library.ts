@@ -82,6 +82,16 @@ export const SubtitleTrack = z
 export type SubtitleTrack = z.infer<typeof SubtitleTrack>;
 
 /** One entry with what its page and player need. */
+/** A video's own details, its site's (or its uploader's), under the caller's own. */
+export const OriginalDetails = z
+  .object({
+    title: z.string(),
+    description: z.string().nullable(),
+    channel: z.string().nullable(),
+  })
+  .openapi("OriginalDetails");
+export type OriginalDetails = z.infer<typeof OriginalDetails>;
+
 export const LibraryItem = LibraryEntry.extend({
   description: z.string().nullable(),
   chapters: z.array(Chapter),
@@ -112,8 +122,16 @@ export const LibraryItem = LibraryEntry.extend({
   playbackUrl: z.string(),
   /** The owner's name when the caller sees it through a share (docs/sharing.md); null for their own. */
   sharedBy: z.string().nullable(),
-  /** The caller uploaded it and may edit its details and thumbnail (docs/uploads.md). */
+  /** The caller uploaded it and may edit its details and thumbnail, for everyone (docs/uploads.md). */
   editable: z.boolean(),
+  /**
+   * Any other video of the caller's own: they may give it details of their own, for them alone
+   * (docs/library.md#your-own-details).
+   */
+  personalEditable: z.boolean().default(false),
+  /** The caller's own details are showing; `original` holds the ones they replaced. */
+  edited: z.boolean().default(false),
+  original: OriginalDetails.nullable().default(null),
   ...PlaybackFacts.shape,
 }).openapi("LibraryItem");
 export type LibraryItem = z.infer<typeof LibraryItem>;
