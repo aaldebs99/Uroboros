@@ -8,7 +8,13 @@ import { Dialog, DialogContent, DialogTitle } from "./dialog";
 
 const SITES = ["avimeo", "twitch", "vimeo", "vk"];
 
-function Harness({ onSubmit = () => undefined }: { onSubmit?: () => void }) {
+function Harness({
+  onSubmit = () => undefined,
+  free = false,
+}: {
+  onSubmit?: () => void;
+  free?: boolean;
+}) {
   const [value, setValue] = useState("");
   return (
     <form
@@ -17,7 +23,14 @@ function Harness({ onSubmit = () => undefined }: { onSubmit?: () => void }) {
         onSubmit();
       }}
     >
-      <ComboboxField label="Site" options={SITES} value={value} onChange={setValue} />
+      <ComboboxField
+        label="Site"
+        options={SITES}
+        value={value}
+        onChange={setValue}
+        free={free}
+        maxLength={12}
+      />
       <output aria-label="Picked">{value}</output>
       <button type="submit">Save</button>
     </form>
@@ -87,5 +100,32 @@ describe("ComboboxField", () => {
     await userEvent.keyboard("{Escape}");
     expect(input).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("dialog", { name: "Add a login" })).toBeInTheDocument();
+  });
+
+  it("keeps typed text that matches nothing when free, suggests what it holds, and Enter submits", async () => {
+    const submitted = vi.fn();
+    render(<Harness onSubmit={submitted} free />);
+    const input = screen.getByRole("combobox", { name: "Site" });
+    expect(input).toHaveAttribute("maxlength", "12");
+    await userEvent.type(input, "vi");
+    expect(options()).toEqual(["vimeo", "avimeo"]);
+    expect(screen.getByLabelText("Picked")).toHaveTextContent("vi");
+    await userEvent.type(input, "deos");
+    // Nothing suggested: the list is closed.
+    expect(input).toHaveAttribute("aria-expanded", "false");
+    await userEvent.keyboard("{Enter}");
+    expect(submitted).toHaveBeenCalledOnce();
+    await userEvent.tab();
+    expect(input).toHaveValue("videos");
+    expect(screen.getByLabelText("Picked")).toHaveTextContent("videos");
+  });
+
+  it("picks a suggestion with the arrow keys and Enter when free", async () => {
+    const submitted = vi.fn();
+    render(<Harness onSubmit={submitted} free />);
+    await userEvent.type(screen.getByRole("combobox", { name: "Site" }), "vi");
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+    expect(screen.getByLabelText("Picked")).toHaveTextContent("vimeo");
+    expect(submitted).not.toHaveBeenCalled();
   });
 });

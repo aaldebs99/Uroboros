@@ -30,7 +30,10 @@ function scrollIntoList(list: HTMLUListElement | null, index: number): void {
  * sites): typing filters the options, the arrow keys move through them, Enter or a click picks
  * one, and Escape closes the list (not the dialog around it). The value is always one of the
  * options or "" (nothing picked): text that matches none is dropped when the field loses focus.
- * WAI-ARIA's combobox pattern: an input with `role="combobox"` controlling a listbox.
+ * `free` makes it a text field with suggestions instead (a channel's name): the value is what is
+ * typed, nothing is picked until an arrow key moves to a suggestion (so Enter submits the form),
+ * and no suggestion matching hides the list. WAI-ARIA's combobox pattern: an input with
+ * `role="combobox"` controlling a listbox.
  */
 export function ComboboxField({
   label,
@@ -42,6 +45,8 @@ export function ComboboxField({
   help,
   error,
   required,
+  free = false,
+  maxLength,
   id,
   className,
 }: {
@@ -54,6 +59,8 @@ export function ComboboxField({
   help?: string;
   error?: string | null;
   required?: boolean;
+  free?: boolean;
+  maxLength?: number;
   id?: string;
   className?: string;
 }) {
@@ -62,10 +69,13 @@ export function ComboboxField({
   const listId = `${fieldId}-list`;
   const [text, setText] = useState(value);
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
+  // Free text picks no suggestion until an arrow key moves to one.
+  const none = free ? -1 : 0;
+  const [active, setActive] = useState(none);
   const listRef = useRef<HTMLUListElement>(null);
-  // The picked option's own text lists everything; anything else typed filters.
-  const matches = rankOptions(options, text === value ? "" : text);
+  // The picked option's own text lists everything; anything else typed filters (free text, always).
+  const matches = rankOptions(options, text === value && !free ? "" : text);
+  const listed = open && (matches.length > 0 || !free);
   const activeId =
     open && matches[active] !== undefined ? `${listId}-${String(active)}` : undefined;
 
@@ -124,7 +134,7 @@ export function ComboboxField({
         <input
           id={fieldId}
           role="combobox"
-          aria-expanded={open}
+          aria-expanded={listed}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={activeId}
@@ -134,15 +144,16 @@ export function ComboboxField({
           spellCheck={false}
           required={required}
           placeholder={placeholder}
+          maxLength={maxLength}
           className={cn(boxClasses, "h-14 pt-4 pr-9")}
           value={text}
           onChange={(e) => {
             const typed = e.target.value;
             setText(typed);
             setOpen(true);
-            setActive(0);
-            // Typing an option exactly picks it; any other text leaves nothing picked.
-            onChange(options.includes(typed) ? typed : "");
+            setActive(none);
+            // Typing an option exactly picks it; any other text leaves nothing picked (unless free).
+            onChange(free || options.includes(typed) ? typed : "");
           }}
           onClick={() => {
             setOpen(true);
@@ -162,7 +173,7 @@ export function ComboboxField({
           id={listId}
           role="listbox"
           aria-label={label}
-          hidden={!open}
+          hidden={!listed}
           className="absolute inset-x-0 top-full z-10 mt-1 max-h-60 overflow-y-auto rounded-[0.75rem] bg-popover py-2 text-popover-foreground shadow-menu"
         >
           {matches.map((option, i) => (
@@ -190,7 +201,7 @@ export function ComboboxField({
               {option}
             </li>
           ))}
-          {matches.length === 0 ? (
+          {matches.length === 0 && !free ? (
             <li
               role="option"
               aria-selected={false}

@@ -345,8 +345,9 @@ describe("ItemPage editing an upload", () => {
     expect(await screen.findByText(/an upload can't be downloaded again/i)).toBeInTheDocument();
   });
 
-  it("offers no editing on a downloaded video", async () => {
-    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(item) });
+  it("offers no editing on a video shared with the person", async () => {
+    const shared = { ...item, sharedBy: "Alice", editable: false, personalEditable: false };
+    fakeApi({ [`GET /api/library/${ID}`]: () => Response.json(shared) });
     await renderInRouter(<ItemPage entryId={ID} />);
     await screen.findByRole("heading", { name: "Big Buck Bunny" });
     expect(screen.queryByRole("button", { name: "Edit details" })).not.toBeInTheDocument();

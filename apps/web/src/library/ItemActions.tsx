@@ -148,10 +148,13 @@ function AddToMine({ item }: { item: LibraryItem }) {
   );
 }
 
-/** Edit details, on a video the person uploaded (docs/uploads.md). */
+/**
+ * Edit details, on a video of the person's own: for everyone on their upload (docs/uploads.md), for
+ * them alone on any other (docs/library.md#your-own-details).
+ */
 function EditButton({ item }: { item: LibraryItem }) {
   const [editing, setEditing] = useState(false);
-  if (!item.editable) return null;
+  if (!item.editable && !item.personalEditable) return null;
   return (
     <>
       <IconAction

@@ -56,4 +56,8 @@ export const itemFixture: LibraryItem = {
   playlists: [],
   sharedBy: null,
   editable: false,
+  // As an older server answers: nothing to edit (docs/library.md#your-own-details).
+  personalEditable: false,
+  edited: false,
+  original: null,
 };
