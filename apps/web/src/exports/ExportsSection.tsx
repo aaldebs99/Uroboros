@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { notify } from "@/components/ui/sonner";
 import { formatBytes, formatDuration } from "@/downloads/format";
+import { clipLabel } from "@/library/clipRange";
 import { SaveButton } from "@/library/SaveButton";
 
-/** The muted line beside the badge: what the copy is, and how far or how big. */
+/** The muted line beside the badge: what the copy is (a clip, or what it cuts), and how far or how big. */
 function detail(copy: Export): string {
-  const cut = `${formatDuration(copy.cutSeconds)} cut`;
+  const cut =
+    copy.clip === null ? `${formatDuration(copy.cutSeconds)} cut` : `Clip ${clipLabel(copy.clip)}`;
   switch (copy.state) {
     case "queued":
       return cut;
@@ -72,7 +74,7 @@ function ExportRow({ copy }: { copy: Export }) {
             aria-label={`Try ${copy.title} again`}
             disabled={again.isPending}
             onClick={() => {
-              again.mutate(copy.entryId, { onError: fail });
+              again.mutate({ entryId: copy.entryId, clip: copy.clip }, { onError: fail });
             }}
           >
             <RotateCcw className="size-5" />

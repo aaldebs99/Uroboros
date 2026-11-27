@@ -37,27 +37,32 @@ export function SaveFile({ item }: { item: Pick<LibraryItem, "id" | "sponsorSegm
     );
   }
   // A copy cut from segments a refetch has since changed is not this video's any more.
-  const made = copies.data?.find((c) => c.entryId === item.id && c.current && c.fileUrl !== null);
+  const made = copies.data?.find(
+    (c) => c.entryId === item.id && c.clip === null && c.current && c.fileUrl !== null,
+  );
   const ask = () => {
-    start.mutate(item.id, {
-      onSuccess: (copy) => {
-        notify.success(
-          copy.state === "done" ? "Your copy is ready" : "Making a copy without sponsors",
-          {
-            detail: "Find it under Downloads › Copies to save.",
-            action: {
-              label: "View",
-              onClick: () => {
-                void navigate({ to: "/downloads" });
+    start.mutate(
+      { entryId: item.id },
+      {
+        onSuccess: (copy) => {
+          notify.success(
+            copy.state === "done" ? "Your copy is ready" : "Making a copy without sponsors",
+            {
+              detail: "Find it under Downloads › Copies to save.",
+              action: {
+                label: "View",
+                onClick: () => {
+                  void navigate({ to: "/downloads" });
+                },
               },
             },
-          },
-        );
+          );
+        },
+        onError: (err) => {
+          notify.error(`Could not make the copy: ${errorText(err)}`);
+        },
       },
-      onError: (err) => {
-        notify.error(`Could not make the copy: ${errorText(err)}`);
-      },
-    });
+    );
   };
   // A copy made already saves at once; otherwise the server makes one (or answers the one it is making).
   const withoutSponsors: MenuAction =

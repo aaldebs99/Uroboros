@@ -41,6 +41,7 @@ export const copyFixture = (over: Partial<Export> = {}): Export => ({
   createdAt: T,
   fileUrl: null,
   current: true,
+  clip: null,
   ...over,
 });
 

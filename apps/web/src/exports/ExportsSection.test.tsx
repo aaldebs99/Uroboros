@@ -25,6 +25,7 @@ const copy = (n: number, over: Partial<Export>): Export => ({
   createdAt: "2026-11-24T18:00:00.000Z",
   fileUrl: null,
   current: true,
+  clip: null,
   ...over,
 });
 
@@ -102,6 +103,33 @@ describe("ExportsSection", () => {
           `DELETE /api/exports/${id(4)}`,
         ]),
       );
+    });
+  });
+
+  it("says which range a clip keeps, and asks for the same range again when it failed", async () => {
+    const clip = { start: 62, end: 90 };
+    const calls = fakeApi({
+      "GET /api/exports": () =>
+        Response.json([
+          copy(6, {
+            clip,
+            state: "done",
+            sizeBytes: 4096,
+            fileUrl: `/api/exports/${id(6)}/file`,
+          }),
+          copy(7, { clip, state: "failed", error: "boom" }),
+        ]),
+      [`POST /api/library/${id(107)}/export`]: () =>
+        Response.json(copy(8, { entryId: id(107), clip }), { status: 201 }),
+    });
+    renderWithQuery(<ExportsSection />);
+    const list = within(await screen.findByRole("region", { name: "Copies to save" }));
+    const rows = list.getAllByRole("listitem");
+    expect(within(rows[0] as HTMLElement).getByText("Clip 1:02–1:30 · 4.0 KB")).toBeInTheDocument();
+    expect(within(rows[1] as HTMLElement).getByText("Clip 1:02–1:30")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Try Video 7 again" }));
+    await waitFor(() => {
+      expect(calls.find((c) => c.method === "POST")?.body).toEqual({ clip });
     });
   });
 });

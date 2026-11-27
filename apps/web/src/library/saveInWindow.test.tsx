@@ -184,6 +184,7 @@ describe("Save in the installed iPhone app", () => {
     createdAt: "2026-11-24T18:00:00.000Z",
     fileUrl: "/api/exports/0190a3f2-7c1e-7000-8000-0000000000e1/file",
     current: true,
+    clip: null,
     ...over,
   });
   const registered = () =>
