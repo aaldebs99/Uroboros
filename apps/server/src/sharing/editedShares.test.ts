@@ -2,7 +2,14 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { OpenAPIHono } from "@hono/zod-openapi";
-import { LibraryItem, PublicItem, PublicShare, ShareState, SharedWithMe } from "@uroboros/contract";
+import {
+  LibraryItem,
+  PlaylistDetail,
+  PublicItem,
+  PublicShare,
+  ShareState,
+  SharedWithMe,
+} from "@uroboros/contract";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -125,4 +132,73 @@ describe("sharing a video with its owner's own details", () => {
     expect(file.status).toBe(200);
     expect(file.headers.get("content-disposition")).toContain("Alice");
   });
+
+  it("adds a shared video to the recipient's library in the owner's version, theirs to reset", async () => {
+    const carol = await signedIn(t.db, { username: "edshcarol" });
+    const shared = await editedVideo("edsh-add");
+    // Carol holds the same video already: her own entry keeps the site's details.
+    const hers = await seedEntry(t.db, carol.userId, { videoId: "edsh-add", title: "Site title" });
+    for (const s of [bob, carol]) {
+      await send(alice, "PUT", `/api/shares/entry/${shared.entryId}/people`, {
+        people: [{ kind: "user", id: s.userId }],
+        expiresAt: null,
+      });
+      expect((await send(s, "POST", `/api/library/${shared.entryId}/add`)).status).toBeLessThan(
+        300,
+      );
+    }
+    const bobs = await t.db
+      .selectFrom("library_entries")
+      .select("id")
+      .where("user_id", "=", bob.userId)
+      .where("media_id", "=", shared.mediaId)
+      .executeTakeFirstOrThrow();
+    expect(
+      await json(await send(bob, "GET", `/api/library/${bobs.id}`), LibraryItem),
+    ).toMatchObject({ title: "Alice's title", edited: true, original: { title: "Site title" } });
+    const carols = await json(
+      await send(carol, "GET", `/api/library/${hers.entryId}`),
+      LibraryItem,
+    );
+    expect(carols).toMatchObject({ title: "Site title", edited: false });
+  });
+
+  it("saves a shared playlist in the owner's versions", async () => {
+    const dave = await signedIn(t.db, { username: "edshdave" });
+    const listed = await editedVideo("edsh-list");
+    const p = PlaylistDetail.parse(
+      await (
+        await send(alice, "POST", "/api/playlists", { name: "Picks", entryIds: [listed.entryId] })
+      ).json(),
+    );
+    await send(alice, "PUT", `/api/shares/playlist/${p.id}/people`, {
+      people: [{ kind: "user", id: dave.userId }],
+      expiresAt: null,
+    });
+    const share = await t.db
+      .selectFrom("shares")
+      .select("id")
+      .where("playlist_id", "=", p.id)
+      .executeTakeFirstOrThrow();
+    const saved = await send(dave, "POST", `/api/shared/${share.id}/save`);
+    expect(saved.status).toBeLessThan(300);
+    const mine = await t.db
+      .selectFrom("library_entries")
+      .select("id")
+      .where("user_id", "=", dave.userId)
+      .executeTakeFirstOrThrow();
+    expect(
+      (await json(await send(dave, "GET", `/api/library/${mine.id}`), LibraryItem)).title,
+    ).toBe("Alice's title");
+  });
 });
+
+/** A video of Alice's she gave her own title. */
+async function editedVideo(videoId: string) {
+  const e = await seedEntry(t.db, alice.userId, { videoId, title: "Site title" });
+  await t.db
+    .insertInto("media_edits")
+    .values({ user_id: alice.userId, media_id: e.mediaId, title: "Alice's title" })
+    .execute();
+  return e;
+}

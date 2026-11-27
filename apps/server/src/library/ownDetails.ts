@@ -1,5 +1,5 @@
 import type { ChannelSummary, EntryDetailsBody, OriginalDetails } from "@uroboros/contract";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import type { z } from "zod";
 import { ApiError } from "../api/errors.ts";
 import type { Database } from "../db/schema.ts";
@@ -223,6 +223,59 @@ export async function saveOwnDetails(
       ...(moved ?? NOT_MOVED),
     });
   });
+}
+
+/**
+ * Gives `userId` the owners' own details of the videos of `entryIds` (entries the caller was checked
+ * to reach), as they saw them shared: before they add those videos, each only when they hold none of
+ * it yet and didn't upload it, never over details of their own.
+ */
+export async function copyEdits(db: Db, userId: string, entryIds: readonly string[]) {
+  if (entryIds.length === 0) return;
+  await db
+    .insertInto("media_edits")
+    .columns([
+      "user_id",
+      "media_id",
+      "title",
+      "description",
+      "channel",
+      "channel_extractor",
+      "channel_id",
+    ])
+    .expression((eb) =>
+      eb
+        .selectFrom("library_entries as e")
+        .innerJoin("media_edits as d", (j) =>
+          j.onRef("d.user_id", "=", "e.user_id").onRef("d.media_id", "=", "e.media_id"),
+        )
+        .innerJoin("media as m", "m.id", "e.media_id")
+        .select([
+          eb.val(userId).as("user_id"),
+          "d.media_id",
+          "d.title",
+          "d.description",
+          "d.channel",
+          "d.channel_extractor",
+          "d.channel_id",
+        ])
+        .where("e.id", "in", entryIds)
+        .where("e.user_id", "<>", userId)
+        .where(sql<boolean>`m.uploaded_by IS DISTINCT FROM ${userId}`)
+        .where((w) =>
+          w.not(
+            w.exists(
+              w
+                .selectFrom("library_entries as mine")
+                .select("mine.id")
+                .whereRef("mine.media_id", "=", "e.media_id")
+                .where("mine.user_id", "=", userId),
+            ),
+          ),
+        ),
+    )
+    .onConflict((oc) => oc.columns(["user_id", "media_id"]).doNothing())
+    .execute();
 }
 
 /** Drops the caller's own details of the video `entryId` holds; 404 unless the entry is theirs. */

@@ -1,11 +1,13 @@
 import type { Kysely } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { copyEdits } from "../library/ownDetails.ts";
 import { visibleEntry } from "./access.ts";
 
 /**
  * Add to my library (docs/sharing.md): gives the caller their own entry on the same stored file as
- * an entry they may see. Instant, since the file is already stored; an entry they already have on
- * that file (their own, or added before) is answered as it is, `created` false.
+ * an entry they may see, in its owner's own details if they had none of the video
+ * (docs/library.md#your-own-details). Instant, since the file is already stored; an entry they
+ * already have on that file (their own, or added before) is answered as it is, `created` false.
  */
 export async function addToLibrary(
   db: Kysely<Database>,
@@ -14,12 +16,15 @@ export async function addToLibrary(
 ): Promise<{ id: string; created: boolean }> {
   const seen = await visibleEntry(db, { userId }, entryId);
   if (seen.own) return { id: seen.id, created: false };
-  const inserted = await db
-    .insertInto("library_entries")
-    .values({ user_id: userId, media_id: seen.media_id, rendition_id: seen.rendition_id })
-    .onConflict((oc) => oc.columns(["user_id", "rendition_id"]).doNothing())
-    .returning("id")
-    .executeTakeFirst();
+  const inserted = await db.transaction().execute(async (tx) => {
+    await copyEdits(tx, userId, [entryId]);
+    return tx
+      .insertInto("library_entries")
+      .values({ user_id: userId, media_id: seen.media_id, rendition_id: seen.rendition_id })
+      .onConflict((oc) => oc.columns(["user_id", "rendition_id"]).doNothing())
+      .returning("id")
+      .executeTakeFirst();
+  });
   if (inserted !== undefined) return { id: inserted.id, created: true };
   const existing = await db
     .selectFrom("library_entries")
@@ -41,6 +46,7 @@ export async function addManyToLibrary(
 ): Promise<string[]> {
   if (entryIds.length === 0) return [];
   return db.transaction().execute(async (tx) => {
+    await copyEdits(tx, userId, entryIds);
     await tx
       .insertInto("library_entries")
       .columns(["user_id", "media_id", "rendition_id"])
