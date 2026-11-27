@@ -8,6 +8,7 @@ import {
 import { sql, type Kysely, type RawBuilder, type SelectQueryBuilder } from "kysely";
 import type { Database } from "../db/schema.ts";
 import { ApiError } from "../api/errors.ts";
+import { EDITED_COLUMNS, eff } from "./edits.ts";
 import { channelKey, parseChannelKey } from "./channelKey.ts";
 import { linkMatch } from "./linkMatch.ts";
 import { originOf, platformName } from "./platform.ts";
@@ -64,7 +65,7 @@ function sortSpec(sort: LibrarySort): SortSpec {
       return { expr: sql`coalesce(m.upload_date, '')`, dir: "desc", cast: (k) => sql`${k}::text` };
     case "title":
       return {
-        expr: sql`lower(coalesce(m.title, m.video_id))`,
+        expr: sql`lower(coalesce(ed.title, m.title, m.video_id))`,
         dir: "asc",
         cast: (k) => sql`${k}::text`,
       };
@@ -91,9 +92,9 @@ function sortSpec(sort: LibrarySort): SortSpec {
 }
 
 /**
- * `ownerId`'s entries with `viewerId`'s progress (the same person, unless through a share). The
- * profile is a left join: an upload's rendition has none, nor has one whose profile went with its
- * owner's account.
+ * `ownerId`'s entries with `viewerId`'s progress (the same person, unless through a share) and the
+ * owner's own details of each video (`ed`, docs/library.md#your-own-details). The profile is a left
+ * join: an upload's rendition has none, nor has one whose profile went with its owner's account.
  */
 export function base(db: Kysely<Database>, viewerId: string, ownerId: string = viewerId) {
   return db
@@ -104,20 +105,22 @@ export function base(db: Kysely<Database>, viewerId: string, ownerId: string = v
     .leftJoin("watch_progress as wp", (j) =>
       j.onRef("wp.media_id", "=", "e.media_id").on("wp.user_id", "=", viewerId),
     )
+    .leftJoin("media_edits as ed", (j) =>
+      j.onRef("ed.media_id", "=", "e.media_id").onRef("ed.user_id", "=", "e.user_id"),
+    )
     .where("e.user_id", "=", ownerId);
 }
 
 type Base = ReturnType<typeof base>;
 
+/** The channel a video shows in, the one the owner moved it to included (`listChannels`). */
 function channelFilter(qb: Base, key: string): Base {
   const c = parseChannelKey(key);
   if (c === null) throw new ApiError("bad_request", "not a valid channel key");
-  const scoped = qb.where("m.extractor", "=", c.extractor);
+  const scoped = qb.where(eff.channelExtractor, "=", c.extractor);
   return c.kind === "id"
-    ? scoped.where("m.channel_id", "=", c.value)
-    : scoped
-        .where("m.channel_id", "is", null)
-        .where(sql<string>`coalesce(m.channel, m.uploader)`, "=", c.value);
+    ? scoped.where(eff.channelId, "=", c.value)
+    : scoped.where(eff.channelId, "is", null).where(eff.channelName, "=", c.value);
 }
 
 /** The entries of the video a pasted link points at (`linkMatch`). */
@@ -332,11 +335,9 @@ export const ENTRY_COLUMNS = [
   "e.id",
   "e.media_id",
   "e.added_at",
-  "m.title",
+  ...EDITED_COLUMNS,
   "m.video_id",
   "m.extractor",
-  "m.channel",
-  "m.channel_id",
   "m.uploader",
   // Aliased: the item query also selects m.webpage_url itself.
   "m.webpage_url as page_url",
@@ -375,6 +376,8 @@ export interface EntryRow {
   extractor: string;
   channel: string | null;
   channel_id: string | null;
+  /** Whose channels it is in: its own site's, unless the owner moved it to another's. */
+  channel_extractor: string;
   uploader: string | null;
   page_url: string | null;
   upload_date: string | null;
@@ -442,6 +445,6 @@ export function toEntry(r: EntryRow, own = true): LibraryEntry {
             title: r.subscription_title,
             hasRetention: r.subscription_has_retention ?? false,
           },
-    channelKey: channelKey(r.extractor, r.channel_id, r.channel ?? r.uploader),
+    channelKey: channelKey(r.channel_extractor, r.channel_id, r.channel ?? r.uploader),
   };
 }

@@ -6,6 +6,7 @@ import { ApiError } from "../api/errors.ts";
 import { playlistsHolding } from "../playlists/listing.ts";
 import { visibleEntry } from "../sharing/access.ts";
 import { UPLOAD_EXTRACTOR } from "./platform.ts";
+import { eff } from "./edits.ts";
 import { base, ENTRY_COLUMNS, toEntry, type EntryRow } from "./query.ts";
 import { sponsorBlockOf } from "./preferences.ts";
 import { refetchSource } from "./skipRefetch.ts";
@@ -30,7 +31,7 @@ export async function getItem(
     .where("e.id", "=", entryId)
     .select([
       ...ENTRY_COLUMNS,
-      "m.description",
+      eff.description.as("description"),
       "m.chapters",
       "m.webpage_url",
       "m.uploaded_by",
