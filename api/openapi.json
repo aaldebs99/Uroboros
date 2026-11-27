@@ -422,8 +422,6 @@
         ]
       },
       "ClipRange": {
-        "default": null,
-        "nullable": true,
         "properties": {
           "end": {
             "type": "number"
@@ -1028,7 +1026,14 @@
       "Export": {
         "properties": {
           "clip": {
-            "$ref": "#/components/schemas/ClipRange"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClipRange"
+              },
+              {
+                "nullable": true
+              }
+            ]
           },
           "createdAt": {
             "format": "date-time",
@@ -2395,6 +2400,9 @@
       },
       "PeopleShareBody": {
         "properties": {
+          "clip": {
+            "$ref": "#/components/schemas/ClipRange"
+          },
           "expiresAt": {
             "format": "date-time",
             "nullable": true,
@@ -10764,7 +10772,7 @@
                 }
               }
             },
-            "description": "Yourself, no such user, or a group the caller isn't in"
+            "description": "Yourself, no such user, a group the caller isn't in, or a clip of a playlist"
           },
           "404": {
             "content": {
@@ -10775,6 +10783,16 @@
               }
             },
             "description": "Not one of the caller's things"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "A clip while clips are off on this server (UROBOROS_CLIPS_ENABLED)"
           }
         },
         "summary": "Share with these people and groups the caller is in (an empty list stops sharing with people)",

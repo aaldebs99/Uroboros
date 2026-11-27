@@ -1,8 +1,8 @@
-import type { PublicItem, PublicListItem } from "@uroboros/contract";
+import type { ClipRange, PublicItem, PublicListItem } from "@uroboros/contract";
 import { Download, Link2Off, ListVideo } from "lucide-react";
 import { useState } from "react";
 
-import { ApiError, errorText } from "@/api/client";
+import { ApiError, errorText, useInfo } from "@/api/client";
 import { usePublicItem, usePublicShare } from "@/api/public";
 import { LinkifiedText } from "@/components/LinkifiedText";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -112,8 +112,32 @@ function LinkFailed({ error }: { error: unknown }) {
  * chapters, subtitles, playback sessions and the Quality menu, for anyone and without signing in. It never says
  * who shared it.
  */
-export function PublicPage({ code }: { code: string }) {
+/**
+ * Where a video link opens: at its `?t=`, marking a clip when `&end=` comes with it and the server
+ * has clips on (docs/sharing.md#clips). A playlist's link opens each video at its start.
+ */
+function useOpening(
+  video: boolean,
+  startAt: number | null | undefined,
+  range: ClipRange | null | undefined,
+): { start: number; range: ClipRange | null } {
+  const clipsOn = useInfo().data?.clips === true;
+  if (!video) return { start: 0, range: null };
+  return { start: startAt ?? 0, range: clipsOn ? (range ?? null) : null };
+}
+
+export function PublicPage({
+  code,
+  startAt,
+  range,
+}: {
+  code: string;
+  /** A video link's `?t=`, and its `&end=` with it: the whole video opened at a clip. */
+  startAt?: number | null;
+  range?: ClipRange | null;
+}) {
   const share = usePublicShare(code);
+  const opening = useOpening(share.data?.kind === "entry", startAt, range);
   const [picked, setPicked] = useState<string | null>(null);
   const items = share.data?.items ?? [];
   const currentId = picked ?? items[0]?.id ?? null;
@@ -147,7 +171,8 @@ export function PublicPage({ code }: { code: string }) {
               <WatchPlayer
                 key={item.data.id}
                 item={item.data}
-                start={0}
+                start={opening.start}
+                range={opening.range}
                 autoPlay
                 seek={null}
                 onTime={nothing}

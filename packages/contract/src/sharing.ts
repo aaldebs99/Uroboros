@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { ClipRange } from "./clips.ts";
 import { SponsorSegment } from "./downloads.ts";
 import { Chapter, SubtitleTrack } from "./library.ts";
 import { PlaybackFacts } from "./playback.ts";
@@ -72,7 +73,15 @@ export type ShareState = z.infer<typeof ShareState>;
 
 /** The whole set of people; an empty list stops sharing with people. */
 export const PeopleShareBody = z
-  .object({ people: z.array(SharePersonRef).max(100), expiresAt: Expiry })
+  .object({
+    people: z.array(SharePersonRef).max(100),
+    expiresAt: Expiry,
+    /**
+     * A video shared opened at a clip (docs/sharing.md#clips): the people it newly reaches are told
+     * of the clip, opening the video at its range. The share is of the whole video either way.
+     */
+    clip: ClipRange.optional(),
+  })
   .openapi("PeopleShareBody");
 export type PeopleShareBody = z.infer<typeof PeopleShareBody>;
 

@@ -313,7 +313,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
     maxShortOf(deps),
   );
   registerPlaylistRoutes(app, deps.db);
-  registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify);
+  registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify, clipsOn(opts));
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify);
   registerStatsRoutes(app, deps.db);
   registerNotificationPrefRoutes(app, deps.db);

@@ -23,6 +23,9 @@ export function Player(props: {
   overlay?: ReactNode;
   onTime: (at: number, duration: number) => void;
   onError?: () => void;
+  /** The page's clip control (the Clip button), and a range only to show. */
+  clip?: { value: { start: number; end: number } | null } | undefined;
+  range?: { start: number; end: number } | null;
 }) {
   return (
     <div
@@ -33,6 +36,10 @@ export function Player(props: {
       data-seek={props.seek === null ? "" : String(props.seek.time)}
       data-seek-pause={props.seek?.pause === true ? "true" : ""}
       data-subs={props.subtitles.map((s) => s.lang).join(",")}
+      data-clip={props.clip === undefined ? "" : "on"}
+      data-range={
+        props.range == null ? "" : `${String(props.range.start)}-${String(props.range.end)}`
+      }
     >
       {props.settings?.props.quality?.options.map((o) => (
         <button
