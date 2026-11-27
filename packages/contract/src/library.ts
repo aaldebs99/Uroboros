@@ -81,7 +81,6 @@ export const SubtitleTrack = z
   .openapi("SubtitleTrack");
 export type SubtitleTrack = z.infer<typeof SubtitleTrack>;
 
-/** One entry with what its page and player need. */
 /** A video's own details, its site's (or its uploader's), under the caller's own. */
 export const OriginalDetails = z
   .object({
@@ -92,6 +91,7 @@ export const OriginalDetails = z
   .openapi("OriginalDetails");
 export type OriginalDetails = z.infer<typeof OriginalDetails>;
 
+/** One entry with what its page and player need. */
 export const LibraryItem = LibraryEntry.extend({
   description: z.string().nullable(),
   chapters: z.array(Chapter),
