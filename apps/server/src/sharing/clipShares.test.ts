@@ -150,6 +150,17 @@ describe("sharing a clip on its own", () => {
       .array(SharedWithMe)
       .parse(await (await app(bob, false).request("/api/shared")).json());
     expect(withMe.map((s) => s.id)).not.toContain(c.exportId);
+    const g = await seedClip(t.db, alice.userId);
+    await send(app(alice), "PUT", `/api/shares/clip/${g.exportId}/people`, {
+      people: [{ kind: "group", id: family }],
+      expiresAt: null,
+    });
+    const group = (await (
+      await app(bob, false).request(`/api/groups/${family}/shares`)
+    ).json()) as {
+      id: string;
+    }[];
+    expect(group.map((s) => s.id)).not.toContain(g.exportId);
     expect((await send(off, "DELETE", `/api/shares/clip/${c.exportId}/people`)).status).toBe(204);
   });
 });
