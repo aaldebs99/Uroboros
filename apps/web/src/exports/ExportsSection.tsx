@@ -2,7 +2,7 @@ import type { Export } from "@uroboros/contract";
 import { Link } from "@tanstack/react-router";
 import { Download, Play, RotateCcw, Scissors, X } from "lucide-react";
 
-import { errorText } from "@/api/client";
+import { errorText, useInfo } from "@/api/client";
 import { exportSaveLink, useExports, useRemoveExport, useStartExport } from "@/api/exports";
 import { ExportBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,8 @@ function ExportRow({ copy }: { copy: Export }) {
   const remove = useRemoveExport();
   const again = useStartExport();
   const confirm = useConfirm();
+  // A clip's page is gone while clips are off on the server; its file still saves.
+  const watchable = useInfo().data?.clips === true;
   const fail = (err: unknown) => {
     notify.error(errorText(err));
   };
@@ -61,7 +63,7 @@ function ExportRow({ copy }: { copy: Export }) {
         ) : null}
       </div>
       <div className="flex shrink-0 items-start gap-1">
-        {copy.clip === null || copy.fileUrl === null ? null : (
+        {!watchable || copy.clip === null || copy.fileUrl === null ? null : (
           <Button asChild variant="ghost" size="compact">
             <Link to="/shared/clips/$exportId" params={{ exportId: copy.id }}>
               <Play aria-hidden /> <span className="hidden md:inline">Watch</span>
