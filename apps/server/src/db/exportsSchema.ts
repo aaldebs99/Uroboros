@@ -6,7 +6,10 @@ type Timestamp = ColumnType<Date, Date | string | undefined, Date | string>;
 
 export type ExportStateValue = "queued" | "running" | "done" | "failed";
 
-/** `exports`: a copy of an entry's file without the SponsorBlock segments its person skips, to save. */
+/**
+ * `exports`: a copy of an entry's file without the SponsorBlock segments its person skips, or a clip
+ * of one range of it, to save.
+ */
 export interface ExportsTable {
   id: Generated<string>;
   user_id: string;
@@ -25,4 +28,7 @@ export interface ExportsTable {
   error: string | null;
   created_at: Timestamp;
   finished_at: ColumnType<Date | null, Date | string | null | undefined, Date | string | null>;
+  /** A clip's range (docs/sharing.md#clips), seconds on the file's timeline; null without one. */
+  clip_start: ColumnType<number | null, number | null | undefined, number | null>;
+  clip_end: ColumnType<number | null, number | null | undefined, number | null>;
 }

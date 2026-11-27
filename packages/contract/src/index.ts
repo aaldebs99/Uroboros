@@ -164,6 +164,7 @@ export {
   UploadState,
 } from "./uploads.ts";
 export { Export, ExportState } from "./exports.ts";
+export { CLIP_MIN_SECONDS, ClipRange, ExportBody, roundClip } from "./clips.ts";
 export { MarkNoticesReadBody, Notice, NoticeKind, NoticeList } from "./notices.ts";
 export {
   DEFAULT_SPONSORBLOCK,

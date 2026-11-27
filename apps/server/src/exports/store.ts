@@ -1,4 +1,4 @@
-import type { Export, SponsorBlockSettings } from "@uroboros/contract";
+import type { ClipRange, Export, SponsorBlockSettings } from "@uroboros/contract";
 import { sql, type Kysely, type Selectable } from "kysely";
 import { z } from "zod";
 import type { Database } from "../db/schema.ts";
@@ -8,6 +8,7 @@ import { ApiError } from "../api/errors.ts";
 import { sponsorBlockOf } from "../library/preferences.ts";
 import { skippedSegments } from "../library/sponsorSegments.ts";
 import { visibleEntry } from "../sharing/access.ts";
+import { checkClip, clipCuts, clipOf } from "./clip.ts";
 import { cutSeconds, mergeCuts, type Span } from "./cuts.ts";
 import { exportFormatFor } from "./formats.ts";
 
@@ -69,12 +70,23 @@ function isCurrent(
   );
 }
 
-/** The copy as its person (whose SponsorBlock setting is `settings`) sees it. */
+const ms = (t: number) => Math.round(t * 1000) / 1000;
+
+/**
+ * The copy as its person (whose SponsorBlock setting is `settings`) sees it. A clip keeps its range
+ * and is always current: nothing in it depends on what is skipped.
+ */
 export function describeExport(row: Described, settings: SponsorBlockSettings): Export {
   const cuts = Spans.safeParse(row.cuts);
   const spans = cuts.success ? cuts.data : [];
   const cut = cutSeconds(spans);
-  const kept = row.duration === null ? null : Math.max(0, row.duration - cut);
+  const clip = clipOf(row);
+  const kept =
+    clip !== null
+      ? ms(clip.end - clip.start)
+      : row.duration === null
+        ? null
+        : Math.max(0, row.duration - cut);
   return {
     id: row.id,
     entryId: row.entry_id,
@@ -88,7 +100,8 @@ export function describeExport(row: Described, settings: SponsorBlockSettings): 
     cutSeconds: cut,
     createdAt: iso(row.created_at),
     fileUrl: row.state === "done" ? `/api/exports/${row.id}/file` : null,
-    current: isCurrent(spans, row, settings),
+    current: clip !== null || isCurrent(spans, row, settings),
+    clip,
   };
 }
 
@@ -131,15 +144,49 @@ export async function ownExport(db: Kysely<Database>, userId: string, id: string
   return row;
 }
 
+interface CopySource {
+  skip_segments: unknown;
+  video_codec: string | null;
+  duration: number | null;
+}
+
 /**
- * Asks for a copy of an entry the caller sees without the SponsorBlock segments they skip. The same entry
- * with the same cuts already queued, running or done is answered with that copy (`created` false);
- * a failed one is made again, in its own row (reset and queued).
+ * What a copy keeps: a clip's range with its complement as the cuts (which a worker of the release
+ * before reads), or the SponsorBlock segments `userId` skips. A copy without sponsors needs something
+ * to cut, and something left once cut.
+ */
+async function copySpec(
+  ctx: DownloadContext,
+  userId: string,
+  r: CopySource,
+  asked: ClipRange | undefined,
+): Promise<{ cuts: Span[]; clip: ClipRange | null }> {
+  if (asked !== undefined) {
+    const clip = checkClip(asked, r.duration);
+    return { cuts: clipCuts(clip, r.duration ?? clip.end), clip };
+  }
+  const cuts = cutsFor(r, await sponsorBlockOf(ctx.db, userId));
+  if (cuts.length === 0)
+    throw new ApiError("bad_request", "nothing in this file is skipped to cut");
+  // The last kept range runs to the file's end, so a known length tells whether anything is left.
+  if (r.duration !== null && cutSeconds(cuts) >= r.duration) {
+    throw new ApiError("bad_request", "the skipped segments cover the whole file");
+  }
+  return { cuts, clip: null };
+}
+
+/**
+ * Asks for a copy of an entry the caller sees: without the SponsorBlock segments they skip, or with
+ * `clip` of just that range (docs/sharing.md#clips). The same entry with the same cuts (a clip: the
+ * same range) already queued, running or done is answered with that copy (`created` false); a
+ * failed one is made again, in its own row (reset and queued). A clip and a copy without sponsors
+ * never answer for each other.
  */
 export async function createExport(
   ctx: DownloadContext,
   userId: string,
   entryId: string,
+  asked?: ClipRange,
 ): Promise<{ created: boolean; export: Export }> {
   const entry = await visibleEntry(ctx.db, { userId }, entryId);
   const r = await ctx.db
@@ -157,27 +204,22 @@ export async function createExport(
   if (format === null) {
     throw new ApiError("bad_request", `a copy can't be made of a ${r.container ?? "this"} file`);
   }
-  const settings = await sponsorBlockOf(ctx.db, userId);
-  const cuts = cutsFor(r, settings);
-  if (cuts.length === 0)
-    throw new ApiError("bad_request", "nothing in this file is skipped to cut");
-  // The last kept range runs to the file's end, so a known length tells whether anything is left.
-  if (r.duration !== null && cutSeconds(cuts) >= r.duration) {
-    throw new ApiError("bad_request", "the skipped segments cover the whole file");
-  }
+  const { cuts, clip } = await copySpec(ctx, userId, r, asked);
   const json = JSON.stringify(cuts satisfies Span[]);
   const id = await ctx.db.transaction().execute(async (tx) => {
-    const same = await tx
+    let same = tx
       .selectFrom("exports as x")
       .select(["x.id", "x.state"])
       .where("x.user_id", "=", userId)
-      .where("x.entry_id", "=", entryId)
-      .where(sql<boolean>`x.cuts = ${json}::jsonb`)
-      .orderBy("x.created_at", "desc")
-      .executeTakeFirst();
-    if (same !== undefined && same.state !== "failed") return { id: same.id, created: false };
+      .where("x.entry_id", "=", entryId);
+    same =
+      clip === null
+        ? same.where("x.clip_start", "is", null).where(sql<boolean>`x.cuts = ${json}::jsonb`)
+        : same.where("x.clip_start", "=", clip.start).where("x.clip_end", "=", clip.end);
+    const found = await same.orderBy("x.created_at", "desc").executeTakeFirst();
+    if (found !== undefined && found.state !== "failed") return { id: found.id, created: false };
     const copyId =
-      same === undefined
+      found === undefined
         ? (
             await tx
               .insertInto("exports")
@@ -187,11 +229,13 @@ export async function createExport(
                 rendition_id: entry.rendition_id,
                 cuts: json,
                 format,
+                clip_start: clip?.start ?? null,
+                clip_end: clip?.end ?? null,
               })
               .returning("id")
               .executeTakeFirstOrThrow()
           ).id
-        : await restart(tx, same.id);
+        : await restart(tx, found.id);
     await ctx.queues.export.add(
       "export",
       { exportId: copyId },
@@ -202,7 +246,10 @@ export async function createExport(
   });
   return {
     created: id.created,
-    export: describeExport(await ownExport(ctx.db, userId, id.id), settings),
+    export: describeExport(
+      await ownExport(ctx.db, userId, id.id),
+      await sponsorBlockOf(ctx.db, userId),
+    ),
   };
 }
 

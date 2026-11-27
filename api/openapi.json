@@ -421,6 +421,24 @@
           }
         ]
       },
+      "ClipRange": {
+        "default": null,
+        "nullable": true,
+        "properties": {
+          "end": {
+            "type": "number"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "type": "object"
+      },
       "ContainerStats": {
         "properties": {
           "bytes": {
@@ -1009,6 +1027,9 @@
       },
       "Export": {
         "properties": {
+          "clip": {
+            "$ref": "#/components/schemas/ClipRange"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -1075,6 +1096,14 @@
           "fileUrl",
           "current"
         ],
+        "type": "object"
+      },
+      "ExportBody": {
+        "properties": {
+          "clip": {
+            "$ref": "#/components/schemas/ClipRange"
+          }
+        },
         "type": "object"
       },
       "ExportState": {
@@ -6980,6 +7009,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportBody"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "200": {
             "content": {
@@ -7009,7 +7048,7 @@
                 }
               }
             },
-            "description": "The video has no segments to cut"
+            "description": "The video has no segments to cut, or the clip is past its end, too short, or of a file whose length isn't known"
           },
           "404": {
             "content": {
@@ -7020,9 +7059,19 @@
               }
             },
             "description": "No such entry"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "Clips are off on this server (UROBOROS_CLIPS_ENABLED)"
           }
         },
-        "summary": "Ask for a copy of an entry without its SponsorBlock segments, re-encoded to save",
+        "summary": "Ask for a copy of an entry, re-encoded to save: without its SponsorBlock segments, or with `clip` just that range",
         "tags": [
           "library"
         ]

@@ -16,7 +16,8 @@ import {
 import { sql } from "kysely";
 import { z } from "zod";
 import type { ExportJob } from "../downloads/queues.ts";
-import { cutSeconds, keptRanges, remapChapters } from "../exports/cuts.ts";
+import { clipOf, readyBody } from "../exports/clip.ts";
+import { remapChapters } from "../exports/cuts.ts";
 import { exportKey } from "../exports/store.ts";
 import { contentTypeOf } from "../storage/contentType.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
@@ -26,6 +27,7 @@ import { choosePipeline, encoderOf, pipelinesFor, sourceKey } from "../transcode
 import { h264Level, outputSize, rungFor } from "../transcode/ladder.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { audioPlanFor } from "./exportAudio.ts";
+import { rangesOf } from "./exportRanges.ts";
 import { openScratch, type Scratch } from "./scratch.ts";
 import { readInput } from "./sessionSource.ts";
 
@@ -132,6 +134,8 @@ async function loadCopy(deps: WorkerDeps, id: string) {
       "x.state",
       "x.cuts",
       "x.format",
+      "x.clip_start",
+      "x.clip_end",
       "r.storage_key",
       "m.title",
       "m.video_id",
@@ -181,19 +185,20 @@ async function makeCopy(deps: WorkerDeps, id: string, dir: string, signal: Abort
   // A music file's cover art (an attached picture) is no video: such a file is copied as audio.
   const video = info.streams.find((s) => s.type === "video" && !s.attachedPic);
   const audio = info.streams.find((s) => s.type === "audio") ?? null;
-  const cuts = Spans.parse(row.cuts);
-  const duration = info.duration;
-  const kept = duration === null ? null : Math.max(0, duration - cutSeconds(cuts));
+  const { ranges, seek, kept, chapterCuts } = rangesOf(
+    { cuts: Spans.parse(row.cuts), clip: clipOf(row) },
+    info,
+    video !== undefined,
+  );
   await mkdir(dir, { recursive: true });
-  const chapters = remapChapters(Chapters.safeParse(row.chapters).data ?? [], cuts, duration);
+  const chapters = remapChapters(
+    Chapters.safeParse(row.chapters).data ?? [],
+    chapterCuts,
+    info.duration,
+  );
   const chaptersFile = chapters.length === 0 ? null : join(dir, "chapters.txt");
   if (chaptersFile !== null) await writeFile(chaptersFile, chaptersMetadata(chapters));
   const output = join(dir, `copy.${row.format}`);
-  const offset = info.startTime ?? 0;
-  const ranges = keptRanges(cuts).map((r) => ({
-    start: r.start + offset,
-    end: r.end === null ? null : r.end + offset,
-  }));
   if (video === undefined) {
     const audioPlan = audioPlanFor(info, {
       input,
@@ -218,6 +223,7 @@ async function makeCopy(deps: WorkerDeps, id: string, dir: string, signal: Abort
     input,
     output,
     ranges,
+    seek,
     video: videoSettings(video, pipeline),
     audio: audio === null ? null : { index: audio.index },
     vaapiDevice: t.vaapiDevice,
@@ -311,7 +317,15 @@ async function encode(
 /** Stores the copy, marks it done and tells its person; a row gone meanwhile takes the file back. */
 async function storeCopy(
   deps: WorkerDeps,
-  row: { id: string; user_id: string; title: string | null; video_id: string; format: string },
+  row: {
+    id: string;
+    user_id: string;
+    title: string | null;
+    video_id: string;
+    format: string;
+    clip_start: number | null;
+    clip_end: number | null;
+  },
   output: string,
   encoder: string,
 ): Promise<void> {
@@ -342,7 +356,7 @@ async function storeCopy(
       kind: "downloads",
       message: {
         title: "Ready to save",
-        body: `${row.title ?? row.video_id}, without its sponsor segments`,
+        body: readyBody(row.title ?? row.video_id, clipOf(row)),
         path: "/downloads",
         tag: `export-${row.id}`,
       },

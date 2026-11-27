@@ -323,7 +323,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerSiteLoginRoutes(app, deps.db, deps.secretsKey ?? null);
   registerSubscriptionRoutes(app, deps.downloads);
   registerUploadRoutes(app, uploadContext(deps));
-  registerExportRoutes(app, exportContext(deps));
+  registerExportRoutes(app, exportContext(deps), clipsOn(opts));
   registerSaveLinkRoutes(app, deps.db, deps.store);
   const playback = playbackContext(deps);
   registerPlaybackSessionRoutes(app, playback);
