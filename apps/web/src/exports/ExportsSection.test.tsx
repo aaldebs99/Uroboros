@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useExports } from "@/api/exports";
 import { fakeApi } from "@/test/fakeApi";
-import { renderWithQuery } from "@/test/render";
+import { renderInRouter, renderWithQuery } from "@/test/render";
 
 import { ExportsSection } from "./ExportsSection";
 
@@ -122,11 +122,15 @@ describe("ExportsSection", () => {
       [`POST /api/library/${id(107)}/export`]: () =>
         Response.json(copy(8, { entryId: id(107), clip }), { status: 201 }),
     });
-    renderWithQuery(<ExportsSection />);
+    await renderInRouter(<ExportsSection />);
     const list = within(await screen.findByRole("region", { name: "Copies to save" }));
     const rows = list.getAllByRole("listitem");
     expect(within(rows[0] as HTMLElement).getByText("Clip 1:02–1:30 · 4.0 KB")).toBeInTheDocument();
     expect(within(rows[1] as HTMLElement).getByText("Clip 1:02–1:30")).toBeInTheDocument();
+    expect(within(rows[0] as HTMLElement).getByRole("link", { name: /Watch/ })).toHaveAttribute(
+      "href",
+      `/shared/clips/${id(6)}`,
+    );
     await userEvent.click(screen.getByRole("button", { name: "Try Video 7 again" }));
     await waitFor(() => {
       expect(calls.find((c) => c.method === "POST")?.body).toEqual({ clip });

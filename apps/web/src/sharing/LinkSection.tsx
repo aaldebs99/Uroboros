@@ -34,16 +34,21 @@ export function copyLink(url: string): void {
 
 /**
  * The public link: on or off (off kills the code for good), the address with Copy, Allow
- * downloads, and an expiry.
+ * downloads, and an expiry. `query` goes on the address (a video opened at a clip's range); with
+ * `prepare`, the thing is made first (a clip's copy; docs/sharing.md#clips), answering its id.
  */
 export function LinkSection({
   kind,
   id,
   link,
+  query,
+  prepare,
 }: {
   kind: ShareKind;
   id: string;
   link: PublicLink | null;
+  query?: string | undefined;
+  prepare?: (() => Promise<string>) | undefined;
 }) {
   const set = useShareAction(setLink);
   const stop = useShareAction(stopLink);
@@ -53,8 +58,14 @@ export function LinkSection({
     notify.error(`Could not change the link: ${errorText(error)}`);
   };
   const change = (allowDownload: boolean, expiresAt: string | null) => {
-    set.mutate({ kind, id, body: { allowDownload, expiresAt } }, { onError: fail });
+    const go = (target: string) => {
+      set.mutate({ kind, id: target, body: { allowDownload, expiresAt } }, { onError: fail });
+    };
+    if (prepare === undefined) go(id);
+    else prepare().then(go, fail);
   };
+  const address =
+    link === null ? "" : `${base}${link.path}${query === undefined ? "" : `?${query}`}`;
   return (
     <section aria-label="Public link" className="grid gap-3">
       <div className="flex items-center justify-between gap-3">
@@ -78,7 +89,7 @@ export function LinkSection({
             <input
               readOnly
               aria-label="Link address"
-              value={`${base}${link.path}`}
+              value={address}
               className="h-10 min-w-0 flex-1 rounded-[0.5rem] border border-foreground/25 bg-transparent px-3 font-mono text-xs outline-none focus-visible:border-primary focus-visible:ring-[0.1875rem] focus-visible:ring-ring/45"
               onFocus={(e) => {
                 e.target.select();
@@ -88,7 +99,7 @@ export function LinkSection({
               variant="secondary"
               aria-label="Copy link"
               onClick={() => {
-                copyLink(`${base}${link.path}`);
+                copyLink(address);
               }}
             >
               <Copy aria-hidden /> Copy

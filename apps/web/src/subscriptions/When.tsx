@@ -1,34 +1,12 @@
 import { Field, SelectField } from "@/components/ui/field";
+import { RadioChoice } from "@/components/ui/radio";
 import { SettingsRow } from "@/components/ui/settings-row";
 
 import type { EveryUnit, SectionProps } from "./formValues";
 
 const DELAYS = [0, 6, 12, 24, 48, 72] as const;
 
-function Choice({
-  name,
-  label,
-  checked,
-  onPick,
-}: {
-  name: string;
-  label: string;
-  checked: boolean;
-  onPick: () => void;
-}) {
-  return (
-    <label className="flex min-h-11 items-center gap-3">
-      <input
-        type="radio"
-        name={name}
-        className="size-4.5 accent-primary"
-        checked={checked}
-        onChange={onPick}
-      />
-      {label}
-    </label>
-  );
-}
+const Choice = RadioChoice;
 
 const UNITS: [EveryUnit, string][] = [
   ["minutes", "Minutes"],

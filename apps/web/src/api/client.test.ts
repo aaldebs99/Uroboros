@@ -40,10 +40,12 @@ describe("getJson success", () => {
   it("returns the body parsed by the schema", async () => {
     respondWith(Response.json({ name: "uroboros", version: "1.2.3", publicBaseUrl: null }));
 
+    // The schema's defaults too: an answer without clips reads as clips off.
     await expect(getJson("/api/info", Info)).resolves.toEqual({
       name: "uroboros",
       version: "1.2.3",
       publicBaseUrl: null,
+      clips: false,
     });
   });
 

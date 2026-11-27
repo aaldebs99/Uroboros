@@ -9,6 +9,9 @@ import { tileMeta, tileTitle } from "../library/VideoTile";
 
 /** Where a shared thing opens: the caller's own in their library, someone else's playlist on its share page. */
 function linkFor(share: SharedWithMe & { mine?: boolean }) {
+  if (share.kind === "clip") {
+    return { to: "/shared/clips/$exportId", params: { exportId: share.id } } as const;
+  }
   if (share.kind === "entry") {
     return { to: "/library/$entryId", params: { entryId: share.id } } as const;
   }

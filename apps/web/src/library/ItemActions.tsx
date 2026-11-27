@@ -190,7 +190,7 @@ function OwnActions({ item, onStartOver, clip = null }: ActionsProps) {
             setSaving(true);
           }}
         />
-        <ShareButton kind="entry" id={item.id} title={item.title} iconOnly />
+        <ShareButton kind="entry" id={item.id} title={item.title} clip={clip} iconOnly />
         <RemoveButton item={item} />
         <ItemMenu item={item} onStartOver={onStartOver} />
       </div>
