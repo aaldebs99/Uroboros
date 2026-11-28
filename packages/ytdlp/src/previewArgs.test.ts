@@ -15,8 +15,12 @@ const plan = (over: Partial<PreviewPlan> = {}): PreviewPlan => ({
     hdr: null,
   },
   audio: { index: 1 },
+  vaapiDevice: "/dev/dri/renderD128",
   ...over,
 });
+
+const on = (pipeline: PreviewPlan["video"]["pipeline"]) =>
+  previewArgs(plan({ video: { ...plan().video, pipeline } }));
 
 const after = (args: string[], flag: string) => args[args.indexOf(flag) + 1];
 
@@ -51,6 +55,44 @@ describe("previewArgs", () => {
     expect(after(previewArgs(plan()), "-vf")).toBe("scale=640:360,format=yuv420p");
     const hdr = previewArgs(plan({ video: { ...plan().video, hdr: "smpte2084" } }));
     expect(after(hdr, "-vf")).toContain("tonemapx=");
+  });
+
+  it("takes no GPU on the CPU pipeline", () => {
+    const args = on("cpu");
+    expect(args).not.toContain("-hwaccel");
+    expect(args).not.toContain("-init_hw_device");
+  });
+
+  it("decodes, scales and encodes on an NVIDIA GPU, asking for it before the file", () => {
+    const args = on("nvenc");
+    const open = args.indexOf("-protocol_whitelist");
+    expect(args.slice(open - 4, open)).toEqual([
+      "-hwaccel",
+      "cuda",
+      "-hwaccel_output_format",
+      "cuda",
+    ]);
+    expect(after(args, "-vf")).toContain("scale_cuda=");
+    expect(after(args, "-c:v")).toBe("h264_nvenc");
+  });
+
+  it("decodes, scales and encodes on a VA-API GPU, on the plan's render node", () => {
+    const args = previewArgs(
+      plan({ video: { ...plan().video, pipeline: "vaapi" }, vaapiDevice: "/dev/dri/renderD129" }),
+    );
+    const device = args.indexOf("-init_hw_device");
+    expect(args[device + 1]).toBe("vaapi=va:/dev/dri/renderD129");
+    expect(device).toBeLessThan(args.indexOf("-i"));
+    expect(after(args, "-hwaccel")).toBe("vaapi");
+    expect(after(args, "-vf")).toContain("scale_vaapi=");
+    expect(after(args, "-c:v")).toBe("h264_vaapi");
+  });
+
+  it("decodes on the CPU and encodes on the GPU on a -sw pipeline", () => {
+    const args = on("nvenc-sw");
+    expect(args).not.toContain("-hwaccel");
+    expect(after(args, "-vf")).toContain("hwupload_cuda");
+    expect(after(args, "-c:v")).toBe("h264_nvenc");
   });
 
   it("encodes H.264 with stereo AAC into an MP4 that starts at once", () => {

@@ -2,13 +2,17 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fixture, type FakeRun, type Scenario } from "@uroboros/ytdlp/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { recordingLogger } from "../../test/apiConfig.ts";
 import { signedIn } from "../../test/auth.ts";
 import { testBus } from "../../test/bus.ts";
 import { seedEntry } from "../../test/library.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { PreviewJob } from "../downloads/queues.ts";
+import { RequeueError } from "../jobs/errors.ts";
 import { previewKey } from "../previews/queue.ts";
+import { PipelineMemo } from "../transcode/hwaccel.ts";
+import type { WorkerDeps } from "./deps.ts";
 import { previewProcessor } from "./previewRun.ts";
 
 let t: TestDb;
@@ -50,13 +54,22 @@ const job = (mediaId: string, attempts = 2, attemptsMade = 1) => ({
 /** Where the fake ffmpeg writes: its last argument, the preview in the run's scratch folder. */
 const OUTPUT = "{{lastArg}}";
 
-/** Deps whose transcoder runs `ffmpeg`, its ffprobe describing the fixture clip (silent: no audio). */
-async function depsFor(ffmpeg: Scenario, { silent = false } = {}) {
+/**
+ * Deps whose transcoder runs `ffmpeg`, its ffprobe describing the fixture clip (silent: no audio),
+ * on the CPU unless `transcoder` gives the replica a GPU.
+ */
+async function depsFor(
+  ffmpeg: Scenario,
+  {
+    silent = false,
+    transcoder = {},
+  }: { silent?: boolean; transcoder?: Partial<WorkerDeps["transcoder"]> } = {},
+) {
   const probe = JSON.parse(await fixture("ffprobe-clip.json")) as {
     streams: { codec_type: string }[];
   };
   if (silent) probe.streams = probe.streams.filter((s) => s.codec_type !== "audio");
-  const deps = await h.sessionDeps(ffmpeg, probe);
+  const deps = await h.sessionDeps(ffmpeg, probe, transcoder);
   const ffmpegRun = h.runs.at(-2) as FakeRun;
   return { deps, ffmpegRun };
 }
@@ -207,5 +220,111 @@ describe("making a hover preview", () => {
     await t.db.deleteFrom("media").where("id", "=", id).execute();
     await run;
     await expect(readFile(join(h.root, previewKey(id)))).rejects.toThrow();
+  });
+});
+
+describe("making a hover preview on the replica's GPU", () => {
+  /** The fixture clip's kind of source, as the sessions' memo keys it. */
+  const SOURCE = "h264/yuv444p";
+  const stored = { steps: [{ writeFile: OUTPUT, content: "clip" }] };
+  const nvenc = (memo = new PipelineMemo()) => ({
+    hwaccel: "nvenc" as const,
+    gpuWorks: true,
+    memo,
+  });
+  const after = (args: string[], flag: string) => args[args.indexOf(flag) + 1];
+
+  it("decodes, scales and encodes there when the replica has one", async () => {
+    const id = await storedVideo();
+    const { deps, ffmpegRun } = await depsFor(stored, { transcoder: nvenc() });
+    await previewProcessor(deps).process(job(id));
+    expect(await mediaOf(id)).toEqual({ preview_key: previewKey(id), preview_failed_at: null });
+    const args = await ffmpegRun.argv();
+    expect(after(args, "-hwaccel")).toBe("cuda");
+    expect(after(args, "-vf")).toContain("scale_cuda=");
+    expect(after(args, "-c:v")).toBe("h264_nvenc");
+  });
+
+  it("uses the replica's VA-API render node", async () => {
+    const id = await storedVideo();
+    const { deps, ffmpegRun } = await depsFor(stored, {
+      transcoder: { hwaccel: "vaapi", gpuWorks: true, vaapiDevice: "/dev/dri/renderD129" },
+    });
+    await previewProcessor(deps).process(job(id));
+    const args = await ffmpegRun.argv();
+    expect(after(args, "-init_hw_device")).toBe("vaapi=va:/dev/dri/renderD129");
+    expect(after(args, "-c:v")).toBe("h264_vaapi");
+  });
+
+  it("keeps to the CPU when the GPU failed the replica's self-test", async () => {
+    const id = await storedVideo();
+    const { deps, ffmpegRun } = await depsFor(stored, {
+      transcoder: { hwaccel: "nvenc", gpuWorks: false },
+    });
+    await previewProcessor(deps).process(job(id));
+    const args = await ffmpegRun.argv();
+    expect(args).not.toContain("-hwaccel");
+    expect(after(args, "-c:v")).toBe("libx264");
+  });
+
+  it("moves on through the GPU's pipelines to the CPU for this preview, leaving the sessions' memo alone", async () => {
+    const id = await storedVideo();
+    const memo = new PipelineMemo();
+    const { deps, ffmpegRun } = await depsFor(
+      {
+        ...stored,
+        variants: [
+          { whenArg: "h264_nvenc", steps: [{ stderr: "Cannot load libcuda.so.1\n" }], exitCode: 1 },
+        ],
+      },
+      { transcoder: nvenc(memo) },
+    );
+    const { logger, lines } = recordingLogger();
+    await previewProcessor({ ...deps, logger }).process(job(id));
+    expect(await mediaOf(id)).toEqual({ preview_key: previewKey(id), preview_failed_at: null });
+    expect(after(await ffmpegRun.argv(), "-c:v")).toBe("libx264");
+    expect(lines.filter((l) => l.level === 40).map((l) => [l.pipeline, l.mediaId])).toEqual([
+      ["nvenc", id],
+      ["nvenc-sw", id],
+    ]);
+    // A passing failure (playback holding every encoder session, say) never costs playback the GPU.
+    expect(memo.failed("nvenc", SOURCE)).toBe(false);
+    expect(memo.failed("nvenc-sw", SOURCE)).toBe(false);
+  });
+
+  it("starts past a pipeline the sessions found broken on this kind of source", async () => {
+    const id = await storedVideo();
+    const memo = new PipelineMemo();
+    memo.markFailed("nvenc", SOURCE);
+    const { deps, ffmpegRun } = await depsFor(stored, { transcoder: nvenc(memo) });
+    await previewProcessor(deps).process(job(id));
+    const args = await ffmpegRun.argv();
+    expect(args).not.toContain("-hwaccel");
+    expect(after(args, "-vf")).toContain("hwupload_cuda");
+    expect(after(args, "-c:v")).toBe("h264_nvenc");
+  });
+
+  it("goes back to the queue when cut for shutdown on the GPU, never trying the CPU", async () => {
+    const id = await storedVideo();
+    const { deps, ffmpegRun } = await depsFor(
+      { ...stored, variants: [{ whenArg: "h264_nvenc", steps: [{ hang: true }] }] },
+      { transcoder: nvenc() },
+    );
+    const previews = previewProcessor(deps);
+    const run = previews.process(job(id));
+    await expect
+      .poll(
+        () =>
+          ffmpegRun.argv().then(
+            (a) => after(a, "-c:v"),
+            () => null,
+          ),
+        { timeout: 5000 },
+      )
+      .toBe("h264_nvenc");
+    previews.abortAll();
+    await expect(run).rejects.toBeInstanceOf(RequeueError);
+    expect(after(await ffmpegRun.argv(), "-c:v")).toBe("h264_nvenc");
+    expect(await mediaOf(id)).toEqual({ preview_key: null, preview_failed_at: null });
   });
 });
