@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.6](https://github.com/aaldebs99/Uroboros/compare/0.1.5...0.1.6) (2026-11-28)
+
+
+### Bug Fixes
+
+* **image:** yt-dlp 2026.11.23 with curl_cffi, for YouTube's new players and its subtitles ([1a70857](https://github.com/aaldebs99/Uroboros/commit/1a70857d217fdd5ca87c070666327c7546cbddb5))
+* **downloads:** audio presets take stereo first, and Opus as the site serves it ([60ab970](https://github.com/aaldebs99/Uroboros/commit/60ab970780bb3ef43bfad8cb7b2833a0b6057d1b))
+
+
+### Continuous Integration
+
+* **renovate:** yt-dlp, yt-dlp-ejs and curl-cffi move together, ahead of automerges ([8a04605](https://github.com/aaldebs99/Uroboros/commit/8a04605f546f5b59047eb26746dd9ab42a39bbef))
+* **renovate:** run every 5 hours rather than twice a day ([a594835](https://github.com/aaldebs99/Uroboros/commit/a59483502d9554642d4f8b5e31d17a00a987abc5))
 ## [0.1.5](https://github.com/aaldebs99/Uroboros/compare/0.1.4...0.1.5) (2026-11-28)
 
 
