@@ -14,6 +14,8 @@ type ConfirmRequest = {
   title: string;
   description?: ReactNode;
   confirmLabel: string;
+  /** The way out, when "Cancel" would read as the action itself ("Cancel playlist"). */
+  cancelLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
 };
@@ -40,7 +42,7 @@ export function useConfirm() {
             <AlertDialogDescription>{request.description}</AlertDialogDescription>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{request.cancelLabel ?? "Cancel"}</AlertDialogCancel>
             <AlertDialogAction
               destructive={request.destructive ?? false}
               onClick={() => {

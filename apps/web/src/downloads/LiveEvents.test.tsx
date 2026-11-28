@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { act, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { downloadKeys } from "@/api/downloads";
 import { exportsKey } from "@/api/exports";
 import { subscriptionKeys } from "@/api/subscriptions";
 import { itemKey, useLibraryPages } from "@/api/library";
@@ -51,6 +52,30 @@ function renderLive(children?: ReactNode) {
 }
 
 describe("LiveEventsProvider", () => {
+  it("fetches the queue, the playlists still downloading and those to pick again when the person's requests change", () => {
+    // One `requests` event covers a whole playlist discarded, or its rest cancelled together.
+    const { client, deliver } = renderLive();
+    const keys = [
+      downloadKeys.ready,
+      downloadKeys.batches,
+      downloadKeys.list(false),
+      downloadKeys.active,
+    ];
+    for (const key of keys) client.setQueryData(key, []);
+    deliver({ kind: "event", event: { type: "requests" } });
+    for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+  });
+
+  it("fetches the playlists still downloading again when a download changes state", () => {
+    const { client, deliver } = renderLive();
+    client.setQueryData(downloadKeys.batches, []);
+    deliver({
+      kind: "event",
+      event: { type: "state", download: downloadFixture({ state: "done" }) },
+    });
+    expect(client.getQueryState(downloadKeys.batches)?.isInvalidated).toBe(true);
+  });
+
   it("fetches a subscription's activity again when one of its downloads changes state", () => {
     const { client, deliver } = renderLive();
     const DOWNLOAD = "0190a3f2-7c1e-7000-8000-0000000000d1";

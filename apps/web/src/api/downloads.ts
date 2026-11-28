@@ -1,5 +1,7 @@
 import {
+  CancelledBatch,
   Download,
+  DownloadBatch,
   DownloadRequest,
   FormatProfile,
   QueueSelectionResult,
@@ -11,7 +13,7 @@ import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
-import { getJson, postJson, postNoContent, putNoContent } from "./client";
+import { deleteJson, getJson, postJson, postNoContent, putNoContent } from "./client";
 import { openStream } from "./liveEvents";
 
 export const downloadKeys = {
@@ -22,6 +24,8 @@ export const downloadKeys = {
   request: (id: string) => ["api", "downloads", "requests", id] as const,
   /** The caller's pasted playlists and channels waiting for a pick, for the bell. */
   ready: ["api", "downloads", "requests"] as const,
+  /** The caller's queued playlists and channels with videos still waiting, to cancel together. */
+  batches: ["api", "downloads", "batches"] as const,
 };
 
 /** The format profiles anyone signed in may pick from; the default is flagged. */
@@ -68,6 +72,25 @@ export function useReadyPreviews() {
     queryFn: ({ signal }) => getJson("/api/downloads/requests", z.array(ReadyPreview), { signal }),
   });
 }
+
+/** Throws away a playlist or channel still waiting for its pick; nothing of it is queued. */
+export const discardRequest = (id: string) =>
+  deleteJson(`/api/downloads/requests/${encodeURIComponent(id)}`);
+
+/**
+ * The caller's queued playlists and channels with videos still queued or downloading; the stream's
+ * `state` and `requests` events say when they change.
+ */
+export function useBatches() {
+  return useQuery({
+    queryKey: downloadKeys.batches,
+    queryFn: ({ signal }) => getJson("/api/downloads/batches", z.array(DownloadBatch), { signal }),
+  });
+}
+
+/** Cancels every video of a queued playlist or channel still waiting; answers how many. */
+export const cancelBatch = (id: string) =>
+  postJson(`/api/downloads/requests/${encodeURIComponent(id)}/cancel`, CancelledBatch);
 
 /** Keeps the entries picked so far in a preview, so it opens with them again. */
 export function saveSelection(id: string, entryIds: string[]): Promise<void> {

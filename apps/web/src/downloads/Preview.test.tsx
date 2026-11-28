@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -129,5 +129,47 @@ describe("a preview's picks", () => {
       await screen.findByText("This preview expired. A preview waits a day for a pick."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Looking at the link")).not.toBeInTheDocument();
+  });
+});
+
+describe("cancelling a preview before picking from it", () => {
+  const routes = () =>
+    fakeApi({
+      [`GET /api/downloads/requests/${ID}`]: () => Response.json(preview(null)),
+      [`DELETE /api/downloads/requests/${ID}`]: () => new Response(null, { status: 204 }),
+    });
+  const showDone = (onDone: () => void) =>
+    renderWithQuery(
+      <>
+        <RequestPanel id={ID} onDone={onDone} />
+        <Toaster />
+      </>,
+    );
+
+  it("asks first, and keeps it when the person changes their mind", async () => {
+    const calls = routes();
+    const onDone = vi.fn();
+    showDone(onDone);
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel channel" }));
+    const dialog = await screen.findByRole("alertdialog", { name: 'Cancel "Blender"?' });
+    expect(dialog).toHaveTextContent("Nothing from it is queued yet.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Keep it" }));
+    expect(calls.filter((c) => c.method === "DELETE")).toHaveLength(0);
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByRole("checkbox", { name: "Video v1" })).toBeInTheDocument();
+  });
+
+  it("throws it away once confirmed, closes the picker and says so", async () => {
+    const calls = routes();
+    const onDone = vi.fn();
+    showDone(onDone);
+    await userEvent.click(await screen.findByRole("button", { name: "Cancel channel" }));
+    const dialog = await screen.findByRole("alertdialog", { name: 'Cancel "Blender"?' });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel channel" }));
+    expect(await screen.findByText("Cancelled Blender.")).toBeInTheDocument();
+    expect(calls.filter((c) => c.method === "DELETE").map((c) => c.path)).toEqual([
+      `/api/downloads/requests/${ID}`,
+    ]);
+    expect(onDone).toHaveBeenCalledOnce();
   });
 });

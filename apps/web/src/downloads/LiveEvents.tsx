@@ -48,6 +48,8 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
             return;
           case "state":
             applyDownloadChange(client, lists, { download: event.download });
+            // A playlist's counts moved, or its last video settled.
+            void client.invalidateQueries({ queryKey: downloadKeys.batches });
             refreshActivityHolding(client, event.download.id);
             if (event.download.state === "done") void refreshLibraryLists(client);
             return;
@@ -66,6 +68,10 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
           case "requests":
             // Only the list: an open preview's own request is the picker's to keep.
             void client.invalidateQueries({ queryKey: downloadKeys.ready, exact: true });
+            // A playlist queued, or its rest cancelled together, which says so once for them all.
+            for (const queryKey of [lists.list, lists.active, downloadKeys.batches]) {
+              void client.invalidateQueries({ queryKey });
+            }
             return;
           case "skips":
             void client.invalidateQueries({ queryKey: itemKey(event.entryId) });
