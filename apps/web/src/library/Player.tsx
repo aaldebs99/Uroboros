@@ -135,6 +135,8 @@ function tryPlay(v: HTMLVideoElement): void {
  * mute remembered in this browser. Subtitles stay off until the viewer turns them on; then the same
  * language is remembered in this browser too (useSubtitlePref). A `clip` the page picked is a range
  * on the timeline its handles change (ClipControls); it, or a `range` to show, pauses at its end.
+ * The video's title sits over the picture's top left, coming and going with the controls,
+ * fullscreen too.
  */
 export function Player(p: PlayerProps) {
   const video = useRef<HTMLVideoElement>(null);
@@ -204,7 +206,9 @@ export function Player(p: PlayerProps) {
   const Media = p.hls === undefined ? Video : p.hls.native ? NativeHlsVideo : HlsJsVideo;
   const range = p.range ?? null;
   return (
-    <VideoPlayer>
+    // The skin's own title line over the picture's top left (player.css), from this config: no
+    // `title` attribute anywhere, so no tooltip.
+    <VideoPlayer title={p.title}>
       <SettingsMenuSlot.Provider value={p.settings ?? null}>
         <ClipSlots clip={p.clip} range={range}>
           {p.chapters.length > 0 ? <ChapterTrack chapters={p.chapters} /> : null}

@@ -199,6 +199,38 @@
   background-color: var(--uro-sb-poi_highlight, var(--warning));
 }
 
+/*
+ * The video's title (Player's `title`): the skin's own line over the picture's top left, over a
+ * shade, coming and going with the controls, fullscreen too. It shares the corner with our own
+ * overlays, so it sits under them (the skin puts it above, where its shade would dim them; its
+ * controls stay above it), stops short of Jump to highlight while that shows, gives the corner to
+ * the Stats panel while that is open, and has the clip's label under it.
+ */
+.uro-player .media-title {
+  z-index: 5;
+}
+
+.uro-player:has(.uro-highlight-jump) .media-title {
+  padding-inline-end: 12.5rem;
+}
+
+.uro-player:has(.uro-stats) .media-title {
+  visibility: hidden;
+}
+
+/* Under the title, at its left edge: the skin pads the title more from 28rem of player width. */
+.uro-player:has(.media-title) .uro-clip-label {
+  top: 2.625rem;
+  left: 1rem;
+}
+
+@container media-root (width >= 28rem) {
+  .uro-player:has(.media-title) .uro-clip-label {
+    top: 3rem;
+    left: 1.5rem;
+  }
+}
+
 /* Jump to highlight (HighlightJump) comes and goes with the controls, unless it has the focus. */
 .uro-player .uro-highlight-jump {
   transition: opacity var(--media-duration-controls, 0.15s) ease-out;
