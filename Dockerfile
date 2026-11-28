@@ -108,9 +108,9 @@ ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # --- uroboros: the image. Debian slim Node with tini as PID 1, python3, yt-dlp's static ffmpeg (from the ffmpeg
 # stage, with its licences and notices; glibc and libgcc_s, the only libraries it needs, come from
-# this base), a venv holding the one downloader, yt-dlp, pinned with hashes in
-# scripts/image/requirements.txt (Renovate's pip_requirements manager) and installed with
-# --require-hashes, and jellyfin-ffmpeg for transcoding (/usr/lib/jellyfin-ffmpeg/). yt-dlp is
+# this base), a venv holding the one downloader, yt-dlp, with curl_cffi for browser impersonation,
+# pinned with hashes in scripts/image/requirements.txt (Renovate's pip_requirements manager) and
+# installed with --require-hashes, and jellyfin-ffmpeg for transcoding (/usr/lib/jellyfin-ffmpeg/). yt-dlp is
 # the only downloader; its ffmpeg serves downloads, jellyfin-ffmpeg only playback sessions.
 FROM node:${NODE_VERSION}-trixie-slim AS uroboros
 ARG JELLYFIN_FFMPEG_VERSION
@@ -128,6 +128,9 @@ RUN --mount=type=bind,from=jellyfin-ffmpeg,source=/jellyfin-ffmpeg.deb,target=/t
 COPY --from=ffmpeg /usr/local/bin/ffmpeg /usr/local/bin/ffprobe /usr/local/bin/
 COPY --from=ffmpeg /usr/share/licenses/ffmpeg/ /usr/share/licenses/ffmpeg/
 COPY --from=build /src/licenses/ /usr/share/licenses/uroboros/
+# curl_cffi's wheel links libcurl, BoringSSL and others into its module but ships only its own
+# licence; theirs come from the repository (scripts/image/licenses/curl_cffi/SOURCE.md).
+COPY scripts/image/licenses/curl_cffi/ /usr/share/licenses/curl_cffi/
 ARG VERSION
 ARG REVISION
 LABEL org.opencontainers.image.title="uroboros" \
