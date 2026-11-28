@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.1.8](https://github.com/aaldebs99/Uroboros/compare/0.1.7...0.1.8) (2026-11-28)
+
+
+### Features
+
+* **server:** discard a playlist before its pick, and cancel a queued one's rest together ([af609a5](https://github.com/aaldebs99/Uroboros/commit/af609a53231acb64296457ea7cde10104f1623c3))
+* **web:** cancel a playlist from its picker, or the rest of it from Downloads ([12176bc](https://github.com/aaldebs99/Uroboros/commit/12176bccf377672d4f1c6d4b8afe06c76b98fa18))
+* **web:** a playlist row's tile gives way to its title on phones ([d54d985](https://github.com/aaldebs99/Uroboros/commit/d54d9852935f8ebc698e8a3e828878db5d1df6f7))
+* **npm:** update package @tanstack/react-query (5.104.2 → 5.108.4) ([cd8b347](https://github.com/aaldebs99/Uroboros/commit/cd8b347d04cbd3667d5e27007d6fef19a4c07ebb))
+* **web:** the video's title over the player, top left ([9eb9ac3](https://github.com/aaldebs99/Uroboros/commit/9eb9ac393ada0f61cd101ba91e147bdb4741ea33))
+* **npm:** update aws-sdk-js-v3 monorepo (3.1173.0 → 3.1177.0) ([e87a8ca](https://github.com/aaldebs99/Uroboros/commit/e87a8cae200609bcc21c60eff0be649262e2c499))
+
+
+### Bug Fixes
+
+* **server:** cancel the rest only of a playlist the batches list shows ([8c7b7b9](https://github.com/aaldebs99/Uroboros/commit/8c7b7b93a805a3ed38bf9eb16ae728f51aaec1fd))
+* **web:** fetch the playlists still downloading again after a stream gap ([e2261c2](https://github.com/aaldebs99/Uroboros/commit/e2261c229ac805ca95130cdb6875781783301242))
+* **npm:** update testcontainers-node monorepo (12.2.1 → 12.2.2) ([d6b9468](https://github.com/aaldebs99/Uroboros/commit/d6b94688d4b109d78d76bb65b68b52164b6c9d86))
+* **npm:** update package hono (4.13.21 → 4.13.22) ([38055d0](https://github.com/aaldebs99/Uroboros/commit/38055d06c1eaf4b8677097002ef824800b08b0d4))
+* **npm:** update tailwindcss monorepo (4.3.3 → 4.3.5) ([c30d771](https://github.com/aaldebs99/Uroboros/commit/c30d771153f9db68d8db8f2ee679ffe908b74a3a))
+* **previews:** fall back from a GPU run only when it encoded nothing ([eaa7a77](https://github.com/aaldebs99/Uroboros/commit/eaa7a77151d00ec131ffc77d265412f5c4828343))
+
+
+### Performance Improvements
+
+* **previews:** make hover previews on the replica's GPU when it has one ([d5eb00f](https://github.com/aaldebs99/Uroboros/commit/d5eb00fbaf092e12947724671fe3fc872e671b18))
+
+
+### Documentation
+
+* cancelling a playlist before its pick, or the rest of it once queued ([219ba35](https://github.com/aaldebs99/Uroboros/commit/219ba351f2137274d0bb4e3c1741ca724d87738a))
+* the player's title in the design system's player section ([f013db5](https://github.com/aaldebs99/Uroboros/commit/f013db587a3428546d38a2425986cfb443408266))
+* hover previews encode on the replica's GPU when it has one ([4eb0c1e](https://github.com/aaldebs99/Uroboros/commit/4eb0c1e55d93a98db7b98b1a5431309747fb4fd1))
+
+
+### Miscellaneous Chores
+
+* **mise:** Update tool lefthook (2.2.2 → 2.2.3) ([5cb8566](https://github.com/aaldebs99/Uroboros/commit/5cb85660a61e21b0ba26baa374886633f3c674e4))
 ## [0.1.7](https://github.com/aaldebs99/Uroboros/compare/0.1.6...0.1.7) (2026-11-28)
 
 
