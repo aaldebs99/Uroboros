@@ -245,8 +245,13 @@ writes the selector from them:
   into; a site that serves one ready-made file keeps its container. MP4 prefers AAC audio, which
   plays wherever MP4 does, and WebM Opus, the only one it holds besides Vorbis. WebM holds only AV1
   or VP9 video, so the server refuses H.264 or H.265 with it, and the form doesn't offer them.
-- **Audio only**: the audio format (Opus, M4A, MP3, FLAC or WAV), from the best audio (`ba/b`), or
-  M4A as served when there is one (`ba[ext=m4a]/ba/b`).
+- **Audio only**: the audio format (Opus, M4A, MP3, FLAC or WAV). The lossy ones take stereo first:
+  yt-dlp ranks a format's channels above its codec, so a bare `ba/b` takes a 5.1 track where one
+  is offered (YouTube's AAC 5.1), and converts it. Opus and M4A take the site's own when it has
+  one, so nothing is converted (`ba[acodec=opus]/ba[audio_channels<=2]/ba/b`,
+  `ba[ext=m4a][audio_channels<=2]/ba[ext=m4a]/ba/b`), and MP3 the best stereo
+  (`ba[audio_channels<=2]/ba/b`). FLAC and WAV, which hold surround, take the best audio (`ba/b`).
+  A profile saved with another selector keeps it, shown under Advanced.
 
 - **Built-ins** (`user_id` null) are everyone's to start with. None of them marks or cuts
   SponsorBlock segments: what a person's player shows and skips is their own setting, Settings ›
@@ -254,9 +259,12 @@ writes the selector from them:
   - "Best available" (the default), "Best up to 1080p (MP4)" and "Up to 720p (MP4)", the smaller
     one for phones and tight storage, each AV1 in MP4 with AAC audio at the height its name says
     (AV1 is yt-dlp's own first choice; the MP4 makes the file play outside browsers too);
-  - "Audio only (Opus)";
+  - "Audio only (Opus)": the site's own Opus, kept as it is when there is one;
   - "Music (MP3)": VBR best (`--audio-quality=0`) with metadata and cover art embedded;
   - "Podcasts (M4A)": AAC with metadata and chapters embedded.
+
+  The three audio ones write the form's selectors above, so they take stereo first. A built-in an
+  admin edited keeps its edit (the migration only changes a row still at its seeded revision).
 
   A person may change them, for themselves alone (`src/downloads/profileEdits.ts`): editing one
   makes it a profile of their own (copy-on-write: a new row, the built-in hidden from them in

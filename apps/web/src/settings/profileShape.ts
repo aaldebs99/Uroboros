@@ -62,9 +62,21 @@ export const AUDIO_FORMATS: readonly Choice<string>[] = [
   { value: "wav", label: "WAV" },
 ];
 
-/** M4A as the site serves it when it has one (no conversion), else the best audio, converted. */
+/**
+ * The selector the form writes for an audio format, the built-in audio profiles' own: Opus or M4A
+ * as the site serves it when it has one (no conversion), stereo first, else the best stereo audio,
+ * converted. yt-dlp ranks a format's channels above its codec, so a bare `ba/b` takes a 5.1 track
+ * where one is offered (YouTube's AAC 5.1), converting it into Opus or downmixing it into MP3. The
+ * lossless formats, which hold surround, keep the best audio.
+ */
+const AUDIO_SELECTORS: Readonly<Record<string, string>> = {
+  opus: "ba[acodec=opus]/ba[audio_channels<=2]/ba/b",
+  m4a: "ba[ext=m4a][audio_channels<=2]/ba[ext=m4a]/ba/b",
+  mp3: "ba[audio_channels<=2]/ba/b",
+};
+
 export function audioSelectorFor(format: string): string {
-  return format === "m4a" ? "ba[ext=m4a]/ba/b" : "ba/b";
+  return AUDIO_SELECTORS[format] ?? "ba/b";
 }
 
 /**

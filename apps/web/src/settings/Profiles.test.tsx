@@ -31,7 +31,7 @@ const BEST = profile(1, "Best available", {
   mergeFormat: "mp4",
 });
 const AUDIO = profile(2, "Audio only (Opus)", {
-  format: "ba/b",
+  format: "ba[acodec=opus]/ba[audio_channels<=2]/ba/b",
   audioOnly: true,
   audioFormat: "opus",
 });

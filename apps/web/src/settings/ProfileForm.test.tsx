@@ -111,7 +111,7 @@ describe("ProfileForm", () => {
     await userEvent.selectOptions(select("Audio format"), "m4a");
     expect(await saved()).toEqual({
       name: "Pods",
-      format: "ba[ext=m4a]/ba/b",
+      format: "ba[ext=m4a][audio_channels<=2]/ba[ext=m4a]/ba/b",
       mergeFormat: null,
       videoCodec: null,
       audioOnly: true,
