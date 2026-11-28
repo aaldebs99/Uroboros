@@ -7,7 +7,9 @@
 #           under /usr/share/licenses/ffmpeg), jellyfin-ffmpeg is the pinned transcoder package
 #           with the encoders and filters playback sessions use, its copyright and SOURCE.md, and
 #           writes fragmented MP4 to a pipe, the npm notices are under /usr/share/licenses/uroboros,
-#           the committed login-site list is its yt-dlp's, and /media is writable.
+#           yt-dlp can impersonate Chrome (curl_cffi, with its bundled libraries' licences under
+#           /usr/share/licenses/curl_cffi), the committed login-site list is its yt-dlp's, and
+#           /media is writable.
 #   server  starts on an empty database and applies the migrations itself, answers
 #           {"status":"ok"} on /api/health (liveness) and {"status":"ok","failing":[]} on
 #           /api/ready, takes the leader lock, starts its job consumers and logs both tool
@@ -199,6 +201,13 @@ check "carries the npm notices (fonts included) and Uroboros' licence" docker ru
 # yt-dlp is the only downloader; none of its forks may be on the image.
 check "no youtube-dl or youtube-dlc on PATH" docker run --rm --entrypoint sh "${IMAGE}" -c \
     '! command -v youtube-dl && ! command -v youtube-dlc'
+# yt-dlp impersonates a browser through curl_cffi, which YouTube's subtitles need: without it every
+# target lists as unavailable and the subtitle requests answer 429. A curl-cffi outside the range
+# yt-dlp supports lists as unavailable too.
+check "yt-dlp can impersonate Chrome (curl_cffi)" docker run --rm --entrypoint sh "${IMAGE}" -c \
+    "\"\$YTDLP_PATH\" --list-impersonate-targets | grep '^Chrome' | grep -v -q unavailable"
+check "the licences of curl_cffi's bundled libraries are installed" docker run --rm --entrypoint sh "${IMAGE}" -c \
+    'test -s /usr/share/licenses/curl_cffi/SOURCE.md && test -s /usr/share/licenses/curl_cffi/curl_cffi.txt && test -s /usr/share/licenses/curl_cffi/boringssl.txt && test -s /usr/share/licenses/curl_cffi/curl.txt'
 # The sites the web offers for saved logins are the image's yt-dlp's: regenerate the list
 # (mise run gen:login-sites) whenever a yt-dlp bump changes it.
 login_sites_match() {

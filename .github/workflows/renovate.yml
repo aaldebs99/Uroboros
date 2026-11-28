@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 #
-# Renovate, self-hosted: two runs a day against this repository, plus a manual trigger. The policy
+# Renovate, self-hosted: a run every 5 hours against this repository, plus a manual trigger. The policy
 # (what to bump, when to automerge, the soak) lives in .renovaterc.json5; this file only says
 # where and as whom Renovate runs. Gitea schedules only the copy of this file that is on the
 # default branch, and reads `schedule` as UTC.
@@ -31,8 +31,12 @@ name: Renovate
 
 on:
   schedule:
-    # 04:23 and 06:23 UTC, daily. Off the full hour so it does not queue behind everyone else's crons.
-    - cron: "23 4,6 * * *"
+    # 00:23, 05:23, 10:23, 15:23 and 20:23 UTC (every 5 hours, the last gap 4), off the full hour
+    # so it does not queue behind everyone else's crons. A run ends after its second automerge, so
+    # five runs a day merge at most ten PRs; twice a day (four) left a backlog that starved every
+    # reviewed update behind it. The 00:23 run is also the one that falls in lockFileMaintenance's
+    # "before 4am on the first day of the month" (.renovaterc.json5).
+    - cron: "23 */5 * * *"
   workflow_dispatch:
     inputs:
       log_level:

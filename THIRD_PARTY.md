@@ -14,6 +14,7 @@ Built `FROM node:<version>-trixie-slim` (Debian 13).
 | Debian base                    | Debian packages, each under its own licence           | Copyright files under `/usr/share/doc/<package>/`; sources at https://sources.debian.org |
 | Python 3 and its venv module   | Python Software Foundation License                    | Debian's `python3` packages                                                              |
 | yt-dlp (`/opt/yt-dlp`)         | Unlicense (public domain)                             | https://github.com/yt-dlp/yt-dlp, pinned in `scripts/image/requirements.txt`             |
+| curl_cffi (in yt-dlp's venv)   | MIT, with its bundled libraries' own                  | `/usr/share/licenses/curl_cffi/`, see below                                              |
 | ffmpeg and ffprobe             | GNU GPL version 3                                     | yt-dlp's FFmpeg build, see below                                                         |
 | jellyfin-ffmpeg (transcoding)  | GNU GPL version 3, with its bundled libraries' own    | Jellyfin's Debian package, see below                                                     |
 | tini (PID 1)                   | MIT                                                   | Debian's `tini` package; copyright under `/usr/share/doc/tini/`                          |
@@ -32,6 +33,18 @@ and `apps/server/src/notices/notices.ts` turns the result into
 and the web app carry, with its version, licence and the licence and notice files its package
 ships (the fonts' OFL text among them). Uroboros' own licence is beside it as `LICENSE`.
 `check:licenses` keeps every one of those licences on the allowlist.
+
+### curl_cffi
+
+yt-dlp impersonates a browser (which YouTube's subtitles need) through curl_cffi
+(https://github.com/lexiforest/curl_cffi, MIT), pinned with the rest of yt-dlp's venv in
+`scripts/image/requirements.txt`. Its one native module is statically linked against
+curl-impersonate's libcurl (curl licence), BoringSSL (Apache-2.0), nghttp2, nghttp3 and ngtcp2
+(MIT), Brotli (MIT), Zstandard (BSD-3-Clause) and zlib (zlib licence), but its wheel ships only
+curl_cffi's own licence. The image carries every one of those licence texts, and a `SOURCE.md`
+naming each project and version, at `/usr/share/licenses/curl_cffi/` (from
+`scripts/image/licenses/curl_cffi/`). The other Python packages in the venv keep their licences in
+their `*.dist-info` folders under `/opt/yt-dlp`.
 
 ### ffmpeg
 

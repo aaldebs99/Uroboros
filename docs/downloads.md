@@ -140,6 +140,9 @@ them; while that cooldown lasts, fetches ask for none; and each such video gets 
 on the probe queue (key `subtitles:<media id>`, `src/worker/subtitlesJob.ts`) for just after the
 cooldown, which fetches its subtitles alone (`downloadSubtitles`, yt-dlp's `--skip-download`),
 signed in as the fetch's earliest waiter, and stores and indexes them as the fetch would have.
+yt-dlp asks YouTube for subtitles while impersonating a browser, through curl_cffi, which the image
+carries beside it (`scripts/image/requirements.txt`). Without it yt-dlp warns that no impersonate
+target is available and asks as a plain client, which YouTube answered with a 429 every time.
 
 ## Large downloads
 
