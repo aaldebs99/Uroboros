@@ -1,14 +1,15 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { buffer } from "node:stream/consumers";
 import {
   ffprobe,
   meaningfulLine,
   previewArgs,
   previewCopyArgs,
+  progressSeconds,
   spawnStream,
   type MediaInfo,
   type MediaStream,
+  type Pipeline,
   type PreviewPlan,
 } from "@uroboros/ytdlp";
 import { sql } from "kysely";
@@ -16,6 +17,7 @@ import type { PreviewJob } from "../downloads/queues.ts";
 import { RequeueError, UnrecoverableError } from "../jobs/errors.ts";
 import type { Processor } from "../jobs/queues.ts";
 import { announcePreview, previewKey } from "../previews/queue.ts";
+import { choosePipeline, pipelinesFor, sourceKey } from "../transcode/hwaccel.ts";
 import { h264Level, outputSize } from "../transcode/ladder.ts";
 import type { WorkerDeps } from "./deps.ts";
 import { downloadPreviewCopy, previewPage } from "./previewDownload.ts";
@@ -26,8 +28,8 @@ import { readInput } from "./sessionSource.ts";
  * The `preview` job (docs/library.md "Hover previews"): makes a media's hover preview, the whole
  * video at 480p with its sound, and stores it beside the thumbnail. It comes from the video's site
  * (`UROBOROS_PREVIEW_METHOD=download`, `previewDownload.ts`), copied as it is when the site's copy
- * already is one; otherwise it is encoded on the CPU with the transcoder's ffmpeg, from that copy or
- * from the stored file.
+ * already is one; otherwise it is encoded with the transcoder's ffmpeg, from that copy or from the
+ * stored file, on the replica's GPU when it has one (`encode`) and the CPU otherwise.
  */
 
 /** The preview's short side, and the most it may run at. */
@@ -150,38 +152,75 @@ async function makePreview(deps: WorkerDeps, mediaId: string, dir: string, signa
     page === null
       ? null
       : await downloadPreviewCopy(deps, mediaId, page, join(dir, "site"), signal);
-  if (copy === null || !(await fromCopy(deps, copy, output, signal))) {
-    await fromStored(deps, source.storage_key, output, signal);
+  const run = { deps, mediaId, output, signal };
+  if (copy === null || !(await fromCopy(run, copy))) {
+    await fromStored(run, source.storage_key);
   }
   await storePreview(deps, mediaId, output);
 }
 
+/** One preview being made: where it goes, and what cuts it short. */
+interface Run {
+  deps: WorkerDeps;
+  mediaId: string;
+  output: string;
+  signal: AbortSignal;
+}
+
 /** Encodes the preview from the stored file. */
-async function fromStored(deps: WorkerDeps, key: string, output: string, signal: AbortSignal) {
-  const input = await readInput(deps, key).catch((err: unknown) => {
+async function fromStored(run: Run, key: string) {
+  const input = await readInput(run.deps, key).catch((err: unknown) => {
     throw new UnrecoverableError("the video's file can't be read", { cause: err });
   });
-  const info = await probe(deps, input, signal);
-  await runFfmpeg(deps, previewArgs(planFor(info, input, output)), signal);
+  await encode(run, await probe(run.deps, input, run.signal), input);
+}
+
+/**
+ * Encodes `input` on the replica's pipelines in turn (docs/transcoding.md), as its sessions do:
+ * from the first the sessions haven't found broken on this kind of source, the CPU last. A GPU run
+ * that fails before encoding anything moves this preview on without marking its pipeline failed,
+ * as a passing failure (playback holding every encoder session, say) mustn't cost playback the
+ * GPU. One that fails partway fails the attempt, as a copy does: the file is more likely at fault
+ * than the GPU, and the whole video isn't encoded again for it. A cut never moves on.
+ */
+async function encode(run: Run, info: MediaInfo, input: string): Promise<void> {
+  const { deps, mediaId, output, signal } = run;
+  const t = deps.transcoder;
+  const chain = pipelinesFor(t.hwaccel, t.gpuWorks);
+  const video = streamsOf(info).video;
+  const first = video === undefined ? "cpu" : choosePipeline(chain, t.memo, sourceKey(video));
+  for (const pipeline of chain.slice(chain.indexOf(first))) {
+    const args = previewArgs(planFor(info, input, output, pipeline, t.vaapiDevice));
+    try {
+      await runFfmpeg(deps, args, signal);
+      return;
+    } catch (err) {
+      const early = err instanceof RunFailed && !err.progressed;
+      if (pipeline === "cpu" || signal.aborted || !early) throw err;
+      deps.logger.warn({ err, mediaId, pipeline }, "a hover preview's GPU run failed");
+    }
+  }
 }
 
 /**
  * Makes the preview from the site's copy: copied as it is when it already is one, else encoded.
  * False for a copy with no picture, which the stored file stands in for.
  */
-async function fromCopy(deps: WorkerDeps, copy: string, output: string, signal: AbortSignal) {
-  const info = await probe(deps, copy, signal);
+async function fromCopy(run: Run, copy: string) {
+  const info = await probe(run.deps, copy, run.signal);
   const { video, audio } = streamsOf(info);
   if (video === undefined) return false;
-  const args = alreadyPreview(video, audio)
-    ? previewCopyArgs({
-        input: copy,
-        output,
-        video: { index: video.index },
-        audio: audio === undefined ? null : { index: audio.index },
-      })
-    : previewArgs(planFor(info, copy, output));
-  await runFfmpeg(deps, args, signal);
+  if (!alreadyPreview(video, audio)) {
+    await encode(run, info, copy);
+    return true;
+  }
+  const args = previewCopyArgs({
+    input: copy,
+    output: run.output,
+    video: { index: video.index },
+    audio: audio === undefined ? null : { index: audio.index },
+  });
+  await runFfmpeg(run.deps, args, run.signal);
   return true;
 }
 
@@ -214,8 +253,14 @@ async function probe(deps: WorkerDeps, input: string, signal: AbortSignal): Prom
   return ffprobe(input, { binary: t.ffprobe.binary, ...env(t.ffprobe.env), signal });
 }
 
-/** The preview's plan from the file's own streams: 480p at most, on the CPU, HDR tone-mapped. */
-function planFor(info: MediaInfo, input: string, output: string): PreviewPlan {
+/** The preview's plan from the file's own streams: 480p at most, on `pipeline`, HDR tone-mapped. */
+function planFor(
+  info: MediaInfo,
+  input: string,
+  output: string,
+  pipeline: Pipeline,
+  vaapiDevice: string,
+): PreviewPlan {
   const { video, audio } = streamsOf(info);
   if (video === undefined) throw new UnrecoverableError("the file has no video");
   const size = outputSize(video.width ?? 1280, video.height ?? 720, PREVIEW_SHORT_SIDE);
@@ -224,9 +269,10 @@ function planFor(info: MediaInfo, input: string, output: string): PreviewPlan {
     input,
     output,
     audio: audio === undefined ? null : { index: audio.index },
+    vaapiDevice,
     video: {
       index: video.index,
-      pipeline: "cpu",
+      pipeline,
       ...size,
       bitrate: PREVIEW_BITRATE,
       level: h264Level(size.width, size.height).idc,
@@ -235,16 +281,34 @@ function planFor(info: MediaInfo, input: string, output: string): PreviewPlan {
   };
 }
 
-/** One ffmpeg run, writing the clip to its output; its reason when it fails. */
+/** A failed ffmpeg run: ffmpeg's reason, and whether it had encoded anything first. */
+class RunFailed extends Error {
+  constructor(
+    reason: string,
+    readonly progressed: boolean,
+  ) {
+    super(reason);
+  }
+}
+
+/** One ffmpeg run, writing the clip to its output; RunFailed when it fails. */
 async function runFfmpeg(deps: WorkerDeps, args: string[], signal: AbortSignal): Promise<void> {
   const t = deps.transcoder;
   const proc = spawnStream({ binary: t.ffmpeg.binary, args, ...env(t.ffmpeg.env), signal });
-  // Nothing comes on stdout (the clip goes to a file), but an unread pipe would block ffmpeg.
-  await buffer(proc.stdout);
+  // The clip goes to a file; stdout carries an encode's progress lines (none for a copy), and an
+  // unread pipe would block ffmpeg.
+  let progressed = false;
+  let pending = "";
+  for await (const chunk of proc.stdout) {
+    pending += chunk.toString("utf8");
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? "";
+    progressed ||= lines.some((line) => (progressSeconds(line) ?? 0) > 0);
+  }
   const exit = await proc.exited;
   if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("aborted");
   if (exit.code !== 0 || exit.stopped) {
-    throw new Error(meaningfulLine(exit.stderrTail) || "ffmpeg failed");
+    throw new RunFailed(meaningfulLine(exit.stderrTail) || "ffmpeg failed", progressed);
   }
 }
 

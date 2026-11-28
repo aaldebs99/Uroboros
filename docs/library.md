@@ -306,7 +306,8 @@ A source that fails to play gives way to the next.
   the preview shows what the library holds) and a video the site no longer gives (gone, private,
   blocked); with `transcode`, for every video.
 - **The job** (`preview` queue, `src/worker/previewRun.ts`) runs on replicas that run sessions, one
-  at a time, encoding on the CPU with the transcoder's ffmpeg; from the stored file, it reads the
+  at a time, encoding with the transcoder's ffmpeg on the replica's GPU when it has one, else on the
+  CPU ([transcoding.md](transcoding.md#configuration)); from the stored file, it reads the
   media's smallest stored video of at least 480p (else its tallest). It stores the preview at
   `.previews/<media id>.mp4` (`media.preview_key`). Two attempts; one that fails for good sets
   `media.preview_failed_at`.

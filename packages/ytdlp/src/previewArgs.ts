@@ -1,18 +1,26 @@
 import { mediaInputArgs } from "./ffmpegArgs.ts";
-import { videoEncoderArgs, videoFilter, type EncodeSettings } from "./ffmpegVideo.ts";
+import {
+  videoEncoderArgs,
+  videoFilter,
+  videoInputArgs,
+  type EncodeSettings,
+} from "./ffmpegVideo.ts";
 
 /**
  * A video's hover preview (docs/library.md "Hover previews"): the whole video, scaled down and
- * encoded on the CPU with its sound into an MP4 that starts playing at once and seeks anywhere.
+ * encoded with its sound into an MP4 that starts playing at once and seeks anywhere, on the
+ * replica's GPU or the CPU (the pipeline).
  */
 export interface PreviewPlan {
   /** The file's path, or a presigned URL. */
   input: string;
   output: string;
-  /** The video stream's index in the input, and how it is encoded (the CPU pipeline). */
+  /** The video stream's index in the input, and how it is decoded, scaled and encoded. */
   video: { index: number } & EncodeSettings;
   /** The audio stream's index in the input; null for a file without sound. */
   audio: { index: number } | null;
+  /** The VA-API render node, for a `vaapi` pipeline. */
+  vaapiDevice: string;
 }
 
 /** Stereo AAC at this rate: plenty for a tile's speaker, and small beside the picture. */
@@ -48,13 +56,20 @@ const previewOutputArgs = (output: string): string[] => [
   output,
 ];
 
-/** The whole command line, after the binary: the file read once, start to end. */
+/**
+ * The whole command line, after the binary: the file read once, start to end, its progress on
+ * stdout (so a run that fails says whether it had encoded anything).
+ */
 export function previewArgs(p: PreviewPlan): string[] {
   return [
     "-hide_banner",
     "-nostdin",
     "-v",
     "error",
+    "-progress",
+    "pipe:1",
+    "-nostats",
+    ...videoInputArgs(p.video.pipeline, p.vaapiDevice),
     ...mediaInputArgs(p.input),
     "-i",
     p.input,

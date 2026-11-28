@@ -100,6 +100,7 @@ const preview: PreviewPlan = {
   input: "/media/a.webm",
   output: "/work/preview.mp4",
   audio: { index: 1 },
+  vaapiDevice: "/dev/dri/renderD128",
   video: {
     index: 0,
     pipeline: "cpu",

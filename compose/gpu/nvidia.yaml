@@ -1,4 +1,5 @@
-# Transcode playback sessions on an NVIDIA GPU (NVENC; docs/transcoding.md). Add it to the stack:
+# Transcode playback sessions and hover previews on an NVIDIA GPU (NVENC; docs/transcoding.md). Add
+# it to the stack:
 #
 #   docker compose -f compose.yaml -f compose/gpu/nvidia.yaml up -d
 #
