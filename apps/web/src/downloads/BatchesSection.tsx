@@ -64,7 +64,8 @@ export function BatchesSection() {
               key={b.id}
               className="flex items-center gap-3 border-t border-border py-3.5 first:border-t-0 md:gap-4"
             >
-              <span className="grid aspect-video w-24 shrink-0 place-items-center rounded-[0.5rem] bg-raised md:w-30">
+              {/* Decoration only: on phones the title and Cancel the rest need the width. */}
+              <span className="hidden aspect-video w-30 shrink-0 place-items-center rounded-[0.5rem] bg-raised md:grid">
                 <ListVideo className="size-5 text-muted-foreground" aria-hidden />
               </span>
               <div className="grid min-w-0 flex-1 grid-cols-1 content-start gap-1.5">
