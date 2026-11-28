@@ -1,11 +1,11 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { buffer } from "node:stream/consumers";
 import {
   ffprobe,
   meaningfulLine,
   previewArgs,
   previewCopyArgs,
+  progressSeconds,
   spawnStream,
   type MediaInfo,
   type MediaStream,
@@ -178,8 +178,10 @@ async function fromStored(run: Run, key: string) {
 /**
  * Encodes `input` on the replica's pipelines in turn (docs/transcoding.md), as its sessions do:
  * from the first the sessions haven't found broken on this kind of source, the CPU last. A GPU run
- * that fails moves this preview on without marking its pipeline failed, as a passing failure
- * (playback holding every encoder session, say) mustn't cost playback the GPU. A cut never moves on.
+ * that fails before encoding anything moves this preview on without marking its pipeline failed,
+ * as a passing failure (playback holding every encoder session, say) mustn't cost playback the
+ * GPU. One that fails partway fails the attempt, as a copy does: the file is more likely at fault
+ * than the GPU, and the whole video isn't encoded again for it. A cut never moves on.
  */
 async function encode(run: Run, info: MediaInfo, input: string): Promise<void> {
   const { deps, mediaId, output, signal } = run;
@@ -193,7 +195,8 @@ async function encode(run: Run, info: MediaInfo, input: string): Promise<void> {
       await runFfmpeg(deps, args, signal);
       return;
     } catch (err) {
-      if (pipeline === "cpu" || signal.aborted) throw err;
+      const early = err instanceof RunFailed && !err.progressed;
+      if (pipeline === "cpu" || signal.aborted || !early) throw err;
       deps.logger.warn({ err, mediaId, pipeline }, "a hover preview's GPU run failed");
     }
   }
@@ -278,16 +281,34 @@ function planFor(
   };
 }
 
-/** One ffmpeg run, writing the clip to its output; its reason when it fails. */
+/** A failed ffmpeg run: ffmpeg's reason, and whether it had encoded anything first. */
+class RunFailed extends Error {
+  constructor(
+    reason: string,
+    readonly progressed: boolean,
+  ) {
+    super(reason);
+  }
+}
+
+/** One ffmpeg run, writing the clip to its output; RunFailed when it fails. */
 async function runFfmpeg(deps: WorkerDeps, args: string[], signal: AbortSignal): Promise<void> {
   const t = deps.transcoder;
   const proc = spawnStream({ binary: t.ffmpeg.binary, args, ...env(t.ffmpeg.env), signal });
-  // Nothing comes on stdout (the clip goes to a file), but an unread pipe would block ffmpeg.
-  await buffer(proc.stdout);
+  // The clip goes to a file; stdout carries an encode's progress lines (none for a copy), and an
+  // unread pipe would block ffmpeg.
+  let progressed = false;
+  let pending = "";
+  for await (const chunk of proc.stdout) {
+    pending += chunk.toString("utf8");
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? "";
+    progressed ||= lines.some((line) => (progressSeconds(line) ?? 0) > 0);
+  }
   const exit = await proc.exited;
   if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new Error("aborted");
   if (exit.code !== 0 || exit.stopped) {
-    throw new Error(meaningfulLine(exit.stderrTail) || "ffmpeg failed");
+    throw new RunFailed(meaningfulLine(exit.stderrTail) || "ffmpeg failed", progressed);
   }
 }
 

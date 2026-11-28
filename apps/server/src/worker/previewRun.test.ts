@@ -292,6 +292,33 @@ describe("making a hover preview on the replica's GPU", () => {
     expect(memo.failed("nvenc-sw", SOURCE)).toBe(false);
   });
 
+  it("fails the attempt at once when a GPU run encoded part of the video, never encoding it all again", async () => {
+    const id = await storedVideo();
+    const { deps, ffmpegRun } = await depsFor(
+      {
+        ...stored,
+        variants: [
+          {
+            whenArg: "h264_nvenc",
+            steps: [
+              { stdout: "out_time_us=90000000\nprogress=continue\n" },
+              { stderr: "Error while decoding stream #0:0: Invalid data found\n" },
+            ],
+            exitCode: 1,
+          },
+        ],
+      },
+      { transcoder: nvenc() },
+    );
+    const { logger, lines } = recordingLogger();
+    await expect(previewProcessor({ ...deps, logger }).process(job(id, 2, 0))).rejects.toThrow(
+      "Invalid data found",
+    );
+    expect(after(await ffmpegRun.argv(), "-c:v")).toBe("h264_nvenc");
+    expect(lines.filter((l) => l.msg === "a hover preview's GPU run failed")).toEqual([]);
+    expect(await mediaOf(id)).toEqual({ preview_key: null, preview_failed_at: null });
+  });
+
   it("starts past a pipeline the sessions found broken on this kind of source", async () => {
     const id = await storedVideo();
     const memo = new PipelineMemo();

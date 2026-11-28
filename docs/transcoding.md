@@ -230,9 +230,11 @@ costs nothing.
 Replicas that run sessions also make the hover previews (the whole video at 480p with its sound),
 one at a time, with the same ffmpeg on the same pipelines ([library.md](library.md#hover-previews)):
 on the GPU when the replica has one, starting from the first pipeline its sessions haven't found
-broken on that kind of source. A preview whose GPU run fails moves on through the chain to the
-CPU for itself alone, marking nothing failed, so a passing failure (playback holding every encoder
-session, say) never costs playback the GPU. `UROBOROS_GENERATE_PREVIEWS=false` turns them off. A video whose preview isn't made yet, and whose
+broken on that kind of source. A preview whose GPU run fails before encoding anything moves on
+through the chain to the CPU for itself alone, marking nothing failed, so a passing failure
+(playback holding every encoder session, say) never costs playback the GPU; one that fails partway
+fails that attempt, as a copy does, rather than encoding the whole video again.
+`UROBOROS_GENERATE_PREVIEWS=false` turns them off. A video whose preview isn't made yet, and whose
 original the browser can't play, previews through a live 480p session of its own, stopped as soon
 as the preview stops.
 

@@ -41,6 +41,12 @@ describe("previewArgs", () => {
     ]);
   });
 
+  it("reports its progress on stdout, so a failed run says whether it encoded anything", () => {
+    const args = previewArgs(plan());
+    expect(after(args, "-progress")).toBe("pipe:1");
+    expect(args).toContain("-nostats");
+  });
+
   it("reconnects to a URL", () => {
     expect(previewArgs(plan({ input: "https://s3/x?sig" })).join(" ")).toContain("-reconnect 1");
   });

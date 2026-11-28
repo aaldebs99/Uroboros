@@ -56,13 +56,19 @@ const previewOutputArgs = (output: string): string[] => [
   output,
 ];
 
-/** The whole command line, after the binary: the file read once, start to end. */
+/**
+ * The whole command line, after the binary: the file read once, start to end, its progress on
+ * stdout (so a run that fails says whether it had encoded anything).
+ */
 export function previewArgs(p: PreviewPlan): string[] {
   return [
     "-hide_banner",
     "-nostdin",
     "-v",
     "error",
+    "-progress",
+    "pipe:1",
+    "-nostats",
     ...videoInputArgs(p.video.pipeline, p.vaapiDevice),
     ...mediaInputArgs(p.input),
     "-i",
