@@ -104,8 +104,9 @@ A bare tile with no card: the thumbnail, and the details under it beside a chann
   which asks first in a confirmation whose Reset is danger text.
 - The description's http(s) URLs are accent links opening in a new tab (`LinkifiedText`); nothing
   else in it becomes markup. Playlist descriptions and a public link's do the same.
-- The player has no `title` (it is `aria-label`led, so no tooltip hangs over the picture) and no
-  focus ring of its own: it takes the focus for its shortcuts, and its controls keep theirs.
+- The player has no `title` attribute (it is `aria-label`led, so no tooltip hangs over the
+  picture) and no focus ring of its own: it takes the focus for its shortcuts, and its controls
+  keep theirs.
 - What the player says about itself goes over the picture, never in a page toast: a small
   `bg-overlay` pill, as Jump to highlight (top right) and the skip notice (bottom right, the whole
   pill its Unskip button, `SkipNotice`) are, riding above the control bar while it shows.
@@ -131,6 +132,11 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
   color comes from data rather than a token: the viewer's own (Settings › SponsorBlock), the
   SponsorBlock extension's until they choose (`DEFAULT_SPONSORBLOCK_COLORS` in the contract), set
   on the skin as `--uro-sb-<category>`.
+- **The video's title** over the picture's top left: the skin's own line (`.media-title`, filled
+  from `VideoPlayer`'s `title`), white over a shade from the top, one line ending in an ellipsis,
+  coming and going with the controls, fullscreen too. It sits under our corner overlays
+  (`player.css`): it stops short of Jump to highlight while that shows, gives the corner to the
+  Stats panel while it is open, and has a clip's label just under it.
 - **Jump to highlight** (`HighlightJump.tsx`): while playback is short of the highlight, a
   `bg-overlay` pill in the player's top-right corner, 44px tall (36px from `md`), a `Sparkles`
   icon in the highlight's color beside the label. It comes and goes with the controls and keeps
@@ -141,9 +147,9 @@ custom properties (accent, radius, font) and, for the timeline only, `library/pl
   (`ItemActions.tsx`; `Scissors`, `aria-pressed`, `bg-accent text-primary` while on). A picked clip
   is a white band over the timeline (`ClipControls.tsx`, in the slot the patch adds), as thick as
   the bar, between two accent handles that are `role="slider"` above the thumb (2.75rem hit areas
-  below `md`, 1.5rem from it, the 3px focus ring); a `bg-overlay`
-  pill in the top-left corner says its range and length, coming and going with the controls. A
-  range a link opens at is the band alone. With a clip picked, Save's menu starts with "This clip
+  below `md`, 1.5rem from it, the 3px focus ring); a `bg-overlay` pill under the title in the
+  top-left corner says its range and length, coming and going with the controls. A range a link
+  opens at is the band alone. With a clip picked, Save's menu starts with "This clip
   (1:02–1:30)", and the Share dialog opens on a radio group (Only the clip, The whole video opened
   at it) with a help line under each choice (`components/ui/radio.tsx`).
 - The settings menu's **Quality** submenu is ours (`library/QualityMenu.tsx`, in the slot the
