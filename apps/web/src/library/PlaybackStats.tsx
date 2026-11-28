@@ -118,7 +118,7 @@ export function PlaybackStats({
     <section
       ref={root}
       aria-label="Playback stats"
-      className="absolute top-2 left-2 z-10 max-w-[calc(100%-1rem)] rounded-[0.75rem] bg-overlay py-2 pr-11 pl-3 text-xs text-overlay-foreground tabular-nums"
+      className="uro-stats absolute top-2 left-2 z-10 max-w-[calc(100%-1rem)] rounded-[0.75rem] bg-overlay py-2 pr-11 pl-3 text-xs text-overlay-foreground tabular-nums"
     >
       <button
         type="button"

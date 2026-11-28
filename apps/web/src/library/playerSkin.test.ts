@@ -82,6 +82,19 @@ describe("player.css against the Neutral video skin", () => {
     expect(phoneRules()).toMatch(/--media-center-play-started-pointer-events: auto;/);
   });
 
+  // The title over the picture is the skin's own (its top-left line over a shade, coming and going
+  // with the controls), filled from the player's `title`. An upgrade that dropped it would quietly
+  // take the title away.
+  it.each(["dev", "default"] as const)(
+    "still draws its own title, which the player's title fills (%s build)",
+    (build) => {
+      const skin = skinFile(build, "neutral-video/skin.js");
+      expect(skin).toContain('import { Title } from "../shared/components/display/title.js";');
+      expect(skin).toContain("jsx(Title, {})");
+      expect(skinCss).toMatch(/\.media-title \{[^}]*position: absolute;/);
+    },
+  );
+
   // QualityMenu dresses itself in the skin's menu classes, so it looks like the skin's own.
   it("dresses the Quality menu only in class names the shipped skin still has", () => {
     const used = [...new Set(qualityMenu.match(/media-[a-z-]+/g) ?? [])];

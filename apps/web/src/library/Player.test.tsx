@@ -64,11 +64,11 @@ describe("Player", () => {
     }
   });
 
-  it("wraps the video in Video.js controls, branded with the app's accent", () => {
+  it("wraps the video in Video.js controls, branded with the app's accent, its title over the picture", () => {
     const { container } = render(
       <Player
         src="/v"
-        title="t"
+        title="Big Buck Bunny"
         start={0}
         autoPlay={false}
         seek={null}
@@ -82,9 +82,11 @@ describe("Player", () => {
     expect(screen.getAllByRole("button", { name: /play/i }).length).toBeGreaterThan(0);
     const skin = container.querySelector<HTMLElement>("[style*='--media-accent-color']");
     expect(skin?.style.getPropertyValue("--media-accent-color")).toBe("var(--primary)");
-    // Named for screen readers, with no title to hang a tooltip over the picture.
+    // The skin's own title line over the picture; named for screen readers, with no title
+    // attribute to hang a tooltip over the picture.
+    expect(container.querySelector(".media-title")).toHaveTextContent("Big Buck Bunny");
     const video = container.querySelector("video");
-    expect(video).toHaveAttribute("aria-label", "t");
+    expect(video).toHaveAttribute("aria-label", "Big Buck Bunny");
     expect(video).not.toHaveAttribute("title");
   });
 
