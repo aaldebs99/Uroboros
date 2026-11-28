@@ -127,6 +127,28 @@ describe("api leadership", () => {
   });
 });
 
+describe("checking in for Admin › Health", () => {
+  it("checks in once ready, says when it leads, and leaves on a clean stop", async () => {
+    const t = await TestDb.create();
+    cleanups.push(() => t.close());
+    const api = track(await startApi(apiConfig(t.url), logger, { leaderRetryMs: 100 }));
+    await api.attached;
+    const rows = () =>
+      t.db.selectFrom("replicas").select(["host", "pid", "version", "leader"]).execute();
+    await eventually(async () => {
+      expect(await rows()).toEqual([
+        expect.objectContaining({
+          pid: process.pid,
+          version: expect.any(String) as string,
+          leader: true,
+        }),
+      ]);
+    });
+    await api.close();
+    expect(await rows()).toEqual([]);
+  });
+});
+
 describe("bootstrap admin on start", () => {
   it("creates the configured admin before the api reports ready, and it can sign in", async () => {
     const url = await emptyDb();

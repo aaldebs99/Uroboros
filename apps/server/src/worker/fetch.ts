@@ -356,23 +356,17 @@ async function downloadAndSettle(
       onProgress: progress,
       onSize,
     });
-  const { result, subtitles, heldUntil } = await runWithSubtitles(
-    deps,
-    data.url,
-    run,
-    profileArgs,
-    signal,
-  );
+  const outcome = await runWithSubtitles(deps, data, run, profileArgs, signal);
   // Held for its size even when yt-dlp got to the end before the stop reached it.
   if (signal.reason instanceof TooLarge) throw signal.reason;
-  const file = result.files[0];
+  const file = outcome.result.files[0];
   if (file === undefined) throw new StorageError("yt-dlp finished without a file");
   progress({ phase: "storing" });
   const rendition = await store(deps, data, file);
   if (!(await settleDone(deps, data, rendition))) {
     throw new StorageError("the rendition was not recorded");
   }
-  await afterAnswered(deps, data, rendition, subtitles, heldUntil);
+  await afterAnswered(deps, data, rendition, outcome);
 }
 
 /** Downloads one video in one profile revision and settles everyone waiting on it. */

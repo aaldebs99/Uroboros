@@ -60,10 +60,14 @@ on a watch page). Pages use all of it:
 
 - Grids, lists, tables, the downloads queue and the watch page fill the width and grow with the
   window. A video grid adds columns (`auto-fill`) rather than stretching its tiles.
-- Never centre a page in an `mx-auto max-w-*` column: on a wide window it leaves empty bands on
-  both sides and puts the content far from the navigation.
-- A block that reads badly stretched (a form's fields, a settings column, a long paragraph) caps
-  its own width (`max-w-3xl`, about 768px) and stays at the left margin.
+- Never center a page in an `mx-auto max-w-*` column: on a wide window it leaves empty bands on
+  both sides and puts the content far from the navigation. A settings page is the exception,
+  below.
+- A block that reads badly stretched (a form's fields, a long paragraph) caps its own width
+  (`max-w-3xl`, about 768px) and stays at the left margin.
+- A settings page (Settings' views, a group's page under Settings › Groups, and Account) caps its
+  whole column at `max-w-3xl` and centers it in the main area: `settingsColumn` in
+  `components/ui/settings-column.ts`.
 - Sign-in, which has no shell, is the one centred page. Dialogs are centred overlays.
 - Not yet followed: Admin › Users and Admin › Groups still centre a `max-w-5xl` column. Bring each one to this rule when you next change it.
 

@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { pino } from "pino";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn } from "../../test/auth.ts";
@@ -40,6 +41,36 @@ describe("sweeperDuty", () => {
     expect(await resolveSession(testDb.db, live.token)).not.toBeNull();
     stop.abort();
     await expect(running).resolves.toBeUndefined();
+  });
+
+  it("drops rate limits logged over a week ago", async () => {
+    await testDb.db
+      .insertInto("rate_limit_events")
+      .values({
+        at: sql<Date>`now() - interval '8 days'`,
+        site: "swept.test",
+        scope: "site",
+        source: "download",
+        message: "HTTP Error 429",
+        url: null,
+        title: null,
+        until: sql<Date>`now() - interval '8 days'`,
+        hinted: false,
+        strikes: 1,
+      })
+      .execute();
+    const stop = new AbortController();
+    const running = sweeperDuty(testDb.db, pino({ level: "silent" }))(stop.signal);
+    await eventually(async () => {
+      const left = await testDb.db
+        .selectFrom("rate_limit_events")
+        .select("id")
+        .where("site", "=", "swept.test")
+        .execute();
+      expect(left).toEqual([]);
+    });
+    stop.abort();
+    await running;
   });
 
   it("ends promptly when leadership was already lost before the first sweep finished", async () => {

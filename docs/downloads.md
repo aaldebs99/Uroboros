@@ -107,8 +107,9 @@ link's host without `www.`, `m.`, `mobile.` or `music.`; youtu.be is youtube.com
 `src/downloads/rateLimits.ts`). It lasts as long as the site said, when its message says
 (`cooldownHintMs` in `@uroboros/ytdlp`: YouTube's "for up to an hour", "try again in 30 seconds",
 a quoted Retry-After; yt-dlp never prints the response's headers), and otherwise an estimate that
-doubles with each limit in a row: 1, 2, 4… minutes, up to an hour. A cooldown already running
-longer stands, and the first run the site answers after it ends clears the count.
+doubles with each limit in a row: 5, 10, 20… minutes, up to 2 hours, and for subtitles (which nobody
+waits on to watch) 15, 30, 60… minutes, up to 6 hours. A cooldown already running longer stands,
+and the first run the site answers after it ends clears the count.
 
 While a site cools down, nothing asks it anything: a fetch, a pasted link's probe, a
 subscription check and a hover preview's download ([library.md](library.md#hover-previews)) each go
@@ -117,6 +118,21 @@ and a run the site limits does the same. A waiting download is
 `queued` with `errorKind: "rate_limited"` and `retryAt`, and a waiting link stays `probing` with
 the same two; the web says "The site is limiting requests. Trying again at 14:05." A rate limit
 never fails anything, however long it lasts; a person can cancel a waiting download.
+
+Each waiting download, and each waiting pasted link or search, gets one entry in its person's bell
+("Waiting: <title>", `<site> is limiting requests. It will try again on its own.`), never pushed
+(`src/downloads/waitNotices.ts`). It is told when the item starts waiting (its `error_kind`
+becomes `rate_limited`), and tagged by the item (`rate-limit:download:<id>`,
+`rate-limit:request:<id>`) and filed only if that tag isn't there, so the passes that wait out the
+cooldown never file it again or mark it unread, even for someone who cleared their bell meanwhile;
+a fetch several people wait on tells each of them. A download stored without its subtitles, which
+the site limited (or whose cooldown was running), tells each of its people once too ("Subtitles
+waiting: <title>", opening the video in their library; tag `rate-limit:subtitles:<id>`).
+Subscription checks and hover previews hold nobody's item, so they tell no one.
+
+Every limit a site answers with is also logged for the admin (`rate_limit_events`, kept a week):
+the kind of work it held, yt-dlp's message, the video and the cooldown it set. Admin › Health shows
+the log and the cooldowns ([health.md](health.md#rate-limits)).
 
 **Subtitles** have a cooldown of their own (`subtitles`), since YouTube limits its caption files
 apart from its videos. A fetch whose subtitles the site limits stores the video at once, without

@@ -172,7 +172,8 @@ still uses `window.confirm`. Both share the panel below.
 
 ## Stats
 
-Numbers an admin reads at a glance (`admin/AdminStatsPage.tsx`), after the dataviz skill:
+Numbers an admin reads at a glance (`admin/AdminStatsPage.tsx`, and the tiles of
+`admin/AdminHealthPage.tsx`), after the dataviz skill:
 
 - **Stat tiles** in a row (`grid-cols-2 md:grid-cols-4 gap-4`), each a `<dt>`/`<dd>` pair in a
   `<dl>`: a card (`rounded-2xl bg-card p-4 shadow-card`), the label 14px muted in sentence case,

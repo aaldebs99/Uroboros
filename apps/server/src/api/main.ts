@@ -26,6 +26,7 @@ import { sweeperDuty } from "../auth/sweeper.ts";
 import { reconcileDuty } from "../downloads/reconcile.ts";
 import { stallDuty } from "../jobs/stalls.ts";
 import { automationDuties } from "../subscriptions/duties.ts";
+import { newReplica, startHeartbeat } from "../health/heartbeat.ts";
 import { createApp } from "./app.ts";
 import { CLEANUP_MS, drain, settlesWithin } from "./drain.ts";
 
@@ -137,10 +138,13 @@ export async function startApi(
     logger,
   };
   let attached = false;
+  // Who this replica is, as it checks in for Admin › Health (docs/health.md).
+  const replica = newReplica();
   const app = createApp(
     {
       db,
       version: pkg.version,
+      replicaId: replica.id,
       logger,
       push,
       attached: () => attached,
@@ -185,6 +189,7 @@ export async function startApi(
   oidc?.start(stop.signal);
   const leader = new LeaderStatus();
   let leading: Promise<void> = Promise.resolve();
+  let beating: Promise<void> = Promise.resolve();
   let consumers: Promise<Consumers | null> = Promise.resolve(null);
   let crash: (failure: { err: unknown }) => void = () => undefined;
   const crashed = new Promise<{ err: unknown }>((resolve) => {
@@ -210,6 +215,11 @@ export async function startApi(
     if (bootstrap !== null) await ensureBootstrapAdmin(db, bootstrap, logger);
     attached = true;
     logger.info("api ready");
+    beating = startHeartbeat(
+      { db, store, leader, version: pkg.version, logger },
+      replica,
+      stop.signal,
+    );
     if (oidc !== undefined) {
       startClaimsSync({ db, provider: oidc, databaseUrl: config.databaseUrl, logger }, stop.signal);
     }
@@ -269,6 +279,8 @@ export async function startApi(
     // Stops start-up and the leader loop now, so leadership goes while the drain still runs.
     stop.abort();
     const released = attaching.catch(() => undefined).then(() => leading);
+    // The replica's check-in row goes too (bounded), before the pool it is deleted through.
+    const left = attaching.catch(() => undefined).then(() => beating);
     // Event streams never finish on their own: end them so the drain does not wait them out.
     downloadEvents.close();
     // The playback bus stays open until the consumers close: a session still running here hears
@@ -279,7 +291,10 @@ export async function startApi(
     ]);
     playbackBus.close();
     await settlesWithin(bus.close(), cleanupMs);
-    const cleaned = await settlesWithin(Promise.all([released, db.destroy()]), cleanupMs);
+    const cleaned = await settlesWithin(
+      Promise.all([released, left.then(() => db.destroy())]),
+      cleanupMs,
+    );
     if (!drained) {
       throw new Error(
         `api did not drain within ${String(config.shutdownGraceMs)} ms; connections cut`,

@@ -50,14 +50,15 @@ export type SubtitleOutcome = "fetched" | "none" | "held";
  * when a subtitle could not be fetched: yt-dlp writes subtitles before the media and fails the
  * whole run on one it cannot get, so the video never came, and the second run costs little. With
  * `held` (the site's subtitles are cooling down) it asks for none at all. A subtitle the site
- * rate-limited calls `onLimited` with the time it said to wait, if any, and holds them.
+ * rate-limited calls `onLimited` with the limit (its message, and the time it said to wait, if
+ * any), and holds them.
  */
 export async function withSubtitleFallback<T>(
   run: (extraArgs: string[]) => Promise<T>,
   args: { profile: string[]; subtitles: string[]; held: boolean },
   signal: AbortSignal,
   logger: Logger,
-  onLimited: (hintMs: number | null) => Promise<void>,
+  onLimited: (limit: YtDlpError) => Promise<void>,
 ): Promise<{ result: T; subtitles: SubtitleOutcome }> {
   if (args.subtitles.length === 0) return { result: await run(args.profile), subtitles: "none" };
   if (args.held) return { result: await run(args.profile), subtitles: "held" };
@@ -69,7 +70,7 @@ export async function withSubtitleFallback<T>(
     if (!subtitlesFailed || signal.aborted) throw err;
     if (err.kind === "rate_limited") {
       logger.warn({ err }, "the site rate-limited subtitles; fetching the video, them later");
-      await onLimited(err.retryAfterMs);
+      await onLimited(err);
       return { result: await run(args.profile), subtitles: "held" };
     }
     logger.warn({ err }, "fetching subtitles failed; fetching the video without them");

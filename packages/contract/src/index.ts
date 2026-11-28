@@ -14,6 +14,16 @@ export {
 export { LOGIN_SITES, LoginSite, SiteLoginBody, SiteLogins, SiteLoginView } from "./siteLogins.ts";
 export { DependencyName, Info, Liveness, Readiness, ReadinessStatus } from "./system.ts";
 export {
+  AdminHealth,
+  CooldownScope,
+  RateLimitEvent,
+  RateLimitSource,
+  Replica,
+  ReplicaCheck,
+  ReplicaStatus,
+  SiteCooldown,
+} from "./health.ts";
+export {
   AdminUser,
   AdminUserPatch,
   ApiTokenView,

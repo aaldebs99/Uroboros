@@ -6,10 +6,12 @@ import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { signedIn, type SignedIn } from "../../test/auth.ts";
 import { seedEntry } from "../../test/library.ts";
+import { listedNotices } from "../../test/notices.ts";
+import { holdSite, loggedLimits } from "../../test/rateLimits.ts";
 import { TestDb } from "../../test/testDb.ts";
 import { workerHarness } from "../../test/workerDeps.ts";
 import type { SubtitlesJob } from "../downloads/queues.ts";
-import { activeCooldown, noteRateLimit } from "../downloads/rateLimits.ts";
+import { activeCooldown } from "../downloads/rateLimits.ts";
 import { RequeueError } from "../jobs/errors.ts";
 import { subtitlesProcessor } from "./subtitlesJob.ts";
 
@@ -31,7 +33,7 @@ afterAll(async () => {
 /** A video in Alice's library whose subtitles a rate limit held back, on `site`. */
 async function held(site: string): Promise<SubtitlesJob> {
   const videoId = `sj-${String(++n)}`;
-  const e = await seedEntry(testDb.db, alice.userId, { videoId });
+  const e = await seedEntry(testDb.db, alice.userId, { videoId, title: `Held ${videoId}` });
   return {
     mediaId: e.mediaId,
     renditionId: e.renditionId,
@@ -114,7 +116,7 @@ describe("subtitles a rate limit held back", () => {
     for (const scope of ["subtitles", "site"] as const) {
       const site = `sj2-${scope}.example`;
       const data = await held(site);
-      await noteRateLimit(testDb.db, site, scope, 600_000);
+      await holdSite(testDb.db, site, scope, 600_000);
       const err = await outcome(run(data, await subtitlesScenario()));
       expect(err).toBeInstanceOf(RequeueError);
       expect((err as RequeueError).delayMs).toBeGreaterThan(590_000);
@@ -138,6 +140,18 @@ describe("subtitles a rate limit held back", () => {
     expect(err).toBeInstanceOf(RequeueError);
     expect(await activeCooldown(testDb.db, "sj3.example", "subtitles")).not.toBeNull();
     expect(await activeCooldown(testDb.db, "sj3.example", "site")).toBeNull();
+    // Logged with the video; it is in the library already, so nobody is told it waits.
+    expect(await loggedLimits(testDb.db, "sj3.example")).toEqual([
+      expect.objectContaining({
+        scope: "subtitles",
+        source: "subtitles",
+        message: "Unable to download video subtitles for 'en': HTTP Error 429: Too Many Requests",
+        url: data.url,
+        title: `Held sj-${String(n)}`,
+        media_id: data.mediaId,
+      }),
+    ]);
+    expect(await listedNotices(testDb.db, alice.userId)).toEqual([]);
   });
 
   it("are dropped with the video", async () => {

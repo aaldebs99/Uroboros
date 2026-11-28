@@ -45,6 +45,13 @@ describe("AccountPage", () => {
     expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
   });
 
+  it("centers its column, as Settings does", async () => {
+    api();
+    await renderInRouter(<AccountPage me={local} />);
+    const title = await screen.findByRole("heading", { level: 1, name: "Account" });
+    expect(title.closest("section")).toHaveClass("mx-auto", "max-w-3xl");
+  });
+
   it("leaves API tokens to Settings", async () => {
     api();
     await renderInRouter(<AccountPage me={local} />);

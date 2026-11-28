@@ -1,5 +1,6 @@
 import { AccountPage } from "@/account/AccountPage";
 import { AdminGroupsPage } from "@/admin/AdminGroupsPage";
+import { AdminHealthPage } from "@/admin/AdminHealthPage";
 import { AdminStatsPage } from "@/admin/AdminStatsPage";
 import { AdminUsersPage } from "@/admin/AdminUsersPage";
 import { useMe } from "@/api/auth";
@@ -26,4 +27,10 @@ export function AdminGroupsRoute() {
 export function AdminStatsRoute() {
   const me = useMe().data;
   return me ? <AdminStatsPage me={me} /> : null;
+}
+
+/** `/admin/health`: members see a note instead (the server refuses them too). */
+export function AdminHealthRoute() {
+  const me = useMe().data;
+  return me ? <AdminHealthPage me={me} /> : null;
 }

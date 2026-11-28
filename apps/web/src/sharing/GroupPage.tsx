@@ -30,8 +30,10 @@ import { BackLink } from "@/components/ui/back-link";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { PageHeader } from "@/components/ui/page-header";
+import { settingsColumn } from "@/components/ui/settings-column";
 import { ResponsiveMenu, type MenuAction } from "@/components/ui/responsive-menu";
 import { notify } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 
 import { tileGrid } from "../library/VideoTile";
 import { GroupDialog } from "./GroupDialog";
@@ -257,7 +259,7 @@ export function GroupPage({ groupId }: { groupId: string }) {
   const myId = useMe().data?.id;
   if (group.isError) {
     return (
-      <section className="grid w-full max-w-3xl grid-cols-1 gap-8">
+      <section className={cn(settingsColumn, "gap-8")}>
         <BackLink to="/settings/groups" className="-mb-5">
           Groups
         </BackLink>
@@ -267,7 +269,7 @@ export function GroupPage({ groupId }: { groupId: string }) {
   }
   const g = group.data;
   return (
-    <section className="grid w-full max-w-3xl grid-cols-1 gap-8">
+    <section className={cn(settingsColumn, "gap-8")}>
       <BackLink to="/settings/groups" className="-mb-5">
         Groups
       </BackLink>

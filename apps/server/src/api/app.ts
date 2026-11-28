@@ -24,6 +24,7 @@ import { registerPublicRoutes } from "../sharing/publicRoutes.ts";
 import { openApiConfig, registerSecuritySchemes } from "./openapiDoc.ts";
 import { registerSharingRoutes } from "../sharing/routes.ts";
 import { registerGroupRoutes } from "../groups/routes.ts";
+import { registerHealthRoutes } from "../health/routes.ts";
 import { registerStatsRoutes } from "../stats/routes.ts";
 import { registerNotificationPrefRoutes } from "../push/prefsRoutes.ts";
 import type { StorageConfig } from "../storage/config.ts";
@@ -61,6 +62,8 @@ import { createSpaHandler } from "./spa.ts";
 export interface Deps {
   db: Kysely<Database>;
   version: string;
+  /** This replica's check-in id (`replicas`, docs/health.md), so Admin › Health marks it. */
+  replicaId?: string;
   /** Defaults to a JSON-to-stdout pino logger; tests pass a silent one. */
   logger?: Logger;
   /** Web Push; defaults to off (what `gen` uses). */
@@ -320,6 +323,7 @@ export function createApp(deps: Deps, opts: AppOptions): OpenAPIHono {
   registerSharingRoutes(app, deps.db, deps.downloads?.queues.notify, clipsOn(opts));
   registerGroupRoutes(app, deps.db, deps.downloads?.queues.notify, clipsOn(opts));
   registerStatsRoutes(app, deps.db);
+  registerHealthRoutes(app, deps);
   registerNotificationPrefRoutes(app, deps.db);
   registerPreferenceRoutes(app, deps.db);
   registerNoticeRoutes(app, deps.db);

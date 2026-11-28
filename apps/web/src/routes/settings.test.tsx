@@ -49,6 +49,12 @@ afterEach(() => {
 });
 
 describe("Settings", () => {
+  it("centers its column in the page", async () => {
+    renderAt("/settings");
+    const title = await screen.findByRole("heading", { level: 1, name: "Settings" });
+    expect(title.closest("section")).toHaveClass("mx-auto", "max-w-3xl");
+  });
+
   it("has a SponsorBlock view at its own address", async () => {
     const router = renderAt("/settings");
     const tabs = await screen.findByRole("navigation", { name: "Settings views" });
