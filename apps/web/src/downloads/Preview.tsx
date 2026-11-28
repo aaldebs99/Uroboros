@@ -5,10 +5,17 @@ import { Film, Loader, Rss, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { ApiError, errorText } from "@/api/client";
-import { downloadKeys, queueSelection, saveSelection, useRequest } from "@/api/downloads";
+import {
+  discardRequest,
+  downloadKeys,
+  queueSelection,
+  saveSelection,
+  useRequest,
+} from "@/api/downloads";
 import { RequestBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useConfirm } from "@/components/ui/confirm";
 import { notify } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
@@ -238,6 +245,13 @@ function Picker({ req, onDone }: { req: DownloadRequest; onDone: () => void }) {
           </Button>
         )}
         <SubscribeLink requestId={req.id} />
+        <CancelPreview
+          req={req}
+          stopSaving={() => {
+            picks.cancel();
+          }}
+          onCancelled={onDone}
+        />
         <Button size="compact" disabled={count === 0 || busy} onClick={() => void queue()}>
           {busy ? <Loader className="animate-spin" aria-hidden /> : null}
           Queue {String(count)} videos
@@ -247,6 +261,63 @@ function Picker({ req, onDone }: { req: DownloadRequest; onDone: () => void }) {
         <GroupList key={g.name} group={g} ticked={ticked} toggle={toggle} />
       ))}
     </div>
+  );
+}
+
+/**
+ * Throws the preview away, after asking: nothing of it is queued, and it leaves Ready to pick at
+ * once rather than a day later. The picks still waiting to be saved are dropped first.
+ */
+function CancelPreview({
+  req,
+  stopSaving,
+  onCancelled,
+}: {
+  req: DownloadRequest;
+  stopSaving: () => void;
+  onCancelled: () => void;
+}) {
+  const client = useQueryClient();
+  const confirm = useConfirm();
+  const [busy, setBusy] = useState(false);
+  const what = req.kind === "channel" ? "channel" : "playlist";
+  const name = req.title ?? req.url;
+  const discard = async () => {
+    stopSaving();
+    setBusy(true);
+    try {
+      await discardRequest(req.id);
+      notify.success(`Cancelled ${name}.`);
+      await client.invalidateQueries({ queryKey: downloadKeys.ready, exact: true });
+      onCancelled();
+    } catch (err) {
+      notify.error(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <Button
+        variant="destructive"
+        size="compact"
+        disabled={busy}
+        onClick={() => {
+          confirm.ask({
+            title: `Cancel "${name}"?`,
+            description:
+              "Nothing from it is queued yet. It leaves Ready to pick; paste the link again to pick from it later.",
+            confirmLabel: `Cancel ${what}`,
+            cancelLabel: "Keep it",
+            destructive: true,
+            onConfirm: () => void discard(),
+          });
+        }}
+      >
+        Cancel {what}
+      </Button>
+      {confirm.dialog}
+    </>
   );
 }
 

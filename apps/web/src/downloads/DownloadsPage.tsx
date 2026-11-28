@@ -21,6 +21,7 @@ import { UploadsSection } from "@/uploads/UploadsSection";
 
 import { useMyDownloadProgress } from "./LiveEvents";
 import { PasteForm } from "./PasteForm";
+import { BatchesSection } from "./BatchesSection";
 import { RequestPanel } from "./Preview";
 import { QueueRow } from "./QueueRow";
 import { useWaitingPreviews } from "./readyPreviews";
@@ -101,6 +102,7 @@ export function DownloadsPage({ me, requestId }: { me: Me; requestId: string | n
           setActive(id);
         }}
       />
+      <BatchesSection />
       <UploadsSection />
       <ExportsSection />
       {downloads.isError ? <p className="text-destructive">{errorText(downloads.error)}</p> : null}

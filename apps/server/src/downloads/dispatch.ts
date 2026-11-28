@@ -249,7 +249,7 @@ export async function findDownload(db: Kysely<Database>, principal: Principal, i
 }
 
 /** Stops the fetch for `key` when no active download waits on it any more. */
-async function stopFetchIfUnwanted(ctx: DownloadContext, key: string): Promise<void> {
+export async function stopFetchIfUnwanted(ctx: DownloadContext, key: string): Promise<void> {
   const waiting = await ctx.db
     .selectFrom("downloads")
     .select("id")
