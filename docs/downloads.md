@@ -263,8 +263,11 @@ writes the selector from them:
   - "Music (MP3)": VBR best (`--audio-quality=0`) with metadata and cover art embedded;
   - "Podcasts (M4A)": AAC with metadata and chapters embedded.
 
-  The three audio ones write the form's selectors above, so they take stereo first. A built-in an
-  admin edited keeps its edit (the migration only changes a row still at its seeded revision).
+  The three audio ones write the form's selectors above, so they take stereo first, since 0.1.6
+  (`20261128022852_audio_presets_stereo.sql`). Nobody edits a built-in in place, an admin included:
+  an edit makes a person's own copy (below), which keeps the selector it had. So that migration's
+  check of each row's seeded revision only spares a built-in changed by hand in SQL; its comment's
+  "an admin has edited" means that.
 
   A person may change them, for themselves alone (`src/downloads/profileEdits.ts`): editing one
   makes it a profile of their own (copy-on-write: a new row, the built-in hidden from them in
