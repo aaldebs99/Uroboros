@@ -236,6 +236,15 @@ describe("a queued playlist's videos, together", () => {
     expect((await post(h.app(owner), `/api/downloads/requests/${picking}/cancel`)).status).toBe(
       409,
     );
+    // Queued, but not a playlist the list shows: a single video, a search's results.
+    for (const columns of [{ kind: "video" }, { intent: "search" }] as const) {
+      const other = await request(owner.userId, { state: "queued", ...columns });
+      const theirs = await queued(owner.userId, other, `refuse-${columns.kind ?? columns.intent}`);
+      expect((await post(h.app(owner), `/api/downloads/requests/${other}/cancel`)).status).toBe(
+        409,
+      );
+      expect(await stateOf(theirs)).toBe("queued");
+    }
     expect((await batches(owner)).map((b) => b.waiting)).toEqual([1]);
   });
 });

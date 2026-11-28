@@ -11,16 +11,16 @@ import { publishDownloadEvent } from "./events.ts";
  * pasted it does either, as only they see it waiting for its pick.
  */
 
-/** The request's state, or 404 when it isn't the person's. */
-async function stateOf(db: Kysely<Database>, userId: string, id: string): Promise<string> {
+/** The request's state, kind and intent, or 404 when it isn't the person's. */
+async function requestOf(db: Kysely<Database>, userId: string, id: string) {
   const row = await db
     .selectFrom("download_requests")
-    .select("state")
+    .select(["state", "kind", "intent"])
     .where("id", "=", id)
     .where("user_id", "=", userId)
     .executeTakeFirst();
   if (row === undefined) throw new ApiError("not_found", "no such request");
-  return row.state;
+  return row;
 }
 
 /**
@@ -40,7 +40,7 @@ export async function discardRequest(
     .where("state", "=", "choosing")
     .executeTakeFirst();
   if (gone.numDeletedRows === 0n) {
-    await stateOf(db, userId, id);
+    await requestOf(db, userId, id);
     throw new ApiError("conflict", "only a playlist waiting for its pick can be discarded");
   }
   await publishDownloadEvent(db, { kind: "requests", userId });
@@ -95,7 +95,13 @@ export async function cancelBatch(
   userId: string,
   id: string,
 ): Promise<{ cancelled: number }> {
-  if ((await stateOf(ctx.db, userId, id)) !== "queued") {
+  // The requests `listBatches` shows, and no other: not a single video, nor a search's results.
+  const req = await requestOf(ctx.db, userId, id);
+  const batch =
+    req.state === "queued" &&
+    req.intent === "download" &&
+    (req.kind === "playlist" || req.kind === "channel");
+  if (!batch) {
     throw new ApiError("conflict", "only a queued playlist's videos can be cancelled together");
   }
   const rows = await ctx.db
