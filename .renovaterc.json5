@@ -173,10 +173,20 @@
       // runs it, and the release smoke test that does run yt-dlp only happens after merge.
       // `build(image)`, never a `feat!`: a bundled tool's major is not a breaking change of
       // Uroboros. yt-dlp is the only downloader; no other is tracked.
-      description: "Image tools: the pinned yt-dlp, reviewed",
+      //
+      // yt-dlp-ejs and curl-cffi move with it: yt-dlp pins its yt-dlp-ejs exactly and caps
+      // curl-cffi, and the flat requirements never make pip check either, so a lone bump of one
+      // would install and then break YouTube at run time (the smoke test catches a curl-cffi
+      // outside the range). The group goes first (`prPriority`): Renovate merges its own PRs
+      // (platformAutomerge false above), and after its second automerge in a run it ends the run
+      // without reaching the branches after it or updating the dashboard. Patches sort ahead of
+      // yt-dlp's calendar-version minors, so a backlog of automerging patches held its bump back
+      // for days after its soak ended.
+      description: "Image tools: the pinned yt-dlp, its yt-dlp-ejs and curl-cffi, reviewed, first",
       matchManagers: ["pip_requirements"],
-      matchDepNames: ["yt-dlp"],
+      matchDepNames: ["yt-dlp", "yt-dlp-ejs", "curl-cffi"],
       groupName: "image tools",
+      prPriority: 10,
       semanticCommitType: "build",
       semanticCommitScope: "image",
       commitMessageTopic: "tool {{depName}}",
