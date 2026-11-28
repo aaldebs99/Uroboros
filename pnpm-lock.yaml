@@ -224,8 +224,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ytdlp
       cron-parser:
-        specifier: 5.10.6
-        version: 5.10.6
+        specifier: 5.10.7
+        version: 5.10.7
       hono:
         specifier: 4.13.22
         version: 4.13.22
@@ -3528,8 +3528,8 @@ packages:
     resolution: {integrity: sha512-piICUB6ei4IlTv1+653yq5+KoqfBYmj9bw6LqXoOneTMDXk5nM1qt12mFW1caG3LlJXEKW1Bp0WggEmIfQB34g==}
     engines: {node: '>= 14'}
 
-  cron-parser@5.10.6:
-    resolution: {integrity: sha512-kpoxgQyveO1l29nw+FWdvmotyV7eOSzGHQpxiXOEZIDOjqO1iR6kfgJ0PVHTuV26uBemKq3ppzma7dHFAG7viw==}
+  cron-parser@5.10.7:
+    resolution: {integrity: sha512-ST6Y7vq40qyah/5sGTKpj2DpABiRL9khy8xC+amICUXbwAWXzzzWs11wxyV/hG+SVQHMLyUKRxBZpqElsJo8+Q==}
     engines: {node: '>=18'}
 
   cross-spawn@7.0.6:
@@ -8757,7 +8757,7 @@ snapshots:
       crc-32: 1.2.2
       readable-stream: 4.8.0
 
-  cron-parser@5.10.6:
+  cron-parser@5.10.7:
     dependencies:
       luxon: 3.7.2
 

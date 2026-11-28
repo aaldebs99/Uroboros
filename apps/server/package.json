@@ -16,7 +16,7 @@
     "@modelcontextprotocol/server": "2.4.0",
     "@uroboros/contract": "workspace:*",
     "@uroboros/ytdlp": "workspace:*",
-    "cron-parser": "5.10.6",
+    "cron-parser": "5.10.7",
     "hono": "4.13.22",
     "kysely": "0.29.9",
     "openid-client": "6.9.1",
