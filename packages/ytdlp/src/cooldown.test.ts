@@ -59,12 +59,20 @@ describe("a rate-limited run", () => {
     expect(err.retryAfterMs).toBe(3_600_000);
   });
 
-  it("waits out YouTube's captcha challenge as a limit, for the estimated time", () => {
-    const err = run([
+  it("waits out YouTube's captcha challenge as a limit, an hour when it says try again later", () => {
+    // yt-dlp checks for the captcha before it rewords "This content isn't available, try again
+    // later" as "rate-limited by YouTube for up to an hour", so the captcha, the stronger signal,
+    // must not get a shorter wait than the plain limit.
+    const later = run([
       "ERROR: [youtube] abc: This content isn't available, try again later. YouTube is requiring a captcha challenge before playback",
     ]);
-    expect(err.kind).toBe("rate_limited");
-    expect(err.retryAfterMs).toBeNull();
+    expect(later.kind).toBe("rate_limited");
+    expect(later.retryAfterMs).toBe(3_600_000);
+    const bare = run([
+      "ERROR: [youtube] abc: Video unavailable. YouTube is requiring a captcha challenge before playback",
+    ]);
+    expect(bare.kind).toBe("rate_limited");
+    expect(bare.retryAfterMs).toBeNull();
   });
 
   it("carries none without a hint, nor for other failures", () => {

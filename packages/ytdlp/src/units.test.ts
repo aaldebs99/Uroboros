@@ -93,6 +93,11 @@ describe("classifyFailure", () => {
       "ERROR: [youtube] abc: This content isn't available, try again later. YouTube is requiring a captcha challenge before playback",
       "rate_limited",
     ],
+    // yt-dlp's word when every YouTube client's answer was refused: the server's IP is blocked.
+    [
+      "ERROR: [youtube] abc: All player responses are invalid. Your IP is likely being blocked by Youtube",
+      "rate_limited",
+    ],
     [
       "ERROR: [generic] x: Unable to download webpage: <urlopen error [Errno -3] Temporary failure in name resolution>",
       "network",

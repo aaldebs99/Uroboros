@@ -61,11 +61,11 @@ export class YtDlpError extends Error {
 const RULES: readonly (readonly [YtDlpErrorKind, RegExp])[] = [
   ["unsupported_url", /\bUnsupported URL\b/i],
   ["age_restricted", /confirm your age|age[- ]restricted|inappropriate for some users/i],
-  // YouTube's captcha only, in yt-dlp's words for it: a limit is waited out, never failed, so a
-  // site that always wants a captcha must not match.
+  // YouTube's captcha and IP block only, in yt-dlp's words for them: a limit is waited out, never
+  // failed, so a site that always wants a captcha must not match.
   [
     "rate_limited",
-    /HTTP Error 429|Too Many Requests|rate[- ]limit|confirm you(?:'|’)?re not a bot|temporarily blocked|requiring a captcha/i,
+    /HTTP Error 429|Too Many Requests|rate[- ]limit|confirm you(?:'|’)?re not a bot|temporarily blocked|requiring a captcha|IP is likely being blocked/i,
   ],
   [
     "geo_blocked",
@@ -104,8 +104,9 @@ const RULES: readonly (readonly [YtDlpErrorKind, RegExp])[] = [
 const USAGE_EXIT_CODE = 2;
 
 /**
- * Classifies a failed run from its exit code and its stderr lines. The `ERROR:` lines are tried
- * first, last one first, because that is where yt-dlp puts the reason; then the whole tail.
+ * Classifies a failed run from its exit code and its stderr lines: the `ERROR:` lines first,
+ * because that is where yt-dlp puts the reason, then the whole tail. Each is one text, so the
+ * first rule in `RULES` that matches anywhere in it wins, whichever line it matched.
  */
 export function classifyFailure(
   exitCode: number | null,
@@ -148,6 +149,11 @@ const HINTS: readonly RegExp[] = [
 ];
 /** An HTTP Retry-After header, should a message quote one: seconds. */
 const RETRY_AFTER = /\bretry-after:?\s*(\d+)/i;
+/**
+ * YouTube's session limit, which yt-dlp rewords "rate-limited by YouTube for up to an hour", except
+ * when a captcha comes with it: then the reason stays as YouTube gave it, and still means an hour.
+ */
+const YOUTUBE_SESSION_LIMIT = /This content isn(?:'|’)t available, try again later/i;
 
 function unitMs(unit: string): number {
   const u = unit.toLowerCase();
@@ -167,14 +173,15 @@ function hintIn(text: string): number | null {
     const m = pattern.exec(text);
     if (m?.[1] !== undefined && m[2] !== undefined) return amountOf(m[1]) * unitMs(m[2]);
   }
-  return null;
+  return YOUTUBE_SESSION_LIMIT.test(text) ? HOUR_MS : null;
 }
 
 /**
  * How long a rate-limiting site said to wait, from yt-dlp's stderr: YouTube's "rate-limited by
- * YouTube for up to an hour", "try again in 30 seconds", a quoted Retry-After. yt-dlp never prints
+ * YouTube for up to an hour" (or its "isn't available, try again later", which means the same),
+ * "try again in 30 seconds", a quoted Retry-After. yt-dlp never prints
  * the response's headers, so this is all there is; null when the message gives no time. The
- * `ERROR:` lines are read first, last one first, as `classifyFailure` does.
+ * `ERROR:` lines are read first, the last one first, then the whole tail.
  */
 export function cooldownHintMs(stderr: readonly string[]): number | null {
   const errors = stderr.filter((line) => line.startsWith("ERROR:")).reverse();
