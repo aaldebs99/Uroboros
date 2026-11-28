@@ -1,7 +1,9 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   ApiErrorBody,
+  CancelledBatch,
   Download,
+  DownloadBatch,
   DownloadRequest,
   NewDownloadBody,
   NewSearchBody,
@@ -13,6 +15,7 @@ import {
 import { ApiError } from "../api/errors.ts";
 import { currentPrincipal } from "../api/principal.ts";
 import { requireAdmin } from "../auth/guard.ts";
+import { cancelBatch, discardRequest, listBatches } from "./batches.ts";
 import {
   cancelDownload,
   confirmDownload,
@@ -76,6 +79,41 @@ const getRequestRoute = createRoute({
   summary: "A pasted link: probing, its preview, or why it failed",
   request: { params: idParams },
   responses: { 200: json(DownloadRequest, "The request"), 404: error("No such request") },
+});
+
+const discardRoute = createRoute({
+  method: "delete",
+  path: "/api/downloads/requests/{id}",
+  tags: ["downloads"],
+  summary: "Discard a pasted playlist or channel still waiting for its pick, queueing nothing",
+  request: { params: idParams },
+  responses: {
+    204: { description: "Discarded" },
+    404: error("No such request"),
+    409: error("The request is not waiting for its pick"),
+  },
+});
+
+const batchesRoute = createRoute({
+  method: "get",
+  path: "/api/downloads/batches",
+  tags: ["downloads"],
+  summary:
+    "The caller's queued playlists and channels with videos still queued or downloading, newest first",
+  responses: { 200: json(z.array(DownloadBatch), "Playlists still downloading") },
+});
+
+const cancelBatchRoute = createRoute({
+  method: "post",
+  path: "/api/downloads/requests/{id}/cancel",
+  tags: ["downloads"],
+  summary: "Cancel every video of a queued playlist or channel still queued or downloading",
+  request: { params: idParams },
+  responses: {
+    200: json(CancelledBatch, "Cancelled"),
+    404: error("No such request"),
+    409: error("The request is not a queued playlist"),
+  },
 });
 
 const readyRoute = createRoute({
@@ -194,6 +232,24 @@ export function registerDownloadRoutes(app: OpenAPIHono, ctx: DownloadContext | 
   app.openapi(getRequestRoute, async (c) => {
     const row = await findRequest(need(ctx).db, currentPrincipal(c), c.req.valid("param").id);
     return c.json(toRequest(row), 200);
+  });
+
+  app.openapi(discardRoute, async (c) => {
+    await discardRequest(need(ctx).db, currentPrincipal(c).userId, c.req.valid("param").id);
+    return c.body(null, 204);
+  });
+
+  app.openapi(batchesRoute, async (c) => {
+    return c.json(await listBatches(need(ctx).db, currentPrincipal(c).userId), 200);
+  });
+
+  app.openapi(cancelBatchRoute, async (c) => {
+    const result = await cancelBatch(
+      need(ctx),
+      currentPrincipal(c).userId,
+      c.req.valid("param").id,
+    );
+    return c.json(result, 200);
   });
 
   app.openapi(readyRoute, async (c) => {

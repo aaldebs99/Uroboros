@@ -13,6 +13,7 @@ export {
 } from "./push.ts";
 export { LOGIN_SITES, LoginSite, SiteLoginBody, SiteLogins, SiteLoginView } from "./siteLogins.ts";
 export { DependencyName, Info, Liveness, Readiness, ReadinessStatus } from "./system.ts";
+export { CancelledBatch, DownloadBatch } from "./downloadBatches.ts";
 export {
   AdminHealth,
   CooldownScope,

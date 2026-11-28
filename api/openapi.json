@@ -316,6 +316,17 @@
         ],
         "type": "string"
       },
+      "CancelledBatch": {
+        "properties": {
+          "cancelled": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cancelled"
+        ],
+        "type": "object"
+      },
       "ChangePasswordBody": {
         "properties": {
           "currentPassword": {
@@ -782,6 +793,47 @@
           "createdAt",
           "startedAt",
           "finishedAt"
+        ],
+        "type": "object"
+      },
+      "DownloadBatch": {
+        "properties": {
+          "done": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "playlist",
+              "channel"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "waiting": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "title",
+          "kind",
+          "waiting",
+          "done",
+          "failed"
         ],
         "type": "object"
       },
@@ -5842,6 +5894,29 @@
         ]
       }
     },
+    "/api/downloads/batches": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DownloadBatch"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Playlists still downloading"
+          }
+        },
+        "summary": "The caller's queued playlists and channels with videos still queued or downloading, newest first",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
     "/api/downloads/events": {
       "get": {
         "parameters": [
@@ -5912,6 +5987,48 @@
       }
     },
     "/api/downloads/requests/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Discarded"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The request is not waiting for its pick"
+          }
+        },
+        "summary": "Discard a pasted playlist or channel still waiting for its pick, queueing nothing",
+        "tags": [
+          "downloads"
+        ]
+      },
       "get": {
         "parameters": [
           {
@@ -5947,6 +6064,57 @@
           }
         },
         "summary": "A pasted link: probing, its preview, or why it failed",
+        "tags": [
+          "downloads"
+        ]
+      }
+    },
+    "/api/downloads/requests/{id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelledBatch"
+                }
+              }
+            },
+            "description": "Cancelled"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "No such request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorBody"
+                }
+              }
+            },
+            "description": "The request is not a queued playlist"
+          }
+        },
+        "summary": "Cancel every video of a queued playlist or channel still queued or downloading",
         "tags": [
           "downloads"
         ]
