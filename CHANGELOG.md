@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.1.5](https://github.com/aaldebs99/Uroboros/compare/0.1.4...0.1.5) (2026-11-28)
+
+
+### Features
+
+* **server:** hide a channel's videos from the library, as a playlist can ([022174f](https://github.com/aaldebs99/Uroboros/commit/022174f02c14ec6cf3f147c90a7a0744f16bf86a))
+* **web:** Hide from library on a channel's page ([96f8614](https://github.com/aaldebs99/Uroboros/commit/96f8614598cbf3d5c37018d5590b71b48c1ceb31))
+* **server:** media_edits, a person's own details of a video they hold ([6c696d6](https://github.com/aaldebs99/Uroboros/commit/6c696d60a9ccae2e6c52b56e160bcc7df458b58b))
+* **server:** the library, its channels and the item show a person's own details ([325f350](https://github.com/aaldebs99/Uroboros/commit/325f35094794f8cb579cbdb0791806e4b6dbbe8c))
+* **server:** search finds a video in its owner's own words ([e3db082](https://github.com/aaldebs99/Uroboros/commit/e3db082a1914f40b286fafab340db6668ff9d46a))
+* **server:** shares, public links, copies and clips show their owner's own details ([6dba2fd](https://github.com/aaldebs99/Uroboros/commit/6dba2fde143f8c77da60cff7586e32363fe2440d))
+* **server:** give a video a title, description and channel of your own ([5fd1f3a](https://github.com/aaldebs99/Uroboros/commit/5fd1f3a6c1455707c79c81272bfef8efa99506c0))
+* **server:** adding a shared video keeps the sharer's own details ([4cb5e96](https://github.com/aaldebs99/Uroboros/commit/4cb5e968205bcdbad01fcc091d0c5dbec124fb97))
+* **web:** Edit details on any video of yours, for you alone ([de1bc1f](https://github.com/aaldebs99/Uroboros/commit/de1bc1f2587350a88c7098b977000f2b83fd19cb))
+* **web:** Edit details moves to the ⋮ menu, and Reset asks first ([6dd63ce](https://github.com/aaldebs99/Uroboros/commit/6dd63ce2b15dd6b6a45aa08fd1fdccf84ee42de5))
+* **web:** Remove moves to the ⋮ menu ([17b6ec6](https://github.com/aaldebs99/Uroboros/commit/17b6ec6d4f4521faaa90979412e32489a8562e88))
+* **server:** log each rate limit a site answers with, and tell each held item's person in the bell ([5388abb](https://github.com/aaldebs99/Uroboros/commit/5388abb09bc1df486afa861b6fdd129f29752045))
+* **server:** each replica checks in for Admin › Health ([5d55cbe](https://github.com/aaldebs99/Uroboros/commit/5d55cbe0c39b6d65cacd2604ab051f301199f27f))
+* **server:** GET /api/admin/health, the replicas, version and rate limits for admins ([d0861b5](https://github.com/aaldebs99/Uroboros/commit/d0861b53f012e76cfccffb0f1e6a47e48564f09d))
+* **web:** Admin › Health, the replicas, version and rate limits ([fe88968](https://github.com/aaldebs99/Uroboros/commit/fe88968fadaca9214ef0496796d253e7c86e9959))
+* **web:** settings pages sit centered in the page ([b410ee1](https://github.com/aaldebs99/Uroboros/commit/b410ee1089459532ff89f4d84f1b0ab27f41c8d1))
+
+
+### Bug Fixes
+
+* **web:** say why a description or channel left over its limit can't be saved ([fc814ac](https://github.com/aaldebs99/Uroboros/commit/fc814acc617baf316bfe6e5a14ca85edd0719d08))
+* **server:** wait longer between rate-limited retries, and longest for subtitles ([a26f939](https://github.com/aaldebs99/Uroboros/commit/a26f939109043ac06f92111cb516239cfb66d1a4))
+
+
+### Code Refactoring
+
+* **contract:** LibraryItem's doc comment back above it ([96692b6](https://github.com/aaldebs99/Uroboros/commit/96692b60044605b38983ba2d17afb8e589895e4a))
+
+
+### Documentation
+
+* Hiding from the library covers channels ([c7311a5](https://github.com/aaldebs99/Uroboros/commit/c7311a58b4bb5048029c623033669bf9ca5eebc4))
+* a person's own details of a video ([5219c37](https://github.com/aaldebs99/Uroboros/commit/5219c3764f27edb2c7252f487fe53174a0cad02b))
+* Admin › Health, the rate-limit log and the bell's Waiting entries ([ad6190c](https://github.com/aaldebs99/Uroboros/commit/ad6190c004b55631ffd6f26818b1fd0295443f8a))
+* replicas rows go at each check-in, not the leader's sweep ([900df65](https://github.com/aaldebs99/Uroboros/commit/900df65b8e4a59623488b7dd7180cdc5d11949d8))
+
+
+### Miscellaneous Chores
+
+* a Claude Code rule that keeps SQL parameterized ([b92d3f5](https://github.com/aaldebs99/Uroboros/commit/b92d3f50b46e6341cbdb3061706033b7be468398))
+* the SQL rule allows the tests' own pg clients and database names ([0b70675](https://github.com/aaldebs99/Uroboros/commit/0b7067578b0d1b53cfa763cb35cce319fd3ff121))
 ## [0.1.4](https://github.com/aaldebs99/Uroboros/compare/0.1.3...0.1.4) (2026-11-27)
 
 
