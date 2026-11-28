@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.7](https://github.com/aaldebs99/Uroboros/compare/0.1.6...0.1.7) (2026-11-28)
+
+
+### Bug Fixes
+
+* **ytdlp:** YouTube's captcha challenge pauses the site like a rate limit ([21a2081](https://github.com/aaldebs99/Uroboros/commit/21a208135974f4d149579011be3aa581889fb1c4))
+* **subscriptions:** a limit on a video a filter probes pauses the site ([0bb4a05](https://github.com/aaldebs99/Uroboros/commit/0bb4a0540aaa8ca16286e2e98eb37efdce27b7ad))
+* **ytdlp:** YouTube's IP block is a limit, and its captcha waits an hour ([f5ebd3b](https://github.com/aaldebs99/Uroboros/commit/f5ebd3bedbd086c5f907999e7906b4e8d5ccebb4))
+
+
+### Documentation
+
+* nobody edits a built-in profile in place ([d2591f9](https://github.com/aaldebs99/Uroboros/commit/d2591f9229dc13ce74e0af97dbb9213b16196148))
 ## [0.1.6](https://github.com/aaldebs99/Uroboros/compare/0.1.5...0.1.6) (2026-11-28)
 
 
