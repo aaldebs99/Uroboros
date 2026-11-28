@@ -1,5 +1,5 @@
-# Transcode playback sessions with VA-API (AMD; Intel untested; docs/transcoding.md). Add it to the
-# stack:
+# Transcode playback sessions and hover previews with VA-API (AMD; Intel untested;
+# docs/transcoding.md). Add it to the stack:
 #
 #   UROBOROS_RENDER_GID=$(getent group render | cut -d: -f3) \
 #     docker compose -f compose.yaml -f compose/gpu/vaapi.yaml up -d
