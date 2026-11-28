@@ -1,6 +1,7 @@
 import type { DownloadErrorKind } from "@uroboros/contract";
 import { probe } from "@uroboros/ytdlp";
 import { toDownloadError } from "../downloads/errors.ts";
+import { isRateLimit } from "../downloads/rateLimits.ts";
 import type { WorkerDeps } from "../worker/deps.ts";
 import { ytdlpOptions } from "../worker/probe.ts";
 import { decide, withDelay } from "./filters.ts";
@@ -29,7 +30,9 @@ const FINAL_FAILURES: Partial<Record<DownloadErrorKind, string>> = {
 
 /**
  * The candidate with what a full probe of it found; a final failure's reason ("age-restricted");
- * or null when it could not be probed this time.
+ * or null when it could not be probed this time. A rate limit throws, so the check records the
+ * site's cooldown and waits it out (`waitIfLimited` in check.ts) instead of probing the next video
+ * of a site that just refused one.
  */
 async function probed(
   deps: WorkerDeps,
@@ -54,7 +57,7 @@ async function probed(
       mediaType: info.mediaType ?? c.mediaType,
     };
   } catch (err) {
-    if (signal?.aborted === true) throw err;
+    if (signal?.aborted === true || isRateLimit(err)) throw err;
     const reason = FINAL_FAILURES[toDownloadError(err).kind];
     if (reason !== undefined) return { reason };
     deps.logger.warn({ err, url: c.url, subscriptionId: sub.id }, "probing a video failed");

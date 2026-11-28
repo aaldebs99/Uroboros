@@ -83,6 +83,21 @@ describe("classifyFailure", () => {
     ],
     ["ERROR: [youtube] abc: HTTP Error 429: Too Many Requests", "rate_limited"],
     ["ERROR: [youtube] abc: Sign in to confirm you’re not a bot", "rate_limited"],
+    // yt-dlp's wording when YouTube's answer carries a captcha: before `unavailable`, and with no
+    // other rule to match, so the site pauses instead of each video failing or retrying in turn.
+    [
+      "ERROR: [youtube] abc: Video unavailable. This content isn't available, try again later. YouTube is requiring a captcha challenge before playback",
+      "rate_limited",
+    ],
+    [
+      "ERROR: [youtube] abc: This content isn't available, try again later. YouTube is requiring a captcha challenge before playback",
+      "rate_limited",
+    ],
+    // yt-dlp's word when every YouTube client's answer was refused: the server's IP is blocked.
+    [
+      "ERROR: [youtube] abc: All player responses are invalid. Your IP is likely being blocked by Youtube",
+      "rate_limited",
+    ],
     [
       "ERROR: [generic] x: Unable to download webpage: <urlopen error [Errno -3] Temporary failure in name resolution>",
       "network",

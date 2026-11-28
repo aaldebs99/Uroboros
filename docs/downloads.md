@@ -102,10 +102,15 @@ instead of finishing quietly.
 ## Rate limits
 
 A site that answers yt-dlp with a rate limit (`rate_limited`: an HTTP 429, "Too Many Requests",
-YouTube's "rate-limited" or bot check) puts the site in a **cooldown** (`site_cooldowns`, by the
+YouTube's "rate-limited", its bot check, its captcha challenge, which yt-dlp words "requiring a
+captcha", or its IP block, "Your IP is likely being blocked"; no other site's captcha, since a site
+that always asks for one would wait forever) puts
+the site in a **cooldown** (`site_cooldowns`, by the
 link's host without `www.`, `m.`, `mobile.` or `music.`; youtu.be is youtube.com;
 `src/downloads/rateLimits.ts`). It lasts as long as the site said, when its message says
-(`cooldownHintMs` in `@uroboros/ytdlp`: YouTube's "for up to an hour", "try again in 30 seconds",
+(`cooldownHintMs` in `@uroboros/ytdlp`: YouTube's "for up to an hour", or its "isn't available,
+try again later", which means the same and which yt-dlp leaves as it is beside a captcha, "try
+again in 30 seconds",
 a quoted Retry-After; yt-dlp never prints the response's headers), and otherwise an estimate that
 doubles with each limit in a row: 5, 10, 20… minutes, up to 2 hours, and for subtitles (which nobody
 waits on to watch) 15, 30, 60… minutes, up to 6 hours. A cooldown already running longer stands,
@@ -114,7 +119,9 @@ and the first run the site answers after it ends clears the count.
 While a site cools down, nothing asks it anything: a fetch, a pasted link's probe, a
 subscription check and a hover preview's download ([library.md](library.md#hover-previews)) each go
 back to their queue for just after the cooldown (spread over 15 s), without spending an attempt,
-and a run the site limits does the same. A waiting download is
+and a run the site limits does the same. That includes the probe a subscription check runs on a
+video a filter needs (`probed` in `src/subscriptions/decisions.ts`): the check records the cooldown
+and waits it out, recording nothing, rather than probing the next video. A waiting download is
 `queued` with `errorKind: "rate_limited"` and `retryAt`, and a waiting link stays `probing` with
 the same two; the web says "The site is limiting requests. Trying again at 14:05." A rate limit
 never fails anything, however long it lasts; a person can cancel a waiting download.

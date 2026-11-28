@@ -29,8 +29,11 @@ afterAll(async () => {
 
 let lastUser = "";
 
-/** A subscription to a channel on `site`, following its Videos tab (its person: `lastUser`). */
-async function subscription(site: string): Promise<string> {
+/**
+ * A subscription to a channel on `site`, following its Videos tab (its person: `lastUser`); with
+ * `uploadedAfter`, a filter only a full probe of each video can decide.
+ */
+async function subscription(site: string, uploadedAfter?: string): Promise<string> {
   const u = await signedIn(t.db, { username: `crl${String(++n)}` });
   lastUser = u.userId;
   const url = `https://${site}/@chan`;
@@ -48,7 +51,8 @@ async function subscription(site: string): Promise<string> {
       tabs: feeds,
       profile_id: profileId,
       interval_minutes: 360,
-      backfill: "none",
+      backfill: uploadedAfter === undefined ? "none" : "all",
+      uploaded_after: uploadedAfter ?? null,
     })
     .returning("id")
     .executeTakeFirstOrThrow();
@@ -93,6 +97,39 @@ describe("a subscription check the site rate-limits", () => {
       }),
     ]);
     expect(await listedNotices(t.db, lastUser)).toEqual([]);
+  });
+
+  it("waits out a limit on a video it probes for a filter, recording nothing", async () => {
+    // The full probe is where YouTube's player answers; its captcha must pause the site rather
+    // than leave the video "could not be checked" and go on to probe the next.
+    const id = await subscription("crl4.example", "2026-11-01");
+    const watch = "https://crl4.example/watch?v=c0";
+    const captcha =
+      "ERROR: [youtube] c0: This content isn't available, try again later. YouTube is requiring a captcha challenge before playback\n";
+    const err = await check(id, {
+      steps: [],
+      variants: [
+        {
+          whenArg: "https://crl4.example/@chan/videos",
+          steps: [
+            { stdout: listing("https://crl4.example/@chan/videos", [{ id: "c0", url: watch }]) },
+          ],
+        },
+        { whenArg: watch, steps: [{ stderr: captcha }], exitCode: 1 },
+      ],
+    });
+    expect(err).toBeInstanceOf(RequeueError);
+    expect(await activeCooldown(t.db, "crl4.example", "site")).not.toBeNull();
+    expect(await loggedLimits(t.db, "crl4.example")).toEqual([
+      expect.objectContaining({ source: "subscription", url: "https://crl4.example/@chan" }),
+    ]);
+    expect(await state(id)).toMatchObject({ failures: 0, lease_until: null });
+    const recorded = await t.db
+      .selectFrom("subscription_items")
+      .select("video_id")
+      .where("subscription_id", "=", id)
+      .execute();
+    expect(recorded).toEqual([]);
   });
 
   it("asks nothing of a site that is cooling down", async () => {
