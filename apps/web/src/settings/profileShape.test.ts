@@ -43,18 +43,33 @@ describe("quality", () => {
 });
 
 describe("audio", () => {
-  it("takes M4A as it comes when there is one, else the best audio, converted", () => {
-    expect(audioSelectorFor("m4a")).toBe("ba[ext=m4a]/ba/b");
-    expect(audioSelectorFor("mp3")).toBe("ba/b");
-    expect(audioSelectorFor("opus")).toBe("ba/b");
+  it("takes Opus or M4A as it comes, stereo first, else the best stereo audio, converted", () => {
+    // yt-dlp ranks channels above the codec: a bare `ba/b` takes a 5.1 track where one is offered.
+    expect(audioSelectorFor("opus")).toBe("ba[acodec=opus]/ba[audio_channels<=2]/ba/b");
+    expect(audioSelectorFor("m4a")).toBe("ba[ext=m4a][audio_channels<=2]/ba[ext=m4a]/ba/b");
+    expect(audioSelectorFor("mp3")).toBe("ba[audio_channels<=2]/ba/b");
+  });
+
+  it("keeps surround for the lossless formats, which hold it", () => {
+    expect(audioSelectorFor("flac")).toBe("ba/b");
+    expect(audioSelectorFor("wav")).toBe("ba/b");
   });
 
   it("knows the selector its format writes from any other, hand-written or another format's", () => {
-    expect(isStandardAudioSelector("ba/b", "mp3")).toBe(true);
-    expect(isStandardAudioSelector(" ba[ext=m4a]/ba/b ", "m4a")).toBe(true);
+    expect(isStandardAudioSelector("ba[audio_channels<=2]/ba/b", "mp3")).toBe(true);
+    expect(
+      isStandardAudioSelector(" ba[ext=m4a][audio_channels<=2]/ba[ext=m4a]/ba/b ", "m4a"),
+    ).toBe(true);
+    expect(isStandardAudioSelector("ba/b", "flac")).toBe(true);
     expect(isStandardAudioSelector("ba/b", "m4a")).toBe(false);
-    expect(isStandardAudioSelector("ba[ext=m4a]/ba/b", "opus")).toBe(false);
+    expect(isStandardAudioSelector("ba[audio_channels<=2]/ba/b", "opus")).toBe(false);
     expect(isStandardAudioSelector("ba[abr>128]/ba", "opus")).toBe(false);
+  });
+
+  it("counts the selectors from before stereo came first as written by hand, so they keep their files", () => {
+    expect(isStandardAudioSelector("ba/b", "mp3")).toBe(false);
+    expect(isStandardAudioSelector("ba/b", "opus")).toBe(false);
+    expect(isStandardAudioSelector("ba[ext=m4a]/ba/b", "m4a")).toBe(false);
   });
 });
 
@@ -84,7 +99,7 @@ describe("describeProfile", () => {
     expect(
       describeProfile(
         profile({
-          format: "ba/b",
+          format: "ba[audio_channels<=2]/ba/b",
           audioOnly: true,
           audioFormat: "mp3",
           extraArgs: ["--audio-quality=0"],

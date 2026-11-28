@@ -76,6 +76,19 @@ describe("format profiles", () => {
     for (const p of audio) expect(p.videoCodec).toBeNull();
   });
 
+  it("takes stereo first in the built-in audio profiles, and Opus as the site serves it", async () => {
+    // yt-dlp ranks channels above the codec, so a bare `ba/b` takes a 5.1 track where one is
+    // offered (YouTube's AAC 5.1), converting it for Opus and MP3.
+    const audio = (await list())
+      .filter((p) => p.builtIn && p.audioOnly)
+      .map((p) => [p.name, p.format, p.audioFormat]);
+    expect(audio).toEqual([
+      ["Audio only (Opus)", "ba[acodec=opus]/ba[audio_channels<=2]/ba/b", "opus"],
+      ["Music (MP3)", "ba[audio_channels<=2]/ba/b", "mp3"],
+      ["Podcasts (M4A)", "ba[ext=m4a][audio_channels<=2]/ba[ext=m4a]/ba/b", "m4a"],
+    ]);
+  });
+
   it("keeps a video codec, and refuses one an audio-only profile or WebM can't take", async () => {
     const p = FormatProfile.parse(
       await (await create({ videoCodec: "vp9", mergeFormat: "webm" })).json(),
@@ -214,7 +227,7 @@ describe("ytdlpArgsFor", () => {
     expect(music).toBeDefined();
     if (music === undefined) return;
     expect(ytdlpArgsFor(music)).toEqual({
-      format: "ba/b",
+      format: "ba[audio_channels<=2]/ba/b",
       extraArgs: [
         "--extract-audio",
         "--audio-format=mp3",
