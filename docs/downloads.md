@@ -102,7 +102,9 @@ instead of finishing quietly.
 ## Rate limits
 
 A site that answers yt-dlp with a rate limit (`rate_limited`: an HTTP 429, "Too Many Requests",
-YouTube's "rate-limited" or bot check) puts the site in a **cooldown** (`site_cooldowns`, by the
+YouTube's "rate-limited", its bot check or its captcha challenge, which yt-dlp words "requiring a
+captcha"; no other site's captcha, since a site that always asks for one would wait forever) puts
+the site in a **cooldown** (`site_cooldowns`, by the
 link's host without `www.`, `m.`, `mobile.` or `music.`; youtu.be is youtube.com;
 `src/downloads/rateLimits.ts`). It lasts as long as the site said, when its message says
 (`cooldownHintMs` in `@uroboros/ytdlp`: YouTube's "for up to an hour", "try again in 30 seconds",

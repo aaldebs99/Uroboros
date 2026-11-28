@@ -61,9 +61,11 @@ export class YtDlpError extends Error {
 const RULES: readonly (readonly [YtDlpErrorKind, RegExp])[] = [
   ["unsupported_url", /\bUnsupported URL\b/i],
   ["age_restricted", /confirm your age|age[- ]restricted|inappropriate for some users/i],
+  // YouTube's captcha only, in yt-dlp's words for it: a limit is waited out, never failed, so a
+  // site that always wants a captcha must not match.
   [
     "rate_limited",
-    /HTTP Error 429|Too Many Requests|rate[- ]limit|confirm you(?:'|’)?re not a bot|temporarily blocked/i,
+    /HTTP Error 429|Too Many Requests|rate[- ]limit|confirm you(?:'|’)?re not a bot|temporarily blocked|requiring a captcha/i,
   ],
   [
     "geo_blocked",

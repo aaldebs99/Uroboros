@@ -59,6 +59,14 @@ describe("a rate-limited run", () => {
     expect(err.retryAfterMs).toBe(3_600_000);
   });
 
+  it("waits out YouTube's captcha challenge as a limit, for the estimated time", () => {
+    const err = run([
+      "ERROR: [youtube] abc: This content isn't available, try again later. YouTube is requiring a captcha challenge before playback",
+    ]);
+    expect(err.kind).toBe("rate_limited");
+    expect(err.retryAfterMs).toBeNull();
+  });
+
   it("carries none without a hint, nor for other failures", () => {
     expect(run(["ERROR: HTTP Error 429: Too Many Requests"]).retryAfterMs).toBeNull();
     expect(run(["ERROR: Private video. try again in 5 minutes"]).retryAfterMs).toBeNull();
