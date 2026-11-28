@@ -52,7 +52,12 @@ request handler.
      list again. This is how a playlist added from the Ctrl+K palette (or the Download a link
      dialog, which close while the link is still being looked at) is found again;
    - past its day it reads as gone at once (404, so the picker says it expired), and the leader's
-     sweeper deletes it within the hour.
+     sweeper deletes it within the hour;
+   - the picker's **Cancel playlist** (or Cancel channel) throws it away at once, after asking
+     (`DELETE /api/downloads/requests/{id}`, `discardRequest` in `src/downloads/batches.ts`): only
+     the person's own, and only while it waits for its pick (409 otherwise, since a probe still
+     looking at the link would write into a missing row). Nothing of it was queued; it leaves Ready
+     to pick and the bell with one `requests` event.
 4. Queueing a download (`queueDownload` in `src/downloads/dispatch.ts`) snapshots the profile's
    arguments and revision on the row. If the rendition is already stored, the download is `done`
    at once and a library entry is added; otherwise it waits as `queued`.
@@ -191,6 +196,18 @@ the fetch key is the fetch stopped: a waiting job is removed, a running one gets
 `uroboros_cancel` channel ([jobs.md](jobs.md)), and the replica running it aborts (yt-dlp's process
 group is killed and its partial files removed). Retrying a failed or cancelled download queues it again from scratch.
 Members act on their own downloads; admins on anyone's.
+
+### Cancelling a playlist
+
+A queued playlist or channel whose videos still wait or download is listed on Downloads, under
+"Downloading from playlists" (`GET /api/downloads/batches`, `listBatches`: the person's own
+requests in `queued`, not a single video nor a search's results, with how many wait, are done and
+failed). **Cancel the rest** cancels every one of its videos still queued or running together,
+after asking (`POST /api/downloads/requests/{id}/cancel`, `cancelBatch`): one statement, then each
+fetch nobody else waits on is stopped as above, the person's next downloads are dispatched, and
+one `requests` event refreshes their open tabs (rather than one per video). What already downloaded
+stays, a failed one stays failed, and each cancelled one can be retried on its own. Like a single
+cancel, it sends no "ready" notice for the videos that finished.
 
 ## Live progress
 
