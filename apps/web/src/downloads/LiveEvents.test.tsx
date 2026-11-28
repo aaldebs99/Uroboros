@@ -66,6 +66,13 @@ describe("LiveEventsProvider", () => {
     for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
   });
 
+  it("fetches the playlists still downloading again after a gap, when their counts may have moved unheard", () => {
+    const { client, deliver } = renderLive();
+    client.setQueryData(downloadKeys.batches, []);
+    deliver({ kind: "gap" });
+    expect(client.getQueryState(downloadKeys.batches)?.isInvalidated).toBe(true);
+  });
+
   it("fetches the playlists still downloading again when a download changes state", () => {
     const { client, deliver } = renderLive();
     client.setQueryData(downloadKeys.batches, []);

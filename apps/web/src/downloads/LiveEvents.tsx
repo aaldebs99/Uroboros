@@ -34,7 +34,13 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
     () =>
       followLiveEvents((message) => {
         if (message.kind === "gap") {
-          for (const queryKey of [lists.list, lists.active, noticesKey, previewsKey]) {
+          for (const queryKey of [
+            lists.list,
+            lists.active,
+            noticesKey,
+            previewsKey,
+            downloadKeys.batches,
+          ]) {
             void client.invalidateQueries({ queryKey });
           }
           void client.invalidateQueries({ queryKey: downloadKeys.ready, exact: true });
