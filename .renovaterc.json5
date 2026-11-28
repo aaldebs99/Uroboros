@@ -42,9 +42,9 @@
   // so automerge never fires. A behind-but-clean branch still merges fine.
   rebaseWhen: "conflicted",
 
-  // No cap on new or open PRs (config:recommended sets 2 an hour and 10 open). Renovate runs twice
-  // a day, so the hourly cap meant four PRs a day and a queue that never drained; the soak below
-  // and automerge on green CI are what pace updates here.
+  // No cap on new or open PRs (config:recommended sets 2 an hour and 10 open). Renovate runs every
+  // 5 hours (renovate.yml), so the hourly cap meant a few PRs a day and a queue that never
+  // drained; the soak below and automerge on green CI are what pace updates here.
   prHourlyLimit: 0,
   prConcurrentLimit: 0,
 

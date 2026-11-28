@@ -333,7 +333,7 @@ Releases come from a PR. On every push to main, `release-pr.yml` proposes the ne
 section prepended. Merging it publishes the release, and `release.yml` then builds the image,
 smoke-tests it, and pushes `:X.Y.Z`, `:X.Y` and `:latest` to both `<REGISTRY>/aaldebs99/uroboros`
 and `ghcr.io/aaldebs99/uroboros`, one build with one digest. Pushes to main publish `:main` to
-both. `renovate.yml` runs a self-hosted Renovate twice a day.
+both. `renovate.yml` runs a self-hosted Renovate every 5 hours.
 
 The repository needs these Actions variables and secrets:
 
